@@ -1,0 +1,58 @@
+# .gitignore racine du monorepo.
+#
+# backend/.gitignore et frontend/.gitignore couvrent déjà en détail leurs
+# arborescences respectives ; ce fichier reprend les mêmes motifs au niveau du
+# dépôt (utile si un venv, un node_modules ou un artefact de test apparaît
+# ailleurs que dans les emplacements attendus, ex. scripts/, contracts/) et
+# ajoute les artefacts propres aux outils transverses (CI locale, éditeurs, OS,
+# suites de tests frontend en cours d'ajout par qa-tests : coverage, Playwright).
+
+# --- Python (backend) ---
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.db
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# --- Node / frontend ---
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Tests frontend (vitest / Playwright, en cours d'ajout par qa-tests) ---
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# --- Build / packaging générique ---
+build/
+
+# --- Éditeurs ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Secrets / config locale ---
+.env
+.env.local
+.env.*.local
