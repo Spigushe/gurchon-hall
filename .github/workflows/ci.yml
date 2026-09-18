@@ -1,0 +1,117 @@
+name: CI
+
+# Rappel (cf. CLAUDE.md §3, §8, skill ci-cd-deploiement) : la catégorie "PWA"
+# de Lighthouse a été retirée en v12. Ce pipeline ne fait donc pas tourner
+# Lighthouse et ne vise aucun "score PWA" ; la validation d'installabilité
+# porte sur les critères réels (manifest, icônes, service worker), via
+# scripts/check-pwa-installability.mjs. HTTPS n'est vérifiable qu'à l'échelle
+# d'un déploiement réel (pas d'objet de ce pipeline, cf. note de démarrage /
+# retour DevOps — script utilisable en mode `--url` une fois un déploiement
+# disponible).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (FastAPI / pytest / contrat OpenAPI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install backend (editable, avec dépendances de dev)
+        working-directory: backend
+        run: python -m pip install -e ".[dev]"
+
+      - name: Tests backend (pytest)
+        working-directory: backend
+        run: python -m pytest
+
+      # Étape séparée et explicite (garde-fou contract-first, cf. CLAUDE.md
+      # §7/§10) : même si test_openapi_contract.py couvre déjà cette
+      # vérification via subprocess, on veut un échec CI directement lisible
+      # comme "contrat désynchronisé" plutôt que noyé dans le rapport pytest.
+      - name: Contrat OpenAPI à jour (contracts/openapi.json)
+        working-directory: backend
+        run: python scripts/export_openapi.py --check
+
+  frontend:
+    name: Frontend (Vite / build / tests / installabilité PWA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci
+
+      # Détection dynamique des scripts npm disponibles plutôt que de les
+      # présumer : au moment de la rédaction de ce workflow, qa-tests ajoute
+      # en parallèle vitest et Playwright à frontend/package.json. Les scripts
+      # "test" (vitest) et "test:e2e" (Playwright) y figurent déjà à la date
+      # d'écriture (18/09/2026), mais ce contrôle protège contre un futur
+      # renommage ou un package.json revenu en arrière sur une autre branche :
+      # dans ce cas l'étape correspondante est explicitement signalée comme
+      # ignorée plutôt que de faire échouer tout le job sur un script absent.
+      - name: Détecter les scripts de test frontend disponibles
+        id: fe_scripts
+        working-directory: frontend
+        run: |
+          HAS_TEST=$(node -p "!!((require('./package.json').scripts)||{}).test")
+          HAS_E2E=$(node -p "!!((require('./package.json').scripts)||{})['test:e2e']")
+          echo "has_test=$HAS_TEST" >> "$GITHUB_OUTPUT"
+          echo "has_e2e=$HAS_E2E" >> "$GITHUB_OUTPUT"
+
+      - name: Avertir si des scripts de test frontend manquent
+        if: steps.fe_scripts.outputs.has_test != 'true' || steps.fe_scripts.outputs.has_e2e != 'true'
+        run: |
+          echo "::warning::frontend/package.json n'a pas (ou plus) de script 'test' et/ou 'test:e2e' (vitest/Playwright) — étape de test correspondante ignorée. À recaler avec qa-tests."
+
+      - name: Build frontend (tsc -b && vite build)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Validation d'installabilité PWA (manifest, icônes, service worker)
+        run: node scripts/check-pwa-installability.mjs
+
+      - name: Tests unitaires frontend (vitest)
+        if: steps.fe_scripts.outputs.has_test == 'true'
+        working-directory: frontend
+        run: npm run test
+
+      - name: Installer les navigateurs Playwright
+        if: steps.fe_scripts.outputs.has_e2e == 'true'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # npm run test:e2e relance son propre build (cf. frontend/package.json :
+      # "test:e2e": "npm run build && playwright test") ; l'étape de build
+      # explicite ci-dessus reste utile car elle isole le contrôle
+      # d'installabilité du comportement interne du script e2e.
+      - name: Tests e2e frontend (Playwright, dont scénario offline)
+        if: steps.fe_scripts.outputs.has_e2e == 'true'
+        working-directory: frontend
+        run: npm run test:e2e
