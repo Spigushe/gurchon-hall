@@ -4,13 +4,17 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : dépôt à l'état de planification — seuls ce fichier, `README.md`,
-`LICENSE` et les définitions `.claude/agents/` + `.claude/skills/` existent. Aucun
-code n'est encore écrit : pas de `backend/`, `frontend/`, `contracts/`, pas de
-`package.json` ni `pyproject.toml`, donc **aucune commande de build/lint/test à ce
-stade**. La première tâche de code est le **Lot 0** (§12) : poser le squelette
-monorepo. Ne pas supposer que l'arborescence du §4 existe déjà avant de l'avoir
-vérifiée.
+**État actuel** : **Lot 0 livré** (squelette monorepo + FastAPI `/health` + React/Vite
++ PWA installable), non committé à ce stade. L'arborescence du §4 existe, avec en plus
+`scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
+
+Commandes réelles : `scripts/install.ps1`, `scripts/test.ps1`, `scripts/build.ps1`
+(équivalents `.sh` fournis). Back : `python -m pytest` depuis `backend/` (8 tests).
+Front : `npm run test` (vitest, 10 tests) et `npm run test:e2e` (Playwright, 6 tests,
+dont le scénario offline) depuis `frontend/`.
+
+Le Lot 0 n'a **pas** de base de données, de modèle de données, de client TS généré ni
+de couche offline IndexedDB : ce sont les Lots 1 et 3. Ne pas supposer qu'ils existent.
 
 ---
 
@@ -87,6 +91,9 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  ├─ src/ (features, components, api-client généré, offline/)
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
+├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
+│                               et check-pwa-installability.mjs
+├─ .github/                   ← workflow CI + Dependabot
 └─ .claude/
    ├─ agents/                 ← 1 fichier .md par agent (voir §8)
    └─ skills/                 ← 1 dossier SKILL.md par skill (voir §9)
@@ -243,23 +250,73 @@ Vue par agent :
 **Tranchées** : stack React + FastAPI + SQLite ; PWA offline-first comme objectif
 pilote ; contract-first ; monorepo.
 
-**Restantes** (à trancher avant de figer le schéma) :
-1. **Catalogue cartes** : complet (import d'une liste officielle VEKN — *source à
-   identifier et vérifier, non inventée ici*) ou limité aux cartes possédées ?
-2. **`DeckCarte`** : liste logique (composition) ou allocation physique des
-   exemplaires FR/EN (réservant le stock) ?
-3. **Adversaires** : suit-on seulement mes parties/résultats, ou aussi les autres
-   joueurs et leurs decks ?
-4. **Langue par deck** : gérée au niveau du deck, ou uniquement du stock ?
+Tranchées pendant le Lot 0 :
+
+- **Python 3.14** (`requires-python = ">=3.14"`) : seule version présente sur la
+  machine. Corollaire : **ne plus écrire `from __future__ import annotations`** dans
+  le code backend — l'évaluation différée des annotations est native en 3.14 (PEP 649).
+- **Pas de préfixe `/api`** sur les routes (cohérent avec §7). Conséquence PWA : les
+  routes API doivent rester hors precache et hors fallback de navigation du service
+  worker (`navigateFallbackDenylist`), sans quoi le SW les intercepte.
+- **Service worker en `autoUpdate`** (pas d'UI « nouvelle version » au Lot 0), avec un
+  point d'extension documenté si Barrin a besoin du mode `prompt`.
+- **CORS** piloté par la variable d'environnement `BACKEND_CORS_ORIGINS` (défaut dev :
+  `localhost:5173` + `127.0.0.1:5173`), non permissif en production.
+- **Contrat** : `contracts/openapi.json` est généré par `backend/scripts/export_openapi.py`,
+  jamais écrit à la main ; le mode `--check` sert de garde-fou en CI et en test.
+
+Tranchées (contexte VtES, avant Lot 1) :
+
+1. **Catalogue cartes complet**, importé depuis les CSV VEKN maintenus par
+   GiottoVerducci (pas de saisie manuelle du catalogue) :
+
+   ```python
+   CSV_SOURCES: dict[str, str] = {
+       "vtessets.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vtessets.csv",
+       "vtescrypt.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vtescrypt.csv",
+       "vteslib.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vteslib.csv",
+       "vteslibmeta.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vteslibmeta.csv",
+   }
+   ```
+
+2. **Une carte doit être en collection pour être ajoutée à un deck** — la
+   composition d'un deck s'appuie donc sur le stock possédé, pas sur une liste
+   logique déconnectée. Un **statut « proxy »** est nécessaire pour suivre les
+   cartes jouées en proxy (donc dans un deck sans être réellement possédées).
+   Langues possibles pour une carte : **FR, ES, EN, ou autre** — énumération
+   exacte à confirmer une fois le catalogue (point 1) importé et les langues
+   réellement présentes dans les CSV connues.
+3. **Adversaires** : on suit uniquement **mes propres parties/résultats**, pas
+   les decks ou résultats détaillés des autres joueurs.
+4. **Langue au niveau de la carte** (pas seulement du stock ni du deck) : un
+   deck peut donc contenir des cartes de langues différentes d'un exemplaire à
+   l'autre.
+
+*Implication pour le modèle §6, à reprendre par l'architecte-contrat au Lot 1* :
+ces décisions changent la portée de `Carte` (dimension langue), de `Stock`
+(statut proxy, lien plus direct au deck) et de `DeckCarte` (allocation depuis
+le stock plutôt que simple liste logique) — le tableau §6 reste tel quel pour
+l'instant et sera révisé à ce moment-là.
 
 ---
 
 ## 12. Roadmap
 
-1. **Lot 0 — Squelette + PWA minimale** : monorepo, FastAPI « hello », React+Vite,
-   manifest + service worker, installabilité vérifiée (critères réels / DevTools). *Priorité pilote.*
+1. **Lot 0 — Squelette + PWA minimale** — *livré, en attente de validation manuelle.*
+   Monorepo, FastAPI `/health`, React+Vite, manifest + service worker, tests
+   automatisés (pytest, vitest, Playwright offline), CI. Reste à confirmer à la main
+   dans Chrome DevTools : panneau Application (manifest sans avertissement, SW
+   *activated*), coupure réseau réelle, prompt d'installation sur mobile via HTTPS.
 2. **Lot 1 — Contrat & modèle** : entités, schémas Pydantic, OpenAPI, migrations,
    client TS généré.
+   Dettes de tooling à traiter en ouverture de lot, avant le modèle :
+   - **lockfile backend** — `pyproject.toml` n'a que des ranges. Piste retenue :
+     migration vers `uv` + `uv.lock`, qui donnerait aussi un écosystème Dependabot
+     fiable. Tant que `uv.lock` n'existe pas, l'entrée `pip` de `.github/dependabot.yml`
+     porte sur un `pyproject.toml` PEP 621 nu : **son comportement réel est à vérifier
+     au premier run**, pas à supposer.
+   - **lint** — aucun outillage (ni ESLint, ni ruff). À choisir avant que chaque
+     couche ne diverge, puis à câbler en CI.
 3. **Lot 2 — CRUD** : stock (EN/FR), decks + composition, avec validation de deck.
 4. **Lot 3 — Offline-first** : IndexedDB, saisie hors-ligne, `POST /sync`, conflits/idempotence.
 5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
