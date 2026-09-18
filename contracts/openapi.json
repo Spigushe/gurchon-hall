@@ -1,0 +1,64 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Suivi VtES API",
+    "description": "API du suivi de pratique VtES (collection EN/FR, decks, parties, tournois). Pilote d'une PWA offline-first destinée à être portée sur barrins-project.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Vérifie la disponibilité de l'API",
+        "description": "Sonde de connectivité : sert de test de bout en bout du squelette (Lot 0) et, plus tard, de vérification réseau côté PWA offline-first.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/HealthStatus",
+            "description": "État courant du service."
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Version de l'API (depuis pyproject.toml)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "version"
+        ],
+        "title": "HealthResponse",
+        "description": "Réponse de `GET /health`."
+      },
+      "HealthStatus": {
+        "type": "string",
+        "enum": [
+          "ok"
+        ],
+        "title": "HealthStatus",
+        "description": "État de disponibilité rapporté par l'API."
+      }
+    }
+  }
+}
