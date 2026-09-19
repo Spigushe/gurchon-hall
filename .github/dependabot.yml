@@ -4,6 +4,12 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    ignore:
+      # openapi-typescript 7 (peer typescript ^5) et typescript-eslint 8
+      # (peer <6.1) refusent TypeScript 7 : npm ci échoue. à retirer quand
+      # les deux le supportent.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # Écosystème natif "uv" (pas "pip") : backend/uv.lock est le fichier de
   # verrouillage suivi par Dependabot depuis la migration pip -> uv (Lot 1).
