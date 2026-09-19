@@ -40,15 +40,52 @@ de dériver du code.
 ## Côté front
 
 Le front ne réécrit jamais les types d'API à la main. Il consomme un client
-TypeScript généré depuis ce fichier. Le choix de l'outil de génération et la
-commande associée sont fixés au Lot 1, en même temps que les premières ressources
-métier ; au Lot 0, le contrat se limite à l'endpoint de santé et aucun client
-n'est encore généré.
+TypeScript généré depuis ce fichier.
 
-## État actuel (Lot 0)
+**Outil retenu (Lot 1)** : `openapi-typescript` + `openapi-fetch`.
+`openapi-typescript` ne génère que des *types* TS depuis `openapi.json` (pas de
+classe client par endpoint) ; `openapi-fetch` est un wrapper `fetch` très léger
+qui consomme ces types pour offrir des appels typés (`apiClient.GET("/health")`,
+etc.). Ce duo a été choisi pour rester cohérent avec un projet Vite minimal et
+pour ne pas entrer en tension avec la future couche offline (IndexedDB/sync,
+Lot 3, agent pwa-offline) : celle-ci gère elle-même le cycle de vie des requêtes
+(file d'attente, rejeu, idempotence), donc un générateur de client plus
+opinionated (SDK avec sa propre gestion de requêtes/erreurs) aurait ajouté une
+couche à contourner plutôt qu'à réutiliser.
 
-L'API expose `GET /health`, qui renvoie l'état du service et sa version. Cet
-endpoint sert de test de bout en bout du squelette et, plus tard, de sonde de
-connectivité pour la partie hors-ligne. Les ressources métier — cartes, stock,
-decks, parties, tournois, synchronisation — arrivent au Lot 1 et suivent la même
-règle : contrat d'abord, implémentation ensuite.
+Emplacement et commande, depuis `frontend/` :
+
+```
+npm run generate:client
+```
+
+qui exécute `openapi-typescript ../contracts/openapi.json -o ./src/api-client/schema.d.ts`
+et écrit les types dans `frontend/src/api-client/schema.d.ts`. Le wrapper
+`frontend/src/api-client/client.ts` instancie `openapi-fetch` avec le type
+`paths` généré et une `baseUrl` configurable via `VITE_API_BASE_URL` (par
+défaut `http://localhost:8000`, le port de dev du backend, cf.
+`scripts/dev.ps1` / `scripts/dev.sh`).
+
+**Politique de commit de `schema.d.ts`** : versionné dans git, pour la même
+raison qu'`openapi.json` l'est (cf. plus haut) — le diff du fichier généré dans
+une pull request montre directement l'effet d'un changement de contrat côté
+types front, sans obliger chaque relecteur à relancer la génération pour
+vérifier. Générer ce fichier est déterministe (même entrée → même sortie,
+vérifié en relançant `npm run generate:client` deux fois de suite sans diff) et
+rapide (pas d'appel réseau, pas de build), donc committer n'introduit pas de
+risque de dérive silencieuse : toute divergence entre `openapi.json` et
+`schema.d.ts` versionnés serait visible comme un diff non regénéré, repérable
+en CI en rejouant la commande et en comparant (même logique que le `--check`
+d'`export_openapi.py` côté back). Le fichier est néanmoins marqué comme généré
+(en-tête « Do not make direct changes ») et exclu du lint applicatif
+(`eslint.config.js`, `globalIgnores`) : jamais modifié à la main, jamais
+retouché pour satisfaire une règle de style.
+
+## État actuel (Lot 1)
+
+L'API expose toujours uniquement `GET /health` (les ressources métier — cartes,
+stock, decks, parties, tournois, synchronisation — arrivent au Lot 2 CRUD et
+suivants). Le Lot 1 met en place le pipeline de génération du client TS
+ci-dessus et le valide de bout en bout sur ce contrat minimal : il est prêt à
+s'enrichir automatiquement (relancer `npm run generate:client`) dès que le
+contrat gagnera de nouvelles routes.
