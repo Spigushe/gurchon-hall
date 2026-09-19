@@ -4,17 +4,24 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lot 0 livré** (squelette monorepo + FastAPI `/health` + React/Vite
-+ PWA installable), non committé à ce stade. L'arborescence du §4 existe, avec en plus
-`scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
+**État actuel** : **Lots 0 et 1 livrés** (non committés à ce stade pour le Lot 1).
+Lot 0 : squelette monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 :
+outillage (uv, ruff, ESLint), modèle relationnel SQLAlchemy (21 tables), migration
+Alembic initiale, schémas Pydantic, chaîne de génération du client TS. L'arborescence
+du §4 existe, avec en plus `scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
 
-Commandes réelles : `scripts/install.ps1`, `scripts/test.ps1`, `scripts/build.ps1`
-(équivalents `.sh` fournis). Back : `python -m pytest` depuis `backend/` (8 tests).
-Front : `npm run test` (vitest, 10 tests) et `npm run test:e2e` (Playwright, 6 tests,
-dont le scénario offline) depuis `frontend/`.
+Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
+(équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
+`uv run pytest` (520 tests), `uv run ruff check .`, `uv run alembic upgrade head`.
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 16 tests),
+`npm run test:e2e` (Playwright, 6 tests dont le scénario offline),
+`npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
-Le Lot 0 n'a **pas** de base de données, de modèle de données, de client TS généré ni
-de couche offline IndexedDB : ce sont les Lots 1 et 3. Ne pas supposer qu'ils existent.
+**Aucun endpoint métier n'existe encore** : l'API n'expose que `/health`, donc
+`contracts/openapi.json` et le client TS généré ne couvrent que cette route. Les
+routes `/cartes`, `/stock`, `/decks`… arrivent au Lot 2 ; les schémas Pydantic du
+Lot 1 (`backend/app/schemas/`) sont prêts mais non branchés. Pas de couche offline
+IndexedDB ni de `/sync` avant le Lot 3. Ne pas supposer qu'ils existent.
 
 ---
 
@@ -134,22 +141,32 @@ Ces règles métier sont la responsabilité de l'agent **architecte-contrat** (s
 
 ## 6. Modèle de données (relationnel)
 
-Entités et champs clés (détail complet maintenu côté agent architecte-contrat) :
+Modèle **livré au Lot 1** : `backend/app/models/` (SQLAlchemy 2.0), migration
+initiale `backend/migrations/versions/*_schema_initial_du_suivi_vtes.py`, 21 tables,
+noms en anglais technique. Les noms français de l'ancien tableau ne servent plus que
+de repère de vocabulaire (`Stock` → `card_copy`, `DeckCarte` → `deck_card`, etc.).
 
-| Entité | Champs clés | Rôle |
+| Domaine | Tables | Points clés |
 |---|---|---|
-| `Carte` | id, nom, nom_fr, categorie (Crypt/Library), type, clan, sect, capacite, groupe, texte | catalogue, identité indépendante de la langue |
-| `Stock` | carte_id, langue (EN/FR), quantite | inventaire par langue (PK composite carte+langue) |
-| `Deck` | id, nom, date_creation, statut, archetype, notes | decks joués |
-| `DeckCarte` | deck_id, carte_id, quantite, [langue?] | composition (decklist) |
-| `Joueur` | id, nom, est_moi | au minimum « Moi » |
-| `Tournoi` | id, nom, date_debut, date_fin, lieu, type_deck (Mono/Multi), format, nb_rondes, mon_classement | groupe de parties |
-| `Partie` | id, date_heure, lieu, tournoi_id?, numero_ronde?, type_ronde, nb_joueurs, notes | une partie |
-| `Participation` | id, partie_id, joueur_id, deck_id?, siege, vp, gw, notes | 1 ligne par joueur présent |
+| Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension |
+| Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
+| Collection | `card_copy`, `deck`, `deck_card` | `card_copy` PK (carte, langue) : `quantity_owned` + `proxy_allowed` ; `deck_card` PK (deck, carte, langue) avec **FK composite vers `card_copy`** : une carte hors collection est refusée en deck, un deck mélange les langues ; `quantity` + `proxy_quantity` |
+| Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
 
-Tables de référence (listes fermées) : `Clan`, `Discipline`, `Sect`, `TypeCarte`,
-`Extension`, `Lieu`, `Langue`. Normalisation many-to-many optionnelle en v1 pour
-`CarteType` et `CarteDiscipline` (sinon champ texte, à normaliser plus tard).
+Choix transverses : dates/heures stockées en **UTC** (les schémas d'entrée exigent un
+fuseau et normalisent) ; enums fermés (catégorie de carte, statut de deck, mono/multi,
+format, type de ronde, type de coût, exigence de discipline, type d'occurrence) portés
+par des CHECK nommés en base ; SQLite avec `PRAGMA foreign_keys = ON` sur chaque
+connexion (`backend/app/db/session.py`). Le contenu d'un bundle n'est pas une table :
+c'est la projection des occurrences `precon` qui le désignent (`BundleContentRead`),
+au format carte × exemplaires, entrée prévue pour verser un produit dans le stock.
+
+Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
+source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
+possédés) ; sémantique exacte du proxy (booléen par carte et langue aujourd'hui, à
+trancher avant le Lot 2 si un nombre de proxies possédés est voulu) ; VP/GW.
+Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
+l'expose pas, il reste dans le texte de carte).
 
 **Règles portant sur plusieurs lignes** (non exprimables en simples contraintes de
 colonne) → à implémenter en logique de service + tests :
@@ -267,36 +284,62 @@ Tranchées pendant le Lot 0 :
 
 Tranchées (contexte VtES, avant Lot 1) :
 
-1. **Catalogue cartes complet**, importé depuis les CSV VEKN maintenus par
-   GiottoVerducci (pas de saisie manuelle du catalogue) :
+1. **Catalogue cartes complet**, importé (pas de saisie manuelle du catalogue) depuis
+   **krcg**, source unique — décision prise pendant le Lot 1, en remplacement des
+   quatre CSV GiottoVerducci (`vtescsv`) initialement prévus :
 
    ```python
-   CSV_SOURCES: dict[str, str] = {
-       "vtessets.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vtessets.csv",
-       "vtescrypt.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vtescrypt.csv",
-       "vteslib.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vteslib.csv",
-       "vteslibmeta.csv": "https://github.com/GiottoVerducci/vtescsv/raw/refs/heads/main/vteslibmeta.csv",
+   KRCG_SOURCES: dict[str, str] = {
+       "vtes.json": "https://static.krcg.org/data/v5/vtes.json",
+       "expansions.json": "https://static.krcg.org/data/v5/expansions.json",
    }
    ```
+
+   Pourquoi : un seul jeu de fichiers, à jour plus souvent, avec traductions,
+   impressions et produits déjà structurés (licence MIT). `id` krcg = id VEKN.
+   Contrepartie : schéma tiers versionné (`v5`, mainteneur unique) → figer l'URL et
+   tester l'import contre un fixture. krcg dérive lui-même de `vtescsv`.
+   Traductions (vérifié le 2026-09-18) : **fr et es uniquement**, sur ~428 cartes sur
+   4149 — elles n'existent que pour les sets imprimés dans ces langues et la couverture
+   grandira. L'import du Lot 2 doit donc être **rejouable** (upsert de
+   `card_translation`, repli sur le nom EN) et normaliser les codes de langue
+   (krcg `fr` → table `language` `FR`). Non importés par choix : `rulings`,
+   `name_variants`, `variants`, `legal`, `formats`.
 
 2. **Une carte doit être en collection pour être ajoutée à un deck** — la
    composition d'un deck s'appuie donc sur le stock possédé, pas sur une liste
    logique déconnectée. Un **statut « proxy »** est nécessaire pour suivre les
    cartes jouées en proxy (donc dans un deck sans être réellement possédées).
-   Langues possibles pour une carte : **FR, ES, EN, ou autre** — énumération
-   exacte à confirmer une fois le catalogue (point 1) importé et les langues
-   réellement présentes dans les CSV connues.
+   Langues possibles pour une carte : **FR, ES, EN, ou autre** — les traductions
+   officielles disponibles (krcg / vekn.net) sont fr et es ; « autre » reste
+   possible pour les exemplaires possédés, d'où une table `language` ouverte.
 3. **Adversaires** : on suit uniquement **mes propres parties/résultats**, pas
    les decks ou résultats détaillés des autres joueurs.
 4. **Langue au niveau de la carte** (pas seulement du stock ni du deck) : un
    deck peut donc contenir des cartes de langues différentes d'un exemplaire à
    l'autre.
 
-*Implication pour le modèle §6, à reprendre par l'architecte-contrat au Lot 1* :
-ces décisions changent la portée de `Carte` (dimension langue), de `Stock`
-(statut proxy, lien plus direct au deck) et de `DeckCarte` (allocation depuis
-le stock plutôt que simple liste logique) — le tableau §6 reste tel quel pour
-l'instant et sera révisé à ce moment-là.
+*Résolu au Lot 1* : le modèle §6 a été révisé en conséquence — catalogue
+(`card`, sans langue) distinct des exemplaires possédés (`card_copy`, par langue,
+avec statut proxy), et composition de deck allouée depuis ces exemplaires
+(`deck_card`, FK composite vers `card_copy`).
+
+Tranchées pendant le Lot 1 :
+
+- **Tooling backend** : migration vers **uv** (`backend/uv.lock`, `uv sync --extra dev`
+  car `dev` est un extra et non un groupe de dépendances) ; Dependabot utilise
+  l'écosystème natif `uv` (vérifié dans la doc GitHub, pas `pip`).
+- **Lint** : **ruff** (`E`, `F`, `I`, `UP`, `target-version = "py314"`) côté back,
+  **ESLint 10** flat config + typescript-eslint côté front, tous deux dans la CI.
+  Limite connue : `ruff format` (ruff 0.16.8) corrompt `except (A, B):` sous cible
+  py314 — ne pas l'appliquer tant que ce n'est pas corrigé ; seul `ruff check` est câblé.
+- **Client TS** : `openapi-typescript` (types) + `openapi-fetch` (wrapper), versionnés
+  dans `frontend/src/api-client/` ; un test vitest vérifie que `schema.d.ts` suit
+  `contracts/openapi.json`.
+- **Scripts** : un point d'entrée unique `scripts/run.ps1` / `run.sh` avec sous-commandes.
+- **Alembic** : `render_as_batch=True` (SQLite). La révision initiale a été amendée en
+  place pendant le lot car jamais committée ; à partir du premier commit, toute
+  évolution passe par une **nouvelle révision**.
 
 ---
 
@@ -307,17 +350,17 @@ l'instant et sera révisé à ce moment-là.
    automatisés (pytest, vitest, Playwright offline), CI. Reste à confirmer à la main
    dans Chrome DevTools : panneau Application (manifest sans avertissement, SW
    *activated*), coupure réseau réelle, prompt d'installation sur mobile via HTTPS.
-2. **Lot 1 — Contrat & modèle** : entités, schémas Pydantic, OpenAPI, migrations,
-   client TS généré.
-   Dettes de tooling à traiter en ouverture de lot, avant le modèle :
-   - **lockfile backend** — `pyproject.toml` n'a que des ranges. Piste retenue :
-     migration vers `uv` + `uv.lock`, qui donnerait aussi un écosystème Dependabot
-     fiable. Tant que `uv.lock` n'existe pas, l'entrée `pip` de `.github/dependabot.yml`
-     porte sur un `pyproject.toml` PEP 621 nu : **son comportement réel est à vérifier
-     au premier run**, pas à supposer.
-   - **lint** — aucun outillage (ni ESLint, ni ruff). À choisir avant que chaque
-     couche ne diverge, puis à câbler en CI.
-3. **Lot 2 — CRUD** : stock (EN/FR), decks + composition, avec validation de deck.
+2. **Lot 1 — Contrat & modèle** — *livré, non committé.* Dettes de tooling soldées
+   (uv + `uv.lock`, ruff, ESLint, scripts unifiés), modèle de 21 tables, migration
+   initiale, schémas Pydantic, chaîne de génération du client TS. Aucune route ajoutée :
+   le contrat reste limité à `/health`. Reste à vérifier au premier push : le run réel
+   de la CI (`astral-sh/setup-uv`) et de Dependabot (`uv`), non exécutables en local.
+3. **Lot 2 — CRUD** : import du catalogue krcg (rejouable, cf. §11.1), stock (EN/FR),
+   decks + composition, avec validation de deck (règles `regles-vtes`), versement d'un
+   bundle dans le stock. Premières routes : le contrat OpenAPI et le client TS
+   s'enrichissent ici. Reprendre les points laissés par la QA du Lot 1 : le service doit
+   pré-vérifier `proxy_quantity <= quantity` en modification partielle, et créer les
+   objets ORM avec un `db.add` explicite.
 4. **Lot 3 — Offline-first** : IndexedDB, saisie hors-ligne, `POST /sync`, conflits/idempotence.
 5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
 6. **Lot 5 — Analyse** : perf par deck, historique par lieu/date.
