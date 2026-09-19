@@ -1,0 +1,15 @@
+Migrations Alembic du backend VtES (base unique, SQLite par défaut).
+
+Depuis backend/ :
+
+    uv run alembic revision --autogenerate -m "message clair"
+    uv run alembic upgrade head
+    uv run alembic downgrade -1
+
+L'URL de connexion vient de DATABASE_URL (repli : backend/vtes.db), lue par
+env.py via app.db.session.database_url(). Le mode batch est activé pour que les
+altérations de colonnes passent sur SQLite.
+
+Toute révision autogénérée se relit avant d'être commitée : l'autogenerate
+manque les renommages, certains index et les contraintes CHECK portées par les
+types.
