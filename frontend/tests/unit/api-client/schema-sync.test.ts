@@ -12,7 +12,8 @@ import { describe, expect, it } from "vitest";
  * La CI vérifie déjà que `contracts/openapi.json` suit l'application
  * (`export_openapi.py --check`), mais rien ne vérifiait le second maillon :
  * contrat -> types TypeScript. Ce test régénère les types en mémoire avec les
- * options par défaut de `npm run generate:client` et exige l'égalité octet à
+ * options de `npm run generate:client` (dont `--default-non-nullable false`,
+ * voir `contracts/README.md`) et exige l'égalité octet à
  * octet (fins de ligne normalisées) avec le fichier versionné.
  *
  * En cas d'échec : `npm run generate:client` puis committer le résultat.
@@ -28,7 +29,10 @@ describe("client TS généré", () => {
     const contract = JSON.parse(readFileSync(CONTRACT_PATH, "utf-8"));
 
     const generated =
-      COMMENT_HEADER + astToString(await openapiTS(contract, { silent: true }));
+      COMMENT_HEADER + astToString(await openapiTS(contract, {
+        silent: true,
+        defaultNonNullable: false,
+      }));
     const committed = readFileSync(SCHEMA_PATH, "utf-8");
 
     expect(normalize(committed)).toBe(normalize(generated));

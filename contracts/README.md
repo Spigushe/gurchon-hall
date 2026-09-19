@@ -59,7 +59,7 @@ Emplacement et commande, depuis `frontend/` :
 npm run generate:client
 ```
 
-qui exécute `openapi-typescript ../contracts/openapi.json -o ./src/api-client/schema.d.ts`
+qui exécute `openapi-typescript ../contracts/openapi.json -o ./src/api-client/schema.d.ts --default-non-nullable false`
 et écrit les types dans `frontend/src/api-client/schema.d.ts`. Le wrapper
 `frontend/src/api-client/client.ts` instancie `openapi-fetch` avec le type
 `paths` généré et une `baseUrl` configurable via `VITE_API_BASE_URL` (par
@@ -81,11 +81,18 @@ d'`export_openapi.py` côté back). Le fichier est néanmoins marqué comme gén
 (`eslint.config.js`, `globalIgnores`) : jamais modifié à la main, jamais
 retouché pour satisfaire une règle de style.
 
-## État actuel (Lot 1)
+## État actuel (Lot 2)
 
-L'API expose toujours uniquement `GET /health` (les ressources métier — cartes,
-stock, decks, parties, tournois, synchronisation — arrivent au Lot 2 CRUD et
-suivants). Le Lot 1 met en place le pipeline de génération du client TS
-ci-dessus et le valide de bout en bout sur ce contrat minimal : il est prêt à
-s'enrichir automatiquement (relancer `npm run generate:client`) dès que le
-contrat gagnera de nouvelles routes.
+L'API expose `GET /health` et les ressources du Lot 2 : catalogue (`/cartes`,
+`/bundles`, `/langues`), collection (`/stock`) et decks (`/decks`, avec leur
+composition et leur légalité). La liste des routes et des règles d'erreur est au §7
+de `CLAUDE.md`. Les parties, tournois et la synchronisation (`/sync`) arrivent aux
+lots suivants.
+
+Deux conventions à connaître en lisant le contrat :
+
+- les 404 et 409 portent le schéma `ErrorResponse` (`{"detail": "…"}`) ; les 422
+  gardent le format standard de FastAPI (`HTTPValidationError`), y compris ceux que
+  le service produit pour une règle qui dépend de l'état des données ;
+- chaque opération a un `operationId` en camelCase anglais (`listCards`,
+  `addDeckCard`…), qu'un test fige : le renommer casserait les appels du client.

@@ -24,10 +24,879 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cartes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recherche dans le catalogue
+         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse).
+         */
+        get: operations["listCards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cartes/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fiche complète d'une carte */
+        get: operations["getCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bundles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Produits (précons, boîtes) */
+        get: operations["listBundles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bundles/{bundle_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contenu d'un produit */
+        get: operations["getBundle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/bundles/{bundle_id}/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verser un produit dans la collection
+         * @description Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits.
+         */
+        post: operations["depositBundle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/langues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Langues d'exemplaires */
+        get: operations["listLanguages"];
+        put?: never;
+        /** Ajouter une langue */
+        post: operations["createLanguage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liste la collection */
+        get: operations["listStock"];
+        put?: never;
+        /** Déclare une carte dans une langue */
+        post: operations["createStockEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stock/{card_id}/{language_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lit une entrée de collection */
+        get: operations["getStockEntry"];
+        put?: never;
+        post?: never;
+        /**
+         * Retire une entrée de collection
+         * @description Refusé (409) tant que des decks utilisent l'entrée.
+         */
+        delete: operations["deleteStockEntry"];
+        options?: never;
+        head?: never;
+        /** Modifie une entrée de collection */
+        patch: operations["updateStockEntry"];
+        trace?: never;
+    };
+    "/decks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liste les decks */
+        get: operations["listDecks"];
+        put?: never;
+        /** Crée un deck */
+        post: operations["createDeck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Un deck et sa composition */
+        get: operations["getDeck"];
+        put?: never;
+        post?: never;
+        /** Supprime un deck et sa composition */
+        delete: operations["deleteDeck"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifie un deck
+         * @description Passer un deck à `active` exige qu'il soit légal (crypt ≥ 12, library 60–90) ; sinon 409.
+         */
+        patch: operations["updateDeck"];
+        trace?: never;
+    };
+    "/decks/{deck_id}/legalite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Légalité du deck
+         * @description Calculée à la demande ; les seuils voyagent dans la réponse.
+         */
+        get: operations["getDeckLegality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}/cartes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ajoute une carte au deck
+         * @description La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409.
+         */
+        post: operations["addDeckCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}/cartes/{card_id}/{language_code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retire une carte du deck */
+        delete: operations["removeDeckCard"];
+        options?: never;
+        head?: never;
+        /** Modifie une ligne du deck */
+        patch: operations["updateDeckCard"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * BundleCardRead
+         * @description Une ligne du contenu d'un produit : une carte, en n exemplaires.
+         */
+        BundleCardRead: {
+            card: components["schemas"]["CardSummary"];
+            /** Copies */
+            copies: number;
+        };
+        /**
+         * BundleContentRead
+         * @description Contenu complet d'un produit.
+         *
+         *     Réponse d'un futur `GET /bundles/{id}` (Lot 2). Deux usages la motivent :
+         *     savoir quel produit acheter pour compléter un deck, et verser ce contenu
+         *     dans la collection — `cards` a exactement la forme qu'attend une création
+         *     d'entrées de stock (carte + quantité), à laquelle il ne manque que la
+         *     langue de l'exemplaire acheté.
+         *
+         *     Le service assemble ces lignes depuis les occurrences de type « precon »
+         *     du produit ; ce n'est pas une relation ORM directe, la carte se trouvant
+         *     un cran plus loin, derrière l'impression.
+         */
+        BundleContentRead: {
+            /** Id */
+            id: number;
+            /** Card Set Id */
+            card_set_id: number;
+            /** Code */
+            code: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Size
+             * @description Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé.
+             */
+            size?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+            /**
+             * Cards
+             * @default []
+             */
+            cards?: components["schemas"]["BundleCardRead"][];
+        };
+        /**
+         * BundleDeposit
+         * @description Versement du contenu d'un produit dans la collection.
+         *
+         *     Le produit fixe les cartes et leurs exemplaires ; il ne manque que la
+         *     langue de ce qui a été acheté, et le nombre de produits identiques.
+         */
+        BundleDeposit: {
+            /** Language Code */
+            language_code: string;
+            /**
+             * Count
+             * @description Nombre de produits identiques versés d'un coup.
+             * @default 1
+             */
+            count?: number;
+        };
+        /**
+         * BundleRead
+         * @description Produit vendu dans une extension (deck préconstruit, boîte…).
+         *
+         *     L'unité d'achat : ce qu'on vise pour compléter un deck, et ce qu'on verse
+         *     dans la collection d'un seul geste. `code` peut être vide — 14 extensions
+         *     n'ont qu'un précon, sans code propre.
+         */
+        BundleRead: {
+            /** Id */
+            id: number;
+            /** Card Set Id */
+            card_set_id: number;
+            /** Code */
+            code: string;
+            /** Name */
+            name?: string | null;
+            /**
+             * Size
+             * @description Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé.
+             */
+            size?: number | null;
+            /** Release Date */
+            release_date?: string | null;
+        };
+        /**
+         * CardCategory
+         * @description Les deux moitiés d'un deck VtES (CLAUDE.md §5).
+         * @enum {string}
+         */
+        CardCategory: "crypt" | "library";
+        /**
+         * CardCopyCreate
+         * @description Déclaration d'une entrée de collection.
+         */
+        CardCopyCreate: {
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+            /**
+             * Quantity Owned
+             * @default 0
+             */
+            quantity_owned?: number;
+            /**
+             * Proxy Allowed
+             * @default false
+             */
+            proxy_allowed?: boolean;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * CardCopyRead
+         * @description Exemplaires possédés d'une carte dans une langue.
+         */
+        CardCopyRead: {
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+            /**
+             * Quantity Owned
+             * @description Nombre d'exemplaires réellement possédés.
+             */
+            quantity_owned: number;
+            /**
+             * Proxy Allowed
+             * @description Autorise à jouer cette carte en proxy dans cette langue, sans la posséder. Une entrée avec 0 exemplaire possédé et le proxy autorisé est le cas normal d'une carte jouée en proxy.
+             */
+            proxy_allowed: boolean;
+            /** Notes */
+            notes?: string | null;
+            card?: components["schemas"]["CardSummary"] | null;
+        };
+        /**
+         * CardCopyUpdate
+         * @description Modification d'une entrée de collection.
+         *
+         *     La carte et la langue forment la clé : elles ne se modifient pas, on crée
+         *     une autre entrée. `quantity_owned` et `proxy_allowed` sont facultatifs mais
+         *     non nullables (colonnes NOT NULL) ; `notes`, lui, accepte `null` pour
+         *     effacer la note.
+         */
+        CardCopyUpdate: {
+            /** Quantity Owned */
+            quantity_owned?: number;
+            /** Proxy Allowed */
+            proxy_allowed?: boolean;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * CardDisciplineRead
+         * @description Discipline requise par une carte, avec son niveau.
+         */
+        CardDisciplineRead: {
+            discipline: components["schemas"]["DisciplineRead"];
+            /**
+             * Superior
+             * @description Niveau supérieur (code en majuscules chez krcg).
+             */
+            superior: boolean;
+        };
+        /**
+         * CardPrintingOccurrenceRead
+         * @description Comment une carte apparaît dans une extension.
+         *
+         *     Les champs renseignés dépendent du type : fréquence et multiplicateur pour
+         *     un booster, produit et exemplaires pour un précon, date pour une promo.
+         */
+        CardPrintingOccurrenceRead: {
+            occurrence_type: components["schemas"]["PrintOccurrence"];
+            /**
+             * Frequency
+             * @description Code de rareté en booster (C, U, R, V…).
+             */
+            frequency?: string | null;
+            /**
+             * Multiplier
+             * @description Nombre moyen d'exemplaires par booster (0,5 possible).
+             */
+            multiplier?: number | null;
+            /**
+             * Copies
+             * @description Nombre d'exemplaires dans le produit, pour un précon.
+             */
+            copies?: number | null;
+            /** Released On */
+            released_on?: string | null;
+            bundle?: components["schemas"]["BundleRead"] | null;
+        };
+        /**
+         * CardPrintingRead
+         * @description Présence d'une carte dans une extension, et par quels produits.
+         */
+        CardPrintingRead: {
+            card_set: components["schemas"]["CardSetRead"];
+            /**
+             * Image Url
+             * @description Scan de la carte telle qu'imprimée dans cette extension.
+             */
+            image_url?: string | null;
+            /**
+             * Occurrences
+             * @default []
+             */
+            occurrences?: components["schemas"]["CardPrintingOccurrenceRead"][];
+        };
+        /**
+         * CardRead
+         * @description Fiche complète d'une carte du catalogue.
+         */
+        CardRead: {
+            /** Id */
+            id: number;
+            /** Vekn Id */
+            vekn_id: number;
+            /** Name */
+            name: string;
+            category: components["schemas"]["CardCategory"];
+            clan?: components["schemas"]["ClanRead"] | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Group Code */
+            group_code?: string | null;
+            /**
+             * Advanced
+             * @default false
+             */
+            advanced?: boolean;
+            /**
+             * Image Url
+             * @description Scan de la carte (version anglaise de référence).
+             */
+            image_url?: string | null;
+            sect?: components["schemas"]["SectRead"] | null;
+            /** Title */
+            title?: string | null;
+            /** Path */
+            path?: string | null;
+            /** @description Nature du coût : une carte n'en a jamais qu'un seul. */
+            cost_type?: components["schemas"]["CostType"] | null;
+            /**
+             * Cost Value
+             * @description Montant du coût. Chaîne et non entier : 25 cartes coûtent « X ».
+             */
+            cost_value?: string | null;
+            /**
+             * Burn Option
+             * @default false
+             */
+            burn_option?: boolean;
+            /**
+             * Trifle
+             * @default false
+             */
+            trifle?: boolean;
+            /**
+             * Clan Requirement
+             * @description Clan(s) exigé(s) par la carte, séparés par une virgule.
+             */
+            clan_requirement?: string | null;
+            /** Path Requirement */
+            path_requirement?: string | null;
+            /** @description Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble. */
+            discipline_requirement?: components["schemas"]["DisciplineRequirement"] | null;
+            /** Card Text */
+            card_text?: string | null;
+            /** Flavor Text */
+            flavor_text?: string | null;
+            /** Artist */
+            artist?: string | null;
+            /**
+             * Banned On
+             * @description Date de bannissement publiée par le VEKN, vide sinon.
+             */
+            banned_on?: string | null;
+            /**
+             * Types
+             * @default []
+             */
+            types?: components["schemas"]["CardTypeRead"][];
+            /**
+             * Discipline Links
+             * @default []
+             */
+            discipline_links?: components["schemas"]["CardDisciplineRead"][];
+            /**
+             * Printings
+             * @default []
+             */
+            printings?: components["schemas"]["CardPrintingRead"][];
+            /**
+             * Translations
+             * @default []
+             */
+            translations?: components["schemas"]["CardTranslationRead"][];
+        };
+        /**
+         * CardSetRead
+         * @description Extension.
+         */
+        CardSetRead: {
+            /** Id */
+            id: number;
+            /** Abbrev */
+            abbrev: string;
+            /** Full Name */
+            full_name?: string | null;
+            /** Release Date */
+            release_date?: string | null;
+            /** Company */
+            company?: string | null;
+        };
+        /**
+         * CardSummary
+         * @description Vue courte d'une carte, pour les listes et l'autocomplétion.
+         */
+        CardSummary: {
+            /** Id */
+            id: number;
+            /** Vekn Id */
+            vekn_id: number;
+            /** Name */
+            name: string;
+            category: components["schemas"]["CardCategory"];
+            clan?: components["schemas"]["ClanRead"] | null;
+            /** Capacity */
+            capacity?: number | null;
+            /** Group Code */
+            group_code?: string | null;
+            /**
+             * Advanced
+             * @default false
+             */
+            advanced?: boolean;
+            /**
+             * Image Url
+             * @description Scan de la carte (version anglaise de référence).
+             */
+            image_url?: string | null;
+        };
+        /**
+         * CardTranslationRead
+         * @description Libellés localisés d'une carte.
+         *
+         *     Distinct de la collection : traduire une carte ne dit rien sur le fait de
+         *     la posséder, et posséder un exemplaire en français ne suppose pas qu'on
+         *     connaisse sa traduction officielle.
+         */
+        CardTranslationRead: {
+            /** Language Code */
+            language_code: string;
+            /** Name */
+            name: string;
+            /** Card Text */
+            card_text?: string | null;
+            /** Flavor Text */
+            flavor_text?: string | null;
+            /**
+             * Image Url
+             * @description Scan de la version localisée, quand il existe.
+             */
+            image_url?: string | null;
+        };
+        /**
+         * CardTypeRead
+         * @description Type de carte.
+         */
+        CardTypeRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /**
+         * ClanRead
+         * @description Clan.
+         */
+        ClanRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Abbrev */
+            abbrev?: string | null;
+        };
+        /**
+         * CostType
+         * @description Nature du coût d'une carte de library.
+         *
+         *     krcg n'expose qu'un coût par carte (`{"type": ..., "value": ...}`) : une
+         *     carte ne coûte jamais à la fois du sang et du pool.
+         * @enum {string}
+         */
+        CostType: "pool" | "blood" | "conviction";
+        /**
+         * DeckCardCreate
+         * @description Ajout d'une carte à un deck.
+         *
+         *     La carte doit déjà exister dans la collection pour la langue demandée
+         *     (CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du
+         *     service, la base garantissant déjà l'existence de l'entrée de collection.
+         */
+        DeckCardCreate: {
+            /** Quantity */
+            quantity: number;
+            /**
+             * Proxy Quantity
+             * @default 0
+             */
+            proxy_quantity?: number;
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+        };
+        /**
+         * DeckCardRead
+         * @description Une ligne de decklist.
+         */
+        DeckCardRead: {
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+            /** Quantity */
+            quantity: number;
+            /**
+             * Proxy Quantity
+             * @description Part des exemplaires ci-dessus jouée en proxy.
+             */
+            proxy_quantity: number;
+            card?: components["schemas"]["CardSummary"] | null;
+        };
+        /**
+         * DeckCardUpdate
+         * @description Modification d'une ligne de decklist.
+         *
+         *     Le contrôle `proxy_quantity <= quantity` n'est complet que si les deux
+         *     valeurs sont fournies. Sinon la comparaison porterait sur une valeur que
+         *     seule la base connaît : **le service du Lot 2 doit refaire la vérification**
+         *     après fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`
+         *     reste le dernier filet, mais elle produirait un 500 plutôt qu'un 422).
+         */
+        DeckCardUpdate: {
+            /** Quantity */
+            quantity?: number;
+            /** Proxy Quantity */
+            proxy_quantity?: number;
+        };
+        /**
+         * DeckCreate
+         * @description Création d'un deck.
+         */
+        DeckCreate: {
+            /** Name */
+            name: string;
+            /** Created On */
+            created_on?: string | null;
+            /** @default draft */
+            status?: components["schemas"]["DeckStatus"];
+            /** Archetype */
+            archetype?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * DeckDetailRead
+         * @description Un deck avec sa composition.
+         */
+        DeckDetailRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Created On */
+            created_on?: string | null;
+            status: components["schemas"]["DeckStatus"];
+            /** Archetype */
+            archetype?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Cards
+             * @default []
+             */
+            cards?: components["schemas"]["DeckCardRead"][];
+        };
+        /**
+         * DeckLegality
+         * @description Verdict de légalité d'un deck (CLAUDE.md §5 : crypt ≥ 12, library 60–90).
+         *
+         *     Schéma de sortie seulement : le calcul est une règle de service, écrite au
+         *     Lot 2 avec la skill `regles-vtes`. Les seuils voyagent dans la réponse pour
+         *     que le front affiche « 58 / 60 » sans les redéfinir de son côté.
+         */
+        DeckLegality: {
+            /** Deck Id */
+            deck_id: number;
+            /** Crypt Count */
+            crypt_count: number;
+            /** Library Count */
+            library_count: number;
+            /** Crypt Minimum */
+            crypt_minimum: number;
+            /** Library Minimum */
+            library_minimum: number;
+            /** Library Maximum */
+            library_maximum: number;
+            /** Is Legal */
+            is_legal: boolean;
+            /**
+             * Issues
+             * @default []
+             */
+            issues?: string[];
+        };
+        /**
+         * DeckRead
+         * @description Un deck, sans sa composition.
+         */
+        DeckRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Created On */
+            created_on?: string | null;
+            status: components["schemas"]["DeckStatus"];
+            /** Archetype */
+            archetype?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * DeckStatus
+         * @description Cycle de vie d'un deck côté joueur.
+         * @enum {string}
+         */
+        DeckStatus: "draft" | "active" | "retired";
+        /**
+         * DeckUpdate
+         * @description Modification partielle d'un deck.
+         *
+         *     `name` et `status` sont facultatifs mais non nullables ; `created_on`,
+         *     `archetype` et `notes` acceptent `null` pour effacer la valeur.
+         */
+        DeckUpdate: {
+            /** Name */
+            name?: string;
+            /** Created On */
+            created_on?: string | null;
+            status?: components["schemas"]["DeckStatus"];
+            /** Archetype */
+            archetype?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * DisciplineRead
+         * @description Discipline.
+         */
+        DisciplineRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Abbrev */
+            abbrev?: string | null;
+        };
+        /**
+         * DisciplineRequirement
+         * @description Manière dont une carte de library combine ses disciplines requises.
+         *
+         *     `MONO` : une seule discipline (ou aucune). `CHOICE` : l'une au choix
+         *     parmi plusieurs. `COMBO` : toutes exigées ensemble. Remplace le champ
+         *     textuel brut qu'imposaient les CSV, où « / » et « & » portaient cette
+         *     nuance.
+         * @enum {string}
+         */
+        DisciplineRequirement: "mono" | "choice" | "combo";
+        /**
+         * ErrorResponse
+         * @description Corps d'une réponse d'erreur métier.
+         */
+        ErrorResponse: {
+            /**
+             * Detail
+             * @description Explication lisible de l'échec.
+             */
+            detail: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
         /**
          * HealthResponse
          * @description Réponse de `GET /health`.
@@ -47,6 +916,80 @@ export interface components {
          * @enum {string}
          */
         HealthStatus: "ok";
+        /**
+         * LanguageCreate
+         * @description Ajout d'une langue.
+         */
+        LanguageCreate: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /**
+             * Sort Order
+             * @default 0
+             */
+            sort_order?: number;
+        };
+        /**
+         * LanguageRead
+         * @description Une langue d'exemplaire.
+         *
+         *     Liste ouverte servie par l'API plutôt que codée en dur dans le front : le
+         *     jeu exact des langues reste à confirmer (CLAUDE.md §11 point 2), et une
+         *     langue ajoutée en base doit apparaître dans l'UI sans redéploiement.
+         */
+        LanguageRead: {
+            /**
+             * Code
+             * @description Code court de la langue (EN, FR, ES, XX…).
+             */
+            code: string;
+            /**
+             * Label
+             * @description Libellé affichable.
+             */
+            label: string;
+            /**
+             * Sort Order
+             * @description Ordre d'affichage dans les sélecteurs.
+             */
+            sort_order: number;
+        };
+        /**
+         * PrintOccurrence
+         * @description Manière dont une carte apparaît dans une extension.
+         *
+         *     Les trois cas sont disjoints dans le catalogue krcg et n'utilisent pas les
+         *     mêmes champs : `RARITY` porte une fréquence et un multiplicateur (booster),
+         *     `PRECON` un produit et un nombre d'exemplaires, `SINGLE` une date de mise
+         *     en vente (promo, impression à la demande).
+         * @enum {string}
+         */
+        PrintOccurrence: "rarity" | "precon" | "single";
+        /**
+         * SectRead
+         * @description Sect.
+         */
+        SectRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
     };
     responses: never;
     parameters: never;
@@ -72,6 +1015,890 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    listCards: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                category?: components["schemas"]["CardCategory"] | null;
+                clan_id?: number | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listBundles: {
+        parameters: {
+            query?: {
+                card_set_id?: number | null;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BundleContentRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    depositBundle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bundle_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BundleDeposit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCopyRead"][];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listLanguages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LanguageRead"][];
+                };
+            };
+        };
+    };
+    createLanguage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LanguageCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LanguageRead"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listStock: {
+        parameters: {
+            query?: {
+                language_code?: string | null;
+                category?: components["schemas"]["CardCategory"] | null;
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCopyRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createStockEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCopyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCopyRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getStockEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+                language_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCopyRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteStockEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+                language_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateStockEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: number;
+                language_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CardCopyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardCopyRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDecks: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["DeckStatus"] | null;
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createDeck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckRead"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDeck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetailRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteDeck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateDeck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDeckLegality: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckLegality"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    addDeckCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckCardCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckCardRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    removeDeckCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+                language_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateDeckCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: number;
+                language_code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeckCardUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckCardRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
