@@ -4,24 +4,28 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 et 1 livrés.**
+**État actuel** : **Lots 0, 1 et 2 livrés** (le Lot 2 est côté back et contrat : pas d'UI).
 Lot 0 : squelette monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 :
 outillage (uv, ruff, ESLint), modèle relationnel SQLAlchemy (21 tables), migration
-Alembic initiale, schémas Pydantic, chaîne de génération du client TS. L'arborescence
-du §4 existe, avec en plus `scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
+Alembic initiale, schémas Pydantic, chaîne de génération du client TS. Lot 2 : import
+rejouable du catalogue krcg, routes catalogue / stock / decks, légalité de deck, versement
+d'un bundle dans le stock, contrat et client TS enrichis. L'arborescence du §4 existe, avec
+en plus `scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (520 tests), `uv run ruff check .`, `uv run alembic upgrade head`.
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 16 tests),
+`uv run pytest` (639 tests), `uv run ruff check .`, `uv run alembic upgrade head`,
+`uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
+`--from-dir` pour des fichiers locaux ; à lancer une fois la base migrée).
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 18 tests),
 `npm run test:e2e` (Playwright, 6 tests dont le scénario offline),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
-**Aucun endpoint métier n'existe encore** : l'API n'expose que `/health`, donc
-`contracts/openapi.json` et le client TS généré ne couvrent que cette route. Les
-routes `/cartes`, `/stock`, `/decks`… arrivent au Lot 2 ; les schémas Pydantic du
-Lot 1 (`backend/app/schemas/`) sont prêts mais non branchés. Pas de couche offline
-IndexedDB ni de `/sync` avant le Lot 3. Ne pas supposer qu'ils existent.
+**Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`
+(détail au §7). Aucune route `/joueurs`, `/tournois`, `/parties`, `/participations` ni `/sync` :
+elles viennent aux Lots 3 et 4. Aucune UI métier ni couche offline IndexedDB avant le
+Lot 3 (une UI d'écriture avant `/sync` violerait la convention offline du §10). Ne pas
+supposer qu'elles existent.
 
 ---
 
@@ -163,8 +167,7 @@ au format carte × exemplaires, entrée prévue pour verser un produit dans le s
 
 Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
 source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
-possédés) ; sémantique exacte du proxy (booléen par carte et langue aujourd'hui, à
-trancher avant le Lot 2 si un nombre de proxies possédés est voulu) ; VP/GW.
+possédés) ; VP/GW. La sémantique du proxy est tranchée depuis le Lot 2 (§11).
 Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
 l'expose pas, il reste dans le texte de carte).
 
@@ -187,6 +190,22 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/decks/{id}/cartes`, `/joueurs`, `/tournois`, `/parties`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client).
+
+Livré au Lot 2 (chemins en français, `operationId` en anglais camelCase) :
+
+| Route | Rôle |
+|---|---|
+| `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule |
+| `GET /bundles`, `GET /bundles/{id}` | produits et leur contenu (carte × exemplaires) |
+| `POST /bundles/{id}/stock` | verse le contenu d'un produit dans le stock (`language_code`, `count`) |
+| `GET/POST /langues` | liste ouverte des langues |
+| `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}` | collection, une entrée par carte et par langue |
+| `GET/POST /decks`, `GET/PATCH/DELETE /decks/{id}` | decks ; le détail porte la composition |
+| `GET /decks/{id}/legalite` | verdict crypt ≥ 12 / library 60–90 avec les seuils |
+| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}` | composition du deck |
+
+Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
+format standard de FastAPI, y compris ceux que le service produit lui-même.
 
 Toute évolution du contrat passe par l'agent **architecte-contrat** avant
 implémentation front/back.
@@ -341,6 +360,61 @@ Tranchées pendant le Lot 1 :
   place pendant le lot car jamais committée ; à partir du premier commit, toute
   évolution passe par une **nouvelle révision**.
 
+Tranchées pendant le Lot 2 :
+
+- **Sémantique du proxy** : `card_copy.proxy_allowed` reste un booléen (autorise à jouer
+  la carte en proxy, sans la posséder) ; le nombre de proxies vit sur la ligne de deck
+  (`deck_card.proxy_quantity`). Un proxy n'est pas un exemplaire possédé. Une ligne de
+  deck consomme donc `quantity - proxy_quantity` exemplaires réels, et la somme de ces
+  consommations sur tous les decks ne peut pas dépasser `quantity_owned`. Refus en 409 :
+  exemplaires insuffisants, proxy non autorisé, baisse du stock sous ce qui est alloué,
+  interdiction du proxy alors qu'un deck en utilise, suppression d'une entrée encore
+  utilisée.
+- **Légalité et statut** : la légalité est calculée à la demande et ne bloque jamais la
+  construction (un brouillon est incomplet par nature). Elle ne gate que le passage à
+  `active`, en 409 ; un deck déjà actif peut ensuite évoluer librement. Les proxies
+  comptent dans les effectifs. Règles dans `backend/app/services/vtes_rules.py`
+  (fonctions pures). **Périmètre actuel : tailles seulement** (crypt ≥ 12, library 60–90).
+- **Suppression d'un deck (comportement provisoire)** : refusée (409) s'il a servi dans
+  une partie (la participation le référence) ; on le passe à `retired`. Sinon la
+  composition part avec lui et les exemplaires retournent au stock. Ce comportement sera
+  remplacé par le système d'archivage décrit juste après.
+
+Décisions prises après la livraison du Lot 2, **pas encore implémentées** :
+
+- **Validation de decklist étendue** : au-delà des tailles, le futur système vérifiera
+  (a) crypt ≥ 12 cartes, (b) crypt limitée à **deux groupes adjacents** au plus, les cartes
+  de groupe « Any » étant neutres, (c) library entre 60 et 90 cartes, (d) **aucune carte
+  bannie**. Le modèle a déjà de quoi le porter : `card.group_code` (`G1`…`G7`, `Any`,
+  importé de krcg) et `card.banned_on`. `DeckLegality.issues` est déjà une liste de
+  messages, donc l'extension ne change pas la forme de la réponse. Les règles (b) et (d) sont
+  à rédiger dans `regles-vtes` avec leurs cas limites **[à confirmer]** au règlement VEKN
+  (que veut dire « adjacent » avec les groupes 1 à 7 ; une carte bannie l'est-elle depuis
+  sa `banned_on` ou à la date du jour).
+- **Archivage puis suppression logique des decks** : un deck s'archive d'abord, puis se
+  « supprime » depuis l'archive, mais **ses données restent en base** (suppression
+  logique, jamais de `DELETE` physique via l'API). Cela remplace le `DELETE /decks/{id}`
+  actuel et supprime le cas « deck joué donc non supprimable » : l'historique des parties
+  garde toujours son deck. Cela demande une évolution du modèle (nouvelle migration : un
+  état ou des horodatages d'archivage / de suppression), du contrat (passage par
+  `architecte-contrat` avant tout code) et du filtrage des listes. Questions à trancher à
+  ce moment-là : un deck archivé ou supprimé libère-t-il ses exemplaires dans le stock ;
+  son nom reste-t-il réservé (la colonne `deck.name` est unique) ; le statut `retired`
+  existant se fond-il dans l'archivage ou reste-t-il distinct.
+- **Catalogue en lecture seule côté API** : il ne bouge que par l'import
+  (`scripts/import_catalog.py`, `app.services.catalog_import`). L'import est un upsert en
+  une transaction ; il ne supprime jamais une carte ni une traduction absente de la source.
+  Les noms complets des disciplines viennent d'une table du code (krcg ne publie que les
+  codes trois lettres) ; un code inconnu retombe sur le code en majuscules. Le fixture de
+  test (`backend/tests/fixtures/`) est un échantillon figé de neuf vraies cartes ; l'import
+  complet a été vérifié à la main sur les 4149 cartes de krcg (rejeu sans doublon).
+- **Client TS** : `openapi-typescript` est lancé avec `--default-non-nullable false`. Sans
+  cela, un champ de requête qui a une valeur par défaut (`proxy_quantity`, `quantity_owned`…)
+  devenait obligatoire dans le type TypeScript alors que le contrat le déclare optionnel.
+- **Non idempotent pour l'instant** : `POST /bundles/{id}/stock` additionne à chaque appel.
+  L'idempotence des écritures rejouées relève de `/sync` (Lot 3).
+- Pas de nouvelle migration : le modèle du Lot 1 n'a pas bougé.
+
 ---
 
 ## 12. Roadmap
@@ -356,12 +430,17 @@ Tranchées pendant le Lot 1 :
    le contrat reste limité à `/health`. CI (`astral-sh/setup-uv`, ruff, ESLint, tests)
    vérifiée verte au premier push. Reste à confirmer : le premier run réel de
    Dependabot en mode `uv` (onglet Dependabot du dépôt).
-3. **Lot 2 — CRUD** : import du catalogue krcg (rejouable, cf. §11.1), stock (EN/FR),
-   decks + composition, avec validation de deck (règles `regles-vtes`), versement d'un
-   bundle dans le stock. Premières routes : le contrat OpenAPI et le client TS
-   s'enrichissent ici. Reprendre les points laissés par la QA du Lot 1 : le service doit
-   pré-vérifier `proxy_quantity <= quantity` en modification partielle, et créer les
-   objets ORM avec un `db.add` explicite.
+3. **Lot 2 — CRUD** — *livré (back et contrat, sans UI).* Import du catalogue krcg
+   (rejouable, cf. §11.1), stock (EN/FR), decks + composition, validation de deck (règles
+   `regles-vtes`), versement d'un bundle dans le stock. Le contrat OpenAPI compte 22
+   opérations, le client TS est régénéré. Les points laissés par la QA du Lot 1 sont
+   traités : `proxy_quantity <= quantity` revérifié après fusion avec la ligne existante
+   (422), objets ORM créés avec un `db.add` explicite. Reste à faire : une UI de
+   consultation (catalogue, collection, decks) peut venir avant le Lot 3, mais toute
+   écriture côté front attend la couche offline. Reste aussi à lancer l'import réel sur la
+   base de dev (`alembic upgrade head` puis `scripts/import_catalog.py`). Deux chantiers
+   décidés mais non planifiés (détail au §11) : la validation de decklist étendue
+   (groupes adjacents, cartes bannies) et l'archivage / suppression logique des decks.
 4. **Lot 3 — Offline-first** : IndexedDB, saisie hors-ligne, `POST /sync`, conflits/idempotence.
 5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
 6. **Lot 5 — Analyse** : perf par deck, historique par lieu/date.
