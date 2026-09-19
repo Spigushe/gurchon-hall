@@ -1,0 +1,458 @@
+[
+ {
+  "id": 0,
+  "code": "POD",
+  "name": "Print on Demand",
+  "company": "",
+  "release_date": null,
+  "bundles": {}
+ },
+ {
+  "id": 300005,
+  "code": "Sabbat",
+  "name": "Sabbat",
+  "company": "Wizards of the Coast",
+  "release_date": "1996-10-28",
+  "bundles": {}
+ },
+ {
+  "id": 300006,
+  "code": "SW",
+  "name": "Sabbat War",
+  "company": "White Wolf",
+  "release_date": "2000-10-31",
+  "bundles": {
+   "PL": {
+    "code": "PL",
+    "name": "Lasombra",
+    "size": 89,
+    "release_date": null
+   },
+   "PB": {
+    "code": "PB",
+    "name": "Brujah antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PT": {
+    "code": "PT",
+    "name": "Tzimisce",
+    "size": 89,
+    "release_date": null
+   },
+   "PV": {
+    "code": "PV",
+    "name": "Ventrue antitribu",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300007,
+  "code": "FN",
+  "name": "Final Nights",
+  "company": "White Wolf",
+  "release_date": "2001-06-11",
+  "bundles": {
+   "PS": {
+    "code": "PS",
+    "name": "Followers of Set",
+    "size": 89,
+    "release_date": null
+   },
+   "PA": {
+    "code": "PA",
+    "name": "Assamite",
+    "size": 89,
+    "release_date": null
+   },
+   "PR": {
+    "code": "PR",
+    "name": "Ravnos",
+    "size": 89,
+    "release_date": null
+   },
+   "PG": {
+    "code": "PG",
+    "name": "Giovanni",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300008,
+  "code": "BL",
+  "name": "Bloodlines",
+  "company": "White Wolf",
+  "release_date": "2001-12-03",
+  "bundles": {}
+ },
+ {
+  "id": 300009,
+  "code": "CE",
+  "name": "Camarilla Edition",
+  "company": "White Wolf",
+  "release_date": "2002-08-19",
+  "bundles": {
+   "PTo": {
+    "code": "PTo",
+    "name": "Toreador",
+    "size": 89,
+    "release_date": null
+   },
+   "PTr": {
+    "code": "PTr",
+    "name": "Tremere",
+    "size": 89,
+    "release_date": null
+   },
+   "PV": {
+    "code": "PV",
+    "name": "Ventrue",
+    "size": 89,
+    "release_date": null
+   },
+   "PB": {
+    "code": "PB",
+    "name": "Brujah",
+    "size": 89,
+    "release_date": null
+   },
+   "PM": {
+    "code": "PM",
+    "name": "Malkavian",
+    "size": 89,
+    "release_date": null
+   },
+   "PN": {
+    "code": "PN",
+    "name": "Nosferatu",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300011,
+  "code": "BH",
+  "name": "Black Hand",
+  "company": "White Wolf",
+  "release_date": "2003-11-17",
+  "bundles": {
+   "PN": {
+    "code": "PN",
+    "name": "Nosferatu antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PTo": {
+    "code": "PTo",
+    "name": "Toreador antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PTr": {
+    "code": "PTr",
+    "name": "Tremere antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PM": {
+    "code": "PM",
+    "name": "Malkavian antitribu",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300015,
+  "code": "LoB",
+  "name": "Legacies of Blood",
+  "company": "White Wolf",
+  "release_date": "2005-11-14",
+  "bundles": {
+   "PO": {
+    "code": "PO",
+    "name": "Osebo",
+    "size": 89,
+    "release_date": null
+   },
+   "PG": {
+    "code": "PG",
+    "name": "Guruhi",
+    "size": 89,
+    "release_date": null
+   },
+   "PI": {
+    "code": "PI",
+    "name": "Ishtarri",
+    "size": 89,
+    "release_date": null
+   },
+   "PA": {
+    "code": "PA",
+    "name": "Akunanse",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300016,
+  "code": "NoR",
+  "name": "Nights of Reckoning",
+  "company": "White Wolf",
+  "release_date": "2006-04-10",
+  "bundles": {}
+ },
+ {
+  "id": 300017,
+  "code": "Third",
+  "name": "Third Edition",
+  "company": "White Wolf",
+  "release_date": "2006-09-04",
+  "bundles": {
+   "PTr": {
+    "code": "PTr",
+    "name": "Tremere antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PB": {
+    "code": "PB",
+    "name": "Brujah antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PM": {
+    "code": "PM",
+    "name": "Malkavian antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PTz": {
+    "code": "PTz",
+    "name": "Tzimisce",
+    "size": 89,
+    "release_date": null
+   },
+   "SKB": {
+    "code": "SKB",
+    "name": "Starter Kit Brujah antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "SKM": {
+    "code": "SKM",
+    "name": "Starter Kit Malkavian antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "SKTr": {
+    "code": "SKTr",
+    "name": "Starter Kit Tremere antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "SKTz": {
+    "code": "SKTz",
+    "name": "Starter Kit Tzimisce",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300022,
+  "code": "KoT",
+  "name": "Keepers of Tradition",
+  "company": "White Wolf",
+  "release_date": "2008-11-19",
+  "bundles": {
+   "PV": {
+    "code": "PV",
+    "name": "Ventrue",
+    "size": 89,
+    "release_date": null
+   },
+   "PB": {
+    "code": "PB",
+    "name": "Brujah",
+    "size": 89,
+    "release_date": null
+   },
+   "PM": {
+    "code": "PM",
+    "name": "Malkavian",
+    "size": 89,
+    "release_date": null
+   },
+   "PT": {
+    "code": "PT",
+    "name": "Toreador",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300023,
+  "code": "EK",
+  "name": "Ebony Kingdom",
+  "company": "White Wolf",
+  "release_date": "2009-05-27",
+  "bundles": {}
+ },
+ {
+  "id": 300024,
+  "code": "HttB",
+  "name": "Heirs to the Blood",
+  "company": "White Wolf",
+  "release_date": "2010-02-03",
+  "bundles": {
+   "PSal": {
+    "code": "PSal",
+    "name": "Salubri antitribu",
+    "size": 89,
+    "release_date": null
+   },
+   "PGar": {
+    "code": "PGar",
+    "name": "Gargoyles",
+    "size": 89,
+    "release_date": null
+   },
+   "PKia": {
+    "code": "PKia",
+    "name": "Kiasyd",
+    "size": 89,
+    "release_date": null
+   },
+   "PSam": {
+    "code": "PSam",
+    "name": "Samedi",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300032,
+  "code": "FB",
+  "name": "First Blood",
+  "company": "White Wolf Entertainment AB",
+  "release_date": "2019-10-01",
+  "bundles": {
+   "PV": {
+    "code": "PV",
+    "name": "Ventrue",
+    "size": 55,
+    "release_date": null
+   },
+   "PM": {
+    "code": "PM",
+    "name": "Malkavian",
+    "size": 55,
+    "release_date": null
+   },
+   "PTo": {
+    "code": "PTo",
+    "name": "Toreador",
+    "size": 55,
+    "release_date": null
+   },
+   "PN": {
+    "code": "PN",
+    "name": "Nosferatu",
+    "size": 55,
+    "release_date": null
+   },
+   "PTr": {
+    "code": "PTr",
+    "name": "Tremere",
+    "size": 55,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300041,
+  "code": "30th",
+  "name": "Thirtieth Anniversary",
+  "company": "Paradox Interactive AB",
+  "release_date": "2024-07-20",
+  "bundles": {
+   "": {
+    "code": "",
+    "name": "",
+    "size": 120,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 300043,
+  "code": "SV5",
+  "name": "Sabbat V5",
+  "company": "Paradox Interactive AB",
+  "release_date": "2025-10-26",
+  "bundles": {
+   "PPower": {
+    "code": "PPower",
+    "name": "Path of Power and the Inner Voice",
+    "size": 89,
+    "release_date": null
+   },
+   "PDeath": {
+    "code": "PDeath",
+    "name": "Path of Death and the Soul",
+    "size": 89,
+    "release_date": null
+   },
+   "PCathari": {
+    "code": "PCathari",
+    "name": "Path of Cathari",
+    "size": 89,
+    "release_date": null
+   },
+   "PCaine": {
+    "code": "PCaine",
+    "name": "Path of Caine",
+    "size": 89,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 320002,
+  "code": "KoTR",
+  "name": "Keepers of Tradition Reprint",
+  "company": "Paradox Interactive AB",
+  "release_date": "2018-05-05",
+  "bundles": {
+   "A": {
+    "code": "A",
+    "name": "Reprint Bundle 1",
+    "size": 120,
+    "release_date": null
+   },
+   "B": {
+    "code": "B",
+    "name": "Reprint Bundle 2",
+    "size": 120,
+    "release_date": null
+   }
+  }
+ },
+ {
+  "id": 0,
+  "code": "Promo",
+  "name": "Promo",
+  "company": "",
+  "release_date": null,
+  "bundles": {}
+ }
+]

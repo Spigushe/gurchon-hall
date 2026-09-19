@@ -1,0 +1,701 @@
+[
+ {
+  "id": 200001,
+  "printed_name": "Aabbt Kindred",
+  "unicity_suffix": "",
+  "suffix": "G2",
+  "kind": "Crypt",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 2.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/final-nights/aabbtkindredg2.jpg"
+   },
+   {
+    "set": {
+     "id": 0,
+     "code": "POD"
+    },
+    "occurrences": [
+     {
+      "type": "Single",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "",
+      "copies": 0,
+      "date": "2021-03-07"
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/print-on-demand/aabbtkindredg2.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/aabbtkindredg2.jpg",
+  "types": [
+   "Vampire"
+  ],
+  "formats": [],
+  "artists": [
+   "Lawrence Snelly"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Independent: Aabbt Kindred cannot perform directed actions unless <Nefertiti> is ready. Aabbt Kindred can prevent 1 damage each combat. Non-unique.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2001-07-11",
+  "banned": null,
+  "clan": "Ministry",
+  "path": "",
+  "advanced": false,
+  "capacity": 4,
+  "group": "G2",
+  "disciplines": [
+   "for",
+   "pre",
+   "ser"
+  ],
+  "title": null
+ },
+ {
+  "id": 200025,
+  "printed_name": "Aidan Lyle",
+  "unicity_suffix": "",
+  "suffix": "G5",
+  "kind": "Crypt",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300022,
+     "code": "KoT"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "V",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/keepers-of-tradition/aidanlyleg5.jpg"
+   },
+   {
+    "set": {
+     "id": 320002,
+     "code": "KoTR"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "B",
+      "copies": 1,
+      "date": null
+     }
+    ],
+    "url": ""
+   },
+   {
+    "set": {
+     "id": 300032,
+     "code": "FB"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PTr",
+      "copies": 1,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/first-blood/aidanlyleg5.jpg"
+   }
+  ],
+  "i18n": {
+   "es": {
+    "name": "Aidan Lyle",
+    "text": "Camarilla: Aidan obtiene 1 acoso opcional por combate.",
+    "flavor": "",
+    "draft": "",
+    "url": "",
+    "cards": []
+   },
+   "fr": {
+    "name": "Aidan Lyle",
+    "text": "Camarilla : Aidan reçoit 1 poursuite optionnelle durant chaque combat.",
+    "flavor": "",
+    "draft": "",
+    "url": "",
+    "cards": []
+   }
+  },
+  "url": "https://static.krcg.org/card/aidanlyleg5.jpg",
+  "types": [
+   "Vampire"
+  ],
+  "formats": [],
+  "artists": [
+   "Leif Jones"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Camarilla: Aidan gets 1 optional press each combat.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2008-12-19",
+  "banned": null,
+  "clan": "Tremere",
+  "path": "",
+  "advanced": false,
+  "capacity": 7,
+  "group": "G5",
+  "disciplines": [
+   "dom",
+   "AUS",
+   "CHI",
+   "THA"
+  ],
+  "title": null
+ },
+ {
+  "id": 200102,
+  "printed_name": "Anna \"Dictatrix11\" Suljic",
+  "unicity_suffix": "",
+  "suffix": "G4",
+  "kind": "Crypt",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300016,
+     "code": "NoR"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/nights-of-reckoning/annadictatrix11suljicg4.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/annadictatrix11suljicg4.jpg",
+  "types": [
+   "Imbued"
+  ],
+  "formats": [],
+  "artists": [
+   "Thomas Manning"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Anna may move 2 blood from the blood bank to any vampire as a +1 stealth action. During your unlock phase, you may look at the top three cards of your library.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2006-05-10",
+  "banned": null,
+  "clan": "Martyr",
+  "path": "",
+  "advanced": false,
+  "capacity": 6,
+  "group": "G4",
+  "disciplines": [
+   "mar",
+   "red",
+   "viz"
+  ],
+  "title": null
+ },
+ {
+  "id": 100002,
+  "printed_name": "419 Operation",
+  "unicity_suffix": "",
+  "suffix": "",
+  "kind": "Library",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300023,
+     "code": "EK"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "C",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/ebony-kingdom/419operation.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/419operation.jpg",
+  "types": [
+   "Action"
+  ],
+  "formats": [],
+  "artists": [
+   "Avery Butterworth"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "+1 stealth action.\nPut this card in play. During your unlock phase, you may move 1 pool from your prey's pool to this card or move the pool on this card to your pool. Your prey can burn the Edge to move the counters on this card to his or her pool and burn this card.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2009-06-26",
+  "banned": null,
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [
+   "Osebo"
+  ],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100119,
+  "printed_name": "Awe",
+  "unicity_suffix": "",
+  "suffix": "",
+  "kind": "Library",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300005,
+     "code": "Sabbat"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "R",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/sabbat/awe.jpg"
+   },
+   {
+    "set": {
+     "id": 300006,
+     "code": "SW"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "R",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/sabbat-war/awe.jpg"
+   },
+   {
+    "set": {
+     "id": 300009,
+     "code": "CE"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PTo",
+      "copies": 1,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/camarilla-edition/awe.jpg"
+   },
+   {
+    "set": {
+     "id": 300015,
+     "code": "LoB"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PG",
+      "copies": 1,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/legacies-of-blood/awe.jpg"
+   },
+   {
+    "set": {
+     "id": 300017,
+     "code": "Third"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "R",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/third-edition/awe.jpg"
+   },
+   {
+    "set": {
+     "id": 300041,
+     "code": "30th"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "",
+      "copies": 2,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/thirtieth-anniversary/awe.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/awe.jpg",
+  "types": [
+   "Action Modifier"
+  ],
+  "formats": [],
+  "artists": [
+   "Gary Leach"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Only usable during the polling step of a political action.\n[pre] This vampire gets +X+1 votes.\n[PRE] This vampire gets +2X+1 votes.",
+  "draft": "",
+  "flavor": "We admire people to the extent that we cannot explain what they do, and the word \"admire\" then means \"marvel at\".\nB.F. Skinner, \"Beyond Freedom and Dignity\"",
+  "legal": "1996-11-27",
+  "banned": null,
+  "cost": {
+   "type": "Blood",
+   "value": "X"
+  },
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": [
+    "pre"
+   ]
+  }
+ },
+ {
+  "id": 102308,
+  "printed_name": "Absolute Tyranny",
+  "unicity_suffix": "",
+  "suffix": "",
+  "kind": "Library",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300043,
+     "code": "SV5"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PPower",
+      "copies": 3,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/sabbat-v5/absolutetyranny.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/absolutetyranny.jpg",
+  "types": [
+   "Action Modifier",
+   "Reaction"
+  ],
+  "formats": [],
+  "artists": [
+   "Cos Koniotis"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Only usable during the polling step of a political action.\n[pot][pre] This vampire gets +3 votes.\n[POT][PRE] Vampires who do not follow the Path of Power and the Inner Voice get -1 vote.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2025-10-26",
+  "banned": null,
+  "cost": {
+   "type": "Blood",
+   "value": 1
+  },
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [
+   "Power and the Inner Voice"
+  ],
+  "discipline_requirement": {
+   "type": "Combo",
+   "disciplines": [
+    "pot",
+    "pre"
+   ]
+  }
+ },
+ {
+  "id": 100111,
+  "printed_name": "Aura Absorption",
+  "unicity_suffix": "",
+  "suffix": "",
+  "kind": "Library",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300008,
+     "code": "BL"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "C",
+      "multiplier": 2.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/bloodlines/auraabsorption.jpg"
+   },
+   {
+    "set": {
+     "id": 300015,
+     "code": "LoB"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "C",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/legacies-of-blood/auraabsorption.jpg"
+   },
+   {
+    "set": {
+     "id": 300024,
+     "code": "HttB"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PKia",
+      "copies": 4,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/heirs-to-the-blood/auraabsorption.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/auraabsorption.jpg",
+  "types": [
+   "Action Modifier",
+   "Reaction"
+  ],
+  "formats": [],
+  "artists": [
+   "Mike Danza"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "[aus] [REACTION] This vampire burns 1 blood to get +1 intercept.\n[myt] [REACTION] +1 intercept.\n[MYT] [ACTION MODIFIER] +1 stealth.",
+  "draft": "",
+  "flavor": "A young man. William Reed. Pacing nervously. Grabs a sealed envelope and keys from the table. Hmmm. That's all I see. Four hours ago, no more.\nBartholomew, Kiasyd",
+  "legal": "2002-01-02",
+  "banned": null,
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Choice",
+   "disciplines": [
+    "myt",
+    "aus"
+   ]
+  }
+ },
+ {
+  "id": 201343,
+  "printed_name": "Tarbaby Jack",
+  "unicity_suffix": "",
+  "suffix": "G3",
+  "kind": "Crypt",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300011,
+     "code": "BH"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 2.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/black-hand/tarbabyjackg3.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/tarbabyjackg3.jpg",
+  "types": [
+   "Vampire"
+  ],
+  "formats": [],
+  "artists": [
+   "Peter Bergting"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Sabbat: If Tarbaby is ready at the start of your influence phase, you get +1 transfer. Black Hand.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2003-12-17",
+  "banned": "2020-08-01",
+  "clan": "Nosferatu antitribu",
+  "path": "",
+  "advanced": false,
+  "capacity": 8,
+  "group": "G3",
+  "disciplines": [
+   "dom",
+   "ser",
+   "ANI",
+   "OBF",
+   "POT"
+  ],
+  "title": null
+ },
+ {
+  "id": 201733,
+  "printed_name": "Aaradhya, The Callous Tyrant",
+  "unicity_suffix": "",
+  "suffix": "G6",
+  "kind": "Crypt",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300043,
+     "code": "SV5"
+    },
+    "occurrences": [
+     {
+      "type": "Precon",
+      "frequency": null,
+      "multiplier": 0.0,
+      "bundle": "PPower",
+      "copies": 1,
+      "date": null
+     }
+    ],
+    "url": "https://static.krcg.org/card/set/sabbat-v5/aaradhyathecalloustyrantg6.jpg"
+   }
+  ],
+  "i18n": {},
+  "url": "https://static.krcg.org/card/aaradhyathecalloustyrantg6.jpg",
+  "types": [
+   "Vampire"
+  ],
+  "formats": [],
+  "artists": [
+   "Noora Hirvonen"
+  ],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Sabbat cardinal: Aaradhya can unlock after performing a successful political action (even if the referendum failed). +1 bleed.",
+  "draft": "",
+  "flavor": "",
+  "legal": "2025-10-26",
+  "banned": null,
+  "clan": "Ventrue",
+  "path": "Power and the Inner Voice",
+  "advanced": false,
+  "capacity": 10,
+  "group": "G6",
+  "disciplines": [
+   "ANI",
+   "DOM",
+   "FOR",
+   "POT",
+   "PRE"
+  ],
+  "title": "Cardinal"
+ }
+]
