@@ -31,6 +31,7 @@ from app.models import (
 from app.models.enums import DeckPolicy, DeckStatus, RoundType, TournamentFormat
 from app.schemas.base import WriteModel
 from app.schemas.collection import (
+    BundleDeposit,
     CardCopyCreate,
     CardCopyUpdate,
     DeckCardCreate,
@@ -67,6 +68,7 @@ MINIMAL_CREATE = {
     CardCopyCreate: {"card_id": 1, "language_code": "EN"},
     DeckCreate: {"name": "Grinder"},
     DeckCardCreate: {"card_id": 1, "language_code": "EN", "quantity": 1},
+    BundleDeposit: {"language_code": "EN"},
     PlayerCreate: {"name": "Alice"},
     ParticipationCreate: {"player_id": 1},
     GameCreate: {"played_at": PLAYED_AT, "player_count": 4},
@@ -182,6 +184,7 @@ def test_every_write_schema_is_covered_by_this_module():
         (CardCopyCreate, {"card_id", "language_code"}),
         (DeckCreate, {"name"}),
         (DeckCardCreate, {"card_id", "language_code", "quantity"}),
+        (BundleDeposit, {"language_code"}),
         (PlayerCreate, {"name"}),
         (ParticipationCreate, {"player_id"}),
         (GameCreate, {"played_at", "player_count"}),
@@ -219,6 +222,7 @@ def test_empty_payload_reports_every_required_field(schema):
         (VenueUpdate, "city", 80),
         (CardCopyCreate, "language_code", 8),
         (DeckCardCreate, "language_code", 8),
+        (BundleDeposit, "language_code", 8),
         (DeckCreate, "name", 120),
         (DeckCreate, "archetype", 120),
         (DeckUpdate, "name", 120),
@@ -248,6 +252,7 @@ def test_string_maximum_length(schema, field, limit):
         (VenueUpdate, "name"),
         (CardCopyCreate, "language_code"),
         (DeckCardCreate, "language_code"),
+        (BundleDeposit, "language_code"),
         (DeckCreate, "name"),
         (DeckUpdate, "name"),
         (PlayerCreate, "name"),
@@ -308,6 +313,7 @@ def test_update_refuses_explicit_null_on_a_not_null_column(schema, field):
         (CardCopyCreate, "quantity_owned", 0, -1),
         (CardCopyUpdate, "quantity_owned", 0, -1),
         (DeckCardCreate, "quantity", 1, 0),
+        (BundleDeposit, "count", 1, 0),
         (DeckCardUpdate, "quantity", 1, 0),
         (DeckCardCreate, "proxy_quantity", 0, -1),
         (DeckCardUpdate, "proxy_quantity", 0, -1),

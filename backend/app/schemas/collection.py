@@ -56,6 +56,21 @@ class CardCopyUpdate(WriteModel):
     notes: str | None = None
 
 
+class BundleDeposit(WriteModel):
+    """Versement du contenu d'un produit dans la collection.
+
+    Le produit fixe les cartes et leurs exemplaires ; il ne manque que la
+    langue de ce qui a été acheté, et le nombre de produits identiques.
+    """
+
+    language_code: str = Field(min_length=1, max_length=8)
+    count: int = Field(
+        default=1,
+        ge=1,
+        description="Nombre de produits identiques versés d'un coup.",
+    )
+
+
 class DeckCardRead(ReadModel):
     """Une ligne de decklist."""
 
