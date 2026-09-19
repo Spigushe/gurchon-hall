@@ -1,17 +1,22 @@
 """Application FastAPI du suivi VtES.
 
-Lot 0 : squelette + endpoint de santé uniquement. Les ressources métier
-(`/cartes`, `/stock`, `/decks`, `/parties`, `/tournois`, `/participations`,
-`/sync`, cf. CLAUDE.md §7) arrivent au Lot 1.
+Lot 0 : squelette + `/health`. Lot 2 : catalogue (`/cartes`, `/bundles`,
+`/langues`), collection (`/stock`) et decks (`/decks`). Les parties, tournois
+et `/sync` (CLAUDE.md §7) arrivent aux lots suivants.
 """
 
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app import __version__
+from app.routers.catalog import router as catalog_router
+from app.routers.decks import router as decks_router
 from app.routers.health import router as health_router
+from app.routers.stock import router as stock_router
+from app.services.errors import DomainError, InvalidRequestError
 
 # Origines autorisées par défaut : le serveur de dev Vite (front React), sur
 # localhost et 127.0.0.1. Configurable via la variable d'environnement
@@ -50,3 +55,17 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
+app.include_router(catalog_router)
+app.include_router(stock_router)
+app.include_router(decks_router)
+
+
+@app.exception_handler(DomainError)
+async def handle_domain_error(request: Request, error: DomainError) -> JSONResponse:
+    """Traduit une erreur métier en réponse, dans le format déclaré au contrat."""
+    if isinstance(error, InvalidRequestError):
+        # Même forme que les 422 de validation Pydantic de FastAPI.
+        detail = [{"type": "value_error", "loc": list(error.loc), "msg": error.message}]
+    else:
+        detail = error.message
+    return JSONResponse(status_code=error.status_code, content={"detail": detail})

@@ -24,7 +24,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.session import create_app_engine
+from app.db.session import create_app_engine, get_session
 from app.main import app
 from app.models import Base
 from tests.helpers import populate_world
@@ -63,6 +63,26 @@ def db_engine(tmp_path, schema_template):
 def db(db_engine):
     with Session(db_engine) as session:
         yield session
+
+
+@pytest.fixture
+def api(db_engine):
+    """`TestClient` branché sur la base jetable du test (Lot 2).
+
+    Remplace la dépendance `get_session` : chaque requête ouvre sa propre
+    session sur `db_engine`, avec les mêmes réglages que `SessionLocal`. Les
+    tests peuvent donc préparer des données via `db` / `world` puis les lire
+    par l'API, et inversement.
+    """
+
+    def override_session():
+        with Session(db_engine, autoflush=False, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_session
+    with TestClient(app) as test_client:
+        yield test_client
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

@@ -27,10 +27,2777 @@
           }
         }
       }
+    },
+    "/cartes": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Recherche dans le catalogue",
+        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse).",
+        "operationId": "listCards",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CardCategory"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "clan_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Clan Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardSummary"
+                  },
+                  "title": "Response Listcards"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cartes/{card_id}": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Fiche complète d'une carte",
+        "operationId": "getCard",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bundles": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Produits (précons, boîtes)",
+        "operationId": "listBundles",
+        "parameters": [
+          {
+            "name": "card_set_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Set Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 60
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BundleRead"
+                  },
+                  "title": "Response Listbundles"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bundles/{bundle_id}": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Contenu d'un produit",
+        "operationId": "getBundle",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BundleContentRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bundles/{bundle_id}/stock": {
+      "post": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Verser un produit dans la collection",
+        "description": "Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits.",
+        "operationId": "depositBundle",
+        "parameters": [
+          {
+            "name": "bundle_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Bundle Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BundleDeposit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardCopyRead"
+                  },
+                  "title": "Response Depositbundle"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/langues": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Langues d'exemplaires",
+        "operationId": "listLanguages",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageRead"
+                  },
+                  "type": "array",
+                  "title": "Response Listlanguages"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Ajouter une langue",
+        "operationId": "createLanguage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LanguageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguageRead"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stock": {
+      "get": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "Liste la collection",
+        "operationId": "listStock",
+        "parameters": [
+          {
+            "name": "language_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language Code"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/CardCategory"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CardCopyRead"
+                  },
+                  "title": "Response Liststock"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "Déclare une carte dans une langue",
+        "operationId": "createStockEntry",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCopyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardCopyRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stock/{card_id}/{language_code}": {
+      "get": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "Lit une entrée de collection",
+        "operationId": "getStockEntry",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "language_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Language Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardCopyRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "Modifie une entrée de collection",
+        "operationId": "updateStockEntry",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "language_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Language Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardCopyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardCopyRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "stock"
+        ],
+        "summary": "Retire une entrée de collection",
+        "description": "Refusé (409) tant que des decks utilisent l'entrée.",
+        "operationId": "deleteStockEntry",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "language_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Language Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decks": {
+      "get": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Liste les decks",
+        "operationId": "listDecks",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/DeckStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeckRead"
+                  },
+                  "title": "Response Listdecks"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Crée un deck",
+        "operationId": "createDeck",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeckCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckRead"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decks/{deck_id}": {
+      "get": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Un deck et sa composition",
+        "operationId": "getDeck",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckDetailRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Modifie un deck",
+        "description": "Passer un deck à `active` exige qu'il soit légal (crypt ≥ 12, library 60–90) ; sinon 409.",
+        "operationId": "updateDeck",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeckUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Supprime un deck et sa composition",
+        "operationId": "deleteDeck",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decks/{deck_id}/legalite": {
+      "get": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Légalité du deck",
+        "description": "Calculée à la demande ; les seuils voyagent dans la réponse.",
+        "operationId": "getDeckLegality",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckLegality"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decks/{deck_id}/cartes": {
+      "post": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Ajoute une carte au deck",
+        "description": "La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409.",
+        "operationId": "addDeckCard",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeckCardCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckCardRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/decks/{deck_id}/cartes/{card_id}/{language_code}": {
+      "patch": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Modifie une ligne du deck",
+        "operationId": "updateDeckCard",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          },
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "language_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Language Code"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeckCardUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckCardRead"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Retire une carte du deck",
+        "operationId": "removeDeckCard",
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Deck Id"
+            }
+          },
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Card Id"
+            }
+          },
+          {
+            "name": "language_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Language Code"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "BundleCardRead": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSummary"
+          },
+          "copies": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Copies"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "copies"
+        ],
+        "title": "BundleCardRead",
+        "description": "Une ligne du contenu d'un produit : une carte, en n exemplaires."
+      },
+      "BundleContentRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "title": "Card Set Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé."
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/BundleCardRead"
+            },
+            "type": "array",
+            "title": "Cards",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "card_set_id",
+          "code"
+        ],
+        "title": "BundleContentRead",
+        "description": "Contenu complet d'un produit.\n\nRéponse d'un futur `GET /bundles/{id}` (Lot 2). Deux usages la motivent :\nsavoir quel produit acheter pour compléter un deck, et verser ce contenu\ndans la collection — `cards` a exactement la forme qu'attend une création\nd'entrées de stock (carte + quantité), à laquelle il ne manque que la\nlangue de l'exemplaire acheté.\n\nLe service assemble ces lignes depuis les occurrences de type « precon »\ndu produit ; ce n'est pas une relation ORM directe, la carte se trouvant\nun cran plus loin, derrière l'impression."
+      },
+      "BundleDeposit": {
+        "properties": {
+          "language_code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Language Code"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Count",
+            "description": "Nombre de produits identiques versés d'un coup.",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "language_code"
+        ],
+        "title": "BundleDeposit",
+        "description": "Versement du contenu d'un produit dans la collection.\n\nLe produit fixe les cartes et leurs exemplaires ; il ne manque que la\nlangue de ce qui a été acheté, et le nombre de produits identiques."
+      },
+      "BundleRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "title": "Card Set Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé."
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "card_set_id",
+          "code"
+        ],
+        "title": "BundleRead",
+        "description": "Produit vendu dans une extension (deck préconstruit, boîte…).\n\nL'unité d'achat : ce qu'on vise pour compléter un deck, et ce qu'on verse\ndans la collection d'un seul geste. `code` peut être vide — 14 extensions\nn'ont qu'un précon, sans code propre."
+      },
+      "CardCategory": {
+        "type": "string",
+        "enum": [
+          "crypt",
+          "library"
+        ],
+        "title": "CardCategory",
+        "description": "Les deux moitiés d'un deck VtES (CLAUDE.md §5)."
+      },
+      "CardCopyCreate": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Language Code"
+          },
+          "quantity_owned": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantity Owned",
+            "default": 0
+          },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "default": false
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "card_id",
+          "language_code"
+        ],
+        "title": "CardCopyCreate",
+        "description": "Déclaration d'une entrée de collection."
+      },
+      "CardCopyRead": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "title": "Language Code"
+          },
+          "quantity_owned": {
+            "type": "integer",
+            "title": "Quantity Owned",
+            "description": "Nombre d'exemplaires réellement possédés."
+          },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "description": "Autorise à jouer cette carte en proxy dans cette langue, sans la posséder. Une entrée avec 0 exemplaire possédé et le proxy autorisé est le cas normal d'une carte jouée en proxy."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "language_code",
+          "quantity_owned",
+          "proxy_allowed"
+        ],
+        "title": "CardCopyRead",
+        "description": "Exemplaires possédés d'une carte dans une langue."
+      },
+      "CardCopyUpdate": {
+        "properties": {
+          "quantity_owned": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Quantity Owned"
+          },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CardCopyUpdate",
+        "description": "Modification d'une entrée de collection.\n\nLa carte et la langue forment la clé : elles ne se modifient pas, on crée\nune autre entrée. `quantity_owned` et `proxy_allowed` sont facultatifs mais\nnon nullables (colonnes NOT NULL) ; `notes`, lui, accepte `null` pour\neffacer la note."
+      },
+      "CardDisciplineRead": {
+        "properties": {
+          "discipline": {
+            "$ref": "#/components/schemas/DisciplineRead"
+          },
+          "superior": {
+            "type": "boolean",
+            "title": "Superior",
+            "description": "Niveau supérieur (code en majuscules chez krcg)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "discipline",
+          "superior"
+        ],
+        "title": "CardDisciplineRead",
+        "description": "Discipline requise par une carte, avec son niveau."
+      },
+      "CardPrintingOccurrenceRead": {
+        "properties": {
+          "occurrence_type": {
+            "$ref": "#/components/schemas/PrintOccurrence"
+          },
+          "frequency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency",
+            "description": "Code de rareté en booster (C, U, R, V…)."
+          },
+          "multiplier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multiplier",
+            "description": "Nombre moyen d'exemplaires par booster (0,5 possible)."
+          },
+          "copies": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copies",
+            "description": "Nombre d'exemplaires dans le produit, pour un précon."
+          },
+          "released_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released On"
+          },
+          "bundle": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BundleRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence_type"
+        ],
+        "title": "CardPrintingOccurrenceRead",
+        "description": "Comment une carte apparaît dans une extension.\n\nLes champs renseignés dépendent du type : fréquence et multiplicateur pour\nun booster, produit et exemplaires pour un précon, date pour une promo."
+      },
+      "CardPrintingRead": {
+        "properties": {
+          "card_set": {
+            "$ref": "#/components/schemas/CardSetRead"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la carte telle qu'imprimée dans cette extension."
+          },
+          "occurrences": {
+            "items": {
+              "$ref": "#/components/schemas/CardPrintingOccurrenceRead"
+            },
+            "type": "array",
+            "title": "Occurrences",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_set"
+        ],
+        "title": "CardPrintingRead",
+        "description": "Présence d'une carte dans une extension, et par quels produits."
+      },
+      "CardRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CardCategory"
+          },
+          "clan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClanRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "group_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Code"
+          },
+          "advanced": {
+            "type": "boolean",
+            "title": "Advanced",
+            "default": false
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la carte (version anglaise de référence)."
+          },
+          "sect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "cost_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nature du coût : une carte n'en a jamais qu'un seul."
+          },
+          "cost_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Value",
+            "description": "Montant du coût. Chaîne et non entier : 25 cartes coûtent « X »."
+          },
+          "burn_option": {
+            "type": "boolean",
+            "title": "Burn Option",
+            "default": false
+          },
+          "trifle": {
+            "type": "boolean",
+            "title": "Trifle",
+            "default": false
+          },
+          "clan_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clan Requirement",
+            "description": "Clan(s) exigé(s) par la carte, séparés par une virgule."
+          },
+          "path_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Requirement"
+          },
+          "discipline_requirement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DisciplineRequirement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble."
+          },
+          "card_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Text"
+          },
+          "flavor_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor Text"
+          },
+          "artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artist"
+          },
+          "banned_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banned On",
+            "description": "Date de bannissement publiée par le VEKN, vide sinon."
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/CardTypeRead"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "discipline_links": {
+            "items": {
+              "$ref": "#/components/schemas/CardDisciplineRead"
+            },
+            "type": "array",
+            "title": "Discipline Links",
+            "default": []
+          },
+          "printings": {
+            "items": {
+              "$ref": "#/components/schemas/CardPrintingRead"
+            },
+            "type": "array",
+            "title": "Printings",
+            "default": []
+          },
+          "translations": {
+            "items": {
+              "$ref": "#/components/schemas/CardTranslationRead"
+            },
+            "type": "array",
+            "title": "Translations",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vekn_id",
+          "name",
+          "category"
+        ],
+        "title": "CardRead",
+        "description": "Fiche complète d'une carte du catalogue."
+      },
+      "CardSetRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "abbrev": {
+            "type": "string",
+            "title": "Abbrev"
+          },
+          "full_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Name"
+          },
+          "release_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Date"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "abbrev"
+        ],
+        "title": "CardSetRead",
+        "description": "Extension."
+      },
+      "CardSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CardCategory"
+          },
+          "clan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClanRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "group_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Code"
+          },
+          "advanced": {
+            "type": "boolean",
+            "title": "Advanced",
+            "default": false
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la carte (version anglaise de référence)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vekn_id",
+          "name",
+          "category"
+        ],
+        "title": "CardSummary",
+        "description": "Vue courte d'une carte, pour les listes et l'autocomplétion."
+      },
+      "CardTranslationRead": {
+        "properties": {
+          "language_code": {
+            "type": "string",
+            "title": "Language Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "card_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Text"
+          },
+          "flavor_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor Text"
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la version localisée, quand il existe."
+          }
+        },
+        "type": "object",
+        "required": [
+          "language_code",
+          "name"
+        ],
+        "title": "CardTranslationRead",
+        "description": "Libellés localisés d'une carte.\n\nDistinct de la collection : traduire une carte ne dit rien sur le fait de\nla posséder, et posséder un exemplaire en français ne suppose pas qu'on\nconnaisse sa traduction officielle."
+      },
+      "CardTypeRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CardTypeRead",
+        "description": "Type de carte."
+      },
+      "ClanRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "abbrev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abbrev"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ClanRead",
+        "description": "Clan."
+      },
+      "CostType": {
+        "type": "string",
+        "enum": [
+          "pool",
+          "blood",
+          "conviction"
+        ],
+        "title": "CostType",
+        "description": "Nature du coût d'une carte de library.\n\nkrcg n'expose qu'un coût par carte (`{\"type\": ..., \"value\": ...}`) : une\ncarte ne coûte jamais à la fois du sang et du pool."
+      },
+      "DeckCardCreate": {
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "proxy_quantity": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Proxy Quantity",
+            "default": 0
+          },
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Language Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "quantity",
+          "card_id",
+          "language_code"
+        ],
+        "title": "DeckCardCreate",
+        "description": "Ajout d'une carte à un deck.\n\nLa carte doit déjà exister dans la collection pour la langue demandée\n(CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du\nservice, la base garantissant déjà l'existence de l'entrée de collection."
+      },
+      "DeckCardRead": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "title": "Language Code"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "proxy_quantity": {
+            "type": "integer",
+            "title": "Proxy Quantity",
+            "description": "Part des exemplaires ci-dessus jouée en proxy."
+          },
+          "card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "language_code",
+          "quantity",
+          "proxy_quantity"
+        ],
+        "title": "DeckCardRead",
+        "description": "Une ligne de decklist."
+      },
+      "DeckCardUpdate": {
+        "properties": {
+          "quantity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Quantity"
+          },
+          "proxy_quantity": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Proxy Quantity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DeckCardUpdate",
+        "description": "Modification d'une ligne de decklist.\n\nLe contrôle `proxy_quantity <= quantity` n'est complet que si les deux\nvaleurs sont fournies. Sinon la comparaison porterait sur une valeur que\nseule la base connaît : **le service du Lot 2 doit refaire la vérification**\naprès fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`\nreste le dernier filet, mais elle produirait un 500 plutôt qu'un 422)."
+      },
+      "DeckCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "created_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeckStatus",
+            "default": "draft"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "DeckCreate",
+        "description": "Création d'un deck."
+      },
+      "DeckDetailRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeckStatus"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/DeckCardRead"
+            },
+            "type": "array",
+            "title": "Cards",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DeckDetailRead",
+        "description": "Un deck avec sa composition."
+      },
+      "DeckLegality": {
+        "properties": {
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "crypt_count": {
+            "type": "integer",
+            "title": "Crypt Count"
+          },
+          "library_count": {
+            "type": "integer",
+            "title": "Library Count"
+          },
+          "crypt_minimum": {
+            "type": "integer",
+            "title": "Crypt Minimum"
+          },
+          "library_minimum": {
+            "type": "integer",
+            "title": "Library Minimum"
+          },
+          "library_maximum": {
+            "type": "integer",
+            "title": "Library Maximum"
+          },
+          "is_legal": {
+            "type": "boolean",
+            "title": "Is Legal"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "crypt_count",
+          "library_count",
+          "crypt_minimum",
+          "library_minimum",
+          "library_maximum",
+          "is_legal"
+        ],
+        "title": "DeckLegality",
+        "description": "Verdict de légalité d'un deck (CLAUDE.md §5 : crypt ≥ 12, library 60–90).\n\nSchéma de sortie seulement : le calcul est une règle de service, écrite au\nLot 2 avec la skill `regles-vtes`. Les seuils voyagent dans la réponse pour\nque le front affiche « 58 / 60 » sans les redéfinir de son côté."
+      },
+      "DeckRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "created_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeckStatus"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "DeckRead",
+        "description": "Un deck, sans sa composition."
+      },
+      "DeckStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "active",
+          "retired"
+        ],
+        "title": "DeckStatus",
+        "description": "Cycle de vie d'un deck côté joueur."
+      },
+      "DeckUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "created_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeckStatus"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archetype"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DeckUpdate",
+        "description": "Modification partielle d'un deck.\n\n`name` et `status` sont facultatifs mais non nullables ; `created_on`,\n`archetype` et `notes` acceptent `null` pour effacer la valeur."
+      },
+      "DisciplineRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "abbrev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abbrev"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "DisciplineRead",
+        "description": "Discipline."
+      },
+      "DisciplineRequirement": {
+        "type": "string",
+        "enum": [
+          "mono",
+          "choice",
+          "combo"
+        ],
+        "title": "DisciplineRequirement",
+        "description": "Manière dont une carte de library combine ses disciplines requises.\n\n`MONO` : une seule discipline (ou aucune). `CHOICE` : l'une au choix\nparmi plusieurs. `COMBO` : toutes exigées ensemble. Remplace le champ\ntextuel brut qu'imposaient les CSV, où « / » et « & » portaient cette\nnuance."
+      },
+      "ErrorResponse": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Explication lisible de l'échec."
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "description": "Corps d'une réponse d'erreur métier."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "HealthResponse": {
         "properties": {
           "status": {
@@ -58,6 +2825,131 @@
         ],
         "title": "HealthStatus",
         "description": "État de disponibilité rapporté par l'API."
+      },
+      "LanguageCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "LanguageCreate",
+        "description": "Ajout d'une langue."
+      },
+      "LanguageRead": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "Code court de la langue (EN, FR, ES, XX…)."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Libellé affichable."
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "description": "Ordre d'affichage dans les sélecteurs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "label",
+          "sort_order"
+        ],
+        "title": "LanguageRead",
+        "description": "Une langue d'exemplaire.\n\nListe ouverte servie par l'API plutôt que codée en dur dans le front : le\njeu exact des langues reste à confirmer (CLAUDE.md §11 point 2), et une\nlangue ajoutée en base doit apparaître dans l'UI sans redéploiement."
+      },
+      "PrintOccurrence": {
+        "type": "string",
+        "enum": [
+          "rarity",
+          "precon",
+          "single"
+        ],
+        "title": "PrintOccurrence",
+        "description": "Manière dont une carte apparaît dans une extension.\n\nLes trois cas sont disjoints dans le catalogue krcg et n'utilisent pas les\nmêmes champs : `RARITY` porte une fréquence et un multiplicateur (booster),\n`PRECON` un produit et un nombre d'exemplaires, `SINGLE` une date de mise\nen vente (promo, impression à la demande)."
+      },
+      "SectRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SectRead",
+        "description": "Sect."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

@@ -68,3 +68,67 @@ def test_committed_contract_matches_app_openapi():
         "Lancer `python scripts/export_openapi.py` pour le régénérer.\n"
         f"stdout: {result.stdout}\nstderr: {result.stderr}"
     )
+
+
+# --- Ressources métier (Lot 2) ----------------------------------------------
+
+EXPECTED_OPERATIONS = {
+    ("get", "/health"): "getHealth",
+    ("get", "/cartes"): "listCards",
+    ("get", "/cartes/{card_id}"): "getCard",
+    ("get", "/bundles"): "listBundles",
+    ("get", "/bundles/{bundle_id}"): "getBundle",
+    ("post", "/bundles/{bundle_id}/stock"): "depositBundle",
+    ("get", "/langues"): "listLanguages",
+    ("post", "/langues"): "createLanguage",
+    ("get", "/stock"): "listStock",
+    ("post", "/stock"): "createStockEntry",
+    ("get", "/stock/{card_id}/{language_code}"): "getStockEntry",
+    ("patch", "/stock/{card_id}/{language_code}"): "updateStockEntry",
+    ("delete", "/stock/{card_id}/{language_code}"): "deleteStockEntry",
+    ("get", "/decks"): "listDecks",
+    ("post", "/decks"): "createDeck",
+    ("get", "/decks/{deck_id}"): "getDeck",
+    ("patch", "/decks/{deck_id}"): "updateDeck",
+    ("delete", "/decks/{deck_id}"): "deleteDeck",
+    ("get", "/decks/{deck_id}/legalite"): "getDeckLegality",
+    ("post", "/decks/{deck_id}/cartes"): "addDeckCard",
+    ("patch", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "updateDeckCard",
+    ("delete", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "removeDeckCard",
+}
+
+
+def test_every_route_has_its_documented_operation_id():
+    paths = app.openapi()["paths"]
+
+    declared = {
+        (method, path): operation["operationId"]
+        for path, methods in paths.items()
+        for method, operation in methods.items()
+    }
+
+    assert declared == EXPECTED_OPERATIONS
+
+
+def test_business_errors_are_declared_with_the_error_schema():
+    schema = app.openapi()
+    error = schema["components"]["schemas"]["ErrorResponse"]
+    assert error["required"] == ["detail"]
+
+    add_card = schema["paths"]["/decks/{deck_id}/cartes"]["post"]["responses"]
+    for status in ("404", "409"):
+        assert add_card[status]["content"]["application/json"]["schema"] == {
+            "$ref": "#/components/schemas/ErrorResponse"
+        }
+    assert add_card["201"]["content"]["application/json"]["schema"] == {
+        "$ref": "#/components/schemas/DeckCardRead"
+    }
+
+
+def test_deletions_answer_204_without_body():
+    paths = app.openapi()["paths"]
+
+    for path in ("/stock/{card_id}/{language_code}", "/decks/{deck_id}"):
+        responses = paths[path]["delete"]["responses"]
+        assert "204" in responses
+        assert "content" not in responses["204"]
