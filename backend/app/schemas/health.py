@@ -1,11 +1,11 @@
 """Schémas Pydantic pour l'endpoint `GET /health`."""
 
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """État de disponibilité rapporté par l'API."""
 
     OK = "ok"

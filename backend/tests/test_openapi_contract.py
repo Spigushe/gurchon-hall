@@ -30,7 +30,9 @@ def test_openapi_health_response_schema_matches_contract():
     schema = app.openapi()
     health_get = schema["paths"]["/health"]["get"]
 
-    response_schema = health_get["responses"]["200"]["content"]["application/json"]["schema"]
+    response_schema = health_get["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]
     assert response_schema == {"$ref": "#/components/schemas/HealthResponse"}
 
     health_response = schema["components"]["schemas"]["HealthResponse"]

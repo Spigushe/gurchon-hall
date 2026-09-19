@@ -27,20 +27,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      # uv gère aussi le toolchain Python : pas besoin d'actions/setup-python,
+      # `uv sync` installe la version 3.14 requise par backend/pyproject.toml
+      # (requires-python) si le runner ne l'a pas déjà.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: "3.14"
-          cache: pip
-          cache-dependency-path: backend/pyproject.toml
+          working-directory: backend
+          enable-cache: true
 
-      - name: Install backend (editable, avec dépendances de dev)
+      - name: Install backend (uv sync, avec dépendances de dev)
         working-directory: backend
-        run: python -m pip install -e ".[dev]"
+        run: uv sync --extra dev
+
+      - name: Lint backend (ruff check)
+        working-directory: backend
+        run: uv run ruff check .
 
       - name: Tests backend (pytest)
         working-directory: backend
-        run: python -m pytest
+        run: uv run pytest
 
       # Étape séparée et explicite (garde-fou contract-first, cf. CLAUDE.md
       # §7/§10) : même si test_openapi_contract.py couvre déjà cette
@@ -48,7 +54,7 @@ jobs:
       # comme "contrat désynchronisé" plutôt que noyé dans le rapport pytest.
       - name: Contrat OpenAPI à jour (contracts/openapi.json)
         working-directory: backend
-        run: python scripts/export_openapi.py --check
+        run: uv run python scripts/export_openapi.py --check
 
   frontend:
     name: Frontend (Vite / build / tests / installabilité PWA)
@@ -67,6 +73,10 @@ jobs:
       - name: Install frontend
         working-directory: frontend
         run: npm ci
+
+      - name: Lint frontend (eslint)
+        working-directory: frontend
+        run: npm run lint
 
       # Détection dynamique des scripts npm disponibles plutôt que de les
       # présumer : au moment de la rédaction de ce workflow, qa-tests ajoute

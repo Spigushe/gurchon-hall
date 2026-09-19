@@ -46,7 +46,9 @@ def main() -> int:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="N'écrit rien ; échoue si contracts/openapi.json diverge de l'application.",
+        help=(
+            "N'écrit rien ; échoue si contracts/openapi.json diverge de l'application."
+        ),
     )
     args = parser.parse_args()
 

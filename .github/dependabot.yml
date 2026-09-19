@@ -5,7 +5,13 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "pip"
+  # Écosystème natif "uv" (pas "pip") : backend/uv.lock est le fichier de
+  # verrouillage suivi par Dependabot depuis la migration pip -> uv (Lot 1).
+  # Vérifié dans la doc GitHub (supported-ecosystems-and-repositories) au
+  # 18/09/2026 : "uv" est un package-ecosystem dédié depuis uv >= 0.11 (mises
+  # à jour de version ET de sécurité supportées), distinct de "pip" qui reste
+  # réservé aux projets pip/pipenv/poetry sans uv.lock.
+  - package-ecosystem: "uv"
     directory: "/backend"
     schedule:
       interval: "weekly"
