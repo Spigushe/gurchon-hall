@@ -4,7 +4,7 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 et 1 livrés** (non committés à ce stade pour le Lot 1).
+**État actuel** : **Lots 0 et 1 livrés.**
 Lot 0 : squelette monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 :
 outillage (uv, ruff, ESLint), modèle relationnel SQLAlchemy (21 tables), migration
 Alembic initiale, schémas Pydantic, chaîne de génération du client TS. L'arborescence
@@ -350,11 +350,12 @@ Tranchées pendant le Lot 1 :
    automatisés (pytest, vitest, Playwright offline), CI. Reste à confirmer à la main
    dans Chrome DevTools : panneau Application (manifest sans avertissement, SW
    *activated*), coupure réseau réelle, prompt d'installation sur mobile via HTTPS.
-2. **Lot 1 — Contrat & modèle** — *livré, non committé.* Dettes de tooling soldées
+2. **Lot 1 — Contrat & modèle** — *livré.* Dettes de tooling soldées
    (uv + `uv.lock`, ruff, ESLint, scripts unifiés), modèle de 21 tables, migration
    initiale, schémas Pydantic, chaîne de génération du client TS. Aucune route ajoutée :
-   le contrat reste limité à `/health`. Reste à vérifier au premier push : le run réel
-   de la CI (`astral-sh/setup-uv`) et de Dependabot (`uv`), non exécutables en local.
+   le contrat reste limité à `/health`. CI (`astral-sh/setup-uv`, ruff, ESLint, tests)
+   vérifiée verte au premier push. Reste à confirmer : le premier run réel de
+   Dependabot en mode `uv` (onglet Dependabot du dépôt).
 3. **Lot 2 — CRUD** : import du catalogue krcg (rejouable, cf. §11.1), stock (EN/FR),
    decks + composition, avec validation de deck (règles `regles-vtes`), versement d'un
    bundle dans le stock. Premières routes : le contrat OpenAPI et le client TS
