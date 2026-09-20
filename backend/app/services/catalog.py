@@ -20,17 +20,13 @@ from app.models import (
 from app.schemas.catalog import BundleCardRead, BundleContentRead, CardSummary
 from app.schemas.reference import LanguageCreate
 from app.services.errors import ConflictError, NotFoundError
+from app.services.persistence import commit_or_conflict
+from app.services.text_search import contains_folded
 
 
 def normalize_language_code(code: str) -> str:
     """Codes de langue en majuscules (« fr » et « FR » désignent la même)."""
     return code.strip().upper()
-
-
-def like_pattern(text: str) -> str:
-    """Motif `LIKE` « contient », avec les jokers de l'utilisateur neutralisés."""
-    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return f"%{escaped}%"
 
 
 def list_languages(db: Session) -> list[Language]:
@@ -51,7 +47,7 @@ def create_language(db: Session, payload: LanguageCreate) -> Language:
         raise ConflictError(f"La langue {code} existe déjà.")
     language = Language(code=code, label=payload.label, sort_order=payload.sort_order)
     db.add(language)
-    db.commit()
+    commit_or_conflict(db, f"La langue {code} existe déjà.")
     return language
 
 
@@ -66,7 +62,7 @@ def list_cards(
 ) -> list[Card]:
     stmt = select(Card).options(joinedload(Card.clan))
     if q:
-        stmt = stmt.where(Card.name.ilike(like_pattern(q), escape="\\"))
+        stmt = stmt.where(contains_folded(Card.name, q))
     if category is not None:
         stmt = stmt.where(Card.category == category)
     if clan_id is not None:
@@ -106,7 +102,7 @@ def list_bundles(
     if card_set_id is not None:
         stmt = stmt.where(Bundle.card_set_id == card_set_id)
     if q:
-        stmt = stmt.where(Bundle.name.ilike(like_pattern(q), escape="\\"))
+        stmt = stmt.where(contains_folded(Bundle.name, q))
     return list(db.scalars(stmt.order_by(Bundle.card_set_id, Bundle.code)))
 
 

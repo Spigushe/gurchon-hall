@@ -16,8 +16,13 @@ que krcg publie du nouveau (traductions, rééditions, cartes récentes).
 * tout est fait dans une seule transaction : un fichier corrompu ne laisse pas
   un catalogue à moitié importé.
 
-Non importés par choix (§11) : `rulings`, `name_variants`, `variants`, `legal`,
-`formats`. La sect n'est pas fournie par krcg (`Card.sect_id` reste nul).
+La date d'entrée en légalité (`legal` de krcg) alimente `Card.legal_from`, mise à
+jour au rejeu. La liste krcg paraît après la sortie commerciale : la règle
+s'applique telle quelle (carte pas encore légale = deck illégal), et une carte
+sans date est tenue pour légale.
+
+Non importés par choix (§11) : `rulings`, `name_variants`, `variants`, `formats`.
+La sect n'est pas fournie par krcg (`Card.sect_id` reste nul).
 
 La logique est pure vis-à-vis du réseau : `import_catalog` reçoit les données
 déjà parsées (facile à tester contre un fixture) ; `fetch_krcg_sources` fait le
@@ -130,7 +135,15 @@ def fetch_krcg_sources(
 
 
 def _date_or_none(value: str | None) -> date | None:
-    return date.fromisoformat(value) if value else None
+    """Date ISO complète, ou `None` : une date krcg partielle (« 2020-01 ») ou
+    vide vaut « inconnue » et ne doit pas faire échouer tout l'import.
+    """
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def _text_or_none(value: str | None) -> str | None:
@@ -196,6 +209,22 @@ def _sync_card_sets(
     return card_sets
 
 
+def _card_set_for(
+    code: str, card_sets: dict[str, CardSet], db: Session
+) -> CardSet:
+    """L'extension `code`, créée à la volée si `expansions.json` l'ignore.
+
+    Comme pour les produits : on garde le lien plutôt que de perdre la carte ;
+    les autres champs restent nuls (un rejeu les complétera si krcg les publie).
+    """
+    card_set = card_sets.get(code)
+    if card_set is None:
+        card_set = card_sets[code] = CardSet(abbrev=code)
+        db.add(card_set)
+        db.flush()
+    return card_set
+
+
 def _sync_bundles(
     db: Session,
     expansions: list[dict],
@@ -251,6 +280,7 @@ def _card_fields(raw: dict, refs: _References) -> dict[str, Any]:
         "flavor_text": _text_or_none(raw.get("flavor")),
         "artist": ", ".join(raw.get("artists") or []) or None,
         "banned_on": _date_or_none(raw.get("banned")),
+        "legal_from": _date_or_none(raw.get("legal")),
         "image_url": _text_or_none(raw.get("url")),
     }
 
@@ -331,7 +361,7 @@ def _sync_printings(
     existing = {p.card_set_id: p for p in card.printings}
     kept = []
     for raw_print in raw["prints"]:
-        card_set = card_sets[raw_print["set"]["code"]]
+        card_set = _card_set_for(raw_print["set"]["code"], card_sets, db)
         printing = existing.get(card_set.id) or CardPrinting(card_set=card_set)
         printing.image_url = _text_or_none(raw_print.get("url"))
         printing.occurrences = _occurrences(raw_print, card_set, bundles, db)
@@ -375,7 +405,11 @@ def import_catalog(
                     selectinload(Card.discipline_links).selectinload(
                         CardDisciplineLink.discipline
                     ),
-                    selectinload(Card.printings),
+                    # Les occurrences aussi, sinon un rejeu les charge une
+                    # impression à la fois (elles sont réécrites en bloc).
+                    selectinload(Card.printings).selectinload(
+                        CardPrinting.occurrences
+                    ),
                     selectinload(Card.translations),
                 )
             )

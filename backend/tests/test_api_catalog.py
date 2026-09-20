@@ -180,3 +180,33 @@ def test_create_language_normalizes_the_code(api, db):
     assert "DE" in [lang["code"] for lang in api.get("/langues").json()]
     assert api.post("/langues", json={"code": "DE", "label": "x"}).status_code == 409
     assert api.post("/langues", json={"code": "", "label": "x"}).status_code == 422
+
+
+def test_create_language_refuses_a_blank_code_and_creates_nothing(api, db):
+    """Un code fait de blancs n'est pas une langue : 422, et rien en base.
+
+    Sans rognage, `"  "` passait la validation et créait une langue de code
+    blanc, impossible à désigner ensuite dans une URL de stock.
+    """
+    add_languages(db, "EN")
+    db.commit()
+    before = [lang["code"] for lang in api.get("/langues").json()]
+
+    for blank in ("   ", "\t", "\n", "   "):
+        response = api.post("/langues", json={"code": blank, "label": "Blanc"})
+        assert response.status_code == 422, blank
+        assert response.json()["detail"][0]["loc"] == ["body", "code"]
+
+    assert [lang["code"] for lang in api.get("/langues").json()] == before
+
+
+def test_create_language_trims_the_code_before_normalizing(api, db):
+    """« ␣de␣ » collé depuis une page devient « DE », pas un doublon à part."""
+    add_languages(db, "EN")
+    db.commit()
+
+    created = api.post("/langues", json={"code": "  de  ", "label": "Allemand"})
+
+    assert created.status_code == 201
+    assert created.json()["code"] == "DE"
+    assert api.post("/langues", json={"code": "DE", "label": "x"}).status_code == 409

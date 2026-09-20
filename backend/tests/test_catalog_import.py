@@ -19,16 +19,20 @@ from app.models import (
     Bundle,
     Card,
     CardCategory,
+    CardCopy,
     CardPrintingOccurrence,
     CardSet,
     CardTranslation,
     CostType,
+    Deck,
     Discipline,
     DisciplineRequirement,
     Language,
     PrintOccurrence,
 )
-from app.services.catalog_import import import_catalog
+from app.services import decks
+from app.services.catalog_import import _date_or_none, import_catalog
+from tests.helpers import add_languages
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -133,6 +137,28 @@ def test_discipline_requirements_and_multiple_types(db, imported):
 def test_banned_card_carries_its_date(db, imported):
     banned = db.scalars(select(Card).where(Card.banned_on.is_not(None))).all()
     assert banned and all(isinstance(card.banned_on, date) for card in banned)
+
+
+def test_legal_date_is_imported_as_legal_from(db, imported, krcg):
+    vtes, _ = krcg
+    expected = {c["printed_name"]: c["legal"] for c in vtes}
+
+    for name, legal in expected.items():
+        assert card_by_name(db, name).legal_from == date.fromisoformat(legal), name
+
+
+def test_replay_updates_and_clears_legal_from(db, krcg):
+    vtes, expansions = krcg
+    import_catalog(db, vtes, expansions)
+    changed = copy.deepcopy(vtes)
+    aabbt = next(c for c in changed if c["printed_name"] == "Aabbt Kindred")
+    other = next(c for c in changed if c["printed_name"] != "Aabbt Kindred")
+    aabbt["legal"] = "2031-01-02"
+    other["legal"] = None
+    import_catalog(db, changed, expansions)
+
+    assert card_by_name(db, "Aabbt Kindred").legal_from == date(2031, 1, 2)
+    assert card_by_name(db, other["printed_name"]).legal_from is None
 
 
 def test_crypt_title_is_imported(db, imported):
@@ -279,3 +305,135 @@ def test_failed_import_leaves_the_catalog_untouched(db, krcg):
 
     assert count(db, Card) == 0
     assert count(db, CardSet) == 0
+
+
+def test_expansion_cited_by_a_card_but_absent_from_the_source_is_created(db, krcg):
+    vtes, expansions = krcg
+    known = [e for e in expansions if e["code"] not in ("FN", "FB")]
+
+    report = import_catalog(db, vtes, known)
+
+    assert report.cards_created == len(vtes)
+    fn = db.scalars(select(CardSet).where(CardSet.abbrev == "FN")).one()
+    assert fn.full_name is None and fn.release_date is None and fn.company is None
+    aabbt = card_by_name(db, "Aabbt Kindred")
+    assert {p.card_set.abbrev for p in aabbt.printings} == {"FN", "POD"}
+    # Le précon d'une extension elle-même absente est créé à la volée aussi.
+    aidan = card_by_name(db, "Aidan Lyle")
+    codes = {
+        occ.bundle.code
+        for printing in aidan.printings
+        for occ in printing.occurrences
+        if occ.occurrence_type is PrintOccurrence.PRECON
+    }
+    assert "PTr" in codes
+
+
+def test_replay_with_a_missing_expansion_does_not_duplicate_it(db, krcg):
+    vtes, expansions = krcg
+    known = [e for e in expansions if e["code"] != "FN"]
+    import_catalog(db, vtes, known)
+    import_catalog(db, vtes, known)
+
+    assert count(db, CardSet) == len(known) + 1
+    assert db.scalars(select(CardSet).where(CardSet.abbrev == "FN")).one()
+
+
+@pytest.mark.parametrize("value", ["2020-01", "", None, "pas une date", "2020-13-40"])
+def test_partial_or_invalid_dates_read_as_unknown(value):
+    assert _date_or_none(value) is None
+
+
+def test_full_iso_date_is_still_parsed():
+    assert _date_or_none("2021-03-07") == date(2021, 3, 7)
+
+
+def test_date_helper_does_not_mask_other_errors():
+    with pytest.raises(TypeError):
+        _date_or_none(20210307)
+
+
+def test_import_survives_partial_dates_everywhere(db, krcg):
+    vtes, expansions = krcg
+    vtes, expansions = copy.deepcopy(vtes), copy.deepcopy(expansions)
+    next(e for e in expansions if e["code"] == "FN")["release_date"] = "2001-06"
+    fb = next(e for e in expansions if e["code"] == "FB")
+    next(iter(fb["bundles"].values()))["release_date"] = "2019"
+    aabbt = next(c for c in vtes if c["printed_name"] == "Aabbt Kindred")
+    aabbt["banned"] = "2020-01"
+    aabbt["legal"] = "2001-07"
+    next(p for p in aabbt["prints"] if p["set"]["code"] == "POD")["occurrences"][0][
+        "date"
+    ] = ""
+
+    report = import_catalog(db, vtes, expansions)
+
+    assert report.cards_created == len(vtes)
+    card = card_by_name(db, "Aabbt Kindred")
+    assert card.banned_on is None
+    assert card.legal_from is None  # date partielle : carte tenue pour légale
+    fn = db.scalars(select(CardSet).where(CardSet.abbrev == "FN")).one()
+    assert fn.release_date is None
+    pod = next(p for p in card.printings if p.card_set.abbrev == "POD")
+    assert pod.occurrences[0].released_on is None
+
+
+def test_ban_and_legal_dates_land_in_their_own_columns(db, imported):
+    tarbaby = card_by_name(db, "Tarbaby Jack")
+
+    assert tarbaby.banned_on == date(2020, 8, 1)
+    assert tarbaby.legal_from == date(2003, 12, 17)
+    # Une carte non bannie n'hérite jamais d'une date de ban.
+    assert card_by_name(db, "Aabbt Kindred").banned_on is None
+
+
+def test_a_missing_legal_key_reads_as_unknown_and_a_replay_clears_the_date(db, krcg):
+    vtes, expansions = krcg
+    import_catalog(db, vtes, expansions)
+    assert card_by_name(db, "Aabbt Kindred").legal_from is not None
+
+    changed = copy.deepcopy(vtes)
+    for raw in changed:
+        raw.pop("legal", None)  # clé absente, et non `null`
+    import_catalog(db, changed, expansions)
+
+    assert card_by_name(db, "Aabbt Kindred").legal_from is None
+
+
+def test_replaying_the_same_source_keeps_every_legal_date(db, krcg):
+    vtes, expansions = krcg
+    import_catalog(db, vtes, expansions)
+    first = {c.name: c.legal_from for c in db.scalars(select(Card))}
+
+    import_catalog(db, vtes, expansions)
+
+    assert {c.name: c.legal_from for c in db.scalars(select(Card))} == first
+    assert all(first.values())
+
+
+def test_an_imported_legal_date_drives_the_deck_legality(api, db, krcg):
+    """La chaîne complète : krcg `legal` -> `legal_from` -> verdict de légalité."""
+    vtes, expansions = krcg
+    vtes = copy.deepcopy(vtes)
+    next(c for c in vtes if c["printed_name"] == "Aabbt Kindred")["legal"] = (
+        "2099-01-01"
+    )
+    import_catalog(db, vtes, expansions)
+    add_languages(db, "EN")
+    aabbt = card_by_name(db, "Aabbt Kindred")
+    db.add(CardCopy(card_id=aabbt.id, language_code="EN", quantity_owned=12))
+    deck = Deck(name="Futur", discriminator="0001")
+    db.add(deck)
+    db.commit()
+    added = api.post(
+        f"/decks/{deck.id}/cartes",
+        json={"card_id": aabbt.id, "language_code": "EN", "quantity": 12},
+    )
+    assert added.status_code == 201
+
+    eve = decks.get_legality(db, deck.id, on=date(2098, 12, 31))
+    day = decks.get_legality(db, deck.id, on=date(2099, 1, 1))
+
+    assert [c.name for c in eve.not_yet_legal_cards] == ["Aabbt Kindred"]
+    assert eve.is_legal is False
+    assert day.not_yet_legal_cards == []

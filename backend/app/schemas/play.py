@@ -14,7 +14,13 @@ from typing import Annotated
 from pydantic import AfterValidator, Field
 
 from app.models.enums import DeckPolicy, RoundType, TournamentFormat
-from app.schemas.base import UNSET, ReadModel, WriteModel
+from app.schemas.base import (
+    MAX_DB_INT,
+    UNSET,
+    ReadModel,
+    RequiredText,
+    WriteModel,
+)
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -42,7 +48,7 @@ class PlayerRead(ReadModel):
 class PlayerCreate(WriteModel):
     """Création d'un joueur."""
 
-    name: str = Field(min_length=1, max_length=80)
+    name: RequiredText = Field(max_length=80)
     is_me: bool = False
 
 
@@ -50,7 +56,7 @@ class PlayerUpdate(WriteModel):
     """Modification d'un joueur. Aucun champ nullable : les deux colonnes sont
     NOT NULL, donc facultatif ne veut pas dire « effaçable »."""
 
-    name: str = Field(default=UNSET, min_length=1, max_length=80)
+    name: RequiredText = Field(default=UNSET, max_length=80)
     is_me: bool = UNSET
 
 
@@ -83,9 +89,9 @@ class ParticipationRead(ReadModel):
 class ParticipationCreate(WriteModel):
     """Enregistrement d'une participation."""
 
-    player_id: int
-    deck_id: int | None = None
-    seat: int | None = Field(default=None, ge=1)
+    player_id: int = Field(ge=1, le=MAX_DB_INT)
+    deck_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    seat: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     victory_points: float | None = Field(default=None, ge=0)
     game_win: bool | None = None
     notes: str | None = None
@@ -94,8 +100,8 @@ class ParticipationCreate(WriteModel):
 class ParticipationUpdate(WriteModel):
     """Modification d'une participation."""
 
-    deck_id: int | None = None
-    seat: int | None = Field(default=None, ge=1)
+    deck_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    seat: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     victory_points: float | None = Field(default=None, ge=0)
     game_win: bool | None = None
     notes: str | None = None
@@ -133,12 +139,13 @@ class GameCreate(WriteModel):
     played_at: AwareDateTime = Field(
         description="Instant de la partie, fuseau obligatoire, normalisé en UTC.",
     )
-    venue_id: int | None = None
-    tournament_id: int | None = None
-    round_number: int | None = Field(default=None, ge=1)
+    venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    tournament_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    round_number: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     round_type: RoundType = RoundType.CASUAL
     player_count: int = Field(
         ge=2,
+        le=MAX_DB_INT,
         description="4 à 5 joueurs en pratique ; 2 minimum accepté.",
     )
     notes: str | None = None
@@ -154,11 +161,11 @@ class GameUpdate(WriteModel):
     """
 
     played_at: AwareDateTime = UNSET
-    venue_id: int | None = None
-    tournament_id: int | None = None
-    round_number: int | None = Field(default=None, ge=1)
+    venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    tournament_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    round_number: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     round_type: RoundType = UNSET
-    player_count: int = Field(default=UNSET, ge=2)
+    player_count: int = Field(default=UNSET, ge=2, le=MAX_DB_INT)
     notes: str | None = None
 
 
@@ -193,14 +200,14 @@ class TournamentDetailRead(TournamentRead):
 class TournamentCreate(WriteModel):
     """Création d'un tournoi."""
 
-    name: str = Field(min_length=1, max_length=120)
+    name: RequiredText = Field(max_length=120)
     start_date: date
     end_date: date | None = None
-    venue_id: int | None = None
+    venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     deck_policy: DeckPolicy = DeckPolicy.MONO
     format: TournamentFormat = TournamentFormat.CONSTRUCTED
-    round_count: int | None = Field(default=None, ge=1)
-    my_ranking: int | None = Field(default=None, ge=1)
+    round_count: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    my_ranking: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     notes: str | None = None
 
 
@@ -212,12 +219,12 @@ class TournamentUpdate(WriteModel):
     les notes acceptent `null`.
     """
 
-    name: str = Field(default=UNSET, min_length=1, max_length=120)
+    name: RequiredText = Field(default=UNSET, max_length=120)
     start_date: date = UNSET
     end_date: date | None = None
-    venue_id: int | None = None
+    venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     deck_policy: DeckPolicy = UNSET
     format: TournamentFormat = UNSET
-    round_count: int | None = Field(default=None, ge=1)
-    my_ranking: int | None = Field(default=None, ge=1)
+    round_count: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    my_ranking: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     notes: str | None = None

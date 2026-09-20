@@ -7,7 +7,14 @@ en anglais technique.
 from fastapi import APIRouter, Query
 
 from app.models import CardCategory
-from app.routers.common import CONFLICT, NOT_FOUND, DbSession
+from app.routers.common import (
+    CONFLICT,
+    MAX_DB_INT,
+    NOT_FOUND,
+    DbSession,
+    PathId,
+    QueryId,
+)
 from app.schemas.catalog import BundleContentRead, CardRead, CardSummary
 from app.schemas.collection import BundleDeposit, CardCopyRead
 from app.schemas.reference import BundleRead, LanguageCreate, LanguageRead
@@ -23,16 +30,16 @@ router = APIRouter(tags=["catalogue"])
     summary="Recherche dans le catalogue",
     description=(
         "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom "
-        "anglais (sous-chaîne, sans tenir compte de la casse)."
+        "anglais (sous-chaîne, sans tenir compte de la casse ni des accents)."
     ),
 )
 def list_cards(
     db: DbSession,
     q: str | None = Query(default=None, min_length=1, max_length=80),
     category: CardCategory | None = None,
-    clan_id: int | None = None,
+    clan_id: QueryId = None,
     limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=MAX_DB_INT),
 ):
     return catalog.list_cards(
         db, q=q, category=category, clan_id=clan_id, limit=limit, offset=offset
@@ -46,7 +53,7 @@ def list_cards(
     summary="Fiche complète d'une carte",
     responses={**NOT_FOUND},
 )
-def get_card(card_id: int, db: DbSession):
+def get_card(card_id: PathId, db: DbSession):
     return catalog.get_card(db, card_id)
 
 
@@ -55,10 +62,14 @@ def get_card(card_id: int, db: DbSession):
     response_model=list[BundleRead],
     operation_id="listBundles",
     summary="Produits (précons, boîtes)",
+    description=(
+        "`q` cherche dans le nom du produit (sous-chaîne, sans tenir compte de "
+        "la casse ni des accents)."
+    ),
 )
 def list_bundles(
     db: DbSession,
-    card_set_id: int | None = None,
+    card_set_id: QueryId = None,
     q: str | None = Query(default=None, min_length=1, max_length=60),
 ):
     return catalog.list_bundles(db, card_set_id=card_set_id, q=q)
@@ -71,7 +82,7 @@ def list_bundles(
     summary="Contenu d'un produit",
     responses={**NOT_FOUND},
 )
-def get_bundle(bundle_id: int, db: DbSession):
+def get_bundle(bundle_id: PathId, db: DbSession):
     return catalog.get_bundle_content(db, bundle_id)
 
 
@@ -83,11 +94,13 @@ def get_bundle(bundle_id: int, db: DbSession):
     description=(
         "Ajoute le contenu du produit au stock, dans la langue indiquée. Les "
         "quantités s'additionnent à l'existant. Non idempotent : deux appels "
-        "versent deux produits."
+        "versent deux produits. 409 si le produit est sans contenu connu, ou si "
+        "le total d'une entrée dépasserait le plafond (2147483647) : aucune "
+        "entrée n'est alors modifiée."
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )
-def deposit_bundle(bundle_id: int, payload: BundleDeposit, db: DbSession):
+def deposit_bundle(bundle_id: PathId, payload: BundleDeposit, db: DbSession):
     return stock.deposit_bundle(db, bundle_id, payload)
 
 

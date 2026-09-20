@@ -29,7 +29,7 @@ from app.models import (
     Venue,
 )
 from app.models.enums import DeckPolicy, DeckStatus, RoundType, TournamentFormat
-from app.schemas.base import WriteModel
+from app.schemas.base import MAX_DB_INT, WriteModel
 from app.schemas.collection import (
     BundleDeposit,
     CardCopyCreate,
@@ -37,6 +37,7 @@ from app.schemas.collection import (
     DeckCardCreate,
     DeckCardUpdate,
     DeckCreate,
+    DeckListState,
     DeckUpdate,
 )
 from app.schemas.play import (
@@ -269,6 +270,159 @@ def test_identifying_strings_cannot_be_empty(schema, field):
     assert excinfo.value.errors()[0]["type"] == "string_too_short"
 
 
+BLANKS = ["   ", "\t", "\n", "   "]
+"""Quatre façons d'écrire « rien » : espaces, tabulation, saut de ligne,
+espace insécable (celui que produit un copier-coller depuis une page web)."""
+
+BLANK_REFUSED = [
+    (LanguageCreate, "label", 50),
+    (VenueCreate, "name", 120),
+    (VenueUpdate, "name", 120),
+    (DeckCreate, "name", 120),
+    (DeckUpdate, "name", 120),
+    (PlayerCreate, "name", 80),
+    (PlayerUpdate, "name", 80),
+    (TournamentCreate, "name", 120),
+    (TournamentUpdate, "name", 120),
+]
+
+
+@pytest.mark.parametrize(
+    ("schema", "field", "limit"),
+    BLANK_REFUSED,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+@pytest.mark.parametrize("blank", BLANKS)
+def test_a_name_made_only_of_spaces_is_refused(schema, field, limit, blank):
+    """Un nom d'espaces passait `min_length=1` : le deck devenait introuvable.
+
+    Rogné d'abord, mesuré ensuite (cf. `RequiredText`) : une saisie blanche est
+    donc vide, et vide est refusé — là où l'on attend un nom affichable.
+    """
+    base = MINIMAL_CREATE.get(schema, {})
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: blank})
+    assert error_locations(excinfo) == {(field,)}
+    assert excinfo.value.errors()[0]["type"] == "string_too_short"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field", "limit"),
+    BLANK_REFUSED,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_a_name_keeps_its_inner_spaces_but_loses_its_edges(schema, field, limit):
+    """« Ventrue Grinder » entre avec ses bords rognés, pas son milieu."""
+    base = MINIMAL_CREATE.get(schema, {})
+    parsed = schema.model_validate({**base, field: "  Ventrue Grinder \n"})
+    assert getattr(parsed, field) == "Ventrue Grinder"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field", "limit"),
+    BLANK_REFUSED,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_trimming_does_not_move_the_length_ceiling(schema, field, limit):
+    """Le plafond se mesure après rognage, et ne bouge pas d'un caractère.
+
+    Contre-épreuve du piège inverse : des espaces de bord ne doivent pas servir
+    à faire passer un nom trop long, ni un nom à la limite exacte à échouer.
+    """
+    base = MINIMAL_CREATE.get(schema, {})
+    at_limit = schema.model_validate({**base, field: f"  {'x' * limit}  "})
+    assert getattr(at_limit, field) == "x" * limit
+
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: f"  {'x' * (limit + 1)}  "})
+    assert excinfo.value.errors()[0]["type"] == "string_too_long"
+
+
+# Tout endroit du contrat où un code de langue entre, plafonné à 8 caractères.
+LANGUAGE_CODE_FIELDS = [
+    (LanguageCreate, "code"),
+    (CardCopyCreate, "language_code"),
+    (DeckCardCreate, "language_code"),
+    (BundleDeposit, "language_code"),
+]
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    LANGUAGE_CODE_FIELDS,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+@pytest.mark.parametrize("blank", BLANKS)
+def test_a_language_code_made_only_of_blanks_is_refused(schema, field, blank):
+    """Une carte a toujours une langue d'impression : un code blanc n'en est pas.
+
+    Sans rognage, `"  "` passait la validation puis échouait bien plus loin, en
+    404 « langue inconnue » — une saisie vide déguisée en ressource absente.
+    """
+    base = MINIMAL_CREATE.get(schema, {})
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: blank})
+    assert error_locations(excinfo) == {(field,)}
+    assert excinfo.value.errors()[0]["type"] == "string_too_short"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    LANGUAGE_CODE_FIELDS,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_a_language_code_loses_its_surrounding_blanks(schema, field):
+    """« EN » copié-collé avec ses espaces reste « EN », pas « ␣␣EN␣␣ »."""
+    base = MINIMAL_CREATE.get(schema, {})
+    assert getattr(schema.model_validate({**base, field: "  EN  "}), field) == "EN"
+    assert getattr(schema.model_validate({**base, field: "\tfr\n"}), field) == "fr"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    LANGUAGE_CODE_FIELDS,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_the_language_code_ceiling_is_measured_after_trimming(schema, field):
+    """Huit caractères après rognage : ni gagnés ni perdus par les bords."""
+    base = MINIMAL_CREATE.get(schema, {})
+    at_limit = schema.model_validate({**base, field: f"  {'x' * 8}  "})
+    assert getattr(at_limit, field) == "x" * 8
+
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: f"  {'x' * 9}  "})
+    assert error_locations(excinfo) == {(field,)}
+    assert excinfo.value.errors()[0]["type"] == "string_too_long"
+
+
+def test_every_language_code_field_of_the_contract_is_covered():
+    """Un champ de langue ajouté au contrat doit rejoindre la liste ci-dessus.
+
+    Repéré par son nom (`code` sur `LanguageCreate`, `language_code` ailleurs)
+    parmi tous les schémas d'écriture : le plafond de 8 caractères n'est pas un
+    critère, c'est le fait d'être un code de langue qui l'est.
+    """
+    found = {
+        (schema, name)
+        for schema in all_write_schemas()
+        for name in schema.model_fields
+        if name == "language_code" or (name == "code" and schema is LanguageCreate)
+    }
+    assert found == set(LANGUAGE_CODE_FIELDS)
+
+
+def test_optional_free_text_keeps_its_spaces():
+    """Les champs libres facultatifs ne sont pas touchés.
+
+    `archetype`, `notes`, `city` sont effaçables par `null` ; leur contenu est
+    de la prose, pas un identifiant d'affichage. Les rogner serait une autre
+    décision, à prendre pour de meilleures raisons que la symétrie.
+    """
+    deck = DeckCreate.model_validate({"name": "D", "archetype": "  Vote  "})
+    assert deck.archetype == "  Vote  "
+    assert VenueCreate.model_validate({"name": "V", "city": " Lyon "}).city == " Lyon "
+
+
 UPDATE_TO_MODEL = {
     VenueUpdate: Venue,
     CardCopyUpdate: CardCopy,
@@ -317,6 +471,7 @@ def test_update_refuses_explicit_null_on_a_not_null_column(schema, field):
         (DeckCardUpdate, "quantity", 1, 0),
         (DeckCardCreate, "proxy_quantity", 0, -1),
         (DeckCardUpdate, "proxy_quantity", 0, -1),
+        (LanguageCreate, "sort_order", 0, -1),
         (ParticipationCreate, "seat", 1, 0),
         (ParticipationUpdate, "seat", 1, 0),
         (ParticipationCreate, "victory_points", 0, -0.5),
@@ -339,6 +494,79 @@ def test_numeric_lower_bounds(schema, field, lowest_valid, highest_invalid):
         schema.model_validate({**base, field: highest_invalid})
     assert error_locations(excinfo) == {(field,)}
     assert excinfo.value.errors()[0]["type"] == "greater_than_equal"
+
+
+UPPER_BOUNDED = [
+    (LanguageCreate, "sort_order"),
+    (CardCopyCreate, "card_id"),
+    (CardCopyCreate, "quantity_owned"),
+    (CardCopyUpdate, "quantity_owned"),
+    (DeckCardCreate, "card_id"),
+    (DeckCardCreate, "quantity"),
+    (DeckCardUpdate, "quantity"),
+    (DeckCardUpdate, "proxy_quantity"),
+    (BundleDeposit, "count"),
+    (ParticipationCreate, "player_id"),
+    (ParticipationCreate, "deck_id"),
+    (ParticipationUpdate, "deck_id"),
+    (GameCreate, "venue_id"),
+    (GameCreate, "tournament_id"),
+    (GameCreate, "player_count"),
+    (GameUpdate, "venue_id"),
+    (TournamentCreate, "venue_id"),
+    (TournamentUpdate, "venue_id"),
+]
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    UPPER_BOUNDED,
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_integers_are_capped_at_the_database_maximum(schema, field):
+    """Un entier hors des bornes d'une colonne doit valoir 422, pas 500.
+
+    Sans plafond, la valeur descend jusqu'au pilote SQLite, qui la refuse par
+    une erreur d'exécution : le client reçoit alors une erreur serveur pour une
+    saisie qui n'a jamais eu la moindre chance d'exister en base.
+    """
+    base = MINIMAL_CREATE.get(schema, {})
+    schema.model_validate({**base, field: MAX_DB_INT})
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: MAX_DB_INT + 1})
+    assert error_locations(excinfo) == {(field,)}
+    assert excinfo.value.errors()[0]["type"] == "less_than_equal"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    [
+        (CardCopyCreate, "card_id"),
+        (DeckCardCreate, "card_id"),
+        (ParticipationCreate, "player_id"),
+        (ParticipationCreate, "deck_id"),
+        (GameCreate, "venue_id"),
+    ],
+    ids=lambda v: v.__name__ if isinstance(v, type) else None,
+)
+def test_identifiers_in_the_body_start_at_one(schema, field):
+    base = MINIMAL_CREATE.get(schema, {})
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**base, field: 0})
+    assert error_locations(excinfo) == {(field,)}
+
+
+def test_proxy_quantity_is_capped_too():
+    """À part : le plafond doit rester sous la quantité, elle-même plafonnée."""
+    line = {"card_id": 1, "language_code": "EN", "quantity": MAX_DB_INT}
+    DeckCardCreate.model_validate({**line, "proxy_quantity": MAX_DB_INT})
+    with pytest.raises(ValidationError) as excinfo:
+        DeckCardCreate.model_validate({**line, "proxy_quantity": MAX_DB_INT + 1})
+    assert error_locations(excinfo) == {("proxy_quantity",)}
+
+
+def test_max_db_int_is_the_signed_32_bit_ceiling():
+    assert MAX_DB_INT == 2**31 - 1 == 2147483647
 
 
 def test_victory_points_accept_half_points():
@@ -379,8 +607,12 @@ def test_create_defaults():
 
 
 def test_create_defaults_match_the_model_defaults(db):
-    """Le schéma et le modèle s'accordent sur les valeurs par défaut."""
-    deck = Deck(**DeckCreate(name="D").model_dump())
+    """Le schéma et le modèle s'accordent sur les valeurs par défaut.
+
+    Le discriminant s'ajoute à la charge utile : c'est le service qui le tire,
+    le client ne le fournit jamais (cf. `DeckCreate`).
+    """
+    deck = Deck(discriminator="0001", **DeckCreate(name="D").model_dump())
     db.add(deck)
     tournament = Tournament(
         **TournamentCreate(name="T", start_date=date(2026, 1, 1)).model_dump()
@@ -443,6 +675,44 @@ def test_enum_member_names_are_not_accepted_only_values():
     with pytest.raises(ValidationError):
         DeckCreate(name="D", status="ACTIVE")
     assert DeckCreate(name="D", status="active").status is DeckStatus.ACTIVE
+
+
+def test_deck_list_state_has_exactly_three_values():
+    """Filtre de liste à trois positions ; les supprimés n'y figurent jamais."""
+    assert [state.value for state in DeckListState] == ["active", "archived", "all"]
+
+
+# --------------------------------------------------------------------------
+# Deck : discriminant tiré par le serveur, archivage par PATCH
+# --------------------------------------------------------------------------
+
+
+def test_the_client_never_supplies_a_discriminator():
+    assert "discriminator" not in DeckCreate.model_fields
+    assert "discriminator" not in DeckUpdate.model_fields
+    with pytest.raises(ValidationError) as excinfo:
+        DeckCreate.model_validate({"name": "D", "discriminator": "0042"})
+    assert error_locations(excinfo) == {("discriminator",)}
+
+
+def test_archiving_is_a_boolean_field_of_the_update():
+    """« Archivé » n'est pas un statut : c'est une bascule, donc un booléen."""
+    assert DeckUpdate.model_validate({"archived": True}).archived is True
+    assert DeckUpdate.model_validate({"archived": False}).archived is False
+    assert "archived" not in DeckUpdate.model_validate({}).model_fields_set
+    assert "archived" not in DeckUpdate.model_fields["status"].annotation.__members__
+
+
+def test_archived_refuses_an_explicit_null():
+    """`null` voudrait dire « efface » : `archived_at` s'efface avec `false`."""
+    with pytest.raises(ValidationError):
+        DeckUpdate.model_validate({"archived": None})
+
+
+def test_deck_status_is_reduced_to_draft_and_active():
+    assert [status.value for status in DeckStatus] == ["draft", "active"]
+    with pytest.raises(ValidationError):
+        DeckCreate.model_validate({"name": "D", "status": "retired"})
 
 
 def test_language_is_not_a_closed_enum_in_the_contract():
@@ -636,7 +906,8 @@ SCHEMA_TO_MODEL = [
     (CardCopyCreate, CardCopy, set()),
     (CardCopyUpdate, CardCopy, set()),
     (DeckCreate, Deck, set()),
-    (DeckUpdate, Deck, set()),
+    # `archived` n'est pas une colonne : le service le traduit en `archived_at`.
+    (DeckUpdate, Deck, {"archived"}),
     (DeckCardCreate, DeckCard, set()),
     (DeckCardUpdate, DeckCard, set()),
     (PlayerCreate, Player, set()),

@@ -1,8 +1,14 @@
-"""API `/decks` : CRUD, composition, disponibilité du stock, légalité."""
+"""API `/decks` : CRUD, composition, disponibilité du stock, légalité.
 
+Discriminant, archivage et suppression logique : `test_api_deck_lifecycle.py`.
+"""
+
+import re
 import time
+from datetime import UTC, date, datetime, timedelta
 
-from app.models import CardCategory
+from app.models import Card, CardCategory
+from app.services import decks
 from tests.helpers import add_languages, make_card, make_copy, make_deck
 
 
@@ -38,14 +44,11 @@ def test_create_deck_defaults_to_draft(api):
     assert response.status_code == 201
     body = response.json()
     assert body["name"] == "Mon deck"
+    assert re.fullmatch(r"\d{4}", body["discriminator"])
+    assert body["archived_at"] is None and body["deleted_at"] is None
     assert body["status"] == "draft"
     assert body["archetype"] == "Bleed"
     assert body["created_at"] and body["updated_at"]
-
-
-def test_create_deck_with_duplicate_name_conflicts(api, world):
-    response = api.post("/decks", json={"name": "Ventrue Grinder"})
-    assert response.status_code == 409
 
 
 def test_create_deck_validates_input(api):
@@ -121,37 +124,12 @@ def test_patch_deck(api, world):
     assert body["status"] == "active"  # inchangé
 
 
-def test_patch_deck_rejects_null_name_and_duplicate_name(api, world, db):
-    make_deck(db, "Autre")
-    db.commit()
-
+def test_patch_deck_rejects_a_null_name_and_an_unknown_field(api, world):
     url = f"/decks/{world.deck.id}"
+
     assert api.patch(url, json={"name": None}).status_code == 422
-    assert api.patch(url, json={"name": "Autre"}).status_code == 409
-    # Reprendre son propre nom n'est pas un doublon.
-    same = api.patch(f"/decks/{world.deck.id}", json={"name": "Ventrue Grinder"})
-    assert same.status_code == 200
-
-
-def test_delete_deck_removes_composition_and_frees_the_stock(api, world, db):
-    # Le deck de `world` a été joué ; on retire d'abord la partie.
-    db.delete(world.mine)
-    db.commit()
-
-    assert api.delete(f"/decks/{world.deck.id}").status_code == 204
-
-    assert api.get(f"/decks/{world.deck.id}").status_code == 404
-    # Plus aucun deck n'utilise l'exemplaire : le stock peut descendre à 0.
-    lowered = api.patch(f"/stock/{world.card.id}/EN", json={"quantity_owned": 0})
-    assert lowered.status_code == 200
-
-
-def test_delete_deck_played_in_a_game_conflicts(api, world):
-    response = api.delete(f"/decks/{world.deck.id}")
-
-    assert response.status_code == 409
-    assert "retired" in response.json()["detail"]
-    assert api.get(f"/decks/{world.deck.id}").status_code == 200
+    assert api.patch(url, json={"discriminator": "0001"}).status_code == 422
+    assert api.patch(url, json={"status": "retired"}).status_code == 422
 
 
 # --- Ajout de cartes --------------------------------------------------------
@@ -438,9 +416,443 @@ def test_creating_an_active_deck_requires_legality(api):
     assert api.get("/decks").json() == []  # rien n'a été créé
 
 
-def test_active_deck_can_be_edited_and_retired_even_if_now_incomplete(api, world):
+def test_active_deck_can_be_edited_even_if_now_incomplete(api, world):
     # `world.deck` est actif sans être légal (fixture Lot 1) : seul le passage
     # à « actif » est contrôlé, pas la vie d'un deck déjà actif.
     url = f"/decks/{world.deck.id}"
-    for status in ("active", "retired", "draft"):
+    for status in ("active", "draft"):
         assert api.patch(url, json={"status": status}).status_code == 200
+    # Revenu en brouillon, il redevient soumis au contrôle de légalité.
+    assert api.patch(url, json={"status": "active"}).status_code == 409
+
+
+# --- Légalité : groupes de la crypt et cartes bannies -----------------------
+
+
+def build_deck(
+    api,
+    db,
+    crypt=(("G1", None),),
+    library_banned_on=None,
+    library_legal_from=None,
+):
+    """Deck aux tailles légales (12 en crypt, 60 en library) et aux cartes réglables.
+
+    `crypt` : couples (group_code, banned_on), un par carte de crypt distincte,
+    éventuellement suivis d'un dict de champs de carte (`name`, `advanced`,
+    `legal_from`…) ; les 12 exemplaires se répartissent à parts égales (1, 2, 3
+    ou 4 cartes).
+    """
+    add_languages(db, "EN", "FR")
+    per_card = 12 // len(crypt)
+    crypt_cards = []
+    for index, (group_code, banned_on, *extra) in enumerate(crypt):
+        fields = dict(extra[0]) if extra else {}
+        card = make_card(
+            db,
+            fields.pop("name", f"Vampire {index}"),
+            group_code=group_code,
+            banned_on=banned_on,
+            **fields,
+        )
+        make_copy(db, card, quantity_owned=per_card)
+        crypt_cards.append(card)
+    library = make_card(
+        db,
+        "Livre",
+        category=CardCategory.LIBRARY,
+        banned_on=library_banned_on,
+        legal_from=library_legal_from,
+    )
+    make_copy(db, library, quantity_owned=60)
+    deck = make_deck(db)
+    db.commit()
+    for card in crypt_cards:
+        assert add_line(api, deck.id, card.id, quantity=per_card).status_code == 201
+    assert add_line(api, deck.id, library.id, quantity=60).status_code == 201
+    return deck
+
+
+def legality(api, deck):
+    response = api.get(f"/decks/{deck.id}/legalite")
+    assert response.status_code == 200
+    return response.json()
+
+
+def names(cards):
+    return [card["name"] for card in cards]
+
+
+def test_adjacent_groups_are_legal(api, db):
+    deck = build_deck(api, db, crypt=[("G1", None), ("G2", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["issues"] == []
+    assert body["crypt_groups"] == ["G1", "G2"]
+
+
+def test_non_adjacent_groups_are_illegal(api, db):
+    deck = build_deck(api, db, crypt=[("G2", None), ("G4", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert body["crypt_groups"] == ["G2", "G4"]
+    (issue,) = body["issues"]
+    assert "Groupes de crypt incompatibles" in issue and "G2, G4" in issue
+
+
+def test_any_group_is_neutral(api, db):
+    deck = build_deck(api, db, crypt=[("G2", None), ("Any", None), ("G3", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["crypt_groups"] == ["G2", "G3"]  # « Any » n'y figure pas
+
+
+def test_a_crypt_of_any_only_has_no_group_and_is_legal(api, db):
+    deck = build_deck(api, db, crypt=[("Any", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["crypt_groups"] == []
+
+
+def test_deck_without_any_group_code_is_legal(api, db):
+    deck = build_deck(api, db, crypt=[(None, None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["crypt_groups"] == []
+    assert body["banned_cards"] == []
+
+
+def test_three_groups_are_illegal_even_when_consecutive(api, db):
+    deck = build_deck(api, db, crypt=[("G1", None), ("G2", None), ("G3", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert body["crypt_groups"] == ["G1", "G2", "G3"]
+    assert "G1, G2, G3" in body["issues"][0]
+
+
+def test_crypt_groups_are_listed_once_and_sorted(api, db):
+    deck = build_deck(
+        api, db, crypt=[("G3", None), ("G2", None), ("G3", None), ("G2", None)]
+    )
+
+    assert legality(api, deck)["crypt_groups"] == ["G2", "G3"]
+
+
+def test_crypt_card_banned_in_the_past_makes_the_deck_illegal(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", past)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert names(body["banned_cards"]) == ["Vampire 0"]
+    (issue,) = body["issues"]
+    assert "bannie" in issue and "Vampire 0" in issue
+
+
+def test_crypt_card_banned_today_is_already_banned(api, db, monkeypatch):
+    # Horloge figée : le test ne bascule pas au passage de minuit UTC.
+    today = date(2026, 6, 15)
+    monkeypatch.setattr(decks, "_today", lambda: today)
+    deck = build_deck(api, db, crypt=[("G1", today)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert names(body["banned_cards"]) == ["Vampire 0"]
+
+
+def test_crypt_card_banned_in_the_future_is_still_legal(api, db):
+    future = date.today() + timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", future)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["banned_cards"] == []
+
+
+def test_banned_library_card_counts_too(api, db):
+    deck = build_deck(api, db, library_banned_on=date.today() - timedelta(days=2))
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert names(body["banned_cards"]) == ["Livre"]
+    assert "Livre" in body["issues"][0]
+
+
+def test_banned_cards_are_listed_sorted_across_crypt_and_library(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(
+        api,
+        db,
+        crypt=[("G1", past), ("G1", None), ("G1", past)],
+        library_banned_on=past,
+    )
+
+    body = legality(api, deck)
+
+    assert names(body["banned_cards"]) == ["Livre", "Vampire 0", "Vampire 2"]
+    assert len(body["issues"]) == 1  # une seule ligne pour toutes les bannies
+
+
+def test_group_and_ban_problems_are_reported_together(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", past), ("G4", None)])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert len(body["issues"]) == 2
+    assert "Groupes" in body["issues"][0]
+    assert "bannie" in body["issues"][1]
+
+
+def test_non_adjacent_groups_block_the_activation(api, db):
+    deck = build_deck(api, db, crypt=[("G2", None), ("G4", None)])
+
+    response = api.patch(f"/decks/{deck.id}", json={"status": "active"})
+
+    assert response.status_code == 409
+    assert "illégal" in response.json()["detail"]
+    assert "G2, G4" in response.json()["detail"]
+    assert api.get(f"/decks/{deck.id}").json()["status"] == "draft"
+
+
+def test_a_banned_card_blocks_the_activation(api, db):
+    deck = build_deck(api, db, crypt=[("G1", date.today() - timedelta(days=2))])
+
+    response = api.patch(f"/decks/{deck.id}", json={"status": "active"})
+
+    assert response.status_code == 409
+    assert "illégal" in response.json()["detail"]
+    assert "Vampire 0" in response.json()["detail"]
+    assert api.get(f"/decks/{deck.id}").json()["status"] == "draft"
+
+
+def test_a_future_ban_does_not_block_the_activation(api, db):
+    deck = build_deck(api, db, crypt=[("G1", date.today() + timedelta(days=2))])
+
+    response = api.patch(f"/decks/{deck.id}", json={"status": "active"})
+
+    assert response.status_code == 200
+
+
+def test_deck_without_group_code_can_become_active(api, db):
+    deck = build_deck(api, db, crypt=[(None, None)])
+
+    response = api.patch(f"/decks/{deck.id}", json={"status": "active"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "active"
+
+
+def test_creating_an_active_deck_is_refused_when_illegal_for_groups(api):
+    # Un deck neuf est vide, donc illégal : le refus vaut pour toutes les règles,
+    # la création avec `active` passe par le même contrôle que le PATCH.
+    response = api.post("/decks", json={"name": "Neuf", "status": "active"})
+
+    assert response.status_code == 409
+    assert api.get("/decks").json() == []
+
+
+# --- Légalité : cartes fautives, variantes, cartes pas encore légales --------
+
+
+def test_banned_cards_come_as_card_summaries_with_group_and_advanced(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(
+        api,
+        db,
+        crypt=[
+            ("G2", past, {"name": "Theo Bell", "advanced": True}),
+            ("G2", None, {"name": "Theo Bell"}),
+            ("G3", None, {"name": "Theo Bell"}),
+        ],
+    )
+
+    body = legality(api, deck)
+
+    # Trois « Theo Bell » au deck : seule la variante avancée est bannie.
+    (card,) = body["banned_cards"]
+    assert (card["name"], card["group_code"], card["advanced"]) == (
+        "Theo Bell",
+        "G2",
+        True,
+    )
+    assert {"id", "vekn_id", "category", "clan"} <= set(card)
+    (issue,) = body["issues"]
+    assert "Theo Bell (G2, Adv)" in issue
+    assert "Theo Bell (G3)" not in issue
+
+
+def test_two_variants_of_a_name_are_told_apart_by_group(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(
+        api,
+        db,
+        crypt=[
+            ("G3", past, {"name": "Theo Bell"}),
+            ("G2", past, {"name": "Theo Bell"}),
+        ],
+    )
+
+    body = legality(api, deck)
+
+    # Triées par nom puis groupe ; chaque variante nommée dans le message.
+    assert [c["group_code"] for c in body["banned_cards"]] == ["G2", "G3"]
+    assert "Theo Bell (G2), Theo Bell (G3)" in body["issues"][0]
+
+
+def test_a_card_owned_in_two_languages_is_reported_once(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", past)])
+    crypt = api.get(f"/decks/{deck.id}").json()["cards"][0]["card"]
+    make_copy(db, db.get(Card, crypt["id"]), "FR", quantity_owned=1)
+    db.commit()
+    assert add_line(api, deck.id, crypt["id"], "FR").status_code == 201
+
+    body = legality(api, deck)
+
+    assert body["crypt_count"] == 13
+    assert names(body["banned_cards"]) == ["Vampire 0"]
+
+
+def test_crypt_card_not_yet_legal_makes_the_deck_illegal(api, db):
+    future = date.today() + timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", None, {"legal_from": future})])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert names(body["not_yet_legal_cards"]) == ["Vampire 0"]
+    assert body["banned_cards"] == []
+    (issue,) = body["issues"]
+    assert "pas encore légale" in issue and "Vampire 0" in issue
+
+
+def test_library_card_not_yet_legal_counts_too(api, db):
+    deck = build_deck(api, db, library_legal_from=date.today() + timedelta(days=2))
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is False
+    assert names(body["not_yet_legal_cards"]) == ["Livre"]
+
+
+def test_card_legal_since_the_past_or_without_date_is_legal(api, db):
+    past = date.today() - timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", None, {"legal_from": past})])
+
+    body = legality(api, deck)
+
+    assert body["is_legal"] is True
+    assert body["not_yet_legal_cards"] == []
+
+
+def test_card_becoming_legal_today_is_already_legal(api, db, monkeypatch):
+    today = date(2026, 6, 15)
+    monkeypatch.setattr(decks, "_today", lambda: today)
+    deck = build_deck(api, db, crypt=[("G1", None, {"legal_from": today})])
+
+    body = legality(api, deck)
+
+    assert body["not_yet_legal_cards"] == []
+    assert body["is_legal"] is True
+
+
+def test_not_yet_legal_cards_are_sorted_and_summarised_once(api, db):
+    future = date.today() + timedelta(days=2)
+    deck = build_deck(
+        api,
+        db,
+        crypt=[("G1", None, {"legal_from": future, "name": "Zed"}), ("G1", None)],
+        library_legal_from=future,
+    )
+
+    body = legality(api, deck)
+
+    assert names(body["not_yet_legal_cards"]) == ["Livre", "Zed"]
+    assert len(body["issues"]) == 1
+
+
+def test_a_card_can_be_banned_and_not_yet_legal_reported_separately(api, db):
+    past = date.today() - timedelta(days=2)
+    future = date.today() + timedelta(days=2)
+    deck = build_deck(
+        api,
+        db,
+        crypt=[("G1", past), ("G1", None, {"legal_from": future})],
+    )
+
+    body = legality(api, deck)
+
+    assert names(body["banned_cards"]) == ["Vampire 0"]
+    assert names(body["not_yet_legal_cards"]) == ["Vampire 1"]
+    assert len(body["issues"]) == 2
+
+
+def test_a_not_yet_legal_card_blocks_the_activation(api, db):
+    future = date.today() + timedelta(days=2)
+    deck = build_deck(api, db, crypt=[("G1", None, {"legal_from": future})])
+
+    response = api.patch(f"/decks/{deck.id}", json={"status": "active"})
+
+    assert response.status_code == 409
+    assert "pas encore légale" in response.json()["detail"]
+    assert api.get(f"/decks/{deck.id}").json()["status"] == "draft"
+
+
+def test_legality_is_dated(api, db, monkeypatch):
+    monkeypatch.setattr(decks, "_today", lambda: date(2026, 6, 15))
+    deck = build_deck(api, db)
+
+    assert legality(api, deck)["evaluated_on"] == "2026-06-15"
+
+
+def test_legality_is_dated_by_the_utc_day_by_default(api, db):
+    deck = build_deck(api, db)
+    before = datetime.now(UTC).date()
+
+    evaluated = date.fromisoformat(legality(api, deck)["evaluated_on"])
+
+    # Encadré par deux lectures de l'horloge : robuste au passage de minuit UTC.
+    assert before <= evaluated <= datetime.now(UTC).date()
+
+
+def test_the_service_evaluates_at_the_requested_date(api, db):
+    deck = build_deck(
+        api,
+        db,
+        crypt=[
+            (
+                "G1",
+                date(2015, 6, 1),
+                {"legal_from": date(2010, 1, 1)},
+            )
+        ],
+    )
+
+    before = decks.get_legality(db, deck.id, on=date(2005, 1, 1))
+    between = decks.get_legality(db, deck.id, on=date(2012, 1, 1))
+    after = decks.get_legality(db, deck.id, on=date(2015, 6, 1))
+
+    assert before.evaluated_on == date(2005, 1, 1)
+    assert names([c.model_dump() for c in before.not_yet_legal_cards]) == ["Vampire 0"]
+    assert (between.banned_cards, between.not_yet_legal_cards) == ([], [])
+    assert between.is_legal is True
+    assert [c.name for c in after.banned_cards] == ["Vampire 0"]
+    assert after.is_legal is False

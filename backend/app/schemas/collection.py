@@ -7,12 +7,31 @@ ressource `/stock` du §7 manipule. Une ligne de deck (`DeckCard`) est une
 """
 
 from datetime import date, datetime
+from enum import StrEnum
 
 from pydantic import Field, model_validator
 
 from app.models.enums import DeckStatus
-from app.schemas.base import UNSET, ReadModel, WriteModel
+from app.schemas.base import (
+    MAX_DB_INT,
+    UNSET,
+    ReadModel,
+    RequiredText,
+    WriteModel,
+)
 from app.schemas.catalog import CardSummary
+
+
+class DeckListState(StrEnum):
+    """Quels decks une liste renvoie.
+
+    Purement contractuel (pas de colonne en face) : l'archivage est une date,
+    pas un statut. Les decks supprimés ne sont dans aucun de ces trois cas.
+    """
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    ALL = "all"
 
 
 class CardCopyRead(ReadModel):
@@ -35,9 +54,13 @@ class CardCopyRead(ReadModel):
 class CardCopyCreate(WriteModel):
     """Déclaration d'une entrée de collection."""
 
-    card_id: int
-    language_code: str = Field(min_length=1, max_length=8)
-    quantity_owned: int = Field(default=0, ge=0)
+    card_id: int = Field(ge=1, le=MAX_DB_INT)
+    # Rogné puis non vide (cf. `RequiredText`) : un exemplaire a toujours une
+    # langue d'impression. Sans rognage, « " " » passait la validation puis
+    # ressortait en 404 « langue inconnue », là où la saisie est simplement
+    # vide — donc 422. La normalisation en majuscules reste au service.
+    language_code: RequiredText = Field(max_length=8)
+    quantity_owned: int = Field(default=0, ge=0, le=MAX_DB_INT)
     proxy_allowed: bool = False
     notes: str | None = None
 
@@ -51,7 +74,7 @@ class CardCopyUpdate(WriteModel):
     effacer la note.
     """
 
-    quantity_owned: int = Field(default=UNSET, ge=0)
+    quantity_owned: int = Field(default=UNSET, ge=0, le=MAX_DB_INT)
     proxy_allowed: bool = UNSET
     notes: str | None = None
 
@@ -63,10 +86,11 @@ class BundleDeposit(WriteModel):
     langue de ce qui a été acheté, et le nombre de produits identiques.
     """
 
-    language_code: str = Field(min_length=1, max_length=8)
+    language_code: RequiredText = Field(max_length=8)
     count: int = Field(
         default=1,
         ge=1,
+        le=MAX_DB_INT,
         description="Nombre de produits identiques versés d'un coup.",
     )
 
@@ -86,8 +110,8 @@ class DeckCardRead(ReadModel):
 class DeckCardWrite(WriteModel):
     """Base commune aux écritures de ligne de decklist."""
 
-    quantity: int = Field(ge=1)
-    proxy_quantity: int = Field(default=0, ge=0)
+    quantity: int = Field(ge=1, le=MAX_DB_INT)
+    proxy_quantity: int = Field(default=0, ge=0, le=MAX_DB_INT)
 
     @model_validator(mode="after")
     def _proxy_within_quantity(self) -> DeckCardWrite:
@@ -107,8 +131,8 @@ class DeckCardCreate(DeckCardWrite):
     service, la base garantissant déjà l'existence de l'entrée de collection.
     """
 
-    card_id: int
-    language_code: str = Field(min_length=1, max_length=8)
+    card_id: int = Field(ge=1, le=MAX_DB_INT)
+    language_code: RequiredText = Field(max_length=8)
 
 
 class DeckCardUpdate(WriteModel):
@@ -121,8 +145,8 @@ class DeckCardUpdate(WriteModel):
     reste le dernier filet, mais elle produirait un 500 plutôt qu'un 422).
     """
 
-    quantity: int = Field(default=UNSET, ge=1)
-    proxy_quantity: int = Field(default=UNSET, ge=0)
+    quantity: int = Field(default=UNSET, ge=1, le=MAX_DB_INT)
+    proxy_quantity: int = Field(default=UNSET, ge=0, le=MAX_DB_INT)
 
     @model_validator(mode="after")
     def _proxy_within_quantity(self) -> DeckCardUpdate:
@@ -142,10 +166,31 @@ class DeckRead(ReadModel):
 
     id: int
     name: str
+    discriminator: str = Field(
+        description=(
+            "Quatre chiffres tirés par le serveur, qui distinguent deux decks "
+            "de même nom. À afficher collé au nom : « Malkavien 2022#8561 »."
+        )
+    )
     created_on: date | None = None
     status: DeckStatus
     archetype: str | None = None
     notes: str | None = None
+    archived_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck "
+            "archivé sort des listes par défaut et n'est plus modifiable."
+        ),
+    )
+    deleted_at: datetime | None = Field(
+        default=None,
+        description=(
+            "Instant de suppression logique (UTC), nul si le deck n'est pas "
+            "supprimé. Un deck supprimé n'apparaît dans aucune liste, reste "
+            "lisible par identifiant et n'est plus modifiable."
+        ),
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -157,9 +202,14 @@ class DeckDetailRead(DeckRead):
 
 
 class DeckCreate(WriteModel):
-    """Création d'un deck."""
+    """Création d'un deck.
 
-    name: str = Field(min_length=1, max_length=120)
+    Pas de discriminant : il est tiré par le serveur, qui garantit son unicité
+    au sein du nom. Un client qui l'imposerait entrerait en course avec un
+    autre, pour un gain nul.
+    """
+
+    name: RequiredText = Field(max_length=120)
     created_on: date | None = None
     status: DeckStatus = DeckStatus.DRAFT
     archetype: str | None = Field(default=None, max_length=120)
@@ -169,30 +219,69 @@ class DeckCreate(WriteModel):
 class DeckUpdate(WriteModel):
     """Modification partielle d'un deck.
 
-    `name` et `status` sont facultatifs mais non nullables ; `created_on`,
-    `archetype` et `notes` acceptent `null` pour effacer la valeur.
+    `name`, `status` et `archived` sont facultatifs mais non nullables ;
+    `created_on`, `archetype` et `notes` acceptent `null` pour effacer la
+    valeur. Le discriminant ne se modifie pas : renommer un deck ne change pas
+    son identité (le serveur n'en retire un autre que si le nouveau couple est
+    déjà pris).
     """
 
-    name: str = Field(default=UNSET, min_length=1, max_length=120)
+    name: RequiredText = Field(default=UNSET, max_length=120)
     created_on: date | None = None
     status: DeckStatus = UNSET
     archetype: str | None = Field(default=None, max_length=120)
     notes: str | None = None
+    archived: bool = Field(
+        default=UNSET,
+        description=(
+            "Range le deck (`true`) ou le sort de l'archive (`false`). Pose ou "
+            "efface `archived_at` ; un deck archivé n'est plus modifiable."
+        ),
+    )
 
 
 class DeckLegality(ReadModel):
-    """Verdict de légalité d'un deck (CLAUDE.md §5 : crypt ≥ 12, library 60–90).
+    """Verdict de légalité d'un deck (CLAUDE.md §5).
 
-    Schéma de sortie seulement : le calcul est une règle de service, écrite au
-    Lot 2 avec la skill `regles-vtes`. Les seuils voyagent dans la réponse pour
-    que le front affiche « 58 / 60 » sans les redéfinir de son côté.
+    Règles vérifiées : crypt ≥ 12 ; crypt sur deux groupes adjacents au plus
+    (« Any » neutre) ; library entre 60 et 90 ; aucune carte bannie ; aucune
+    carte pas encore légale. Les seuils voyagent dans la réponse pour que le
+    front affiche « 58 / 60 » sans les redéfinir de son côté ; `issues` dit, en
+    clair, chaque règle enfreinte.
+
+    Le verdict est daté (`evaluated_on`) : bannissements et entrées en légalité
+    dépendent du jour où l'on regarde.
     """
 
     deck_id: int
+    evaluated_on: date = Field(
+        description="Date à laquelle le verdict a été rendu (bans, légalité)."
+    )
     crypt_count: int
     library_count: int
     crypt_minimum: int
     library_minimum: int
     library_maximum: int
+    crypt_groups: list[str] = Field(
+        default=[],
+        description=(
+            "Groupes présents dans la crypt, au format des cartes (« G2 »), "
+            "sans doublon, triés par numéro, « Any » exclu."
+        ),
+    )
+    banned_cards: list[CardSummary] = Field(
+        default=[],
+        description=(
+            "Cartes du deck bannies à la date d'évaluation. Des cartes entières "
+            "et non des noms : « Theo Bell » ne désigne rien sans son groupe."
+        ),
+    )
+    not_yet_legal_cards: list[CardSummary] = Field(
+        default=[],
+        description=(
+            "Cartes dont la date d'entrée en légalité est postérieure à la date "
+            "d'évaluation : imprimées, mais pas encore jouables."
+        ),
+    )
     is_legal: bool
     issues: list[str] = []

@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query, Response
 
 from app.models import CardCategory
-from app.routers.common import CONFLICT, NOT_FOUND, DbSession
+from app.routers.common import CONFLICT, MAX_DB_INT, NOT_FOUND, DbSession, PathId
 from app.schemas.collection import CardCopyCreate, CardCopyRead, CardCopyUpdate
 from app.services import stock
 
@@ -15,6 +15,10 @@ router = APIRouter(prefix="/stock", tags=["stock"])
     response_model=list[CardCopyRead],
     operation_id="listStock",
     summary="Liste la collection",
+    description=(
+        "`q` cherche dans le nom anglais de la carte (sous-chaîne, sans tenir "
+        "compte de la casse ni des accents)."
+    ),
 )
 def list_stock(
     db: DbSession,
@@ -22,7 +26,7 @@ def list_stock(
     category: CardCategory | None = None,
     q: str | None = Query(default=None, min_length=1, max_length=80),
     limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=MAX_DB_INT),
 ):
     return stock.list_stock(
         db,
@@ -53,7 +57,7 @@ def create_stock_entry(payload: CardCopyCreate, db: DbSession):
     summary="Lit une entrée de collection",
     responses={**NOT_FOUND},
 )
-def get_stock_entry(card_id: int, language_code: str, db: DbSession):
+def get_stock_entry(card_id: PathId, language_code: str, db: DbSession):
     return stock.get_copy(db, card_id, language_code)
 
 
@@ -65,7 +69,7 @@ def get_stock_entry(card_id: int, language_code: str, db: DbSession):
     responses={**NOT_FOUND, **CONFLICT},
 )
 def update_stock_entry(
-    card_id: int, language_code: str, payload: CardCopyUpdate, db: DbSession
+    card_id: PathId, language_code: str, payload: CardCopyUpdate, db: DbSession
 ):
     return stock.update_copy(db, card_id, language_code, payload)
 
@@ -78,6 +82,6 @@ def update_stock_entry(
     description="Refusé (409) tant que des decks utilisent l'entrée.",
     responses={**NOT_FOUND, **CONFLICT},
 )
-def delete_stock_entry(card_id: int, language_code: str, db: DbSession):
+def delete_stock_entry(card_id: PathId, language_code: str, db: DbSession):
     stock.delete_copy(db, card_id, language_code)
     return Response(status_code=204)

@@ -9,13 +9,30 @@ exemplaire possédé.
 D'où la comptabilité des exemplaires réels : dans un deck, une ligne consomme
 `quantity - proxy_quantity` exemplaires du stock ; la somme sur tous les decks
 ne doit jamais dépasser `quantity_owned` (`allocated_real`, `available`).
+
+Les decks supprimés logiquement ne comptent plus, sans filtre à écrire : leur
+decklist a migré vers `deleted_deck_card`, qui ne référence pas la collection,
+et leurs lignes vivantes n'existent plus. `allocated_real` et
+`proxies_allocated` se contentent donc de sommer `deck_card`. Une entrée de
+collection n'est retenue que par des decks vivants (archivés compris) : la
+supprimer n'est jamais bloquée par un deck supprimé.
+
+**Limite connue (reportée au Lot 3, `/sync`)** : la comptabilité du stock est un
+« vérifier puis écrire » non atomique. Deux requêtes concurrentes peuvent
+chacune constater assez d'exemplaires disponibles et, ensemble, sur-allouer une
+entrée (`allocated_real` > `quantity_owned`) ; de même pour la baisse de
+`quantity_owned` face à un ajout en deck. Aucune contrainte de base ne
+l'interdit (la somme porte sur plusieurs lignes). Sans risque en usage
+mono-utilisateur séquentiel, à traiter avec la file de synchronisation, qui
+sérialisera les écritures. Les doublons de clé, eux, sont rattrapés par la base
+et rendus en 409 (`app.services.persistence`).
 """
 
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Card, CardCategory, CardCopy, DeckCard
+from app.schemas.base import MAX_DB_INT
 from app.schemas.collection import (
     BundleDeposit,
     CardCopyCreate,
@@ -23,6 +40,8 @@ from app.schemas.collection import (
 )
 from app.services import catalog
 from app.services.errors import ConflictError, NotFoundError
+from app.services.persistence import commit_or_conflict
+from app.services.text_search import contains_folded
 
 
 def allocated_real(
@@ -32,24 +51,25 @@ def allocated_real(
     *,
     excluding_deck_id: int | None = None,
 ) -> int:
-    """Exemplaires réels (hors proxies) déjà pris par les decks."""
+    """Exemplaires réels (hors proxies) déjà pris par les decks vivants."""
     stmt = select(
         func.coalesce(func.sum(DeckCard.quantity - DeckCard.proxy_quantity), 0)
-    ).where(DeckCard.card_id == card_id, DeckCard.language_code == language_code)
+    ).where(
+        DeckCard.card_id == card_id,
+        DeckCard.language_code == language_code,
+    )
     if excluding_deck_id is not None:
         stmt = stmt.where(DeckCard.deck_id != excluding_deck_id)
     return int(db.scalar(stmt))
 
 
 def proxies_allocated(db: Session, card_id: int, language_code: str) -> int:
-    """Proxies présents dans les decks pour cette entrée."""
-    return int(
-        db.scalar(
-            select(func.coalesce(func.sum(DeckCard.proxy_quantity), 0)).where(
-                DeckCard.card_id == card_id, DeckCard.language_code == language_code
-            )
-        )
+    """Proxies présents dans les decks vivants pour cette entrée."""
+    stmt = select(func.coalesce(func.sum(DeckCard.proxy_quantity), 0)).where(
+        DeckCard.card_id == card_id,
+        DeckCard.language_code == language_code,
     )
+    return int(db.scalar(stmt))
 
 
 def list_stock(
@@ -72,9 +92,9 @@ def list_stock(
     if category is not None:
         stmt = stmt.where(Card.category == category)
     if q:
-        stmt = stmt.where(Card.name.ilike(catalog.like_pattern(q), escape="\\"))
+        stmt = stmt.where(contains_folded(Card.name, q))
     stmt = (
-        stmt.order_by(Card.name, Card.group_code, CardCopy.language_code)
+        stmt.order_by(Card.name, Card.group_code, Card.id, CardCopy.language_code)
         .limit(limit)
         .offset(offset)
     )
@@ -113,7 +133,9 @@ def create_copy(db: Session, payload: CardCopyCreate) -> CardCopy:
         notes=payload.notes,
     )
     db.add(copy)
-    db.commit()
+    commit_or_conflict(
+        db, f"La carte {payload.card_id} est déjà en collection en {code}."
+    )
     return get_copy(db, copy.card_id, code)
 
 
@@ -153,15 +175,13 @@ def delete_copy(db: Session, card_id: int, language_code: str) -> None:
     )
     if in_decks:
         raise ConflictError(
-            f"Cette entrée est utilisée par {in_decks} ligne(s) de deck : "
-            "la retirer des decks d'abord."
+            f"Cette entrée est utilisée par {in_decks} ligne(s) de deck (decks "
+            "archivés compris) : la retirer des decks d'abord, ou mettre sa "
+            "quantité à 0."
         )
     db.delete(copy)
-    try:
-        db.commit()
-    except IntegrityError as error:  # course avec un ajout en deck
-        db.rollback()
-        raise ConflictError("Cette entrée est utilisée par un deck.") from error
+    # Course possible avec un ajout en deck : la base refuse la suppression.
+    commit_or_conflict(db, "Cette entrée est utilisée par un deck.")
 
 
 def deposit_bundle(
@@ -173,6 +193,10 @@ def deposit_bundle(
     transaction. **Non idempotent** : rejouer l'appel ajoute le produit une
     seconde fois — l'idempotence des écritures rejouées est l'affaire de
     `/sync` (Lot 3).
+
+    409 si le résultat dépasserait `MAX_DB_INT` pour une entrée quelconque du
+    produit (le plafond que les schémas imposent à `quantity_owned`) : rien
+    n'est alors écrit.
     """
     code = catalog.normalize_language_code(payload.language_code)
     catalog.get_language(db, code)
@@ -183,13 +207,45 @@ def deposit_bundle(
             f"Le produit {bundle_id} n'a pas de contenu connu : rien à verser."
         )
 
+    # Une seule requête pour les entrées déjà en collection (pas de N+1).
+    existing = {
+        copy.card_id: copy
+        for copy in db.scalars(
+            select(CardCopy)
+            .where(
+                CardCopy.card_id.in_([card.id for card, _ in contents]),
+                CardCopy.language_code == code,
+            )
+            .options(joinedload(CardCopy.card).joinedload(Card.clan))
+        )
+    }
+    # Contrôle de plafond avant toute écriture : aucune entrée n'est créée ni
+    # modifiée si un seul des totaux dépasserait ce que les schémas acceptent.
+    for card, per_bundle in contents:
+        current = existing[card.id].quantity_owned if card.id in existing else 0
+        total = current + per_bundle * payload.count
+        if total > MAX_DB_INT:
+            raise ConflictError(
+                f"Le versement porterait la carte {card.id} à {total} exemplaire(s) "
+                f"en {code}, au-delà du plafond de {MAX_DB_INT} : réduire le "
+                "nombre de produits."
+            )
+
     copies = []
     for card, per_bundle in contents:
-        copy = db.get(CardCopy, (card.id, code))
+        copy = existing.get(card.id)
         if copy is None:
-            copy = CardCopy(card_id=card.id, language_code=code, quantity_owned=0)
+            # `card` (clan préchargé par `bundle_contents`) sert à la réponse.
+            copy = CardCopy(
+                card_id=card.id,
+                card=card,
+                language_code=code,
+                quantity_owned=0,
+                proxy_allowed=False,
+                notes=None,
+            )
             db.add(copy)
         copy.quantity_owned += per_bundle * payload.count
         copies.append(copy)
-    db.commit()
-    return [get_copy(db, copy.card_id, code) for copy in copies]
+    commit_or_conflict(db, "Une entrée de collection a été créée en parallèle.")
+    return copies

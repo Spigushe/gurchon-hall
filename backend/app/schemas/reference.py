@@ -4,7 +4,13 @@ from datetime import date
 
 from pydantic import Field
 
-from app.schemas.base import UNSET, ReadModel, WriteModel
+from app.schemas.base import (
+    MAX_DB_INT,
+    UNSET,
+    ReadModel,
+    RequiredText,
+    WriteModel,
+)
 
 
 class LanguageRead(ReadModel):
@@ -23,9 +29,20 @@ class LanguageRead(ReadModel):
 class LanguageCreate(WriteModel):
     """Ajout d'une langue."""
 
-    code: str = Field(min_length=1, max_length=8)
-    label: str = Field(min_length=1, max_length=50)
-    sort_order: int = 0
+    # `RequiredText` et non un simple `min_length` : une carte a toujours une
+    # langue d'impression, donc un code fait de blancs (espaces, tabulation,
+    # espace insécable) n'est pas une langue. Rogné d'abord, mesuré ensuite :
+    # « EN » entouré d'espaces entre, une saisie blanche est refusée (422) au
+    # lieu de créer une langue fantôme. La mise en majuscules reste au service
+    # (`normalize_language_code`).
+    code: RequiredText = Field(max_length=8)
+    label: RequiredText = Field(max_length=50)
+    sort_order: int = Field(
+        default=0,
+        ge=0,
+        le=MAX_DB_INT,
+        description="Rang d'affichage, croissant. Le dernier entier borné du contrat.",
+    )
 
 
 class ClanRead(ReadModel):
@@ -102,7 +119,7 @@ class VenueRead(ReadModel):
 class VenueCreate(WriteModel):
     """Création d'un lieu."""
 
-    name: str = Field(min_length=1, max_length=120)
+    name: RequiredText = Field(max_length=120)
     city: str | None = Field(default=None, max_length=80)
     notes: str | None = None
 
@@ -114,6 +131,6 @@ class VenueUpdate(WriteModel):
     `{"name": null}` est refusé à l'entrée plutôt qu'au niveau de la base.
     """
 
-    name: str = Field(default=UNSET, min_length=1, max_length=120)
+    name: RequiredText = Field(default=UNSET, max_length=120)
     city: str | None = Field(default=None, max_length=80)
     notes: str | None = None

@@ -59,6 +59,44 @@ def test_create_entry_for_unknown_card_or_language_is_404(api, db):
     assert unknown_language.status_code == 404
 
 
+def test_create_entry_rejects_a_blank_language_code(api, world):
+    """Blanc = saisie vide (422), pas langue absente du référentiel (404).
+
+    Le 404 était trompeur : il désignait une ressource manquante là où c'est la
+    charge utile qui est fautive, et un client offline qui rejoue sa file ne
+    peut pas distinguer les deux.
+    """
+    for blank in ("   ", "\t", "\n", "   "):
+        response = api.post(
+            "/stock", json={"card_id": world.card.id, "language_code": blank}
+        )
+        assert response.status_code == 422, blank
+        assert response.json()["detail"][0]["loc"] == ["body", "language_code"]
+
+
+def test_create_entry_trims_the_language_code(api, db):
+    """Un code collé avec ses espaces désigne bien la langue, sans 404."""
+    add_languages(db, "EN", "FR")
+    card = make_card(db)
+    db.commit()
+
+    response = api.post(
+        "/stock", json={"card_id": card.id, "language_code": "  fr  "}
+    )
+
+    assert response.status_code == 201
+    assert response.json()["language_code"] == "FR"
+
+
+def test_deposit_bundle_rejects_a_blank_language_code(api, world):
+    response = api.post(
+        f"/bundles/{world.bundle.id}/stock", json={"language_code": "  "}
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "language_code"]
+
+
 def test_create_entry_rejects_negative_quantity(api, world):
     response = api.post(
         "/stock",

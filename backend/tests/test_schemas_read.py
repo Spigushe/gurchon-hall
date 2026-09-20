@@ -6,7 +6,7 @@ convertit sans perte en schéma de lecture, relations imbriquées comprises, et
 que les schémas restent alignés sur les colonnes du modèle.
 """
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta, timezone
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -303,12 +303,25 @@ def test_card_copy_read_of_a_proxy_only_entry(db, world):
 def test_deck_read_maps_columns_and_timestamps(db, world):
     read = DeckRead.model_validate(world.deck)
     assert read.name == "Ventrue Grinder"
+    assert read.discriminator == world.deck.discriminator
+    assert len(read.discriminator) == 4 and read.discriminator.isdigit()
     assert read.status is DeckStatus.ACTIVE
     assert read.created_on == date(2026, 1, 15)
     assert read.archetype == "Vote"
     assert read.notes is None
     assert isinstance(read.created_at, datetime)
     assert isinstance(read.updated_at, datetime)
+
+
+def test_deck_read_exposes_the_deletion_instant(db, world):
+    """Un deck supprimé reste lisible par identifiant : le front doit le savoir."""
+    assert DeckRead.model_validate(world.deck).deleted_at is None
+
+    world.deck.deleted_at = datetime(2026, 3, 1, 12, 0)
+    db.commit()
+    read = DeckRead.model_validate(world.deck)
+    # Stocké naïf, relu comme un instant UTC explicite (cf. `ReadModel`).
+    assert read.deleted_at == datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
 
 
 def test_deck_read_does_not_carry_the_composition(db, world):
@@ -353,23 +366,53 @@ def test_empty_deck_detail_has_no_cards(db):
     assert DeckDetailRead.model_validate(deck).cards == []
 
 
+LEGALITY = {
+    "deck_id": 1,
+    "evaluated_on": date(2026, 6, 15),
+    "crypt_count": 11,
+    "library_count": 58,
+    "crypt_minimum": 12,
+    "library_minimum": 60,
+    "library_maximum": 90,
+    "is_legal": False,
+    "issues": ["crypt trop petite"],
+}
+
+
 def test_deck_legality_is_a_plain_output_schema():
     """`DeckLegality` porte les seuils pour que le front ne les redéfinisse pas."""
-    read = DeckLegality.model_validate(
-        {
-            "deck_id": 1,
-            "crypt_count": 11,
-            "library_count": 58,
-            "crypt_minimum": 12,
-            "library_minimum": 60,
-            "library_maximum": 90,
-            "is_legal": False,
-            "issues": ["crypt trop petite"],
-        }
-    )
+    read = DeckLegality.model_validate(LEGALITY)
     assert read.is_legal is False
     assert read.issues == ["crypt trop petite"]
+    assert read.evaluated_on == date(2026, 6, 15)
     assert DeckLegality.model_validate(read.model_dump() | {"issues": []}).issues == []
+
+
+def test_deck_legality_names_the_groups_the_way_the_cards_do():
+    """« G2 » et non 2 : le front affiche ce qu'il reçoit, sans reformater."""
+    read = DeckLegality.model_validate(LEGALITY | {"crypt_groups": ["G2", "G3"]})
+    assert read.crypt_groups == ["G2", "G3"]
+    assert read.model_dump(mode="json")["crypt_groups"] == ["G2", "G3"]
+
+
+def test_deck_legality_carries_whole_cards_not_names(db, world):
+    """Un vampire ne se désigne pas par son nom seul : la réponse porte la carte."""
+    summary = CardSummary.model_validate(world.card)
+    read = DeckLegality.model_validate(
+        LEGALITY | {"banned_cards": [summary], "not_yet_legal_cards": [summary]}
+    )
+    assert [card.id for card in read.banned_cards] == [world.card.id]
+    assert read.banned_cards[0].group_code == world.card.group_code
+    assert [card.name for card in read.not_yet_legal_cards] == ["Aabbt Kindred"]
+
+
+def test_deck_legality_lists_default_to_empty():
+    read = DeckLegality.model_validate(LEGALITY)
+    assert (read.crypt_groups, read.banned_cards, read.not_yet_legal_cards) == (
+        [],
+        [],
+        [],
+    )
 
 
 # --------------------------------------------------------------------------
@@ -403,7 +446,7 @@ def test_participation_read_of_an_adversary_is_mostly_empty(db, world):
 
 def test_game_read_maps_columns(db, world):
     read = GameRead.model_validate(world.game)
-    assert read.played_at == datetime(2026, 2, 1, 14, 0)
+    assert read.played_at == datetime(2026, 2, 1, 14, 0, tzinfo=UTC)
     assert read.tournament_id == world.tournament.id
     assert read.venue_id == world.venue.id
     assert (read.round_number, read.round_type, read.player_count) == (
@@ -447,12 +490,114 @@ def test_tournament_json_dump_uses_enum_values(db, world):
 
 
 # --------------------------------------------------------------------------
+# Date-heures : un seul format de sortie
+# --------------------------------------------------------------------------
+
+INSTANT = datetime(2026, 9, 19, 17, 47, 27)
+"""Le même instant, écrit naïf ; l'UTC est la convention de stockage."""
+
+SAME_INSTANT_AWARE = [
+    pytest.param(INSTANT.replace(tzinfo=UTC), id="utc"),
+    pytest.param(
+        (INSTANT + timedelta(hours=2)).replace(tzinfo=timezone(timedelta(hours=2))),
+        id="paris",
+    ),
+]
+
+
+def _deck_read(**instants) -> DeckRead:
+    return DeckRead(
+        id=1,
+        name="Grinder",
+        discriminator="8561",
+        created_on=None,
+        status=DeckStatus.ACTIVE,
+        archetype=None,
+        notes=None,
+        **instants,
+    )
+
+
+@pytest.mark.parametrize("aware", SAME_INSTANT_AWARE)
+def test_deck_read_serializes_every_instant_the_same_way(aware):
+    """Naïf ou *aware*, le même instant donne la même chaîne JSON, avec « Z ».
+
+    C'est le défaut corrigé au Lot 2 passe 2 bis : `PATCH /decks` renvoyait
+    « …Z » (valeur posée par `utcnow()`, *aware*) et `GET /decks` la même
+    valeur sans « Z » (relue depuis SQLite, naïve). Un client offline qui
+    compare deux horodatages pour décider d'un rejeu ne peut pas vivre avec
+    deux écritures du même instant.
+    """
+    fields = ("created_at", "updated_at", "archived_at", "deleted_at")
+    naive_json = _deck_read(**dict.fromkeys(fields, INSTANT)).model_dump_json()
+    aware_json = _deck_read(**dict.fromkeys(fields, aware)).model_dump_json()
+
+    assert naive_json == aware_json
+    dumped = _deck_read(**dict.fromkeys(fields, INSTANT)).model_dump(mode="json")
+    for field in fields:
+        assert dumped[field] == "2026-09-19T17:47:27Z", field
+
+
+def test_deck_read_keeps_a_null_instant_null():
+    """Le « Z » ne doit pas inventer une date là où il n'y en a pas."""
+    dumped = _deck_read(
+        created_at=INSTANT,
+        updated_at=INSTANT,
+        archived_at=None,
+        deleted_at=None,
+    ).model_dump(mode="json")
+
+    assert dumped["archived_at"] is None
+    assert dumped["deleted_at"] is None
+
+
+@pytest.mark.parametrize("aware", SAME_INSTANT_AWARE)
+def test_game_read_serializes_played_at_as_an_explicit_utc_instant(aware):
+    """`played_at` sort comme il entre : un instant, jamais une heure locale."""
+
+    def dumped(value):
+        return GameRead(
+            id=1,
+            played_at=value,
+            venue_id=None,
+            tournament_id=None,
+            round_number=None,
+            round_type=RoundType.CASUAL,
+            player_count=5,
+            notes=None,
+            created_at=value,
+            updated_at=value,
+        ).model_dump(mode="json")
+
+    assert dumped(INSTANT) == dumped(aware)
+    assert dumped(aware)["played_at"] == "2026-09-19T17:47:27Z"
+
+
+def test_read_of_a_persisted_deck_carries_the_utc_suffix(db, world):
+    """Bout en bout : une ligne relue de la base sort en UTC explicite.
+
+    Le chemin par lequel la valeur est arrivée en base (défaut Python *aware*,
+    `CURRENT_TIMESTAMP`, ou écriture explicite) ne doit plus se voir.
+    """
+    world.deck.archived_at = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+    db.commit()
+    db.expire_all()
+
+    dumped = DeckRead.model_validate(world.deck).model_dump(mode="json")
+    assert dumped["archived_at"] == "2026-03-01T12:00:00Z"
+    for field in ("created_at", "updated_at"):
+        assert dumped[field].endswith("Z"), field
+
+
+# --------------------------------------------------------------------------
 # Propriétés communes des schémas de lecture
 # --------------------------------------------------------------------------
 
 READ_PAIRS = [
     pytest.param(Card, CardRead, set(), id="Card"),
     pytest.param(CardCopy, CardCopyRead, set(), id="CardCopy"),
+    # `deleted_at` compris : un deck supprimé reste lisible par identifiant, et
+    # c'est ce champ qui dit au front qu'il est en lecture seule.
     pytest.param(Deck, DeckRead, set(), id="Deck"),
     # `deck_id` est porté par le deck parent dans `DeckDetailRead.cards`.
     pytest.param(DeckCard, DeckCardRead, {"deck_id"}, id="DeckCard"),
@@ -510,6 +655,52 @@ def test_every_read_schema_reads_from_attributes():
             if name.endswith(("Read", "Summary")) and isinstance(obj, type):
                 assert issubclass(obj, ReadModel), name
                 assert obj.model_config["from_attributes"] is True, name
+
+
+def test_read_schema_defaults_are_required_in_the_response_contract():
+    """Ce que la réponse contient toujours doit être obligatoire au contrat.
+
+    Un champ à valeur par défaut est facultatif *à l'entrée*, mais la réponse le
+    porte toujours : sans cette bascule, le client TypeScript généré rendrait
+    `cards`, `issues` ou `archived_at` optionnels, et le front écrirait des
+    gardes pour des champs qui ne manquent jamais.
+    """
+    serialized = DeckDetailRead.model_json_schema(mode="serialization")
+    assert {"cards", "archived_at", "deleted_at", "created_on", "notes"} <= set(
+        serialized["required"]
+    )
+    assert set(serialized["required"]) == set(DeckDetailRead.model_fields)
+
+    legality = DeckLegality.model_json_schema(mode="serialization")
+    assert {"issues", "banned_cards", "not_yet_legal_cards", "crypt_groups"} <= set(
+        legality["required"]
+    )
+
+
+def test_every_read_schema_requires_all_of_its_fields_in_a_response():
+    import app.schemas.catalog as catalog
+    import app.schemas.collection as collection
+    import app.schemas.play as play
+    import app.schemas.reference as reference
+
+    for module in (catalog, collection, play, reference):
+        for name, obj in vars(module).items():
+            if (
+                isinstance(obj, type)
+                and issubclass(obj, ReadModel)
+                and obj.__module__ == module.__name__
+            ):
+                schema = obj.model_json_schema(mode="serialization")
+                assert set(schema.get("required", [])) == set(obj.model_fields), name
+
+
+def test_the_required_bascule_does_not_leak_into_the_write_schemas():
+    """Contre-épreuve : une création garde ses champs facultatifs facultatifs."""
+    from app.schemas.collection import DeckCreate
+
+    required = set(DeckCreate.model_json_schema()["required"])
+    assert required == {"name"}
+    assert "status" in DeckCreate.model_fields
 
 
 def test_read_schemas_ignore_orm_attributes_they_do_not_declare(db, world):

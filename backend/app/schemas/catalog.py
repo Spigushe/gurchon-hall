@@ -143,6 +143,13 @@ class CardRead(CardSummary):
         default=None,
         description="Date de bannissement publiée par le VEKN, vide sinon.",
     )
+    legal_from: date | None = Field(
+        default=None,
+        description=(
+            "Date d'entrée en légalité en tournoi. Vide = aucune information, "
+            "donc légale : la liste paraît après la sortie commerciale."
+        ),
+    )
     types: list[CardTypeRead] = []
     discipline_links: list[CardDisciplineRead] = []
     printings: list[CardPrintingRead] = []
