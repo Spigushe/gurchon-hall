@@ -40,6 +40,7 @@ from app.models import (
     DeckCard,
     DeckPolicy,
     DeckStatus,
+    DeletedDeckCard,
     Discipline,
     Game,
     Language,
@@ -144,9 +145,19 @@ def seeded(session):
 
     deck = Deck(
         name="Ventrue Grinder",
+        discriminator="8561",
         created_on=date(2026, 1, 15),
         status=DeckStatus.ACTIVE,
         archetype="Vote",
+    )
+    # Un deck supprimé, dont la decklist a été figée : c'est la seule façon
+    # d'avoir une ligne dans `deleted_deck_card`.
+    gone = Deck(
+        name="Ventrue Grinder",
+        discriminator="0042",
+        status=DeckStatus.DRAFT,
+        archived_at=datetime(2026, 1, 20, tzinfo=UTC),
+        deleted_at=datetime(2026, 1, 21, tzinfo=UTC),
     )
     player = Player(name="Moi", is_me=True)
     tournament = Tournament(
@@ -157,17 +168,26 @@ def seeded(session):
         venue=venue,
         round_count=2,
     )
-    session.add_all([deck, player, tournament])
+    session.add_all([deck, gone, player, tournament])
     session.flush()
 
-    session.add(
-        DeckCard(
-            deck_id=deck.id,
-            card_id=card.id,
-            language_code="EN",
-            quantity=4,
-            proxy_quantity=0,
-        )
+    session.add_all(
+        [
+            DeckCard(
+                deck_id=deck.id,
+                card_id=card.id,
+                language_code="EN",
+                quantity=4,
+                proxy_quantity=0,
+            ),
+            DeletedDeckCard(
+                deck_id=gone.id,
+                card_id=card.id,
+                language_code="EN",
+                quantity=4,
+                proxy_quantity=0,
+            ),
+        ]
     )
 
     game = Game(

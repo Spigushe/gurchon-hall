@@ -20,6 +20,7 @@ from app.models import (
     DeckCard,
     DeckPolicy,
     DeckStatus,
+    DeletedDeckCard,
     Language,
     Participation,
     Player,
@@ -45,6 +46,14 @@ def test_deck_defaults_to_draft(db):
     deck = make_deck(db)
     db.commit()
     assert deck.status is DeckStatus.DRAFT
+
+
+def test_deck_is_neither_archived_nor_deleted_by_default(db):
+    deck = make_deck(db)
+    db.commit()
+    db.refresh(deck)
+    assert deck.archived_at is None
+    assert deck.deleted_at is None
 
 
 def test_tournament_defaults_to_mono_deck_and_constructed(db):
@@ -83,6 +92,17 @@ def test_deck_card_defaults_to_one_copy_without_proxy(db):
     make_copy(db, card, "EN", quantity_owned=1)
     deck = make_deck(db)
     line = DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN")
+    db.add(line)
+    db.commit()
+    assert (line.quantity, line.proxy_quantity) == (1, 0)
+
+
+def test_deleted_deck_card_has_the_same_defaults(db):
+    """La decklist figée est une copie : mêmes valeurs par défaut."""
+    add_languages(db)
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=datetime(2026, 1, 1))
+    line = DeletedDeckCard(deck_id=deck.id, card_id=card.id, language_code="EN")
     db.add(line)
     db.commit()
     assert (line.quantity, line.proxy_quantity) == (1, 0)
@@ -157,7 +177,14 @@ def test_updated_at_moves_on_update_but_created_at_does_not(db, factory, field, 
 def test_catalogue_and_collection_tables_are_not_timestamped(db_engine):
     """Le catalogue est un import reproductible : pas d'audit ligne à ligne."""
     inspector = inspect(db_engine)
-    for table in ("card", "card_copy", "deck_card", "participation", "player"):
+    for table in (
+        "card",
+        "card_copy",
+        "deck_card",
+        "deleted_deck_card",
+        "participation",
+        "player",
+    ):
         names = {column["name"] for column in inspector.get_columns(table)}
         assert not names & {"created_at", "updated_at"}, table
 
@@ -270,9 +297,9 @@ def test_every_index_has_a_name():
             assert index.name, f"{table.name}: index anonyme"
 
 
-def test_model_registry_covers_twenty_one_tables():
-    """Filet : le modèle décrit 21 tables, ni plus ni moins."""
-    assert len(Base.metadata.tables) == 21
+def test_model_registry_covers_twenty_two_tables():
+    """Filet : le modèle décrit 22 tables, ni plus ni moins."""
+    assert len(Base.metadata.tables) == 22
     assert set(Base.metadata.tables) == {
         "language",
         "clan",
@@ -291,6 +318,7 @@ def test_model_registry_covers_twenty_one_tables():
         "card_copy",
         "deck",
         "deck_card",
+        "deleted_deck_card",
         "player",
         "tournament",
         "game",

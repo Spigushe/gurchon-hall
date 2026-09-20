@@ -56,7 +56,15 @@ class Card(Base):
     """Une carte du catalogue VEKN, hors dimension langue."""
 
     __tablename__ = "card"
-    __table_args__ = (Index("ix_card_name", "name"),)
+    __table_args__ = (
+        Index("ix_card_name", "name"),
+        # Un vampire ne se désigne pas par son seul nom : « Theo Bell » existe
+        # en G2, en G2 *advanced* et en G6. Le triplet est unique sur les 1785
+        # cartes de crypt du catalogue krcg, mais l'index reste **non unique** :
+        # un doublon apparu chez krcg doit faire un import bancal, pas un import
+        # en échec.
+        Index("ix_card_name_group_code_advanced", "name", "group_code", "advanced"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     vekn_id: Mapped[int] = mapped_column(unique=True)
@@ -101,6 +109,11 @@ class Card(Base):
     flavor_text: Mapped[str | None] = mapped_column(Text())
     artist: Mapped[str | None] = mapped_column(String(120))
     banned_on: Mapped[date | None] = mapped_column(Date())
+    # Date d'entrée en légalité (champ `legal` de krcg) : avant elle, la carte
+    # est imprimée mais pas encore jouable en tournoi. Nulle = aucune
+    # information, donc légale. La liste krcg paraissant après la sortie
+    # commerciale, une carte toute neuve peut rester nulle un temps.
+    legal_from: Mapped[date | None] = mapped_column(Date())
     # Scan de la carte chez krcg : la seule illustration disponible pour les
     # vues collection et deck, et rien d'autre ne permet de la reconstruire.
     image_url: Mapped[str | None] = mapped_column(String(200))

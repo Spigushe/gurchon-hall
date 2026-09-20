@@ -5,7 +5,7 @@ valeurs explicites quand un test veut contrôler un champ précis.
 """
 
 from datetime import date, datetime
-from itertools import count
+from itertools import count, cycle
 from types import SimpleNamespace
 
 from sqlalchemy.orm import Session
@@ -41,6 +41,10 @@ from app.models import (
 )
 
 _vekn_ids = count(100_000)
+# Le discriminant d'un deck est posé par le service (quatre chiffres tirés au
+# sort, uniques au sein d'un nom). Les tests, eux, n'ont pas de service : on les
+# distribue dans l'ordre, ce qui suffit à ne jamais retomber sur le même couple.
+_discriminators = cycle(f"{number:04d}" for number in range(1, 10_000))
 
 
 def add_languages(session: Session, *codes: str) -> None:
@@ -83,6 +87,7 @@ def make_copy(
 
 
 def make_deck(session: Session, name: str = "Deck de test", **fields) -> Deck:
+    fields.setdefault("discriminator", next(_discriminators))
     deck = Deck(name=name, **fields)
     session.add(deck)
     session.flush()

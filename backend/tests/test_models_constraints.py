@@ -40,6 +40,7 @@ from app.models import (
     DeckCard,
     DeckPolicy,
     DeckStatus,
+    DeletedDeckCard,
     Discipline,
     DisciplineRequirement,
     Game,
@@ -53,6 +54,7 @@ from app.models import (
     TournamentFormat,
     Venue,
 )
+from app.models.base import utcnow
 from tests.helpers import (
     add_languages,
     make_card,
@@ -337,6 +339,129 @@ def test_deck_card_check_accepts_boundary_quantities(db, quantity, proxy_quantit
 
 
 # --------------------------------------------------------------------------
+# deleted_deck_card : la decklist figée ne retient plus la collection
+# --------------------------------------------------------------------------
+
+
+def test_deleted_deck_card_primary_key_is_deck_card_and_language(db_engine):
+    columns = inspect(db_engine).get_pk_constraint("deleted_deck_card")
+    assert columns["constrained_columns"] == ["deck_id", "card_id", "language_code"]
+
+
+def test_deleted_deck_card_has_no_foreign_key_to_the_collection(db_engine):
+    keys = inspect(db_engine).get_foreign_keys("deleted_deck_card")
+    assert {fk["referred_table"] for fk in keys} == {"deck", "card", "language"}
+
+
+def test_deleted_deck_card_accepts_a_line_without_any_collection_entry(db):
+    """Le cas nominal : la carte n'est plus en stock, la ligne figée demeure."""
+    add_languages(db)
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2
+        )
+    )
+    db.commit()
+    assert db.query(DeletedDeckCard).count() == 1
+
+
+def test_deleting_a_collection_entry_no_longer_trips_on_a_frozen_line(db):
+    """Une ligne vivante bloque la suppression du stock ; une ligne figée, non."""
+    add_languages(db)
+    card = make_card(db)
+    copy = make_copy(db, card, "EN", quantity_owned=2)
+    deck = make_deck(db)
+    db.add(DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2))
+    db.commit()
+
+    db.delete(copy)
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+
+    # Même situation, mais la composition a été figée à la suppression du deck.
+    db.query(DeckCard).delete()
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2
+        )
+    )
+    db.commit()
+
+    db.delete(db.get(CardCopy, (card.id, "EN")))
+    db.commit()
+
+    assert db.query(DeletedDeckCard).count() == 1
+
+
+def test_deleted_deck_card_disappears_with_its_deck(db):
+    """`ON DELETE CASCADE` : une suppression *physique* du deck emporte tout."""
+    add_languages(db)
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=1
+        )
+    )
+    db.commit()
+
+    run_sql(db, "DELETE FROM deck WHERE id = :id", id=deck.id)
+    db.commit()
+    assert db.query(DeletedDeckCard).count() == 0
+
+
+@pytest.mark.parametrize(
+    ("quantity", "proxy_quantity"),
+    [
+        pytest.param(0, 0, id="quantity-zero"),
+        pytest.param(-1, 0, id="quantity-negative"),
+        pytest.param(2, -1, id="proxy-negative"),
+        pytest.param(2, 3, id="proxy-above-quantity"),
+    ],
+)
+def test_deleted_deck_card_check_rejects_invalid_quantities(
+    db, quantity, proxy_quantity
+):
+    add_languages(db)
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            quantity=quantity,
+            proxy_quantity=proxy_quantity,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_deleted_deck_card_still_requires_a_known_card_and_language(db):
+    add_languages(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(deck_id=deck.id, card_id=999, language_code="EN", quantity=1)
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+    db.rollback()
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id, card_id=card.id, language_code="ZZ", quantity=1
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+# --------------------------------------------------------------------------
 # Autres CHECK bornés
 # --------------------------------------------------------------------------
 
@@ -435,7 +560,7 @@ ENUM_COLUMNS = [
         "status",
         "ck_deck_deck_status",
         DeckStatus,
-        {"name": "X"},
+        {"name": "X", "discriminator": "0001"},
         id="deck.status",
     ),
     pytest.param(
@@ -506,7 +631,8 @@ def test_enum_column_accepts_every_member_value(
 ):
     for index, member in enumerate(enum):
         row = {**base, column: member.value}
-        # `card.vekn_id` est unique, `deck.name` aussi : varier la clé naturelle.
+        # `card.vekn_id` est unique, le couple nom + discriminant d'un deck
+        # aussi : varier la clé naturelle.
         if table == "card":
             row["vekn_id"] = index + 1
         if table == "deck":
@@ -517,7 +643,11 @@ def test_enum_column_accepts_every_member_value(
 @pytest.mark.parametrize(
     ("factory", "field"),
     [
-        pytest.param(lambda: Deck(name="X"), "status", id="deck.status"),
+        pytest.param(
+            lambda: Deck(name="X", discriminator="0001"),
+            "status",
+            id="deck.status",
+        ),
         pytest.param(
             lambda: Tournament(name="X", start_date=date(2026, 1, 1)),
             "deck_policy",
@@ -552,12 +682,12 @@ def test_enum_invalid_string_is_also_refused_by_the_orm(db, factory, field):
 def test_enum_values_are_stored_as_values_not_member_names(db):
     """`CardCategory.CRYPT` est stocké « crypt » : la base reste lisible."""
     make_card(db, category=CardCategory.CRYPT)
-    make_deck(db, status=DeckStatus.RETIRED)
+    make_deck(db, status=DeckStatus.ACTIVE)
     make_tournament(db, deck_policy=DeckPolicy.MULTI, format=TournamentFormat.DRAFT)
     make_game(db, round_type=RoundType.FINAL)
     db.commit()
     assert run_sql(db, "SELECT category FROM card").scalar() == "crypt"
-    assert run_sql(db, "SELECT status FROM deck").scalar() == "retired"
+    assert run_sql(db, "SELECT status FROM deck").scalar() == "active"
     row = run_sql(db, "SELECT deck_policy, format FROM tournament").one()
     assert tuple(row) == ("multi", "draft")
     assert run_sql(db, "SELECT round_type FROM game").scalar() == "final"
@@ -663,7 +793,10 @@ def test_player_name_is_unique(db):
         pytest.param(lambda: CardType(name="Action"), id="card_type.name"),
         pytest.param(lambda: CardSet(abbrev="FN"), id="card_set.abbrev"),
         pytest.param(lambda: Venue(name="Club"), id="venue.name"),
-        pytest.param(lambda: Deck(name="Grinder"), id="deck.name"),
+        pytest.param(
+            lambda: Deck(name="Grinder", discriminator="8561"),
+            id="deck.name_discriminator",
+        ),
     ],
 )
 def test_natural_keys_are_unique(db, model):
@@ -672,6 +805,72 @@ def test_natural_keys_are_unique(db, model):
     db.add(model())
     with pytest.raises(IntegrityError):
         db.flush()
+
+
+# --------------------------------------------------------------------------
+# Deck : nom libre, discriminant obligatoire
+# --------------------------------------------------------------------------
+
+
+def test_two_decks_may_share_a_name_with_different_discriminators(db):
+    """Le nom seul n'identifie rien : deux « Grinder » cohabitent."""
+    make_deck(db, "Grinder", discriminator="0001")
+    make_deck(db, "Grinder", discriminator="8561")
+    db.commit()
+
+    assert db.query(Deck).filter_by(name="Grinder").count() == 2
+
+
+def test_a_deleted_deck_keeps_its_name_and_discriminator(db):
+    """Contrairement à l'index partiel d'avant : l'identité n'est pas recyclée."""
+    make_deck(db, "Grinder", discriminator="0001", deleted_at=utcnow())
+    db.commit()
+
+    db.add(Deck(name="Grinder", discriminator="0001"))
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_an_archived_deck_also_keeps_its_pair(db):
+    make_deck(db, "Grinder", discriminator="0001", archived_at=utcnow())
+    db.add(Deck(name="Grinder", discriminator="0001"))
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_deck_name_uniqueness_is_a_plain_unique_constraint(db_engine):
+    """Plus d'index partiel : une contrainte ordinaire sur le couple."""
+    inspector = inspect(db_engine)
+    indexes = {ix["name"] for ix in inspector.get_indexes("deck")}
+    assert "uq_deck_name_not_deleted" not in indexes
+    uniques = {
+        tuple(uq["column_names"]): uq["name"]
+        for uq in inspector.get_unique_constraints("deck")
+    }
+    assert uniques == {("name", "discriminator"): "uq_deck_name_discriminator"}
+
+
+def test_deck_requires_a_discriminator(db):
+    db.add(Deck(name="Sans discriminant"))
+    with pytest.raises(IntegrityError) as excinfo:
+        db.flush()
+    assert "NOT NULL" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("value", ["0001", "0042", "9999", "1234"])
+def test_deck_accepts_four_digit_discriminators(db, value):
+    make_deck(db, "Grinder", discriminator=value)
+    db.commit()
+
+
+@pytest.mark.parametrize(
+    "value", ["", "1", "42", "00042", "abcd", "004a", "12 4", "0000", " 001"]
+)
+def test_deck_refuses_anything_but_four_digits(db, value):
+    db.add(Deck(name="Grinder", discriminator=value))
+    with pytest.raises(IntegrityError) as excinfo:
+        db.flush()
+    assert "CHECK" in str(excinfo.value)
 
 
 def test_card_vekn_id_is_unique(db):
@@ -697,6 +896,35 @@ def test_card_name_is_indexed(db_engine):
     indexes = {ix["name"]: ix for ix in inspect(db_engine).get_indexes("card")}
     assert indexes["ix_card_name"]["column_names"] == ["name"]
     assert not indexes["ix_card_name"]["unique"]
+
+
+def test_card_identity_triplet_is_indexed_but_not_unique(db):
+    """(nom, groupe, advanced) identifie un vampire — sans l'imposer à l'import.
+
+    Le triplet est unique sur les 1785 cartes de crypt de krcg, mais un doublon
+    apparu chez eux ne doit pas faire échouer l'import : l'index n'est pas
+    unique, et la base accepte donc la ligne en double.
+    """
+    indexes = {ix["name"]: ix for ix in inspect(db.get_bind()).get_indexes("card")}
+    index = indexes["ix_card_name_group_code_advanced"]
+    assert index["column_names"] == ["name", "group_code", "advanced"]
+    assert not index["unique"]
+
+    make_card(db, "Theo Bell", group_code="G2", advanced=False)
+    make_card(db, "Theo Bell", group_code="G2", advanced=True)
+    make_card(db, "Theo Bell", group_code="G6", advanced=False)
+    make_card(db, "Theo Bell", group_code="G6", advanced=False)  # doublon toléré
+    db.commit()
+    assert db.query(Card).filter_by(name="Theo Bell").count() == 4
+
+
+def test_card_legal_from_is_optional(db):
+    """Aucune information = carte légale : la colonne est nullable."""
+    card = make_card(db, "Neuve", legal_from=date(2026, 1, 1))
+    other = make_card(db, "Ancienne")
+    db.commit()
+    assert card.legal_from == date(2026, 1, 1)
+    assert other.legal_from is None
 
 
 def test_card_printing_is_unique_per_card_and_set(db):
@@ -879,7 +1107,8 @@ def test_participation_seat_may_stay_unknown_for_several_players(db):
             lambda: Card(name="X", category=CardCategory.CRYPT), id="card.vekn_id"
         ),
         pytest.param(lambda: Card(vekn_id=1, name="X"), id="card.category"),
-        pytest.param(lambda: Deck(), id="deck.name"),
+        pytest.param(lambda: Deck(discriminator="0001"), id="deck.name"),
+        pytest.param(lambda: Deck(name="X"), id="deck.discriminator"),
         pytest.param(lambda: Player(), id="player.name"),
         pytest.param(lambda: Language(code="ZZ"), id="language.label"),
         pytest.param(lambda: Venue(), id="venue.name"),

@@ -21,7 +21,7 @@ from app.models.catalog import (
     CardTranslation,
     CardTypeLink,
 )
-from app.models.collection import CardCopy, Deck, DeckCard
+from app.models.collection import CardCopy, Deck, DeckCard, DeletedDeckCard
 from app.models.enums import (
     CardCategory,
     CostType,
@@ -63,6 +63,7 @@ __all__ = [
     "DeckCard",
     "DeckPolicy",
     "DeckStatus",
+    "DeletedDeckCard",
     "Discipline",
     "DisciplineRequirement",
     "Game",

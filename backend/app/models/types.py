@@ -13,10 +13,14 @@ pas d'objet *aware* pour que les valeurs relues restent comparables entre
 elles et avec `datetime.utcnow()`-like, sans dépendre de la connaissance du
 fuseau par l'appelant.
 
-Le contrat d'API, lui, est plus strict : `GameCreate.played_at` exige un
-datetime *aware* et le normalise en UTC (cf. `app.schemas.play`). Une saisie
-hors ligne rejouée plus tard depuis un autre fuseau désigne ainsi toujours le
-même instant — ce dont la synchronisation du Lot 3 a besoin.
+Le contrat d'API, lui, est plus strict des deux côtés : `GameCreate.played_at`
+exige un datetime *aware* et le normalise en UTC (cf. `app.schemas.play`), et
+toute date-heure **sortante** est rendue *aware* par `ReadModel` avant d'être
+sérialisée, donc suffixée « Z » (cf. `app.schemas.base`). La naïveté de la
+valeur relue s'arrête ainsi à la frontière du schéma : elle ne fuit pas dans le
+JSON, où deux écritures du même instant seraient ingérables pour un client
+offline. Une saisie hors ligne rejouée plus tard depuis un autre fuseau désigne
+ainsi toujours le même instant — ce dont la synchronisation du Lot 3 a besoin.
 """
 
 from datetime import UTC, datetime

@@ -79,11 +79,16 @@ class PrintOccurrence(StrEnum):
 
 
 class DeckStatus(StrEnum):
-    """Cycle de vie d'un deck côté joueur."""
+    """Avancement d'un deck côté joueur : brouillon ou jouable.
+
+    Volontairement réduit à deux valeurs. « Rangé » et « supprimé » ne sont pas
+    des statuts mais des dates (`deck.archived_at`, `deck.deleted_at`) : un deck
+    archivé garde le statut qu'il avait, et le désarchiver ne demande donc pas
+    de deviner lequel.
+    """
 
     DRAFT = "draft"
     ACTIVE = "active"
-    RETIRED = "retired"
 
 
 class DeckPolicy(StrEnum):
