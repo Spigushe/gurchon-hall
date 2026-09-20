@@ -89,8 +89,29 @@ composition et leur légalité). La liste des routes et des règles d'erreur est
 de `CLAUDE.md`. Les parties, tournois et la synchronisation (`/sync`) arrivent aux
 lots suivants.
 
-Deux conventions à connaître en lisant le contrat :
+Un deck se retire en deux temps. Archiver n'est pas une route à part : c'est un
+`PATCH /decks/{id}` avec `{"archived": true}`, et `false` fait l'inverse. La liste
+se filtre sur `state`, à trois valeurs — `active` (défaut), `archived`, `all`.
+`DELETE /decks/{id}` n'accepte qu'un deck archivé (409 sinon) et n'est qu'une
+suppression logique : la ligne reste en base, le deck sort de toutes les listes,
+mais `GET /decks/{id}` continue de le rendre, en lecture seule, avec son
+`deleted_at` renseigné — de quoi afficher un historique de parties sans trou.
 
+Deux champs de lecture méritent un mot. `discriminator` est un nombre à quatre
+chiffres tiré par le serveur, qui distingue deux decks de même nom : le nom seul
+n'identifie plus rien, il s'affiche collé au discriminant (« Malkavien 2022#8561 »).
+Et `GET /decks/{id}/legalite` ne renvoie plus un simple verdict : il date son
+évaluation (`evaluated_on`, parce qu'un bannissement dépend du jour), liste les
+groupes présents dans la crypt (`crypt_groups`, au format des cartes) et nomme les
+cartes fautives (`banned_cards`, `not_yet_legal_cards`), en cartes entières plutôt
+qu'en noms.
+
+Trois conventions à connaître en lisant le contrat :
+
+- toute date-heure sortante est un instant UTC explicite, suffixé « Z »
+  (`2026-09-19T17:47:27Z`). Jamais d'heure locale, jamais de chaîne sans fuseau :
+  le front la passe à `new Date()` sans la corriger, et la file de synchronisation
+  du Lot 3 peut comparer deux horodatages sans les interpréter ;
 - les 404 et 409 portent le schéma `ErrorResponse` (`{"detail": "…"}`) ; les 422
   gardent le format standard de FastAPI (`HTTPValidationError`), y compris ceux que
   le service produit pour une règle qui dépend de l'état des données ;

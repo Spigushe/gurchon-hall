@@ -34,7 +34,7 @@
           "catalogue"
         ],
         "summary": "Recherche dans le catalogue",
-        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse).",
+        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents).",
         "operationId": "listCards",
         "parameters": [
           {
@@ -78,7 +78,9 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
                 },
                 {
                   "type": "null"
@@ -105,6 +107,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
               "minimum": 0,
               "default": 0,
               "title": "Offset"
@@ -153,6 +156,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           }
@@ -197,6 +202,7 @@
           "catalogue"
         ],
         "summary": "Produits (précons, boîtes)",
+        "description": "`q` cherche dans le nom du produit (sous-chaîne, sans tenir compte de la casse ni des accents).",
         "operationId": "listBundles",
         "parameters": [
           {
@@ -206,7 +212,9 @@
             "schema": {
               "anyOf": [
                 {
-                  "type": "integer"
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
                 },
                 {
                   "type": "null"
@@ -276,6 +284,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Bundle Id"
             }
           }
@@ -320,7 +330,7 @@
           "catalogue"
         ],
         "summary": "Verser un produit dans la collection",
-        "description": "Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits.",
+        "description": "Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.",
         "operationId": "depositBundle",
         "parameters": [
           {
@@ -329,6 +339,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Bundle Id"
             }
           }
@@ -471,6 +483,7 @@
           "stock"
         ],
         "summary": "Liste la collection",
+        "description": "`q` cherche dans le nom anglais de la carte (sous-chaîne, sans tenir compte de la casse ni des accents).",
         "operationId": "listStock",
         "parameters": [
           {
@@ -541,6 +554,7 @@
             "required": false,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
               "minimum": 0,
               "default": 0,
               "title": "Offset"
@@ -648,6 +662,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           },
@@ -707,6 +723,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           },
@@ -787,6 +805,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           },
@@ -843,6 +863,7 @@
           "decks"
         ],
         "summary": "Liste les decks",
+        "description": "`state` choisit les decks listés : `active` (défaut, les non archivés), `archived` ou `all` (archivés compris). Les decks supprimés n'apparaissent jamais, quel que soit `state` ; `status` (draft, active) et `q` (sous-chaîne du nom, sans tenir compte de la casse ni des accents) filtrent en plus. Tri par nom puis discriminant.",
         "operationId": "listDecks",
         "parameters": [
           {
@@ -875,6 +896,15 @@
                 }
               ],
               "title": "Q"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/DeckListState",
+              "default": "active"
             }
           }
         ],
@@ -910,6 +940,7 @@
           "decks"
         ],
         "summary": "Crée un deck",
+        "description": "Le serveur tire un discriminant de quatre chiffres (« Malkavien 2022#8561 ») : deux decks peuvent porter le même nom, il n'y a jamais de 409 pour un nom déjà pris. Un deck neuf est vide : le créer directement `active` est refusé (409) ; le créer en `draft`, le composer, puis l'activer. 409 aussi si aucun discriminant libre ne peut être attribué au nom (espace saturé, ou écritures concurrentes répétées).",
         "operationId": "createDeck",
         "requestBody": {
           "required": true,
@@ -961,6 +992,7 @@
           "decks"
         ],
         "summary": "Un deck et sa composition",
+        "description": "Renvoie aussi les decks supprimés, en lecture seule : `deleted_at` est alors renseigné et `cards` vient de la decklist figée à la suppression (même forme et même tri qu'un deck vivant : crypt d'abord, puis nom, puis langue). Un identifiant inconnu est un 404.",
         "operationId": "getDeck",
         "parameters": [
           {
@@ -969,6 +1001,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           }
@@ -1011,7 +1045,7 @@
           "decks"
         ],
         "summary": "Modifie un deck",
-        "description": "Passer un deck à `active` exige qu'il soit légal (crypt ≥ 12, library 60–90) ; sinon 409.",
+        "description": "`archived: true` archive le deck (`archived_at` posé s'il ne l'est pas : rejouer la requête garde la date d'origine) ; `archived: false` le sort de l'archive. Un deck archivé n'est modifiable que pour être désarchivé : tout autre champ est refusé (409) sauf si la requête contient `archived: false` (le désarchivage précède alors les autres modifications) ; `{\"archived\": true}` seul reste un 200 sans effet. Passer un deck à `active` exige qu'il soit légal (cf. `/decks/{id}/legalite`) ; sinon 409. Renommer conserve le discriminant, sauf si le couple (nom, discriminant) est déjà pris : un autre est alors tiré. Un deck supprimé n'est plus modifiable (409).",
         "operationId": "updateDeck",
         "parameters": [
           {
@@ -1020,6 +1054,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           }
@@ -1081,7 +1117,8 @@
         "tags": [
           "decks"
         ],
-        "summary": "Supprime un deck et sa composition",
+        "summary": "Supprime un deck archivé (suppression logique)",
+        "description": "Réservé aux decks archivés (409 sinon, et 409 si le deck est déjà supprimé). Suppression logique : la decklist est figée (recopiée dans la decklist du deck supprimé) et les lignes vivantes disparaissent, ce qui rend les exemplaires et les proxies au stock ; le deck et ses participations restent en base. Le deck n'apparaît plus dans aucune liste mais reste lisible par `GET /decks/{id}`.",
         "operationId": "deleteDeck",
         "parameters": [
           {
@@ -1090,6 +1127,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           }
@@ -1100,6 +1139,16 @@
           },
           "404": {
             "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1127,7 +1176,7 @@
           "decks"
         ],
         "summary": "Légalité du deck",
-        "description": "Calculée à la demande ; les seuils voyagent dans la réponse.",
+        "description": "Calculée à la demande, à la date du jour (UTC, rappelée dans `evaluated_on`) : tailles de crypt et de library, groupes adjacents, cartes bannies, cartes pas encore légales. Les seuils voyagent dans la réponse. Portée par la composition vivante : 409 pour un deck supprimé.",
         "operationId": "getDeckLegality",
         "parameters": [
           {
@@ -1136,6 +1185,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           }
@@ -1153,6 +1204,16 @@
           },
           "404": {
             "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1180,7 +1241,7 @@
           "decks"
         ],
         "summary": "Ajoute une carte au deck",
-        "description": "La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409.",
+        "description": "La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé.",
         "operationId": "addDeckCard",
         "parameters": [
           {
@@ -1189,6 +1250,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           }
@@ -1253,6 +1316,7 @@
           "decks"
         ],
         "summary": "Modifie une ligne du deck",
+        "description": "Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas.",
         "operationId": "updateDeckCard",
         "parameters": [
           {
@@ -1261,6 +1325,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           },
@@ -1270,6 +1336,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           },
@@ -1341,6 +1409,7 @@
           "decks"
         ],
         "summary": "Retire une carte du deck",
+        "description": "Un deck archivé ou supprimé n'est pas modifiable (409).",
         "operationId": "removeDeckCard",
         "parameters": [
           {
@@ -1349,6 +1418,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Deck Id"
             }
           },
@@ -1358,6 +1429,8 @@
             "required": true,
             "schema": {
               "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Card Id"
             }
           },
@@ -1377,6 +1450,16 @@
           },
           "404": {
             "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
             "content": {
               "application/json": {
                 "schema": {
@@ -1482,7 +1565,11 @@
         "required": [
           "id",
           "card_set_id",
-          "code"
+          "code",
+          "name",
+          "size",
+          "release_date",
+          "cards"
         ],
         "title": "BundleContentRead",
         "description": "Contenu complet d'un produit.\n\nRéponse d'un futur `GET /bundles/{id}` (Lot 2). Deux usages la motivent :\nsavoir quel produit acheter pour compléter un deck, et verser ce contenu\ndans la collection — `cards` a exactement la forme qu'attend une création\nd'entrées de stock (carte + quantité), à laquelle il ne manque que la\nlangue de l'exemplaire acheté.\n\nLe service assemble ces lignes depuis les occurrences de type « precon »\ndu produit ; ce n'est pas une relation ORM directe, la carte se trouvant\nun cran plus loin, derrière l'impression."
@@ -1497,6 +1584,7 @@
           },
           "count": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 1.0,
             "title": "Count",
             "description": "Nombre de produits identiques versés d'un coup.",
@@ -1565,7 +1653,10 @@
         "required": [
           "id",
           "card_set_id",
-          "code"
+          "code",
+          "name",
+          "size",
+          "release_date"
         ],
         "title": "BundleRead",
         "description": "Produit vendu dans une extension (deck préconstruit, boîte…).\n\nL'unité d'achat : ce qu'on vise pour compléter un deck, et ce qu'on verse\ndans la collection d'un seul geste. `code` peut être vide — 14 extensions\nn'ont qu'un précon, sans code propre."
@@ -1583,6 +1674,8 @@
         "properties": {
           "card_id": {
             "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
             "title": "Card Id"
           },
           "language_code": {
@@ -1593,6 +1686,7 @@
           },
           "quantity_owned": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Quantity Owned",
             "default": 0
@@ -1670,7 +1764,9 @@
           "card_id",
           "language_code",
           "quantity_owned",
-          "proxy_allowed"
+          "proxy_allowed",
+          "notes",
+          "card"
         ],
         "title": "CardCopyRead",
         "description": "Exemplaires possédés d'une carte dans une langue."
@@ -1679,6 +1775,7 @@
         "properties": {
           "quantity_owned": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Quantity Owned"
           },
@@ -1788,7 +1885,12 @@
         },
         "type": "object",
         "required": [
-          "occurrence_type"
+          "occurrence_type",
+          "frequency",
+          "multiplier",
+          "copies",
+          "released_on",
+          "bundle"
         ],
         "title": "CardPrintingOccurrenceRead",
         "description": "Comment une carte apparaît dans une extension.\n\nLes champs renseignés dépendent du type : fréquence et multiplicateur pour\nun booster, produit et exemplaires pour un précon, date pour une promo."
@@ -1821,7 +1923,9 @@
         },
         "type": "object",
         "required": [
-          "card_set"
+          "card_set",
+          "image_url",
+          "occurrences"
         ],
         "title": "CardPrintingRead",
         "description": "Présence d'une carte dans une extension, et par quels produits."
@@ -2037,6 +2141,19 @@
             "title": "Banned On",
             "description": "Date de bannissement publiée par le VEKN, vide sinon."
           },
+          "legal_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal From",
+            "description": "Date d'entrée en légalité en tournoi. Vide = aucune information, donc légale : la liste paraît après la sortie commerciale."
+          },
           "types": {
             "items": {
               "$ref": "#/components/schemas/CardTypeRead"
@@ -2075,7 +2192,31 @@
           "id",
           "vekn_id",
           "name",
-          "category"
+          "category",
+          "clan",
+          "capacity",
+          "group_code",
+          "advanced",
+          "image_url",
+          "sect",
+          "title",
+          "path",
+          "cost_type",
+          "cost_value",
+          "burn_option",
+          "trifle",
+          "clan_requirement",
+          "path_requirement",
+          "discipline_requirement",
+          "card_text",
+          "flavor_text",
+          "artist",
+          "banned_on",
+          "legal_from",
+          "types",
+          "discipline_links",
+          "printings",
+          "translations"
         ],
         "title": "CardRead",
         "description": "Fiche complète d'une carte du catalogue."
@@ -2128,7 +2269,10 @@
         "type": "object",
         "required": [
           "id",
-          "abbrev"
+          "abbrev",
+          "full_name",
+          "release_date",
+          "company"
         ],
         "title": "CardSetRead",
         "description": "Extension."
@@ -2205,7 +2349,12 @@
           "id",
           "vekn_id",
           "name",
-          "category"
+          "category",
+          "clan",
+          "capacity",
+          "group_code",
+          "advanced",
+          "image_url"
         ],
         "title": "CardSummary",
         "description": "Vue courte d'une carte, pour les listes et l'autocomplétion."
@@ -2258,7 +2407,10 @@
         "type": "object",
         "required": [
           "language_code",
-          "name"
+          "name",
+          "card_text",
+          "flavor_text",
+          "image_url"
         ],
         "title": "CardTranslationRead",
         "description": "Libellés localisés d'une carte.\n\nDistinct de la collection : traduire une carte ne dit rien sur le fait de\nla posséder, et posséder un exemplaire en français ne suppose pas qu'on\nconnaisse sa traduction officielle."
@@ -2307,7 +2459,8 @@
         "type": "object",
         "required": [
           "id",
-          "name"
+          "name",
+          "abbrev"
         ],
         "title": "ClanRead",
         "description": "Clan."
@@ -2326,17 +2479,21 @@
         "properties": {
           "quantity": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 1.0,
             "title": "Quantity"
           },
           "proxy_quantity": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Proxy Quantity",
             "default": 0
           },
           "card_id": {
             "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
             "title": "Card Id"
           },
           "language_code": {
@@ -2391,7 +2548,8 @@
           "card_id",
           "language_code",
           "quantity",
-          "proxy_quantity"
+          "proxy_quantity",
+          "card"
         ],
         "title": "DeckCardRead",
         "description": "Une ligne de decklist."
@@ -2400,11 +2558,13 @@
         "properties": {
           "quantity": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 1.0,
             "title": "Quantity"
           },
           "proxy_quantity": {
             "type": "integer",
+            "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Proxy Quantity"
           }
@@ -2468,7 +2628,7 @@
           "name"
         ],
         "title": "DeckCreate",
-        "description": "Création d'un deck."
+        "description": "Création d'un deck.\n\nPas de discriminant : il est tiré par le serveur, qui garantit son unicité\nau sein du nom. Un client qui l'imposerait entrerait en course avec un\nautre, pour un gain nul."
       },
       "DeckDetailRead": {
         "properties": {
@@ -2479,6 +2639,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "discriminator": {
+            "type": "string",
+            "title": "Discriminator",
+            "description": "Quatre chiffres tirés par le serveur, qui distinguent deux decks de même nom. À afficher collé au nom : « Malkavien 2022#8561 »."
           },
           "created_on": {
             "anyOf": [
@@ -2516,6 +2681,32 @@
               }
             ],
             "title": "Notes"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable."
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable."
           },
           "created_at": {
             "type": "string",
@@ -2540,9 +2731,16 @@
         "required": [
           "id",
           "name",
+          "discriminator",
+          "created_on",
           "status",
+          "archetype",
+          "notes",
+          "archived_at",
+          "deleted_at",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "cards"
         ],
         "title": "DeckDetailRead",
         "description": "Un deck avec sa composition."
@@ -2552,6 +2750,12 @@
           "deck_id": {
             "type": "integer",
             "title": "Deck Id"
+          },
+          "evaluated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Evaluated On",
+            "description": "Date à laquelle le verdict a été rendu (bans, légalité)."
           },
           "crypt_count": {
             "type": "integer",
@@ -2573,6 +2777,33 @@
             "type": "integer",
             "title": "Library Maximum"
           },
+          "crypt_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Crypt Groups",
+            "description": "Groupes présents dans la crypt, au format des cartes (« G2 »), sans doublon, triés par numéro, « Any » exclu.",
+            "default": []
+          },
+          "banned_cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": "array",
+            "title": "Banned Cards",
+            "description": "Cartes du deck bannies à la date d'évaluation. Des cartes entières et non des noms : « Theo Bell » ne désigne rien sans son groupe.",
+            "default": []
+          },
+          "not_yet_legal_cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": "array",
+            "title": "Not Yet Legal Cards",
+            "description": "Cartes dont la date d'entrée en légalité est postérieure à la date d'évaluation : imprimées, mais pas encore jouables.",
+            "default": []
+          },
           "is_legal": {
             "type": "boolean",
             "title": "Is Legal"
@@ -2589,15 +2820,30 @@
         "type": "object",
         "required": [
           "deck_id",
+          "evaluated_on",
           "crypt_count",
           "library_count",
           "crypt_minimum",
           "library_minimum",
           "library_maximum",
-          "is_legal"
+          "crypt_groups",
+          "banned_cards",
+          "not_yet_legal_cards",
+          "is_legal",
+          "issues"
         ],
         "title": "DeckLegality",
-        "description": "Verdict de légalité d'un deck (CLAUDE.md §5 : crypt ≥ 12, library 60–90).\n\nSchéma de sortie seulement : le calcul est une règle de service, écrite au\nLot 2 avec la skill `regles-vtes`. Les seuils voyagent dans la réponse pour\nque le front affiche « 58 / 60 » sans les redéfinir de son côté."
+        "description": "Verdict de légalité d'un deck (CLAUDE.md §5).\n\nRègles vérifiées : crypt ≥ 12 ; crypt sur deux groupes adjacents au plus\n(« Any » neutre) ; library entre 60 et 90 ; aucune carte bannie ; aucune\ncarte pas encore légale. Les seuils voyagent dans la réponse pour que le\nfront affiche « 58 / 60 » sans les redéfinir de son côté ; `issues` dit, en\nclair, chaque règle enfreinte.\n\nLe verdict est daté (`evaluated_on`) : bannissements et entrées en légalité\ndépendent du jour où l'on regarde."
+      },
+      "DeckListState": {
+        "type": "string",
+        "enum": [
+          "active",
+          "archived",
+          "all"
+        ],
+        "title": "DeckListState",
+        "description": "Quels decks une liste renvoie.\n\nPurement contractuel (pas de colonne en face) : l'archivage est une date,\npas un statut. Les decks supprimés ne sont dans aucun de ces trois cas."
       },
       "DeckRead": {
         "properties": {
@@ -2608,6 +2854,11 @@
           "name": {
             "type": "string",
             "title": "Name"
+          },
+          "discriminator": {
+            "type": "string",
+            "title": "Discriminator",
+            "description": "Quatre chiffres tirés par le serveur, qui distinguent deux decks de même nom. À afficher collé au nom : « Malkavien 2022#8561 »."
           },
           "created_on": {
             "anyOf": [
@@ -2646,6 +2897,32 @@
             ],
             "title": "Notes"
           },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable."
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2661,7 +2938,13 @@
         "required": [
           "id",
           "name",
+          "discriminator",
+          "created_on",
           "status",
+          "archetype",
+          "notes",
+          "archived_at",
+          "deleted_at",
           "created_at",
           "updated_at"
         ],
@@ -2672,11 +2955,10 @@
         "type": "string",
         "enum": [
           "draft",
-          "active",
-          "retired"
+          "active"
         ],
         "title": "DeckStatus",
-        "description": "Cycle de vie d'un deck côté joueur."
+        "description": "Avancement d'un deck côté joueur : brouillon ou jouable.\n\nVolontairement réduit à deux valeurs. « Rangé » et « supprimé » ne sont pas\ndes statuts mais des dates (`deck.archived_at`, `deck.deleted_at`) : un deck\narchivé garde le statut qu'il avait, et le désarchiver ne demande donc pas\nde deviner lequel."
       },
       "DeckUpdate": {
         "properties": {
@@ -2723,12 +3005,17 @@
               }
             ],
             "title": "Notes"
+          },
+          "archived": {
+            "type": "boolean",
+            "title": "Archived",
+            "description": "Range le deck (`true`) ou le sort de l'archive (`false`). Pose ou efface `archived_at` ; un deck archivé n'est plus modifiable."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "DeckUpdate",
-        "description": "Modification partielle d'un deck.\n\n`name` et `status` sont facultatifs mais non nullables ; `created_on`,\n`archetype` et `notes` acceptent `null` pour effacer la valeur."
+        "description": "Modification partielle d'un deck.\n\n`name`, `status` et `archived` sont facultatifs mais non nullables ;\n`created_on`, `archetype` et `notes` acceptent `null` pour effacer la\nvaleur. Le discriminant ne se modifie pas : renommer un deck ne change pas\nson identité (le serveur n'en retire un autre que si le nouveau couple est\ndéjà pris)."
       },
       "DisciplineRead": {
         "properties": {
@@ -2755,7 +3042,8 @@
         "type": "object",
         "required": [
           "id",
-          "name"
+          "name",
+          "abbrev"
         ],
         "title": "DisciplineRead",
         "description": "Discipline."
@@ -2842,7 +3130,10 @@
           },
           "sort_order": {
             "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
             "title": "Sort Order",
+            "description": "Rang d'affichage, croissant. Le dernier entier borné du contrat.",
             "default": 0
           }
         },

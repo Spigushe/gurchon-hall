@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Recherche dans le catalogue
-         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse).
+         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents).
          */
         get: operations["listCards"];
         put?: never;
@@ -68,7 +68,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Produits (précons, boîtes) */
+        /**
+         * Produits (précons, boîtes)
+         * @description `q` cherche dans le nom du produit (sous-chaîne, sans tenir compte de la casse ni des accents).
+         */
         get: operations["listBundles"];
         put?: never;
         post?: never;
@@ -106,7 +109,7 @@ export interface paths {
         put?: never;
         /**
          * Verser un produit dans la collection
-         * @description Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits.
+         * @description Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.
          */
         post: operations["depositBundle"];
         delete?: never;
@@ -140,7 +143,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Liste la collection */
+        /**
+         * Liste la collection
+         * @description `q` cherche dans le nom anglais de la carte (sous-chaîne, sans tenir compte de la casse ni des accents).
+         */
         get: operations["listStock"];
         put?: never;
         /** Déclare une carte dans une langue */
@@ -180,10 +186,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Liste les decks */
+        /**
+         * Liste les decks
+         * @description `state` choisit les decks listés : `active` (défaut, les non archivés), `archived` ou `all` (archivés compris). Les decks supprimés n'apparaissent jamais, quel que soit `state` ; `status` (draft, active) et `q` (sous-chaîne du nom, sans tenir compte de la casse ni des accents) filtrent en plus. Tri par nom puis discriminant.
+         */
         get: operations["listDecks"];
         put?: never;
-        /** Crée un deck */
+        /**
+         * Crée un deck
+         * @description Le serveur tire un discriminant de quatre chiffres (« Malkavien 2022#8561 ») : deux decks peuvent porter le même nom, il n'y a jamais de 409 pour un nom déjà pris. Un deck neuf est vide : le créer directement `active` est refusé (409) ; le créer en `draft`, le composer, puis l'activer. 409 aussi si aucun discriminant libre ne peut être attribué au nom (espace saturé, ou écritures concurrentes répétées).
+         */
         post: operations["createDeck"];
         delete?: never;
         options?: never;
@@ -198,17 +210,23 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Un deck et sa composition */
+        /**
+         * Un deck et sa composition
+         * @description Renvoie aussi les decks supprimés, en lecture seule : `deleted_at` est alors renseigné et `cards` vient de la decklist figée à la suppression (même forme et même tri qu'un deck vivant : crypt d'abord, puis nom, puis langue). Un identifiant inconnu est un 404.
+         */
         get: operations["getDeck"];
         put?: never;
         post?: never;
-        /** Supprime un deck et sa composition */
+        /**
+         * Supprime un deck archivé (suppression logique)
+         * @description Réservé aux decks archivés (409 sinon, et 409 si le deck est déjà supprimé). Suppression logique : la decklist est figée (recopiée dans la decklist du deck supprimé) et les lignes vivantes disparaissent, ce qui rend les exemplaires et les proxies au stock ; le deck et ses participations restent en base. Le deck n'apparaît plus dans aucune liste mais reste lisible par `GET /decks/{id}`.
+         */
         delete: operations["deleteDeck"];
         options?: never;
         head?: never;
         /**
          * Modifie un deck
-         * @description Passer un deck à `active` exige qu'il soit légal (crypt ≥ 12, library 60–90) ; sinon 409.
+         * @description `archived: true` archive le deck (`archived_at` posé s'il ne l'est pas : rejouer la requête garde la date d'origine) ; `archived: false` le sort de l'archive. Un deck archivé n'est modifiable que pour être désarchivé : tout autre champ est refusé (409) sauf si la requête contient `archived: false` (le désarchivage précède alors les autres modifications) ; `{"archived": true}` seul reste un 200 sans effet. Passer un deck à `active` exige qu'il soit légal (cf. `/decks/{id}/legalite`) ; sinon 409. Renommer conserve le discriminant, sauf si le couple (nom, discriminant) est déjà pris : un autre est alors tiré. Un deck supprimé n'est plus modifiable (409).
          */
         patch: operations["updateDeck"];
         trace?: never;
@@ -222,7 +240,7 @@ export interface paths {
         };
         /**
          * Légalité du deck
-         * @description Calculée à la demande ; les seuils voyagent dans la réponse.
+         * @description Calculée à la demande, à la date du jour (UTC, rappelée dans `evaluated_on`) : tailles de crypt et de library, groupes adjacents, cartes bannies, cartes pas encore légales. Les seuils voyagent dans la réponse. Portée par la composition vivante : 409 pour un deck supprimé.
          */
         get: operations["getDeckLegality"];
         put?: never;
@@ -244,7 +262,7 @@ export interface paths {
         put?: never;
         /**
          * Ajoute une carte au deck
-         * @description La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409.
+         * @description La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé.
          */
         post: operations["addDeckCard"];
         delete?: never;
@@ -263,11 +281,17 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Retire une carte du deck */
+        /**
+         * Retire une carte du deck
+         * @description Un deck archivé ou supprimé n'est pas modifiable (409).
+         */
         delete: operations["removeDeckCard"];
         options?: never;
         head?: never;
-        /** Modifie une ligne du deck */
+        /**
+         * Modifie une ligne du deck
+         * @description Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas.
+         */
         patch: operations["updateDeckCard"];
         trace?: never;
     };
@@ -306,19 +330,19 @@ export interface components {
             /** Code */
             code: string;
             /** Name */
-            name?: string | null;
+            name: string | null;
             /**
              * Size
              * @description Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé.
              */
-            size?: number | null;
+            size: number | null;
             /** Release Date */
-            release_date?: string | null;
+            release_date: string | null;
             /**
              * Cards
              * @default []
              */
-            cards?: components["schemas"]["BundleCardRead"][];
+            cards: components["schemas"]["BundleCardRead"][];
         };
         /**
          * BundleDeposit
@@ -353,14 +377,14 @@ export interface components {
             /** Code */
             code: string;
             /** Name */
-            name?: string | null;
+            name: string | null;
             /**
              * Size
              * @description Nombre de cartes annoncé par le produit. Déclaratif : ne colle pas toujours exactement au contenu listé.
              */
-            size?: number | null;
+            size: number | null;
             /** Release Date */
-            release_date?: string | null;
+            release_date: string | null;
         };
         /**
          * CardCategory
@@ -410,8 +434,8 @@ export interface components {
              */
             proxy_allowed: boolean;
             /** Notes */
-            notes?: string | null;
-            card?: components["schemas"]["CardSummary"] | null;
+            notes: string | null;
+            card: components["schemas"]["CardSummary"] | null;
         };
         /**
          * CardCopyUpdate
@@ -455,20 +479,20 @@ export interface components {
              * Frequency
              * @description Code de rareté en booster (C, U, R, V…).
              */
-            frequency?: string | null;
+            frequency: string | null;
             /**
              * Multiplier
              * @description Nombre moyen d'exemplaires par booster (0,5 possible).
              */
-            multiplier?: number | null;
+            multiplier: number | null;
             /**
              * Copies
              * @description Nombre d'exemplaires dans le produit, pour un précon.
              */
-            copies?: number | null;
+            copies: number | null;
             /** Released On */
-            released_on?: string | null;
-            bundle?: components["schemas"]["BundleRead"] | null;
+            released_on: string | null;
+            bundle: components["schemas"]["BundleRead"] | null;
         };
         /**
          * CardPrintingRead
@@ -480,12 +504,12 @@ export interface components {
              * Image Url
              * @description Scan de la carte telle qu'imprimée dans cette extension.
              */
-            image_url?: string | null;
+            image_url: string | null;
             /**
              * Occurrences
              * @default []
              */
-            occurrences?: components["schemas"]["CardPrintingOccurrenceRead"][];
+            occurrences: components["schemas"]["CardPrintingOccurrenceRead"][];
         };
         /**
          * CardRead
@@ -499,83 +523,88 @@ export interface components {
             /** Name */
             name: string;
             category: components["schemas"]["CardCategory"];
-            clan?: components["schemas"]["ClanRead"] | null;
+            clan: components["schemas"]["ClanRead"] | null;
             /** Capacity */
-            capacity?: number | null;
+            capacity: number | null;
             /** Group Code */
-            group_code?: string | null;
+            group_code: string | null;
             /**
              * Advanced
              * @default false
              */
-            advanced?: boolean;
+            advanced: boolean;
             /**
              * Image Url
              * @description Scan de la carte (version anglaise de référence).
              */
-            image_url?: string | null;
-            sect?: components["schemas"]["SectRead"] | null;
+            image_url: string | null;
+            sect: components["schemas"]["SectRead"] | null;
             /** Title */
-            title?: string | null;
+            title: string | null;
             /** Path */
-            path?: string | null;
+            path: string | null;
             /** @description Nature du coût : une carte n'en a jamais qu'un seul. */
-            cost_type?: components["schemas"]["CostType"] | null;
+            cost_type: components["schemas"]["CostType"] | null;
             /**
              * Cost Value
              * @description Montant du coût. Chaîne et non entier : 25 cartes coûtent « X ».
              */
-            cost_value?: string | null;
+            cost_value: string | null;
             /**
              * Burn Option
              * @default false
              */
-            burn_option?: boolean;
+            burn_option: boolean;
             /**
              * Trifle
              * @default false
              */
-            trifle?: boolean;
+            trifle: boolean;
             /**
              * Clan Requirement
              * @description Clan(s) exigé(s) par la carte, séparés par une virgule.
              */
-            clan_requirement?: string | null;
+            clan_requirement: string | null;
             /** Path Requirement */
-            path_requirement?: string | null;
+            path_requirement: string | null;
             /** @description Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble. */
-            discipline_requirement?: components["schemas"]["DisciplineRequirement"] | null;
+            discipline_requirement: components["schemas"]["DisciplineRequirement"] | null;
             /** Card Text */
-            card_text?: string | null;
+            card_text: string | null;
             /** Flavor Text */
-            flavor_text?: string | null;
+            flavor_text: string | null;
             /** Artist */
-            artist?: string | null;
+            artist: string | null;
             /**
              * Banned On
              * @description Date de bannissement publiée par le VEKN, vide sinon.
              */
-            banned_on?: string | null;
+            banned_on: string | null;
+            /**
+             * Legal From
+             * @description Date d'entrée en légalité en tournoi. Vide = aucune information, donc légale : la liste paraît après la sortie commerciale.
+             */
+            legal_from: string | null;
             /**
              * Types
              * @default []
              */
-            types?: components["schemas"]["CardTypeRead"][];
+            types: components["schemas"]["CardTypeRead"][];
             /**
              * Discipline Links
              * @default []
              */
-            discipline_links?: components["schemas"]["CardDisciplineRead"][];
+            discipline_links: components["schemas"]["CardDisciplineRead"][];
             /**
              * Printings
              * @default []
              */
-            printings?: components["schemas"]["CardPrintingRead"][];
+            printings: components["schemas"]["CardPrintingRead"][];
             /**
              * Translations
              * @default []
              */
-            translations?: components["schemas"]["CardTranslationRead"][];
+            translations: components["schemas"]["CardTranslationRead"][];
         };
         /**
          * CardSetRead
@@ -587,11 +616,11 @@ export interface components {
             /** Abbrev */
             abbrev: string;
             /** Full Name */
-            full_name?: string | null;
+            full_name: string | null;
             /** Release Date */
-            release_date?: string | null;
+            release_date: string | null;
             /** Company */
-            company?: string | null;
+            company: string | null;
         };
         /**
          * CardSummary
@@ -605,21 +634,21 @@ export interface components {
             /** Name */
             name: string;
             category: components["schemas"]["CardCategory"];
-            clan?: components["schemas"]["ClanRead"] | null;
+            clan: components["schemas"]["ClanRead"] | null;
             /** Capacity */
-            capacity?: number | null;
+            capacity: number | null;
             /** Group Code */
-            group_code?: string | null;
+            group_code: string | null;
             /**
              * Advanced
              * @default false
              */
-            advanced?: boolean;
+            advanced: boolean;
             /**
              * Image Url
              * @description Scan de la carte (version anglaise de référence).
              */
-            image_url?: string | null;
+            image_url: string | null;
         };
         /**
          * CardTranslationRead
@@ -635,14 +664,14 @@ export interface components {
             /** Name */
             name: string;
             /** Card Text */
-            card_text?: string | null;
+            card_text: string | null;
             /** Flavor Text */
-            flavor_text?: string | null;
+            flavor_text: string | null;
             /**
              * Image Url
              * @description Scan de la version localisée, quand il existe.
              */
-            image_url?: string | null;
+            image_url: string | null;
         };
         /**
          * CardTypeRead
@@ -664,7 +693,7 @@ export interface components {
             /** Name */
             name: string;
             /** Abbrev */
-            abbrev?: string | null;
+            abbrev: string | null;
         };
         /**
          * CostType
@@ -712,7 +741,7 @@ export interface components {
              * @description Part des exemplaires ci-dessus jouée en proxy.
              */
             proxy_quantity: number;
-            card?: components["schemas"]["CardSummary"] | null;
+            card: components["schemas"]["CardSummary"] | null;
         };
         /**
          * DeckCardUpdate
@@ -733,6 +762,10 @@ export interface components {
         /**
          * DeckCreate
          * @description Création d'un deck.
+         *
+         *     Pas de discriminant : il est tiré par le serveur, qui garantit son unicité
+         *     au sein du nom. Un client qui l'imposerait entrerait en course avec un
+         *     autre, pour un gain nul.
          */
         DeckCreate: {
             /** Name */
@@ -755,13 +788,28 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /**
+             * Discriminator
+             * @description Quatre chiffres tirés par le serveur, qui distinguent deux decks de même nom. À afficher collé au nom : « Malkavien 2022#8561 ».
+             */
+            discriminator: string;
             /** Created On */
-            created_on?: string | null;
+            created_on: string | null;
             status: components["schemas"]["DeckStatus"];
             /** Archetype */
-            archetype?: string | null;
+            archetype: string | null;
             /** Notes */
-            notes?: string | null;
+            notes: string | null;
+            /**
+             * Archived At
+             * @description Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable.
+             */
+            archived_at: string | null;
+            /**
+             * Deleted At
+             * @description Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable.
+             */
+            deleted_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -776,19 +824,30 @@ export interface components {
              * Cards
              * @default []
              */
-            cards?: components["schemas"]["DeckCardRead"][];
+            cards: components["schemas"]["DeckCardRead"][];
         };
         /**
          * DeckLegality
-         * @description Verdict de légalité d'un deck (CLAUDE.md §5 : crypt ≥ 12, library 60–90).
+         * @description Verdict de légalité d'un deck (CLAUDE.md §5).
          *
-         *     Schéma de sortie seulement : le calcul est une règle de service, écrite au
-         *     Lot 2 avec la skill `regles-vtes`. Les seuils voyagent dans la réponse pour
-         *     que le front affiche « 58 / 60 » sans les redéfinir de son côté.
+         *     Règles vérifiées : crypt ≥ 12 ; crypt sur deux groupes adjacents au plus
+         *     (« Any » neutre) ; library entre 60 et 90 ; aucune carte bannie ; aucune
+         *     carte pas encore légale. Les seuils voyagent dans la réponse pour que le
+         *     front affiche « 58 / 60 » sans les redéfinir de son côté ; `issues` dit, en
+         *     clair, chaque règle enfreinte.
+         *
+         *     Le verdict est daté (`evaluated_on`) : bannissements et entrées en légalité
+         *     dépendent du jour où l'on regarde.
          */
         DeckLegality: {
             /** Deck Id */
             deck_id: number;
+            /**
+             * Evaluated On
+             * Format: date
+             * @description Date à laquelle le verdict a été rendu (bans, légalité).
+             */
+            evaluated_on: string;
             /** Crypt Count */
             crypt_count: number;
             /** Library Count */
@@ -799,14 +858,41 @@ export interface components {
             library_minimum: number;
             /** Library Maximum */
             library_maximum: number;
+            /**
+             * Crypt Groups
+             * @description Groupes présents dans la crypt, au format des cartes (« G2 »), sans doublon, triés par numéro, « Any » exclu.
+             * @default []
+             */
+            crypt_groups: string[];
+            /**
+             * Banned Cards
+             * @description Cartes du deck bannies à la date d'évaluation. Des cartes entières et non des noms : « Theo Bell » ne désigne rien sans son groupe.
+             * @default []
+             */
+            banned_cards: components["schemas"]["CardSummary"][];
+            /**
+             * Not Yet Legal Cards
+             * @description Cartes dont la date d'entrée en légalité est postérieure à la date d'évaluation : imprimées, mais pas encore jouables.
+             * @default []
+             */
+            not_yet_legal_cards: components["schemas"]["CardSummary"][];
             /** Is Legal */
             is_legal: boolean;
             /**
              * Issues
              * @default []
              */
-            issues?: string[];
+            issues: string[];
         };
+        /**
+         * DeckListState
+         * @description Quels decks une liste renvoie.
+         *
+         *     Purement contractuel (pas de colonne en face) : l'archivage est une date,
+         *     pas un statut. Les decks supprimés ne sont dans aucun de ces trois cas.
+         * @enum {string}
+         */
+        DeckListState: "active" | "archived" | "all";
         /**
          * DeckRead
          * @description Un deck, sans sa composition.
@@ -816,13 +902,28 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+            /**
+             * Discriminator
+             * @description Quatre chiffres tirés par le serveur, qui distinguent deux decks de même nom. À afficher collé au nom : « Malkavien 2022#8561 ».
+             */
+            discriminator: string;
             /** Created On */
-            created_on?: string | null;
+            created_on: string | null;
             status: components["schemas"]["DeckStatus"];
             /** Archetype */
-            archetype?: string | null;
+            archetype: string | null;
             /** Notes */
-            notes?: string | null;
+            notes: string | null;
+            /**
+             * Archived At
+             * @description Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable.
+             */
+            archived_at: string | null;
+            /**
+             * Deleted At
+             * @description Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable.
+             */
+            deleted_at: string | null;
             /**
              * Created At
              * Format: date-time
@@ -836,16 +937,24 @@ export interface components {
         };
         /**
          * DeckStatus
-         * @description Cycle de vie d'un deck côté joueur.
+         * @description Avancement d'un deck côté joueur : brouillon ou jouable.
+         *
+         *     Volontairement réduit à deux valeurs. « Rangé » et « supprimé » ne sont pas
+         *     des statuts mais des dates (`deck.archived_at`, `deck.deleted_at`) : un deck
+         *     archivé garde le statut qu'il avait, et le désarchiver ne demande donc pas
+         *     de deviner lequel.
          * @enum {string}
          */
-        DeckStatus: "draft" | "active" | "retired";
+        DeckStatus: "draft" | "active";
         /**
          * DeckUpdate
          * @description Modification partielle d'un deck.
          *
-         *     `name` et `status` sont facultatifs mais non nullables ; `created_on`,
-         *     `archetype` et `notes` acceptent `null` pour effacer la valeur.
+         *     `name`, `status` et `archived` sont facultatifs mais non nullables ;
+         *     `created_on`, `archetype` et `notes` acceptent `null` pour effacer la
+         *     valeur. Le discriminant ne se modifie pas : renommer un deck ne change pas
+         *     son identité (le serveur n'en retire un autre que si le nouveau couple est
+         *     déjà pris).
          */
         DeckUpdate: {
             /** Name */
@@ -857,6 +966,11 @@ export interface components {
             archetype?: string | null;
             /** Notes */
             notes?: string | null;
+            /**
+             * Archived
+             * @description Range le deck (`true`) ou le sort de l'archive (`false`). Pose ou efface `archived_at` ; un deck archivé n'est plus modifiable.
+             */
+            archived?: boolean;
         };
         /**
          * DisciplineRead
@@ -868,7 +982,7 @@ export interface components {
             /** Name */
             name: string;
             /** Abbrev */
-            abbrev?: string | null;
+            abbrev: string | null;
         };
         /**
          * DisciplineRequirement
@@ -927,6 +1041,7 @@ export interface components {
             label: string;
             /**
              * Sort Order
+             * @description Rang d'affichage, croissant. Le dernier entier borné du contrat.
              * @default 0
              */
             sort_order?: number;
@@ -1515,6 +1630,7 @@ export interface operations {
             query?: {
                 status?: components["schemas"]["DeckStatus"] | null;
                 q?: string | null;
+                state?: components["schemas"]["DeckListState"];
             };
             header?: never;
             path?: never;
@@ -1651,6 +1767,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1744,6 +1869,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1830,6 +1964,15 @@ export interface operations {
             };
             /** @description Ressource introuvable. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

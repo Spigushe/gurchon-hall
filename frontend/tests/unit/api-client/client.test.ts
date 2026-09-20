@@ -90,6 +90,116 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
     expect(new URL(remove.url).pathname).toBe("/stock/7/FR");
   });
 
+  // Lot 2 passe 2 bis : plus de routes `archiver` / `restaurer`. Archiver un
+  // deck, c'est le modifier (`PATCH` avec `archived`), et la liste se filtre
+  // sur `state` (active | archived | all).
+  it("archive un deck par PATCH et filtre la liste sur state", async () => {
+    const sent: Request[] = [];
+    const fetchSpy = vi.fn(async (request: Request) => {
+      sent.push(request);
+      return new Response("[]", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    await apiClient.PATCH("/decks/{deck_id}", {
+      params: { path: { deck_id: 3 } },
+      body: { archived: true },
+      fetch: fetchSpy,
+    });
+    await apiClient.GET("/decks", {
+      params: { query: { state: "all" } },
+      fetch: fetchSpy,
+    });
+
+    const [archive, list] = sent;
+    expect(archive.method).toBe("PATCH");
+    expect(new URL(archive.url).pathname).toBe("/decks/3");
+    expect(await archive.json()).toEqual({ archived: true });
+    expect(list.method).toBe("GET");
+    const listUrl = new URL(list.url);
+    expect(listUrl.pathname).toBe("/decks");
+    expect(listUrl.searchParams.get("state")).toBe("all");
+    // Le booléen `archived` n'est plus un paramètre de requête.
+    expect(listUrl.searchParams.get("archived")).toBeNull();
+  });
+
+  // Le verdict de légalité transporte le détail des règles : groupes de crypt
+  // (chaînes au format des cartes, « G2 ») et cartes fautives entières.
+  it("lit un verdict de légalité de deck détaillé", async () => {
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            deck_id: 3,
+            evaluated_on: "2026-09-20",
+            crypt_count: 12,
+            library_count: 60,
+            crypt_minimum: 12,
+            library_minimum: 60,
+            library_maximum: 90,
+            crypt_groups: ["G2", "G3"],
+            banned_cards: [],
+            not_yet_legal_cards: [],
+            is_legal: true,
+            issues: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    const { data } = await apiClient.GET("/decks/{deck_id}/legalite", {
+      params: { path: { deck_id: 3 } },
+      fetch: fetchSpy,
+    });
+
+    // Typé non optionnel (cf. `ReadModel`) : pas de `?.` ni de garde ici.
+    const groups: string[] = data!.crypt_groups;
+    expect(groups).toEqual(["G2", "G3"]);
+    expect(data!.banned_cards).toEqual([]);
+    expect(data!.not_yet_legal_cards).toEqual([]);
+    expect(data!.evaluated_on).toBe("2026-09-20");
+  });
+
+  // Les date-heures du contrat sont des instants UTC explicites, suffixés
+  // « Z » : le front peut les passer à `new Date()` sans les corriger.
+  it("lit des date-heures de deck en UTC explicite", async () => {
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: 3,
+            name: "Ventrue Grinder",
+            discriminator: "8561",
+            created_on: null,
+            status: "active",
+            archetype: null,
+            notes: null,
+            archived_at: "2026-09-19T17:47:27Z",
+            deleted_at: null,
+            created_at: "2026-09-19T17:47:27Z",
+            updated_at: "2026-09-19T17:47:27Z",
+            cards: [],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    const { data } = await apiClient.GET("/decks/{deck_id}", {
+      params: { path: { deck_id: 3 } },
+      fetch: fetchSpy,
+    });
+
+    const archivedAt: string | null = data!.archived_at;
+    expect(archivedAt).toBe("2026-09-19T17:47:27Z");
+    expect(new Date(archivedAt!).toISOString()).toBe("2026-09-19T17:47:27.000Z");
+    expect(data!.deleted_at).toBeNull();
+  });
+
   it("type les erreurs métier 409 avec le schéma ErrorResponse", async () => {
     const fetchSpy = vi.fn(
       async () =>
