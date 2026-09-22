@@ -227,4 +227,118 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
       "Exemplaires insuffisants",
     );
   });
+
+  // Lot 3 : la file hors ligne rejoue ses écritures par `POST /sync`. Le
+  // contrat en fait une union discriminée par `type`, donc le corps se
+  // construit sans cast et le verdict se lit par opération. La réponse est
+  // simulée : ce qui est vérifié ici, c'est le typage issu du contrat, pas le
+  // service (testé côté back).
+  it("construit un lot de synchronisation typé par le discriminant `type`", async () => {
+    const sent: Request[] = [];
+    const fetchSpy = vi.fn(async (request: Request) => {
+      sent.push(request);
+      return new Response(
+        JSON.stringify({
+          batch_id: "6f1d2a4e-0e9e-4a1a-9a0f-2f7b3c4d5e6f",
+          synced_at: "2026-09-20T18:00:00Z",
+          applied: 2,
+          replayed: 0,
+          rejected: 0,
+          results: [
+            {
+              operation_id: "0f8f8b8e-1111-4222-8333-444444444444",
+              type: "deck.create",
+              outcome: "applied",
+              client_ref: "ref-deck",
+              resource: {
+                kind: "deck",
+                deck_id: 12,
+                card_id: null,
+                language_code: null,
+                bundle_id: null,
+              },
+              error: null,
+              processed_at: "2026-09-20T18:00:00Z",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    });
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    const { data } = await apiClient.POST("/sync", {
+      body: {
+        operations: [
+          {
+            type: "deck.create",
+            operation_id: "0f8f8b8e-1111-4222-8333-444444444444",
+            recorded_at: "2026-09-20T20:00:00+02:00",
+            client_ref: "ref-deck",
+            data: { name: "Malkavien 2022" },
+          },
+          {
+            type: "deck_card.upsert",
+            operation_id: "0f8f8b8e-2222-4222-8333-444444444444",
+            recorded_at: "2026-09-20T20:01:00+02:00",
+            deck: { client_ref: "ref-deck" },
+            data: { card_id: 7, language_code: "FR", quantity: 4 },
+          },
+        ],
+      },
+      fetch: fetchSpy,
+    });
+
+    const [sync] = sent;
+    expect(sync.method).toBe("POST");
+    expect(new URL(sync.url).pathname).toBe("/sync");
+    expect((await sync.json()).operations).toHaveLength(2);
+
+    // Champs obligatoires en sortie (cf. `ReadModel`) : ni `?.` ni garde.
+    const [first] = data!.results;
+    expect(first.outcome).toBe("applied");
+    expect(first.client_ref).toBe("ref-deck");
+    // C'est la correspondance que la couche offline doit mémoriser.
+    expect(first.resource?.deck_id).toBe(12);
+    expect(first.error).toBeNull();
+  });
+
+  it("type le 503 de `/sync` comme une erreur transitoire, pas comme un refus", async () => {
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            detail: "Une autre écriture est en cours : renvoyer le lot tel quel.",
+          }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json", "Retry-After": "1" },
+          },
+        ),
+    );
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    const { data, error, response } = await apiClient.POST("/sync", {
+      body: {
+        operations: [
+          {
+            type: "stock.upsert",
+            operation_id: "0f8f8b8e-3333-4222-8333-444444444444",
+            recorded_at: "2026-09-20T20:00:00+02:00",
+            data: { card_id: 7, language_code: "FR", quantity_owned: 3 },
+          },
+        ],
+      },
+      fetch: fetchSpy,
+    });
+
+    expect(response.status).toBe(503);
+    // Aucun verdict : rien n'a été appliqué, la file garde ses opérations et
+    // renvoie le même lot (les clés d'idempotence rendent le rejeu sûr).
+    expect(data).toBeUndefined();
+    expect(error && "detail" in error ? error.detail : null).toContain(
+      "renvoyer le lot tel quel",
+    );
+    expect(response.headers.get("Retry-After")).toBe("1");
+  });
 });

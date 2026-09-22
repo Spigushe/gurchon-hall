@@ -295,6 +295,26 @@ export interface paths {
         patch: operations["updateDeckCard"];
         trace?: never;
     };
+    "/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rejoue un lot d'écritures faites hors ligne
+         * @description Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Le seul autre code est un 503 transitoire, quand une écriture concurrente tient la base — rien n'a alors été appliqué, et le lot se renvoie à l'identique.
+         */
+        post: operations["syncOperations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -360,6 +380,38 @@ export interface components {
              * @default 1
              */
             count?: number;
+        };
+        /**
+         * BundleDepositOperation
+         * @description Verse le contenu d'un produit dans la collection.
+         *
+         *     L'opération qui justifie à elle seule le journal : hors `/sync`,
+         *     `POST /bundles/{id}/stock` additionne le produit à chaque appel, donc un
+         *     rejeu double le stock. Passée par ici, elle est tranchée une fois pour
+         *     toutes — un second envoi de la même clé d'idempotence est « rejouée », sans
+         *     effet.
+         */
+        BundleDepositOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "bundle.deposit";
+            /** Bundle Id */
+            bundle_id: number;
+            data: components["schemas"]["BundleDeposit"];
         };
         /**
          * BundleRead
@@ -726,6 +778,34 @@ export interface components {
             language_code: string;
         };
         /**
+         * DeckCardDeleteOperation
+         * @description Retire une carte d'un deck.
+         */
+        DeckCardDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deck_card.delete";
+            deck: components["schemas"]["DeckRef"];
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+        };
+        /**
          * DeckCardRead
          * @description Une ligne de decklist.
          */
@@ -760,6 +840,36 @@ export interface components {
             proxy_quantity?: number;
         };
         /**
+         * DeckCardUpsertOperation
+         * @description Place une carte dans un deck, ou remplace sa ligne.
+         *
+         *     `data` porte l'état complet voulu de la ligne (`quantity`,
+         *     `proxy_quantity`). La carte doit être en collection dans cette langue et
+         *     les exemplaires disponibles doivent suffire : sinon `conflict`, comme en
+         *     ligne.
+         */
+        DeckCardUpsertOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deck_card.upsert";
+            deck: components["schemas"]["DeckRef"];
+            data: components["schemas"]["DeckCardCreate"];
+        };
+        /**
          * DeckCreate
          * @description Création d'un deck.
          *
@@ -778,6 +888,65 @@ export interface components {
             archetype?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * DeckCreateOperation
+         * @description Crée un deck saisi hors ligne.
+         *
+         *     `client_ref` est **obligatoire** : sans elle, aucune des opérations
+         *     suivantes de la file ne pourrait désigner le deck, puisque son identifiant
+         *     n'existe pas encore. Le discriminant, lui, reste tiré par le serveur
+         *     (CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus
+         *     qu'en ligne.
+         */
+        DeckCreateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deck.create";
+            /**
+             * Client Ref
+             * @description Référence du deck côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour désigner ce deck, dans ce lot comme dans les suivants.
+             */
+            client_ref: string;
+            data: components["schemas"]["DeckCreate"];
+        };
+        /**
+         * DeckDeleteOperation
+         * @description Supprime logiquement un deck archivé (cf. `DELETE /decks/{id}`).
+         */
+        DeckDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deck.delete";
+            deck: components["schemas"]["DeckRef"];
         };
         /**
          * DeckDetailRead
@@ -936,6 +1105,23 @@ export interface components {
             updated_at: string;
         };
         /**
+         * DeckRef
+         * @description Désignation d'un deck : son identifiant serveur, ou sa référence client.
+         *
+         *     Exactement l'un des deux. `deck_id` pour un deck que le client a déjà vu
+         *     revenir du serveur ; `client_ref` pour un deck créé hors ligne, dont
+         *     l'identifiant n'existe pas encore au moment où la file est constituée.
+         */
+        DeckRef: {
+            /** Deck Id */
+            deck_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client au deck lors de sa création hors ligne (`deck.create`). Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
+        };
+        /**
          * DeckStatus
          * @description Avancement d'un deck côté joueur : brouillon ou jouable.
          *
@@ -971,6 +1157,35 @@ export interface components {
              * @description Range le deck (`true`) ou le sort de l'archive (`false`). Pose ou efface `archived_at` ; un deck archivé n'est plus modifiable.
              */
             archived?: boolean;
+        };
+        /**
+         * DeckUpdateOperation
+         * @description Modifie un deck — y compris pour l'archiver ou le désarchiver.
+         *
+         *     `data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis
+         *     sont appliqués, et `archived` range ou sort de l'archive. Passer le deck à
+         *     `active` exige qu'il soit légal, comme en ligne.
+         */
+        DeckUpdateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "deck.update";
+            deck: components["schemas"]["DeckRef"];
+            data: components["schemas"]["DeckUpdate"];
         };
         /**
          * DisciplineRead
@@ -1091,6 +1306,237 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * StockDeleteOperation
+         * @description Retire une entrée de collection.
+         *
+         *     Refusée (`conflict`) tant qu'un deck vivant l'utilise, comme
+         *     `DELETE /stock/{card_id}/{language_code}`.
+         */
+        StockDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "stock.delete";
+            /** Card Id */
+            card_id: number;
+            /** Language Code */
+            language_code: string;
+        };
+        /**
+         * StockUpsertOperation
+         * @description Crée ou remplace une entrée de collection (carte × langue).
+         *
+         *     `data` porte l'**état complet voulu** de l'entrée : les champs omis
+         *     reprennent leur valeur par défaut (0 exemplaire, proxy interdit, pas de
+         *     note), ils ne conservent pas ce que le serveur avait. C'est ce qui rend
+         *     l'opération indifférente à l'ordre du rejeu.
+         *
+         *     Les règles de stock restent celles du serveur : descendre
+         *     `quantity_owned` sous ce que les decks ont déjà alloué, ou retirer le droit
+         *     de proxy alors qu'un deck en joue, est refusé (`conflict`).
+         */
+        StockUpsertOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "stock.upsert";
+            data: components["schemas"]["CardCopyCreate"];
+        };
+        /**
+         * SyncErrorCode
+         * @description Motif de refus d'une opération, lisible par la machine.
+         *
+         *     Les trois premiers reprennent les erreurs métier des services
+         *     (`app.services.errors`), qui restent la seule autorité sur les règles :
+         *     `not_found` ← `NotFoundError`, `conflict` ← `ConflictError`, `invalid` ←
+         *     `InvalidRequestError`. Les deux derniers sont propres à la
+         *     synchronisation.
+         * @enum {string}
+         */
+        SyncErrorCode: "not_found" | "conflict" | "invalid" | "unresolved_client_ref" | "mismatched_replay";
+        /**
+         * SyncOperationError
+         * @description Motif de refus d'une opération.
+         *
+         *     `code` est fait pour le code du client (router l'opération vers une file
+         *     « à corriger », par exemple), `message` pour l'utilisateur : c'est le texte
+         *     du service qui a refusé, celui-là même que la route en ligne aurait mis
+         *     dans son 404 ou son 409.
+         */
+        SyncOperationError: {
+            code: components["schemas"]["SyncErrorCode"];
+            /** Message */
+            message: string;
+        };
+        /**
+         * SyncOperationResult
+         * @description Verdict rendu sur une opération du lot.
+         */
+        SyncOperationResult: {
+            /**
+             * Operation Id
+             * Format: uuid
+             */
+            operation_id: string;
+            type: components["schemas"]["SyncOperationType"];
+            outcome: components["schemas"]["SyncOutcome"];
+            /**
+             * Client Ref
+             * @description Référence client de l'opération, renvoyée telle quelle. Avec `resource.deck_id`, c'est la correspondance que le client doit enregistrer pour ses prochaines requêtes.
+             */
+            client_ref: string | null;
+            /** @description Ressource touchée ; nul si l'opération a été refusée. */
+            resource: components["schemas"]["SyncResourceRef"] | null;
+            /** @description Motif du refus ; nul si l'opération a abouti. Une opération `replayed` peut en porter un : c'est alors le refus mémorisé. */
+            error: components["schemas"]["SyncOperationError"] | null;
+            /**
+             * Processed At
+             * Format: date-time
+             * @description Instant du verdict (UTC). Pour une opération rejouée, c'est celui du verdict d'origine, pas celui de ce rejeu.
+             */
+            processed_at: string;
+        };
+        /**
+         * SyncOperationType
+         * @description Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).
+         *
+         *     Une valeur par intention de l'utilisateur, limitée aux ressources qui
+         *     existent déjà : collection, decks, composition, versement d'un produit. Le
+         *     catalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md
+         *     §11) et les parties, tournois et participations attendent le Lot 4 — les
+         *     ajouter ici avant qu'elles aient une route serait promettre une
+         *     synchronisation sans destination.
+         *
+         *     Les langues n'y sont pas non plus : `POST /langues` reste une écriture en
+         *     ligne. Une saisie hors ligne dans une langue inconnue du serveur doit se
+         *     rabattre sur « XX » (autre), cf. le point ouvert du rapport de lot.
+         *
+         *     Deux nuances de vocabulaire par rapport aux routes REST :
+         *
+         *     * `stock.upsert` et `deck_card.upsert` créent **ou** remplacent l'entrée,
+         *       là où REST distingue `POST` et `PATCH`. Une file rejouée n'a pas de
+         *       garantie sur ce que le serveur possède déjà ; l'upsert rend l'ordre des
+         *       opérations indifférent et la charge utile porte l'état complet voulu.
+         *     * il n'y a pas d'opération d'archivage : archiver, c'est `deck.update` avec
+         *       `archived`, exactement comme `PATCH /decks/{id}`.
+         * @enum {string}
+         */
+        SyncOperationType: "stock.upsert" | "stock.delete" | "deck.create" | "deck.update" | "deck.delete" | "deck_card.upsert" | "deck_card.delete" | "bundle.deposit";
+        /**
+         * SyncOutcome
+         * @description Issue d'une opération, du point de vue du client.
+         *
+         *     `REPLAYED` n'est pas un état stocké (le journal ne connaît que « appliquée »
+         *     et « refusée ») : c'est la façon dont le serveur a répondu — il a retrouvé
+         *     la clé d'idempotence et rendu le verdict d'alors sans rien refaire. Ce
+         *     verdict peut très bien avoir été un refus : `error` le dit.
+         * @enum {string}
+         */
+        SyncOutcome: "applied" | "replayed" | "rejected";
+        /**
+         * SyncRequest
+         * @description Un lot d'opérations à rejouer, dans l'ordre où elles ont été saisies.
+         */
+        SyncRequest: {
+            /**
+             * Operations
+             * @description Opérations à appliquer dans l'ordre donné. L'ordre compte : une carte ne s'ajoute qu'à un deck déjà créé.
+             */
+            operations: (components["schemas"]["StockUpsertOperation"] | components["schemas"]["StockDeleteOperation"] | components["schemas"]["DeckCreateOperation"] | components["schemas"]["DeckUpdateOperation"] | components["schemas"]["DeckDeleteOperation"] | components["schemas"]["DeckCardUpsertOperation"] | components["schemas"]["DeckCardDeleteOperation"] | components["schemas"]["BundleDepositOperation"])[];
+        };
+        /**
+         * SyncResourceKind
+         * @description Nature de la ressource touchée par une opération de synchronisation.
+         * @enum {string}
+         */
+        SyncResourceKind: "card_copy" | "deck" | "deck_card" | "bundle";
+        /**
+         * SyncResourceRef
+         * @description Identité de la ressource touchée par une opération.
+         *
+         *     Volontairement réduite à des identifiants : la réponse ne renvoie pas les
+         *     objets. Un versement de produit touche des centaines d'entrées de
+         *     collection, et le client est en ligne au moment où il synchronise — il
+         *     rafraîchit par les `GET` existants. Ce dont il a réellement besoin ici,
+         *     c'est du `deck_id` attribué à un deck créé hors ligne.
+         */
+        SyncResourceRef: {
+            kind: components["schemas"]["SyncResourceKind"];
+            /** Deck Id */
+            deck_id: number | null;
+            /** Card Id */
+            card_id: number | null;
+            /** Language Code */
+            language_code: string | null;
+            /** Bundle Id */
+            bundle_id: number | null;
+        };
+        /**
+         * SyncResult
+         * @description Réponse de `POST /sync` : un verdict par opération, dans le même ordre.
+         */
+        SyncResult: {
+            /**
+             * Batch Id
+             * Format: uuid
+             * @description Identifiant de ce traitement, tiré par le serveur. Sans valeur métier : il sert à relier une trace client à ce qui a été journalisé côté serveur.
+             */
+            batch_id: string;
+            /**
+             * Synced At
+             * Format: date-time
+             * @description Instant du traitement du lot (UTC).
+             */
+            synced_at: string;
+            /**
+             * Applied
+             * @description Opérations appliquées maintenant.
+             */
+            applied: number;
+            /**
+             * Replayed
+             * @description Opérations déjà connues, non réappliquées.
+             */
+            replayed: number;
+            /**
+             * Rejected
+             * @description Opérations refusées, motif à l'appui.
+             */
+            rejected: number;
+            /**
+             * Results
+             * @description Un résultat par opération reçue, dans l'ordre de la requête.
+             * @default []
+             */
+            results: components["schemas"]["SyncOperationResult"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -2042,6 +2488,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    syncOperations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Une autre écriture tient la base : rien n'a été appliqué. Erreur transitoire, jamais un refus — la requête se renvoie telle quelle, après le délai de l'en-tête `Retry-After`. */
+            503: {
+                headers: {
+                    /** @description Délai conseillé avant de renvoyer la requête, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
