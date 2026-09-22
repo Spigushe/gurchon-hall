@@ -689,4 +689,21 @@ Tranchées pendant le Lot 3 :
    journal (§6, §11).
 5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
 6. **Lot 5 — Analyse** : perf par deck, historique par lieu/date.
-7. **Lot 6 — Portage** : packager le socle offline pour barrins-project.
+7. **Lot 6 — Portage** : packager le socle offline pour barrins-project, côté code —
+   le déploiement de gurchon-hall lui-même est traité au Lot 9.
+8. **Lot 7 — Passe design** : reprendre l'UI React sur un design produit avec Claude
+   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
+   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
+   préciser. À prendre de préférence avant le Lot 4, pour que la saisie des parties
+   hérite du nouveau socle visuel au lieu d'être reprise deux fois.
+9. **Lot 8 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 2 (stock par langue,
+   `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
+   (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
+   l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
+   collection, un deck ne s'alimentant que du stock possédé (§11.2).
+10. **Lot 9 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
+    l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
+    hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
+    Dépend du Lot 6 : le portage prépare le terrain côté code, ce lot met gurchon-hall
+    en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
