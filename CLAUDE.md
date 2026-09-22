@@ -4,38 +4,48 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0, 1 et 2 livrés** — le Lot 2 en deux passes, côté back et
-contrat : pas d'UI. Lot 0 : squelette monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 :
-outillage (uv, ruff, ESLint), modèle relationnel SQLAlchemy, migration Alembic
-initiale, schémas Pydantic, chaîne de génération du client TS. Lot 2 : import
-rejouable du catalogue krcg, routes catalogue / stock / decks, légalité de deck (cinq
-règles), cycle de vie des decks (discriminant tiré par le serveur, archivage puis
-suppression logique), versement d'un bundle dans le stock, contrat et client TS
-enrichis. Le modèle compte **22 tables** et trois révisions Alembic. L'arborescence du
-§4 existe, avec en plus `scripts/` (commandes unifiées) et `.github/` (CI, Dependabot).
+**État actuel** : **Lots 0 à 3 livrés**. Lot 0 : squelette monorepo, FastAPI `/health`,
+React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
+SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
+client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
+catalogue krcg, routes catalogue / stock / decks, légalité de deck (cinq règles),
+cycle de vie des decks (discriminant tiré par le serveur, archivage puis suppression
+logique), versement d'un bundle dans le stock. Lot 3 : `POST /sync` (file d'opérations
+idempotentes, verrou d'écriture par lot, conflits arbitrés par des motifs métier plutôt
+que par une bascule en bloc), couche offline `frontend/src/offline/` (Dexie, file
+d'attente, moteur de rejeu, recherche locale repliée comme le back), et première UI
+métier (collection, decks) sur routeur à hash. Détail des décisions au §11, point
+d'entrée du contrat de sync dans `docs/lot3-sync-contrat.md`, de la couche offline dans
+`frontend/src/offline/README.md`. Le modèle compte **23 tables** et quatre révisions
+Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+`.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1358 tests verts et 1 `xfail` attendu, cf. §11 « limites connues »),
+`uv run pytest` (1488 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux ; à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 21 tests),
-`npm run test:e2e` (Playwright, 6 tests dont le scénario offline),
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 216 tests),
+`npm run test:e2e` (Playwright, 22 tests, dont 13 contre un vrai back sur base
+éphémère — projet `real-backend`, cf. `frontend/tests/e2e-real/`),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
 la base de développement. Vérifier la variable avant toute migration. Cette base est
-en place, à la révision `5dc50e3c1701`, catalogue krcg importé (4149 cartes) et aucun
-deck. Une base plus ancienne se remet à niveau par `uv run alembic upgrade head`, les
-deux migrations de la passe 2 s'en chargeant ; une base repartie de zéro se reconstruit
-par ce même `upgrade head` suivi de `uv run python scripts/import_catalog.py`.
+restée à la révision `5dc50e3c1701` pendant tout le Lot 3 (les migrations et tests du
+lot ont tourné sur des bases éphémères) : elle reste donc en retard d'une révision,
+`8cc70f4bbbcc` (journal d'idempotence), tant qu'un `uv run alembic upgrade head` n'a
+pas été lancé dessus — nécessaire avant d'utiliser `/sync` en local. Catalogue krcg
+importé (4149 cartes) et aucun deck. Une base plus ancienne se remet à niveau par ce
+même `upgrade head` ; une base repartie de zéro se reconstruit par `upgrade head` suivi
+de `uv run python scripts/import_catalog.py`.
 
-**Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`
-— 22 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
-`/parties`, `/participations` ni `/sync` : elles viennent aux Lots 3 et 4. Aucune UI
-métier ni couche offline IndexedDB avant le Lot 3 (une UI d'écriture avant `/sync`
-violerait la convention offline du §10). Ne pas supposer qu'elles existent.
+**Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
+`/sync` — 23 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
+`/parties`, `/participations` : elles viennent au Lot 4. Une UI métier de consultation
+et de saisie existe pour la collection et les decks (`frontend/src/features/`,
+routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 4.
 
 ---
 
@@ -112,6 +122,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  ├─ src/ (features, components, api-client généré, offline/)
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
+├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -173,7 +184,10 @@ repère de vocabulaire (`Stock` → `card_copy`, `DeckCarte` → `deck_card`, et
 Le Lot 2 passe 2 l'a étendu par deux révisions, à la suite de la révision initiale
 `a59a3613de12` : `de3b00e38c8d` (archivage et suppression logique des decks) puis
 `5dc50e3c1701` (discriminant de deck, decklist figée, `card.legal_from`, statuts).
-Le modèle compte désormais **22 tables**.
+Le Lot 3 ajoute une quatrième révision, `8cc70f4bbbcc` : la table `sync_operation`,
+journal d'idempotence de `/sync` (§7, §11). Le modèle compte désormais **23 tables**.
+Cette révision ne touche qu'une table neuve, sans mode batch, et se rejoue hors ligne
+(`upgrade 5dc50e3c1701:8cc70f4bbbcc --sql`), contrairement aux deux précédentes.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
@@ -181,6 +195,7 @@ Le modèle compte désormais **22 tables**.
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
 | Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | `card_copy` PK (carte, langue) : `quantity_owned` + `proxy_allowed` ; `deck_card` PK (deck, carte, langue) avec **FK composite vers `card_copy`** : une carte hors collection est refusée en deck, un deck mélange les langues ; `quantity` + `proxy_quantity` ; `deleted_deck_card` reprend les mêmes colonnes **sans lien vers `card_copy`** — la decklist figée d'un deck supprimé ne réserve plus rien |
 | Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
+| Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
 **Identité et cycle de vie d'un deck** (passe 2) : `deck.name` n'est plus unique ; il
 est accompagné d'un `discriminator` de quatre chiffres (« 0001 » à « 9999 », le format
@@ -230,10 +245,10 @@ Aucun type d'API réécrit à la main côté front.
 Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/decks/{id}/cartes`, `/joueurs`, `/tournois`, `/parties`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
-`POST /sync` (opérations idempotentes, clé d'idempotence côté client).
+`POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré au Lot 2 (chemins en français, `operationId` en anglais camelCase),
-22 opérations sur 14 chemins :
+Livré aux Lots 2 et 3 (chemins en français, `operationId` en anglais camelCase),
+23 opérations sur 15 chemins :
 
 | Route | Rôle |
 | --- | --- |
@@ -249,12 +264,16 @@ Livré au Lot 2 (chemins en français, `operationId` en anglais camelCase),
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
 | `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}` | composition du deck |
+| `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`) ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
 l'archivage passe par le `PATCH`, seul point d'entrée de la modification d'un deck.
 
 Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
-format standard de FastAPI, y compris ceux que le service produit lui-même.
+format standard de FastAPI, y compris ceux que le service produit lui-même. `POST /sync`
+n'utilise jamais 404 ni 409 : un refus est un verdict dans le corps d'une 200, et un 503
+(`ErrorResponse` + en-tête `Retry-After`, exposé en CORS) signale que rien n'a été
+appliqué faute d'avoir obtenu le verrou d'écriture — le lot se renvoie alors à l'identique.
 
 Conventions du contrat, posées en passe 2 et valables pour toute ressource à venir :
 
@@ -537,18 +556,19 @@ Tranchées après la clôture du Lot 2, en reprise des limites connues :
 
 Limites connues et décisions en attente, à la clôture du Lot 2 :
 
-1. **Comptabilité du stock non atomique** : « vérifier puis écrire ». Deux requêtes
-   concurrentes peuvent chacune voir assez d'exemplaires et, ensemble, sur-allouer une
-   entrée ; aucune contrainte de base ne l'interdit, la somme portant sur plusieurs lignes.
-   Sans effet en usage mono-utilisateur séquentiel, à traiter avec `/sync` (Lot 3), qui
-   sérialisera les écritures. Documenté dans `backend/app/services/stock.py`.
-2. **`POST /bundles/{id}/stock` reste non idempotent** (cf. ci-dessus, Lot 3).
+1. **Comptabilité du stock non atomique** — *soldée pour les écritures par lot au Lot 3,
+   cf. ci-dessous ; reste ouverte entre un lot et une écriture en ligne.*
+2. **`POST /bundles/{id}/stock` reste non idempotent** en appel direct — *soldée pour les
+   écritures qui passent par `/sync` au Lot 3, cf. ci-dessous.*
 3. **Les migrations de la passe 2 ne se rejouent pas hors ligne** (`upgrade head --sql`) :
    le mode batch de SQLite exige une vraie base, et le rattrapage des discriminants est
-   écrit en Python. Un test `xfail` documente la limite — c'est le seul qui reste.
+   écrit en Python. Un test `xfail` documente la limite. La migration du Lot 3
+   (`8cc70f4bbbcc`) n'a pas cette limite (§6) ; c'est la seule des deux `xfail` restants
+   qui porte encore sur ce point (le second, apparu au Lot 3, est décrit ci-dessous).
 4. **Le `downgrade` de `5dc50e3c1701` supprime `deleted_deck_card`** : les decks supprimés
    redeviendraient des decks vivants sans composition. À garder en tête avant tout retour
-   arrière sur une base qui compte.
+   arrière sur une base qui compte. Le `downgrade` de `8cc70f4bbbcc` a le même effet sur le
+   journal de sync (§6, §11).
 5. **Les tris restent sensibles à la casse et aux accents** : les `ORDER BY name` des
    listes (cartes, collection, decks) s'appuient sur la collation par défaut de SQLite,
    qui range les majuscules avant les minuscules et « Élan » après « Zoé ». Seule la
@@ -556,6 +576,73 @@ Limites connues et décisions en attente, à la clôture du Lot 2 :
 6. **`banned_on` et `legal_from` ne sont évalués qu'à la date du jour** : les fonctions
    pures prennent une date d'évaluation, mais l'API n'expose pas ce paramètre. Un verdict
    rétrospectif (« ce deck était-il légal en mars ? ») demanderait de l'ouvrir.
+
+Tranchées pendant le Lot 3 :
+
+- **Contrat de `/sync`** : une saisie hors ligne part dans une file IndexedDB ; au retour
+  du réseau, le client envoie cette file en un lot ordonné et reçoit un verdict par
+  opération. Rien d'autre ne redescend : après une synchronisation, le client est en
+  ligne par construction et rafraîchit ce qui l'intéresse par les `GET` existants. Chaque
+  opération porte un `operation_id` tiré par le client **à la saisie**, jamais régénéré ;
+  le serveur le journalise (`sync_operation`, §6) avec une empreinte du corps reçu. Une
+  clé déjà tranchée n'est pas réappliquée : verdict mémorisé, issue `replayed`. Une clé
+  déjà vue avec un corps différent est une collision, pas un rejeu (`mismatched_replay`).
+  Brief complet, tenu à jour par l'architecte-contrat : `docs/lot3-sync-contrat.md`.
+- **Politique de conflit : la file fait foi, les invariants font loi.** Dernière écriture
+  gagnante (les upserts portent l'état complet voulu, pas un delta), aucun arbitrage sur
+  l'horloge ; les seuls refus sont ceux que le serveur aurait déjà opposés en ligne
+  (proxy non autorisé, exemplaires insuffisants, deck archivé, discriminant en collision…).
+  Un refus n'interrompt jamais le lot : les opérations suivantes s'appliquent. Trois
+  issues (`applied` / `replayed` / `rejected`) ; un conflit est un **code d'erreur**, pas
+  une quatrième issue — l'issue dit si l'écriture a eu lieu, le code dit pourquoi elle ne
+  l'a pas eue. Pas de garde optimiste (comparaison d'une version connue par le client à
+  la version serveur) : extension possible, non implémentée.
+- **Désigner un deck créé hors ligne** : le client lui attribue une `client_ref` (UUID),
+  que les opérations suivantes du même deck réemploient. La correspondance
+  `client_ref` → `deck_id` est mémorisée au journal, pas seulement le temps d'une requête,
+  et résolue en ignorant l'état courant du deck (renommé, archivé ou supprimé depuis) :
+  le rejeu d'une création rend toujours la même identité qu'à l'origine. Une `client_ref`
+  déjà prise par une création appliquée est refusée en conflit, sans écriture.
+- **Verrou d'écriture par lot** (`backend/app/db/locking.py`, `serialized_writes`) :
+  `BEGIN IMMEDIATE` tenu pour tout le lot, un point de sauvegarde par opération, un seul
+  `COMMIT` final qui valide effets métier et journal ensemble — un versement de bundle
+  n'est donc jamais appliqué sans être journalisé. Ferme la course entre deux lots
+  concurrents (limite n°1 ci-dessus, *pour les lots*) ; mesuré à 4-5 ms par opération sur
+  un lot de 200. Propre à SQLite : `NotImplementedError` sur un autre moteur (l'équivalent
+  Postgres serait un verrou consultatif ou `SELECT … FOR UPDATE`). Si le verrou n'est pas
+  obtenu sous 5 s, la route rend un 503 + `Retry-After` : rien n'a été appliqué, le lot se
+  renvoie à l'identique sans risque (§7).
+- **Limite non fermée, assumée** : la course entre un lot `/sync` et une écriture en
+  ligne (`POST /decks/{id}/cartes`, `PATCH /stock/...`, qui n'utilisent pas le verrou)
+  reste ouverte — la fermer sérialiserait toutes les écritures de l'application, jugé
+  disproportionné pour ce lot. Documentée par un test `xfail(strict=True)`
+  (`backend/tests/test_sync_online_race.py`), le second des deux `xfail` mentionnés au
+  point 3 ci-dessus.
+- **Couche offline** (`frontend/src/offline/`, packagée pour Barrin — cœur générique
+  `core/`/`react/` sans dépendance au domaine VtES, adaptateur `vtes/`) : base Dexie,
+  file d'attente (`Outbox`), moteur de rejeu par lots de 200 déclenché par le retour
+  réseau, le premier plan, le démarrage ou une action manuelle, avec backoff (1 s à 60 s,
+  jamais moins que le `Retry-After` reçu) et bissection sur un 422 pour n'isoler que
+  l'opération fautive. Une table `settled` retient les opérations tranchées jusqu'à ce
+  que le miroir local les reflète, pour éviter qu'un deck ou une quantité de stock ne
+  disparaisse un instant après sa synchronisation. La recherche locale reproduit
+  `fold_text` (§11, Lot 2) à l'identique, y compris ses deux écarts JS/Python
+  (`casefold()` vs `toLowerCase()`, `\p{M}` vs `unicodedata.combining()`), comblés par des
+  tables générées depuis le code Python (`frontend/src/offline/tools/`). Détail de l'API
+  du paquet : `frontend/src/offline/README.md`.
+- **Première UI métier** : collection et decks, sur un routeur à hash écrit à la main
+  (`frontend/src/app/routes.ts`) — aucune route cliente ne porte le nom d'une ressource
+  de l'API (`/decks`, `/stock`…), sans quoi elle ne s'ouvrirait plus hors ligne au
+  rechargement (denylist du service worker, §11 Lot 0). Toute écriture passe par
+  `useVtesOffline().actions`, jamais par un appel bloquant. La légalité d'un deck reste
+  une lecture en ligne (calculée à la demande, §11 Lot 2) : indisponible hors ligne,
+  affichée avec un avertissement quand le deck a des modifications non synchronisées.
+- **Repli sur `XX` pour une langue inconnue** : décidé côté client uniquement, dans la
+  file offline. Le serveur, lui, continue de répondre `not_found` pour une langue absente
+  de la table `language` (comme en ligne, §11 Lot 2) — aucune règle nouvelle côté API.
+- **`bundle.deposit` non idempotent en appel direct, sûr par `/sync`** : le rejeu d'un
+  versement à travers la file ne double-compte plus (verdict mémorisé au journal), mais
+  `POST /bundles/{id}/stock` appelé hors file reste tel quel (additionne à chaque appel).
 
 ---
 
@@ -585,11 +672,21 @@ Limites connues et décisions en attente, à la clôture du Lot 2 :
    accents et codes de langue jamais vides (§11). Une UI de
    consultation (catalogue, collection, decks) peut venir avant le Lot 3, mais toute
    écriture côté front attend la couche offline.
-4. **Lot 3 — Offline-first** : IndexedDB, saisie hors-ligne, `POST /sync`, conflits/idempotence.
-   Point d'attention : la recherche locale sur IndexedDB doit replier casse et accents
-   exactement comme le back (`fold_text` : NFKD, retrait des marques combinantes,
-   `toLowerCase`), faute de quoi la même saisie donnerait des résultats différents selon
-   qu'on est en ligne ou non.
+4. **Lot 3 — Offline-first** — *livré.* `POST /sync` (23e opération du contrat, journal
+   d'idempotence `sync_operation`, verrou d'écriture par lot), couche offline
+   `frontend/src/offline/` (Dexie, file d'attente, moteur de rejeu, recherche repliée
+   comme `fold_text`), première UI métier (collection, decks) sur routeur à hash. Détail
+   complet des décisions au §11 ; brief de contrat dans `docs/lot3-sync-contrat.md`,
+   documentation du paquet offline dans `frontend/src/offline/README.md`. 1488 tests
+   backend (2 `xfail` assumés, §11) et 216 tests vitest passent ; 22 tests Playwright,
+   dont 13 tournent contre un vrai back sur base éphémère (`frontend/tests/e2e-real/`) et
+   couvrent le parcours complet (coupure, saisie, rechargement hors ligne, retour réseau,
+   rejeu), l'idempotence de bout en bout (réponse perdue, 503 simulé), les refus/conflits
+   et la synchronisation à deux onglets. Un défaut trouvé par la QA (l'en-tête
+   `Retry-After` n'était pas exposé en CORS) a été corrigé avant la clôture du lot. Deux
+   limites restent ouvertes par décision assumée, pas par oubli : la course entre un lot
+   et une écriture en ligne (§11), et le `downgrade` de la migration qui supprime le
+   journal (§6, §11).
 5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
 6. **Lot 5 — Analyse** : perf par deck, historique par lieu/date.
 7. **Lot 6 — Portage** : packager le socle offline pour barrins-project.
