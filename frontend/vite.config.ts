@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
 
 // PWA minimale (Lot 0) : app shell installable et utilisable hors-ligne.
 //
@@ -18,20 +19,14 @@ import { VitePWA } from "vite-plugin-pwa";
 //   - aucun `runtimeCaching` n'est défini pour les requêtes API : elles
 //     restent en comportement réseau par défaut du navigateur (NetworkOnly de
 //     facto, rien n'intercepte ni ne met en cache ces requêtes). La mise en
-//     cache des données API et la file d'attente offline sont le Lot 3.
+//     cache des données API n'est pas prévue : hors ligne, l'UI lit IndexedDB
+//     (miroirs de `src/offline/vtes`), et la file d'écritures vit elle aussi
+//     dans IndexedDB, côté page, pas dans le service worker.
 //
-// Portage Barrin : cette liste de préfixes est le SEUL endroit à adapter si
-// Barrin utilise des noms de ressources différents ou un préfixe `/api`.
-const API_ROUTE_PREFIXES = [
-  "/health",
-  "/cartes",
-  "/stock",
-  "/decks",
-  "/joueurs",
-  "/tournois",
-  "/parties",
-  "/sync",
-];
+// Portage Barrin : la liste de préfixes vit dans `src/offline/apiRoutes.ts`
+// (documentée et testée contre `contracts/openapi.json`) : c'est le SEUL
+// endroit à adapter si Barrin utilise d'autres noms de ressources ou un
+// préfixe `/api`.
 
 export default defineConfig({
   plugins: [
@@ -92,10 +87,8 @@ export default defineConfig({
         // Permet à la SPA de s'ouvrir hors-ligne sur n'importe quelle route
         // cliente (ex. /decks, /parties) en retombant sur l'app shell.
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: API_ROUTE_PREFIXES.map(
-          (prefix) => new RegExp(`^${prefix}(/|$)`),
-        ),
-        // Pas de runtimeCaching pour l'API en Lot 0 : volontairement absent.
+        navigateFallbackDenylist: navigateFallbackDenylist(),
+        // Pas de runtimeCaching pour l'API : volontairement absent (cf. plus haut).
         // Les GET d'API ne sont ni interceptés ni mis en cache par le SW ;
         // ils suivent le comportement réseau normal du navigateur.
         runtimeCaching: [],

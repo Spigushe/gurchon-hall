@@ -3,10 +3,20 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
+import { VtesOfflineProvider } from "./offline/vtes/VtesOfflineProvider";
+import { createVtesOffline } from "./offline/vtes/runtime";
+
+// Couche offline (Lot 3) : base IndexedDB, file d'écritures et rejeu vers
+// `POST /sync`. Créée une fois ; le provider démarre le moteur (reprise de la
+// file au lancement, écoute de `online`) et l'arrête au démontage. Rien ici
+// n'attend le réseau : le premier rendu ne dépend ni de la file ni de l'API.
+const offline = createVtesOffline();
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <App />
+    <VtesOfflineProvider runtime={offline}>
+      <App />
+    </VtesOfflineProvider>
   </StrictMode>,
 );
 
