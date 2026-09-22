@@ -15,6 +15,8 @@ export type Route =
   | { name: "stock" }
   | { name: "decks" }
   | { name: "deck"; key: DeckKey }
+  | { name: "sync" }
+  | { name: "search" }
   | { name: "not-found" };
 
 const DECK_KEY = /^(?:id:\d+|ref:[A-Za-z0-9-]+)$/;
@@ -24,6 +26,8 @@ export function parseHash(hash: string): Route {
   if (path === "" || path === "/") return { name: "home" };
   if (path === "/collection") return { name: "stock" };
   if (path === "/decks") return { name: "decks" };
+  if (path === "/synchronisation") return { name: "sync" };
+  if (path === "/rechercher") return { name: "search" };
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
     let key: string;
@@ -47,6 +51,10 @@ export function hrefFor(route: Route): string {
       return "#/decks";
     case "deck":
       return `#/decks/${encodeURIComponent(route.key)}`;
+    case "sync":
+      return "#/synchronisation";
+    case "search":
+      return "#/rechercher";
     case "not-found":
       return "#/";
   }

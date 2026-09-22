@@ -46,6 +46,13 @@ describe("collection : saisie hors ligne", () => {
     });
     expect(server.state.requests).toEqual([]);
     expect(ui.requests).toEqual([]);
+    expect(screen.getByTestId("stock-form-feedback")).toHaveTextContent(/sur cet appareil/);
+
+    // L'état de synchronisation ne vit plus sur la page collection (Lot 7, handoff
+    // « nothing is shown while healthy ») : il se lit sur l'écran dédié.
+    act(() => {
+      window.location.hash = "#/synchronisation";
+    });
     await waitFor(() =>
       expect(screen.getByTestId("sync-status")).toHaveAttribute("data-pending", "1"),
     );
@@ -53,7 +60,6 @@ describe("collection : saisie hors ligne", () => {
     expect(screen.getByTestId("sync-label")).toHaveTextContent(
       "Hors ligne : 1 opération en attente",
     );
-    expect(screen.getByTestId("stock-form-feedback")).toHaveTextContent(/sur cet appareil/);
   });
 
   it("se synchronise au retour du réseau puis affiche « Tout est à jour »", async () => {
@@ -76,13 +82,19 @@ describe("collection : saisie hors ligne", () => {
     await act(async () => {
       await runtime.refresh();
     });
+    await waitFor(() => expect(screen.queryByTestId("pending-badge")).not.toBeInTheDocument());
+    expect(screen.getByTestId("stock-entry-name")).toHaveTextContent("Theo Bell");
+    expect(await runtime.outbox.list()).toHaveLength(0);
+
+    // L'état de synchronisation ne vit plus sur la page collection (Lot 7) : il se
+    // lit sur l'écran dédié.
+    act(() => {
+      window.location.hash = "#/synchronisation";
+    });
     await waitFor(() =>
       expect(screen.getByTestId("sync-status")).toHaveAttribute("data-state", "synced"),
     );
     expect(screen.getByTestId("sync-label")).toHaveTextContent("Tout est à jour");
-    expect(await runtime.outbox.list()).toHaveLength(0);
-    await waitFor(() => expect(screen.queryByTestId("pending-badge")).not.toBeInTheDocument());
-    expect(screen.getByTestId("stock-entry-name")).toHaveTextContent("Theo Bell");
   });
 
   it("ne crée qu'une opération quand on valide deux fois de suite", async () => {
@@ -231,6 +243,11 @@ describe("catalogue", () => {
     server.next.getStatus = 500; // le serveur répond, mais en erreur
     await renderApp({ online: true, hash: "#/", server });
 
+    // Le pied de page de l'Atelier replie le catalogue par défaut (Lot 7) : on le
+    // déplie pour voir l'état du téléchargement — déclenché automatiquement par
+    // `CatalogProvider` dès le montage, indépendamment de cet affichage.
+    fireEvent.click(await screen.findByTestId("catalog-footer-toggle"));
+
     expect(await screen.findByTestId("catalog-error")).toHaveTextContent("Téléchargement impossible");
     expect(screen.getByTestId("catalog-state")).toHaveTextContent("pas encore téléchargé");
 
@@ -244,6 +261,8 @@ describe("catalogue", () => {
 
   it("propose « Mettre à jour le catalogue » en ligne", async () => {
     const { server } = await renderApp({ online: true, hash: "#/", catalog: true });
+    // Catalogue replié par défaut sur l'Atelier (Lot 7) : on le déplie pour l'atteindre.
+    fireEvent.click(await screen.findByTestId("catalog-footer-toggle"));
     await waitFor(() =>
       expect(screen.getByTestId("catalog-state")).toHaveAttribute("data-count", "3"),
     );

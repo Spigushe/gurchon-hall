@@ -1,46 +1,131 @@
+/*
+ * Nocturne (Lot 7, docs/design-handoff-mobile/nocturne/styles.css) : jetons de
+ * couleur, typo, espacement, rayon et ombre. Système exclusivement sombre —
+ * décision assumée (CLAUDE.md §11, Lot 7) : pas de `color-scheme: light dark`
+ * ni de bascule `prefers-color-scheme`, une éventuelle rampe claire dérivée
+ * de Nocturne restant un travail futur non planifié ici.
+ *
+ * La police Inter est autohébergée par `@fontsource-variable/inter`, importée
+ * depuis `src/main.tsx` (fichiers `.woff2` dans `dist/assets/`, à précacher
+ * côté `vite.config.ts` — hors périmètre de ce fichier).
+ */
 :root {
-  color-scheme: light dark;
-  font-family: system-ui, sans-serif;
-  --fg-muted: #666;
-  --border: #d4d4d8;
-  --surface: #f7f7f8;
-  --accent: #7f1d3a;
-  --ok-bg: #d1fae5;
-  --ok-fg: #065f46;
-  --ko-bg: #fee2e2;
-  --ko-fg: #991b1b;
-  --warn-bg: #fef3c7;
-  --warn-fg: #92400e;
-  --info-bg: #dbeafe;
-  --info-fg: #1e40af;
-}
+  /* — couleurs Nocturne — */
+  --color-bg: #161826;
+  --color-surface: #232532;
+  --color-text: #e9e9ed;
+  --color-accent: #9184d9;
+  --color-accent-2: #a7a1db;
+  --color-divider: color-mix(in srgb, #e9e9ed 16%, transparent);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg-muted: #a1a1aa;
-    --border: #3f3f46;
-    --surface: #1c1c1f;
-    --accent: #f0a3b8;
-    --ok-bg: #064e3b;
-    --ok-fg: #a7f3d0;
-    --ko-bg: #7f1d1d;
-    --ko-fg: #fecaca;
-    --warn-bg: #78350f;
-    --warn-fg: #fde68a;
-    --info-bg: #1e3a8a;
-    --info-fg: #bfdbfe;
-  }
+  --color-neutral-100: #f3f5fe;
+  --color-neutral-200: #e4e7f5;
+  --color-neutral-300: #cfd3e5;
+  --color-neutral-400: #b2b6ca;
+  --color-neutral-500: #9397ab;
+  --color-neutral-600: #75798c;
+  --color-neutral-700: #595d6c;
+  --color-neutral-800: #3f424d;
+  --color-neutral-900: #292b31;
+
+  --color-accent-100: #f5f4ff;
+  --color-accent-200: #e7e5fe;
+  --color-accent-300: #d2cefd;
+  --color-accent-400: #b5abfc;
+  --color-accent-500: #968ae0;
+  --color-accent-600: #796cbf;
+  --color-accent-700: #5d5294;
+  --color-accent-800: #423a6a;
+  --color-accent-900: #2b2741;
+
+  --color-accent-2-100: #f5f4ff;
+  --color-accent-2-200: #e7e5fe;
+  --color-accent-2-300: #d2cefd;
+  --color-accent-2-400: #b5afe8;
+  --color-accent-2-500: #9690c9;
+  --color-accent-2-600: #7972a9;
+  --color-accent-2-700: #5c5783;
+  --color-accent-2-800: #423e5d;
+  --color-accent-2-900: #2b293a;
+
+  --color-section: #262a60;
+  --color-section-glow: #353b80;
+  --color-section-ghost: #4c5397;
+
+  /* — typo — */
+  --font-heading: "Inter Variable", "Inter", system-ui, sans-serif;
+  --font-heading-weight: 500;
+  --font-body: "Inter Variable", "Inter", system-ui, sans-serif;
+
+  /* — espacements (densité 0.7×, cf. nocturne/readme.md) — */
+  --space-1: 2.8px;
+  --space-2: 5.6px;
+  --space-3: 8.4px;
+  --space-4: 11.2px;
+  --space-6: 16.8px;
+  --space-8: 22.4px;
+
+  /* — rayons — */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+
+  /* — ombres — */
+  --shadow-sm: 0 0 0 1px #3f424d;
+  --shadow-md: 0 0 0 1px #595d6c, 0 6px 18px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 0 0 1px #9397ab, 0 16px 40px rgba(0, 0, 0, 0.65);
+
+  font-family: var(--font-body);
+
+  /*
+   * Jetons génériques hérités du socle initial : conservés sous ces noms
+   * (six composants ne sont pas encore convertis à la rampe Nocturne, cf.
+   * CLAUDE.md §11 Lot 7 : DeckDetailPage, DecksPage, RejectedOperations,
+   * DeckLegalityPanel, DeckComposition, StockList) mais recalés sur les
+   * jetons Nocturne plutôt que sur les anciennes valeurs claires/sombres.
+   */
+  --fg-muted: var(--color-neutral-400);
+  --border: var(--color-divider);
+  --surface: var(--color-surface);
+  --accent: var(--color-accent);
+
+  /*
+   * États sémantiques hérités (vert/rouge/orange/bleu) : Nocturne n'en a pas
+   * l'équivalent (« aucun vert/rouge de statut », nocturne/readme.md) et les
+   * remplace par la rampe accent et par le texte. Conservés tels quels tant
+   * que les six fichiers ci-dessus ne sont pas convertis (étape 11 du plan de
+   * Lot 7, docs/lot7-plan-design.md) — à retirer seulement à ce moment-là.
+   */
+  --ok-bg: #064e3b;
+  --ok-fg: #a7f3d0;
+  --ko-bg: #7f1d1d;
+  --ko-fg: #fecaca;
+  --warn-bg: #78350f;
+  --warn-fg: #fde68a;
+  --info-bg: #1e3a8a;
+  --info-fg: #bfdbfe;
 }
 
 body {
   margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
 }
 
 /* Mobile d'abord : une seule colonne, cibles tactiles d'au moins 44 px. */
 .app-shell {
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 0.75rem 2rem;
+  /* Dégagement du bas pour la barre d'onglets fixe (handoff : 112px). */
+  padding: 0 0.75rem calc(112px + 0.75rem);
 }
 
 h1 {
@@ -53,7 +138,6 @@ h2 {
   margin: 1rem 0 0.5rem;
 }
 
-.subtitle,
 .hint {
   color: var(--fg-muted);
 }
@@ -76,38 +160,6 @@ h2 {
   padding: 0.5rem;
 }
 
-/* Barre du haut : connectivité + synchronisation, toujours visible. */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0;
-  background: Canvas;
-  border-bottom: 1px solid var(--border);
-}
-
-.network-status {
-  display: inline-block;
-  margin: 0;
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  font-weight: 600;
-}
-
-.network-status--online {
-  background-color: var(--ok-bg);
-  color: var(--ok-fg);
-}
-
-.network-status--offline {
-  background-color: var(--ko-bg);
-  color: var(--ko-fg);
-}
-
 .sync-bar {
   display: flex;
   flex-wrap: wrap;
@@ -127,25 +179,51 @@ h2 {
   color: var(--ko-fg);
 }
 
-.nav {
+/*
+ * Barre d'onglets, fixée en pied d'écran (remplace l'ancienne .nav en tête,
+ * handoff § "Bottom tab bar").
+ */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-divider);
+}
+
+.tab-bar__item {
   display: flex;
-  gap: 0.25rem;
-  margin: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
-}
-
-.nav a {
-  padding: 0.75rem 1rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   min-height: 44px;
-  box-sizing: border-box;
-  color: inherit;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  color: var(--color-neutral-500);
+  font: inherit;
+  font-size: 11px;
   text-decoration: none;
-  border-bottom: 3px solid transparent;
+  cursor: pointer;
 }
 
-.nav a[aria-current="page"] {
-  border-bottom-color: var(--accent);
-  font-weight: 600;
+.tab-bar__item[aria-current="page"] {
+  color: var(--color-accent);
+}
+
+.tab-bar__item--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tab-bar__icon {
+  display: block;
 }
 
 main:focus {
@@ -156,9 +234,1057 @@ footer {
   margin-top: 2rem;
 }
 
-.shell-note {
-  color: var(--fg-muted);
+/*
+ * Atelier (Lot 7, handoff écran 1) : en-tête, ligne de statistiques, alerte de
+ * synchro conditionnelle, decks en cours, pied de page repliable sur le
+ * catalogue. Seul `HomePage.tsx` utilise ces classes pour l'instant — les
+ * autres écrans du handoff (Collection, Decks, détail de deck…) restent sur
+ * les classes génériques ci-dessous jusqu'à leur propre passe Nocturne.
+ */
+.kicker {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.home-header {
+  margin-bottom: 0.5rem;
+}
+
+.home-title {
+  margin: 0.2rem 0 0.3rem;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.stat-row {
+  display: flex;
+  gap: 1.2rem;
+  margin: 1rem 0;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-left: 1.2rem;
+  border-left: 1px solid var(--color-divider);
+}
+
+.stat:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.stat__value {
+  font-family: var(--font-heading);
+  font-size: 1.9rem;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat__label {
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+}
+
+.home-alert {
+  border-left: 2px solid var(--color-accent);
+  padding-left: 14px;
+  margin: 1rem 0;
+}
+
+.home-alert__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-accent-200);
+}
+
+.home-alert__body {
+  margin: 0.2rem 0;
+  font-size: 0.85rem;
+  color: var(--color-neutral-400);
+}
+
+.home-alert__link {
+  font-size: 0.85rem;
+  color: var(--color-accent-300);
+}
+
+.home-section {
+  margin: 1.2rem 0;
+}
+
+.home-decks-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+
+.home-decks-list__row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.home-decks-list__row:first-child {
+  border-top: none;
+}
+
+.home-decks-list__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-decks-list__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.home-decks-list__name {
+  font-size: 1.05rem;
+}
+
+.home-decks-list__meta {
   font-size: 0.8rem;
+  color: var(--color-neutral-500);
+}
+
+.home-decks-list__arrow {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.home-footer {
+  margin-top: 2rem;
+}
+
+.home-footer__rule {
+  height: 1px;
+  margin-bottom: 0.9rem;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-divider) 48px,
+    var(--color-divider) calc(100% - 48px),
+    transparent
+  );
+}
+
+.home-footer__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-neutral-500);
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+/*
+ * Decks, Collection, Modifier une entrée, Verser un produit (Lot 7, étapes
+ * 5 à 8, handoff §§ 2-3, 6-7, 10) : titres de page, rangées de liste à filet
+ * `border-top`, feuilles plein écran, puce de langue, stepper large, switch,
+ * bouton flottant. Classes neuves, réutilisables par les étapes suivantes
+ * (9, 11) ; les classes génériques ci-dessous restent en place tant que les
+ * six fichiers du §11 (CLAUDE.md, Lot 7) ne sont pas tous convertis.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.page-header {
+  margin-bottom: 0.25rem;
+}
+
+.page-title {
+  margin: 0.2rem 0 0.3rem;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.page-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-neutral-500);
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 2px 10px;
+  margin: 1rem 0 0;
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-neutral-500);
+}
+
+.search-field:focus-within {
+  border-color: var(--color-accent);
+}
+
+.search-field__icon {
+  flex-shrink: 0;
+}
+
+.search-field input {
+  flex: 1;
+  min-height: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.search-field input::placeholder {
+  color: var(--color-neutral-500);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.tabs legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.tabs label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0 -1px;
+  padding: 0 0 5px;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+  cursor: pointer;
+}
+
+.tabs label:has(input:checked) {
+  font-family: var(--font-heading);
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+}
+
+.tabs label:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.tabs button[role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0 0 -1px;
+  padding: 0 0 5px;
+  border: none;
+  background: none;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+  cursor: pointer;
+}
+
+.tabs button[role="tab"][aria-selected="true"] {
+  font-family: var(--font-heading);
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+}
+
+.tabs button[role="tab"]:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry-row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.entry-row:first-child {
+  border-top: none;
+}
+
+.entry-row__link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.entry-row__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 0;
+}
+
+.entry-row__main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.entry-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.entry-row__title {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.entry-row__meta {
+  font-size: 0.75rem;
+  color: var(--color-neutral-500);
+}
+
+.entry-row__pending {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--color-accent-300);
+}
+
+.entry-row__chevron {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.stepper--lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.stepper--lg button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: none;
+  color: var(--color-neutral-400);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.stepper--lg button:last-child {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.stepper--lg span {
+  min-width: 1.6rem;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stepper--xl button {
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  font-size: 22px;
+}
+
+.stepper--xl span {
+  font-size: 30px;
+  min-width: 2.4rem;
+}
+
+.fab {
+  position: fixed;
+  left: 26px;
+  right: 26px;
+  bottom: 104px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 50px;
+  margin: 0 auto;
+  max-width: calc(720px - 52px);
+  border-radius: 999px;
+  border: 1px solid var(--color-accent);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-md);
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.fab:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/*
+ * Feuille plein écran (Nouveau deck, Modifier une entrée…) : recouvre la
+ * coquille, tab bar comprise, sans route ni changement de App.tsx — un
+ * `position:fixed` en couvre suffit puisque la tab bar est elle-même fixée
+ * (z-index 10, ici 20).
+ */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow-y: auto;
+  background: var(--color-bg);
+  padding: 30px 26px calc(112px + 0.75rem);
+}
+
+.sheet__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sheet__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 20px;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+
+.sheet__close {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--color-neutral-400);
+  cursor: pointer;
+}
+
+.underline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  margin: 1.2rem 0 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.underline-field:focus-within {
+  border-color: var(--color-accent);
+}
+
+.underline-field label {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.underline-field input,
+.underline-field textarea {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0.5rem 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: none;
+  color: var(--color-neutral-300);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-900);
+  color: var(--color-accent-200);
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 1.2rem 0 0;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  margin: 1rem 0 0;
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.switch-row__label {
+  font-size: 15px;
+}
+
+.switch-row__hint {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 46px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-neutral-900);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-neutral-500);
+  transition:
+    transform 140ms ease-out,
+    background 140ms ease-out;
+}
+
+.switch[aria-checked="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-800);
+}
+
+.switch[aria-checked="true"]::after {
+  background: var(--color-accent-200);
+  transform: translateX(18px);
+}
+
+/*
+ * Détail du deck + légalité (Lot 7, étape 9, handoff §4) : verdict de
+ * légalité en liseré accent (pas de badge), liste de faits label/valeur,
+ * lignes de composition allégées, rangée d'actions flottantes (pill +
+ * bouton rond) et le menu « … » qu'il ouvre.
+ */
+.deck-detail-head {
+  margin-bottom: 0.25rem;
+}
+
+.legality-verdict {
+  margin: 1.2rem 0 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-accent);
+}
+
+.legality-verdict__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 21px;
+  color: var(--color-accent-200);
+}
+
+.legality-verdict__meta {
+  margin: 0.3rem 0 0;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.legality-verdict__warning {
+  margin: 0.5rem 0 0;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.legality-refresh {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent-300);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fact-list {
+  list-style: none;
+  margin: 1.2rem 0 0;
+  padding: 0;
+}
+
+.fact-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.fact-row:last-child {
+  border-bottom: none;
+}
+
+.fact-row__label {
+  font-size: 14px;
+  color: var(--color-neutral-400);
+}
+
+.fact-row__value {
+  flex-shrink: 0;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.fact-row__limit {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.issue-list {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.issue-list__item {
+  padding: 8px 0;
+  border-top: 1px solid var(--color-divider);
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.issue-list__item:first-child {
+  border-top: none;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 1.6rem 0 0;
+}
+
+.section-head .kicker {
+  margin: 0;
+}
+
+.section-head__link {
+  font-size: 12px;
+  color: var(--color-accent-300);
+  text-decoration: none;
+}
+
+.composition-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.composition-row:first-child {
+  border-top: none;
+}
+
+.composition-row__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.composition-row__name {
+  font-size: 15px;
+}
+
+.composition-row__count {
+  flex-shrink: 0;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-400);
+}
+
+.composition-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.composition-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.composition-row__remove {
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-accent-300);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.stepper--sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper--sm button {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-divider);
+  background: none;
+  color: var(--color-neutral-400);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.stepper--sm button:last-child {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.stepper--sm span {
+  min-width: 1.4rem;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fab-row {
+  position: fixed;
+  left: 26px;
+  right: 26px;
+  bottom: 104px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 auto;
+  max-width: calc(720px - 52px);
+}
+
+.fab-row .fab {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: 1;
+  margin: 0;
+  max-width: none;
+}
+
+.fab-row__overflow {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.overflow-menu {
+  position: fixed;
+  right: 26px;
+  bottom: 162px;
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 220px;
+  max-width: calc(100% - 52px);
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.overflow-menu button {
+  justify-content: flex-start;
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.overflow-menu button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.overflow-menu__danger {
+  color: var(--color-accent-300);
+}
+
+.overflow-menu__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 10px 4px;
+}
+
+.overflow-menu__form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px 8px;
+}
+
+.quiet-note {
+  margin: 1rem 0 0;
+  border-left: 2px solid var(--color-divider);
+  padding-left: 14px;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.notes-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 1rem 0 0;
+}
+
+.notes-field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notes-field__label {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.notes-field__remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-accent-300);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.notes-field textarea {
+  min-height: 88px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 14px;
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-accent-200);
+}
+
+.feedback-accent {
+  min-height: 1.2em;
+  margin: 0.25rem 0;
+  font-size: 13px;
+  color: var(--color-accent-200);
+}
+
+.pill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 1rem 0;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  text-decoration: none;
+  cursor: pointer;
+  background: var(--color-bg);
+}
+
+.pill--accent {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.pill--neutral {
+  border: 1px solid var(--color-divider);
+  color: var(--color-text);
+}
+
+.filter-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: var(--color-neutral-400);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.inline-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
 }
 
 /* Panneaux et listes */
@@ -189,9 +1315,7 @@ footer {
 
 .list,
 .tiles,
-.picker__results,
-.facts,
-.issues {
+.picker__results {
   list-style: none;
   padding: 0;
   margin: 0.5rem 0;
@@ -400,11 +1524,7 @@ button:disabled {
   color: var(--ok-fg);
 }
 
-.deck-head h2 {
-  margin-bottom: 0.25rem;
-}
-
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }

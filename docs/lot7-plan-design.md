@@ -251,10 +251,74 @@ pas l'offline en profondeur mais en modifie la coquille visible :
   recherche insensible à la casse/accents (§ 11), légalité en lecture seule
   et en ligne uniquement, file offline inchangée dans sa mécanique.
 
+## Étape 14 — Rechercher (ajoutée en cours de lot, hors périmètre initial du handoff)
+
+Ajoutée après le démarrage de l'implémentation, à la demande de Martin : le
+handoff demandait de garder l'onglet **Chercher** désactivé (§ « Ce que ce lot
+ne touche pas », § Risques) faute de route et d'écran. Cette étape lève cette
+limite et construit l'écran : ce n'est plus du pur reskin, c'est une extension
+fonctionnelle du lot, décidée en cours de route plutôt qu'anticipée par le
+handoff. Elle vient après l'étape 4 (Atelier/chrome) chronologiquement, mais
+peut être menée en parallèle des étapes 5 à 8 (aucun fichier partagé) ; elle
+doit être bouclée avant de considérer le Lot 7 clos.
+
+**Portée** : chercher une carte dans le catalogue complet (comme le
+`CardPicker` actuel) puis l'ajouter, au choix, **à la collection, à un deck,
+ou aux deux à la fois**, en une seule validation.
+
+**Route** : `{ name: "search" }`, hash `#/rechercher` — même logique prudente
+que `sync` → `#/synchronisation` (éviter un hash identique à un chemin
+d'API, ici `/cartes` n'est pas heurté mais la prudence reste de mise).
+L'onglet **Chercher** de la tab bar (posé désactivé à l'étape 3) devient actif
+et y pointe.
+
+**Fichier** : nouvel écran, proposé sous `frontend/src/features/catalog/SearchPage.tsx`
+(le domaine « catalogue » est déjà le propriétaire de la recherche via
+`CardPicker`/`catalogContext`). Réutilise les hooks existants sans aucun appel
+réseau bloquant pour l'écriture : `useLocalCardSearch` (recherche catalogue,
+comme `CardPicker`), `useLocalStock` (savoir ce qui est déjà possédé, par
+carte et par langue), `useLocalDecks({ state: "active" })` (cible deck
+possible), `useVtesOffline().actions` (`saveStock`, `saveDeckCard`).
+
+**Règle métier vérifiée avec l'architecte-contrat avant codage** : `deck_card`
+a une FK composite vers `card_copy` (CLAUDE.md § 6, § 11) — une carte doit
+être en collection pour entrer dans un deck. Choisir « ajouter à un deck »
+seul, pour une carte totalement absente de la collection, suppose donc de
+créer d'abord (ou en même temps) la ligne `card_copy` sous-jacente. Voir la
+décision actée dans CLAUDE.md § 11 (Lot 7) une fois l'architecte-contrat
+consulté ; aucune évolution de contrat, de modèle ou de migration n'est
+attendue a priori — la résolution se fait côté client, en préfixant l'ajout au
+deck d'un `stock.upsert` implicite si besoin.
+
+**Choix d'UX retenu** (à documenter comme les autres arbitrages du lot, cf.
+§ Risques ci-dessus pour le style de décision attendu) : **une carte à la fois**,
+pas un panier multi-cartes comme l'écran 5 (« Ajouter » depuis un deck) — les
+deux écrans restent distincts et répondent à des besoins différents (l'écran 5
+reste focalisé deck, alimenté par le stock existant ; « Rechercher » est plus
+généraliste et combine deux destinations possibles par carte, ce qui rendrait
+un panier multi-cartes ambigu à valider en un geste). Résultat de recherche
+tapé → panneau de détail inline avec : puce de langue (motif déjà posé aux
+étapes 6-8), puis deux blocs indépendamment activables — « Ajouter à la
+collection » (exemplaires possédés, proxy autorisé, motif de `StockForm`) et
+« Ajouter à un deck » (sélection parmi les decks actifs, quantité, proxies,
+motif d'`AddDeckCardForm`) — au moins un des deux doit être actif pour
+valider. Un seul geste d'enregistrement met en file les opérations
+correspondantes (un `stock.upsert` et/ou un `saveDeckCard`). Si aucun deck
+actif n'existe, le bloc deck reste visible mais désactivé avec un renvoi vers
+la création d'un deck, plutôt que de disparaître silencieusement.
+
+**Répartition** : `frontend-react` pour l'écran et le câblage de route/tab
+bar ; `architecte-contrat` déjà consulté pour la règle métier (pas de rôle
+d'implémentation, seulement de décision) ; `qa-tests` en repasse une fois
+l'écran codé (nouveaux `data-testid`, pas de régression sur le picker
+existant de l'écran 5 ni sur `CardPicker`/`AddDeckCardForm`, qui ne changent
+pas de comportement par cette étape).
+
 ## Suivi
 
 Ce document est un plan d'entrée de lot, pas un journal de décisions au sens
 du § 11 de CLAUDE.md. Une fois le Lot 7 clos, les arbitrages qui en valent la
 peine (sort de `CatalogPanel`, choix self-host vs CDN pour Inter, `data-testid`
-retenus pour le picker fusionné) ont vocation à migrer vers CLAUDE.md § 11 et
-§ 12, comme pour les lots précédents.
+retenus pour le picker fusionné, règle métier et route de l'écran Rechercher
+ajouté en cours de lot) ont vocation à migrer vers CLAUDE.md § 11 et § 12,
+comme pour les lots précédents.

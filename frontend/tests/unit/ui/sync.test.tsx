@@ -16,15 +16,24 @@ const refreshMirrors = (app: App) =>
     await app.runtime.refresh();
   });
 
+/** Navigue vers l'écran « Synchronisation » (Lot 7 : seul endroit où vivent désormais
+ * `SyncStatusBar` et `RejectedOperations`, cf. handoff « nothing is shown while healthy »). */
+const goToSyncScreen = () =>
+  act(() => {
+    window.location.hash = hrefFor({ name: "sync" });
+  });
+
 /**
  * Hors ligne : un deck et une carte ajoutée à ce deck sans avoir la carte en
  * collection. Au retour du réseau, le serveur refuse l'ajout (exemplaires
- * insuffisants) ; la création du deck passe.
+ * insuffisants) ; la création du deck passe. Termine sur l'écran de
+ * synchronisation, seul endroit où le refus est maintenant visible.
  */
 async function refusedDeckCard(app: App) {
   const { key } = await app.runtime.actions.createDeck({ name: "Gangrel" });
   await app.runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", quantity: 3 });
   act(() => setOnline(true));
+  goToSyncScreen();
   await screen.findByTestId("rejected-operations");
   await app.settle();
   await refreshMirrors(app);
@@ -33,11 +42,11 @@ async function refusedDeckCard(app: App) {
 
 describe("file de synchronisation : états", () => {
   it("passe de « hors ligne » à « en attente » puis « tout est à jour »", async () => {
-    const app = await renderApp({ online: false, catalog: true });
+    const app = await renderApp({ online: false, catalog: true, hash: "#/synchronisation" });
     await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
     await app.runtime.actions.saveStock({ cardId: 3, languageCode: "EN", quantityOwned: 1 });
 
-    const bar = screen.getByTestId("sync-status");
+    const bar = await screen.findByTestId("sync-status");
     await waitFor(() => expect(bar).toHaveAttribute("data-pending", "2"));
     expect(bar).toHaveAttribute("data-state", "offline");
     expect(screen.getByTestId("sync-label")).toHaveTextContent("Hors ligne : 2 opérations en attente");
@@ -51,7 +60,7 @@ describe("file de synchronisation : états", () => {
   });
 
   it("montre le serveur injoignable et laisse relancer à la main sans perdre la saisie", async () => {
-    const app = await renderApp({ online: true, catalog: true });
+    const app = await renderApp({ online: true, catalog: true, hash: "#/synchronisation" });
     app.server.next.networkFailure = true;
     await act(async () => {
       await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
@@ -70,7 +79,7 @@ describe("file de synchronisation : états", () => {
   });
 
   it("un 503 (verrou d'écriture) n'est pas un refus : rien n'est perdu ni compté refusé", async () => {
-    const app = await renderApp({ online: true, catalog: true });
+    const app = await renderApp({ online: true, catalog: true, hash: "#/synchronisation" });
     app.server.next.status = 503;
     await act(async () => {
       await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
@@ -191,6 +200,7 @@ describe("opérations refusées", () => {
     // Le serveur factice ne gère pas `deck.update` : il le refuse, ce qui donne un refus sans champ éditable.
     await app.runtime.actions.archiveDeck(key);
     act(() => setOnline(true));
+    goToSyncScreen();
     await screen.findByTestId("rejected-operations");
     await app.settle();
     await refreshMirrors(app);
@@ -207,14 +217,42 @@ describe("opérations refusées", () => {
     expect(within(item).getByTestId("discard-button")).toBeInTheDocument();
   });
 
-  it("le panneau des refus est visible sur toutes les pages", async () => {
+  it("Lot 7 : un refus fait apparaître l'alerte de l'Atelier, qui mène à l'écran de synchronisation dédié", async () => {
+    const app = await renderApp({ online: false, catalog: true, hash: "#/" });
+    await refusedDeckCard(app); // termine sur #/synchronisation
+    act(() => {
+      window.location.hash = hrefFor({ name: "home" });
+    });
+
+    const alert = await screen.findByTestId("home-sync-alert");
+    expect(alert).toHaveTextContent("1 opération refusée");
+    expect(alert).toHaveTextContent("Le serveur n'a pas appliqué ces saisies");
+
+    fireEvent.click(within(alert).getByRole("link", { name: /Corriger maintenant/ }));
+    // La navigation par `<a href="#...">` est asynchrone dans jsdom : on attend
+    // l'écran cible avant de vérifier le hash, plutôt que de lire tout de suite.
+    expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
+    expect(window.location.hash).toBe(hrefFor({ name: "sync" }));
+    expect(screen.getByTestId("sync-status")).toBeInTheDocument();
+  });
+
+  it("Lot 7 : contrairement à avant, le panneau des refus ne s'affiche plus sur les autres pages — choix de design assumé (handoff « nothing is shown while healthy »), pas une régression", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await refusedDeckCard(app);
-    for (const route of [{ name: "stock" }, { name: "decks" }, { name: "home" }] as const) {
+    await refusedDeckCard(app); // termine sur #/synchronisation, où le panneau est bien visible
+    expect(screen.getByTestId("rejected-operations")).toBeInTheDocument();
+
+    const pages: Array<{ route: { name: "stock" } | { name: "decks" } | { name: "home" }; testId: string }> = [
+      { route: { name: "stock" }, testId: "stock-page" },
+      { route: { name: "decks" }, testId: "decks-page" },
+      { route: { name: "home" }, testId: "home-page" },
+    ];
+    for (const { route, testId } of pages) {
       act(() => {
         window.location.hash = hrefFor(route);
       });
-      expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
+      await screen.findByTestId(testId);
+      expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("sync-status")).not.toBeInTheDocument();
     }
   });
 
@@ -226,9 +264,15 @@ describe("opérations refusées", () => {
     await waitFor(() => expect(screen.queryAllByTestId("deck-item")).toHaveLength(0));
 
     act(() => setOnline(true));
+    // Le panneau des refus ne vit plus que sur l'écran dédié (Lot 7) : on y passe le
+    // temps d'attendre la fin du rejeu, avant de revenir sur les decks.
+    goToSyncScreen();
     await screen.findByTestId("rejected-operations"); // le serveur factice refuse `deck.update`
     await app.settle();
     await refreshMirrors(app);
+    act(() => {
+      window.location.hash = hrefFor({ name: "decks" });
+    });
 
     // La création est passée, l'archivage refusé n'a rien laissé : le deck est de nouveau en cours.
     const item = await screen.findByTestId("deck-item");

@@ -1,14 +1,14 @@
+import { Cards, House, MagnifyingGlass, Stack, type Icon } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
 import { Link } from "./app/Link";
 import { useRoute, type Route } from "./app/routes";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
+import { SearchPage } from "./features/catalog/SearchPage";
 import { DeckDetailPage } from "./features/decks/DeckDetailPage";
 import { DecksPage } from "./features/decks/DecksPage";
 import { HomePage } from "./features/home/HomePage";
 import { StockPage } from "./features/stock/StockPage";
-import { RejectedOperations } from "./features/sync/RejectedOperations";
-import { SyncStatusBar } from "./features/sync/SyncStatusBar";
-import { useConnectivity } from "./offline/react";
+import { SyncPage } from "./features/sync/SyncPage";
 
 function Page({ route }: { route: Route }) {
   switch (route.name) {
@@ -20,6 +20,10 @@ function Page({ route }: { route: Route }) {
       return <DecksPage />;
     case "deck":
       return <DeckDetailPage key={route.key} deckKey={route.key} />;
+    case "sync":
+      return <SyncPage />;
+    case "search":
+      return <SearchPage />;
     case "not-found":
       return (
         <div className="page" data-testid="not-found">
@@ -32,13 +36,52 @@ function Page({ route }: { route: Route }) {
   }
 }
 
+/** Un onglet de navigation actif (les quatre routes déjà servies par l'app). */
+type NavTab = {
+  target: Route;
+  label: string;
+  icon: Icon;
+  testId: string;
+  current: (route: Route) => boolean;
+};
+
+const NAV_TABS: NavTab[] = [
+  {
+    target: { name: "home" },
+    label: "Atelier",
+    icon: House,
+    testId: "nav-home",
+    current: (route) => route.name === "home",
+  },
+  {
+    target: { name: "stock" },
+    label: "Collection",
+    icon: Stack,
+    testId: "nav-stock",
+    current: (route) => route.name === "stock",
+  },
+  {
+    target: { name: "decks" },
+    label: "Decks",
+    icon: Cards,
+    testId: "nav-decks",
+    current: (route) => route.name === "decks" || route.name === "deck",
+  },
+  {
+    target: { name: "search" },
+    label: "Chercher",
+    icon: MagnifyingGlass,
+    testId: "nav-search",
+    current: (route) => route.name === "search",
+  },
+];
+
 /**
  * Coquille de l'application. Doit être rendue sous `<VtesOfflineProvider>` :
  * tout ce qu'elle affiche vient d'IndexedDB (lectures locales), et toute
  * saisie passe par la file d'écritures. Aucune route n'attend le réseau.
  */
 function App() {
-  const online = useConnectivity();
   const route = useRoute();
   const mainRef = useRef<HTMLElement>(null);
 
@@ -59,49 +102,29 @@ function App() {
         <a className="skip-link" href="#contenu" onClick={(e) => { e.preventDefault(); mainRef.current?.focus(); }}>
           Aller au contenu
         </a>
-        <div className="topbar">
-          <p
-            className={`network-status ${online ? "network-status--online" : "network-status--offline"}`}
-            role="status"
-          >
-            {online ? "En ligne" : "Hors ligne"}
-          </p>
-          <SyncStatusBar />
-        </div>
-
-        <header>
-          <h1>Gurchon Hall</h1>
-          <p className="subtitle">Suivi VtES — collection, decks, parties et tournois</p>
-        </header>
-
-        <nav aria-label="Navigation principale" className="nav">
-          <Link to={{ name: "home" }} current={route.name === "home"}>
-            Accueil
-          </Link>
-          <Link to={{ name: "stock" }} current={route.name === "stock"} data-testid="nav-stock">
-            Collection
-          </Link>
-          <Link
-            to={{ name: "decks" }}
-            current={route.name === "decks" || route.name === "deck"}
-            data-testid="nav-decks"
-          >
-            Decks
-          </Link>
-        </nav>
-
-        <RejectedOperations />
 
         <main id="contenu" ref={mainRef} tabIndex={-1}>
           <Page route={route} />
         </main>
 
-        <footer>
-          <p className="shell-note">
-            Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour
-            l'expérience hors-ligne (PWA).
-          </p>
-        </footer>
+        <nav aria-label="Navigation principale" className="tab-bar">
+          {NAV_TABS.map((tab) => {
+            const isCurrent = tab.current(route);
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.testId}
+                to={tab.target}
+                current={isCurrent}
+                className="tab-bar__item"
+                data-testid={tab.testId}
+              >
+                <Icon size={22} weight={isCurrent ? "fill" : "regular"} className="tab-bar__icon" aria-hidden="true" />
+                <span>{tab.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
     </CatalogProvider>
   );

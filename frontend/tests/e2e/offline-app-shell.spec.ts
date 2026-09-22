@@ -55,7 +55,14 @@ test.describe("app shell hors-ligne", () => {
     //    précache l'app shell. `serviceWorker.ready` ne se résout qu'une
     //    fois le worker actif pour ce scope.
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
+    // Cible mise à jour au Lot 7 (passe design « Nocturne ») : le chrome global
+    // (titre « Gurchon Hall », pastille réseau permanente, note de coquille
+    // offline) a été retiré d'`App.tsx` au profit d'un titre propre à chaque
+    // page — voir CLAUDE.md §12 Lot 7 et le handoff § « Interactions »
+    // (« nothing is shown while healthy »). La page d'accueil (« Atelier »,
+    // un `h2`, pas un `h1`) reste le signal fiable que l'app shell a rendu.
+    await expect(page.getByRole("heading", { name: "Atelier", level: 2 })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navigation principale" })).toBeVisible();
 
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
@@ -80,18 +87,21 @@ test.describe("app shell hors-ligne", () => {
     expect(navigationResponse.fromServiceWorker()).toBe(true);
     expect(navigationResponse.ok()).toBe(true);
 
-    // L'app shell reste affiché malgré la coupure réseau.
-    await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
-    await expect(
-      page.getByText(
-        "Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour l'expérience hors-ligne (PWA).",
-      ),
-    ).toBeVisible();
+    // L'app shell reste affiché malgré la coupure réseau : même titre de page
+    // et même tab bar qu'en ligne, sans qu'aucune requête réseau n'ait été
+    // nécessaire (la navigation ci-dessus vient déjà du service worker).
+    await expect(page.getByRole("heading", { name: "Atelier", level: 2 })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navigation principale" })).toBeVisible();
+    await expect(page.getByTestId("nav-stock")).toBeVisible();
+    await expect(page.getByTestId("nav-decks")).toBeVisible();
 
-    // Bonus de cohérence : l'indicateur réseau de l'app (testé isolément
-    // côté vitest, tests/unit/App.test.tsx) reflète bien la coupure simulée
-    // par Playwright.
-    await expect(page.getByRole("status")).toHaveText("Hors ligne");
+    // Bonus de cohérence : la coupure réseau simulée par Playwright reste
+    // observable ailleurs que dans un chrome global désormais retiré (Lot 7) —
+    // ici via l'indice hors-ligne du versement de produit sur la page
+    // Collection, qui dépend de `useConnectivity()` comme le faisait l'ancienne
+    // pastille (testé isolément côté vitest : tests/unit/App.test.tsx).
+    await page.getByTestId("nav-stock").click();
+    await expect(page.getByTestId("bundle-offline-hint")).toBeVisible();
 
     await context.setOffline(false);
   });

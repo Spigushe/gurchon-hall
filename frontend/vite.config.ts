@@ -56,8 +56,8 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        theme_color: "#1a0410",
-        background_color: "#1a0410",
+        theme_color: "#161826",
+        background_color: "#161826",
         icons: [
           {
             src: "pwa-192.png",
@@ -83,7 +83,26 @@ export default defineConfig({
         // Precache uniquement les fichiers du build (app shell) : HTML, JS,
         // CSS, manifest, icônes. Aucune route API ne peut apparaître ici par
         // construction puisque ce glob ne porte que sur le dossier `dist/`.
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest}"],
+        //
+        // Police Inter (Lot 7, cf. `src/main.tsx`) : `@fontsource-variable/inter`
+        // émet 7 fichiers .woff2 par sous-ensemble Unicode (`unicode-range`
+        // dans le CSS généré), un par script (latin, latin-ext, cyrillic,
+        // cyrillic-ext, greek, greek-ext, vietnamese). L'app est en français,
+        // avec des données de catalogue VtES en anglais/français/espagnol
+        // (voire, ponctuellement, d'autres langues latines) : seuls `latin`
+        // (U+0000-00FF, l'essentiel du français et de l'espagnol) et
+        // `latin-ext` (accents et lettres étendues, ex. Łódź cité au §11)
+        // sont susceptibles d'être réellement chargés par le navigateur ;
+        // cyrillic(-ext), greek(-ext) et vietnamese ne se déclenchent jamais
+        // en usage normal. Un glob ciblé sur le préfixe de fichier
+        // (`inter-latin*`) reste robuste au hash de build — pas besoin de le
+        // lire dynamiquement — et évite de precacher ~83 Ko de polices mortes
+        // (les 5 autres scripts) tout en tenant la promesse d'app shell
+        // hors ligne dès le premier chargement (CLAUDE.md §3).
+        globPatterns: [
+          "**/*.{js,css,html,svg,png,ico,webmanifest}",
+          "assets/inter-latin*.woff2",
+        ],
         // Permet à la SPA de s'ouvrir hors-ligne sur n'importe quelle route
         // cliente (ex. /decks, /parties) en retombant sur l'app shell.
         navigateFallback: "/index.html",

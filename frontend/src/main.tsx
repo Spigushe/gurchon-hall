@@ -1,6 +1,17 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+// Police Inter auto-hébergée (Lot 7, Nocturne) : variable, poids 400/900 sur
+// un seul fichier par script. Import par défaut = axe "wght", style normal,
+// tous les scripts fournis par le paquet (`files/inter-*-wght-normal.woff2`) ;
+// seuls les .woff2 dont l'`unicode-range` couvre les caractères réellement
+// affichés sont téléchargés par le navigateur. Choisi plutôt que Google Fonts
+// en CDN pour que l'app shell s'affiche hors ligne dès le premier chargement
+// (CLAUDE.md §3) : le service worker doit pouvoir précacher ces fichiers,
+// ce qui suppose qu'ils sortent du build Vite (`dist/assets/*.woff2`) plutôt
+// que d'être chargés depuis un CDN externe — précache à câbler côté
+// `vite.config.ts` par l'agent pwa-offline.
+import "@fontsource-variable/inter";
 import "./index.css";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
 import { VtesOfflineProvider } from "./offline/vtes/VtesOfflineProvider";

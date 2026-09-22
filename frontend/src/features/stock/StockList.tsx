@@ -1,7 +1,23 @@
-import { useState } from "react";
-import { useGuardedAction } from "../../components/useGuardedAction";
+import { ClockCountdown } from "@phosphor-icons/react";
 import { CATEGORY_LABELS, stockEntryLabel } from "../../labels";
 import { useVtesOffline, type LocalStockEntry } from "../../offline/vtes";
+import { useGuardedAction } from "../../components/useGuardedAction";
+
+/**
+ * Ligne de méta d'une entrée : catégorie, langue, proxy. Le handoff (§ 2)
+ * montre aussi clan et capacité (« Crypte · Brujah · capacité 8 · EN ») mais
+ * `LocalStockEntry` (couche offline, `frontend/src/offline/vtes/`) ne les
+ * expose pas aujourd'hui — seule `category` est dénormalisée sur le stock.
+ * Étendre `readStock`/`LocalStockEntry` avec clan et capacité relève de
+ * pwa-offline ; en l'attente, la méta reste catégorie + langue + proxy.
+ */
+function entryMeta(entry: LocalStockEntry): string {
+  const parts: string[] = [];
+  if (entry.category) parts.push(CATEGORY_LABELS[entry.category]);
+  parts.push(entry.languageCode);
+  if (entry.proxyAllowed) parts.push("proxy autorisé");
+  return parts.join(" · ");
+}
 
 function StockRow({
   entry,
@@ -12,7 +28,6 @@ function StockRow({
 }) {
   const { actions } = useVtesOffline();
   const action = useGuardedAction();
-  const [confirming, setConfirming] = useState(false);
   const name = stockEntryLabel(entry);
   const who = `${name} (${entry.languageCode})`;
 
@@ -30,28 +45,39 @@ function StockRow({
 
   return (
     <li
-      className="row"
+      className="entry-row"
       data-testid="stock-entry"
       data-card-id={entry.cardId}
       data-language={entry.languageCode}
       data-quantity={entry.quantityOwned}
       data-pending={entry.pending}
     >
-      <div className="row__main">
-        <strong data-testid="stock-entry-name">{name}</strong>
-        <span className="badge">{entry.languageCode}</span>
-        {entry.category && <span className="hint">{CATEGORY_LABELS[entry.category]}</span>}
-        {entry.proxyAllowed && <span className="badge badge--info">Proxy autorisé</span>}
-        {entry.pending && (
-          <span className="badge badge--pending" data-testid="pending-badge">
-            En attente de synchronisation
+      <div className="entry-row__body">
+        {/* Taper la ligne ouvre l'écran « Modifier une entrée » (handoff § 2) : les
+            anciens boutons Modifier/Supprimer disparaissent d'ici (Supprimer migre
+            dans le formulaire d'édition). */}
+        <button
+          type="button"
+          className="entry-row__main"
+          aria-label={`Modifier ${who}`}
+          onClick={() => onEdit(entry)}
+        >
+          <span className="entry-row__text">
+            <span className="entry-row__title" data-testid="stock-entry-name">
+              {name}
+            </span>
+            <span className="entry-row__meta">{entryMeta(entry)}</span>
+            {entry.notes && <span className="entry-row__meta">{entry.notes}</span>}
+            {entry.pending && (
+              <span className="entry-row__pending" data-testid="pending-badge">
+                <ClockCountdown size={14} aria-hidden="true" />
+                En attente de synchronisation
+              </span>
+            )}
           </span>
-        )}
-      </div>
-      {entry.notes && <p className="hint">{entry.notes}</p>}
+        </button>
 
-      <div className="row__actions">
-        <div className="stepper" role="group" aria-label={`Exemplaires de ${who}`}>
+        <div className="stepper--lg" role="group" aria-label={`Exemplaires de ${who}`}>
           <button
             type="button"
             aria-label={`Retirer un exemplaire de ${who}`}
@@ -60,9 +86,7 @@ function StockRow({
           >
             −
           </button>
-          <span data-testid="stock-entry-quantity">
-            {entry.quantityOwned}
-          </span>
+          <span data-testid="stock-entry-quantity">{entry.quantityOwned}</span>
           <button
             type="button"
             aria-label={`Ajouter un exemplaire de ${who}`}
@@ -72,48 +96,9 @@ function StockRow({
             +
           </button>
         </div>
-        <button
-          type="button"
-          disabled={action.pending}
-          aria-label={`Modifier ${who}`}
-          onClick={() => onEdit(entry)}
-        >
-          Modifier
-        </button>
-        {confirming ? (
-          <>
-            <button
-              type="button"
-              className="button--danger"
-              disabled={action.pending}
-              data-testid="stock-entry-delete-confirm"
-              onClick={() =>
-                void action
-                  .run(() => actions.removeStock(entry.cardId, entry.languageCode))
-                  .then((done) => done && setConfirming(false))
-              }
-            >
-              Confirmer la suppression
-            </button>
-            <button type="button" disabled={action.pending} onClick={() => setConfirming(false)}>
-              Garder
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            className="button--danger"
-            disabled={action.pending}
-            aria-label={`Supprimer ${who}`}
-            data-testid="stock-entry-delete"
-            onClick={() => setConfirming(true)}
-          >
-            Supprimer
-          </button>
-        )}
       </div>
       {action.error && (
-        <p className="error" role="alert">
+        <p className="field-error" role="alert">
           {action.error}
         </p>
       )}
@@ -131,24 +116,20 @@ export function StockList({
   filtered: boolean;
   onEdit: (entry: LocalStockEntry) => void;
 }) {
-  if (entries === undefined) return <p>Chargement de la collection…</p>;
+  if (entries === undefined) return <p className="hint">Chargement de la collection…</p>;
   if (entries.length === 0) {
     return (
       <p className="hint" data-testid="stock-empty">
         {filtered
           ? "Aucune entrée ne correspond à cette recherche."
-          : "Aucune carte en collection pour l'instant. Ajoutez-en avec le formulaire ci-dessus."}
+          : "Aucune carte en collection pour l'instant. Ajoutez-en avec le bouton ci-dessous."}
       </p>
     );
   }
   return (
-    <ul className="list" data-testid="stock-list">
+    <ul className="entry-list" data-testid="stock-list">
       {entries.map((entry) => (
-        <StockRow
-          key={`${entry.cardId}|${entry.languageCode}`}
-          entry={entry}
-          onEdit={onEdit}
-        />
+        <StockRow key={`${entry.cardId}|${entry.languageCode}`} entry={entry} onEdit={onEdit} />
       ))}
     </ul>
   );

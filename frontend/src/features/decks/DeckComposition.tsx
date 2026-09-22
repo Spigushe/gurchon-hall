@@ -1,3 +1,4 @@
+import { ClockCountdown } from "@phosphor-icons/react";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { plural } from "../../labels";
 import {
@@ -35,7 +36,7 @@ function CompositionRow({
 
   return (
     <li
-      className="row"
+      className="composition-row"
       data-testid="deck-card"
       data-card-id={line.cardId}
       data-language={line.languageCode}
@@ -43,17 +44,21 @@ function CompositionRow({
       data-proxy-quantity={line.proxyQuantity}
       data-pending={line.pending}
     >
-      <div className="row__main">
-        <strong>{cardName(line)}</strong>
-        <span className="badge">{line.languageCode}</span>
+      <div className="composition-row__head">
+        <span className="composition-row__name">{cardName(line)}</span>
+        <span className="composition-row__count">×{line.quantity}</span>
+      </div>
+      <div className="composition-row__meta">
+        <span className="entry-row__meta">{line.languageCode}</span>
         {line.pending && (
-          <span className="badge badge--pending" data-testid="pending-badge">
+          <span className="entry-row__pending" data-testid="pending-badge">
+            <ClockCountdown size={14} aria-hidden="true" />
             En attente de synchronisation
           </span>
         )}
       </div>
-      <div className="row__actions">
-        <div className="stepper" role="group" aria-label={`Quantité de ${who}`}>
+      <div className="composition-row__actions">
+        <div className="stepper--sm" role="group" aria-label={`Quantité de ${who}`}>
           <button
             type="button"
             aria-label={`Retirer un exemplaire de ${who}`}
@@ -62,9 +67,7 @@ function CompositionRow({
           >
             −
           </button>
-          <span data-testid="deck-card-quantity">
-            {line.quantity}
-          </span>
+          <span data-testid="deck-card-quantity">{line.quantity}</span>
           <button
             type="button"
             aria-label={`Ajouter un exemplaire de ${who}`}
@@ -74,7 +77,7 @@ function CompositionRow({
             +
           </button>
         </div>
-        <div className="stepper" role="group" aria-label={`Proxies de ${who}`}>
+        <div className="stepper--sm" role="group" aria-label={`Proxies de ${who}`}>
           <button
             type="button"
             aria-label={`Retirer un proxy de ${who}`}
@@ -83,9 +86,7 @@ function CompositionRow({
           >
             −
           </button>
-          <span data-testid="deck-card-proxies">
-            {line.proxyQuantity} proxy
-          </span>
+          <span data-testid="deck-card-proxies">{line.proxyQuantity} proxy</span>
           <button
             type="button"
             aria-label={`Ajouter un proxy à ${who}`}
@@ -97,7 +98,7 @@ function CompositionRow({
         </div>
         <button
           type="button"
-          className="button--danger"
+          className="composition-row__remove"
           disabled={locked || action.pending}
           aria-label={`Retirer ${who} du deck`}
           data-testid="deck-card-remove"
@@ -109,7 +110,7 @@ function CompositionRow({
         </button>
       </div>
       {action.error && (
-        <p className="error" role="alert">
+        <p className="field-error" role="alert">
           {action.error}
         </p>
       )}
@@ -128,7 +129,7 @@ export function DeckComposition({
   /** Deck archivé : le serveur refuse toute modification. */
   locked: boolean;
 }) {
-  if (lines === undefined) return <p>Chargement de la composition…</p>;
+  if (lines === undefined) return <p className="hint">Chargement de la composition…</p>;
   if (lines.length === 0) {
     return (
       <p className="hint" data-testid="deck-cards-empty">
@@ -142,7 +143,7 @@ export function DeckComposition({
       <p className="hint" data-testid="deck-cards-total">
         {plural(lines.length, "ligne")}, {plural(total, "carte")} au total.
       </p>
-      <ul className="list" data-testid="deck-cards">
+      <ul className="list" id="deck-cards" data-testid="deck-cards">
         {lines.map((line) => (
           <CompositionRow
             key={`${line.cardId}|${line.languageCode}`}

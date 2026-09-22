@@ -47,3 +47,17 @@ export function formatTime(iso: string): string {
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleTimeString("fr-FR", { timeStyle: "medium" });
 }
+
+/**
+ * Date sans heure (`evaluated_on`, format `YYYY-MM-DD`) affichée en `JJ/MM/AAAA`.
+ * Analyse la chaîne directement plutôt que de passer par `Date` : une date sans
+ * heure ni fuseau, une fois construite avec `new Date("YYYY-MM-DD")`, est ancrée
+ * à minuit UTC et peut retomber sur la veille une fois reformatée dans un fuseau
+ * à l'ouest de Greenwich.
+ */
+export function formatDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!match) return iso;
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}
