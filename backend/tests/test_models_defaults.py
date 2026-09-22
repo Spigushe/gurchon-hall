@@ -297,9 +297,9 @@ def test_every_index_has_a_name():
             assert index.name, f"{table.name}: index anonyme"
 
 
-def test_model_registry_covers_twenty_two_tables():
-    """Filet : le modèle décrit 22 tables, ni plus ni moins."""
-    assert len(Base.metadata.tables) == 22
+def test_model_registry_covers_twenty_three_tables():
+    """Filet : le modèle décrit 23 tables, ni plus ni moins."""
+    assert len(Base.metadata.tables) == 23
     assert set(Base.metadata.tables) == {
         "language",
         "clan",
@@ -323,4 +323,5 @@ def test_model_registry_covers_twenty_two_tables():
         "tournament",
         "game",
         "participation",
+        "sync_operation",
     }

@@ -40,8 +40,14 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 INITIAL_REVISION = "a59a3613de12"
 ARCHIVE_REVISION = "de3b00e38c8d"  # archivage et suppression logique des decks
-HEAD_REVISION = "5dc50e3c1701"  # discriminant, decklist figée, légalité
-REVISIONS = [INITIAL_REVISION, ARCHIVE_REVISION, HEAD_REVISION]
+DECK_IDENTITY_REVISION = "5dc50e3c1701"  # discriminant, decklist figée, légalité
+HEAD_REVISION = "8cc70f4bbbcc"  # journal d'idempotence de la file hors ligne
+REVISIONS = [
+    INITIAL_REVISION,
+    ARCHIVE_REVISION,
+    DECK_IDENTITY_REVISION,
+    HEAD_REVISION,
+]
 
 EXPECTED_TABLES = {
     "alembic_version",
@@ -65,6 +71,7 @@ EXPECTED_TABLES = {
     "participation",
     "player",
     "sect",
+    "sync_operation",
     "tournament",
     "venue",
 }
@@ -215,7 +222,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Trois révisions à la suite, sans branche : une seule racine, une seule tête."""
+    """Quatre révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -227,11 +234,11 @@ def test_history_has_a_single_head_and_a_single_root():
 # --------------------------------------------------------------------------
 
 
-def test_upgrade_head_creates_the_twenty_two_tables(empty_db):
+def test_upgrade_head_creates_the_twenty_three_tables(empty_db):
     assert not empty_db.exists()
     alembic(empty_db, "upgrade", "head")
     assert table_names(empty_db) == EXPECTED_TABLES
-    assert len(table_names(empty_db) - {"alembic_version"}) == 22
+    assert len(table_names(empty_db) - {"alembic_version"}) == 23
 
 
 def test_upgrade_head_stamps_the_revision(migrated):
@@ -322,7 +329,7 @@ def test_migrated_schema_equals_the_models_schema(migrated, tmp_path):
 
     from_migration = snapshot_of(migrated)
 
-    assert len(from_models) == 22
+    assert len(from_models) == 23
     assert set(from_migration) == set(from_models)
     for table in from_models:
         assert from_migration[table] == from_models[table], table
@@ -360,6 +367,12 @@ def test_migration_creates_the_named_enum_check_constraints(migrated):
         "ck_game_player_count_minimum",
         "ck_participation_victory_points_positive",
         "ck_participation_seat_positive",
+        "ck_sync_operation_sync_operation_type",
+        "ck_sync_operation_sync_operation_status",
+        "ck_sync_operation_sync_error_code",
+        "ck_sync_operation_sync_resource_kind",
+        "ck_sync_operation_error_code_iff_rejected",
+        "ck_sync_operation_resource_kind_when_applied",
     } <= names
 
 
@@ -545,12 +558,16 @@ def test_alembic_check_still_passes_after_a_round_trip(migrated):
 def test_offline_sql_generation_works_and_touches_no_database(empty_db):
     """`upgrade <initiale> --sql` produit le DDL et les 4 INSERT sans se connecter.
 
-    Limité à la révision initiale, et c'est structurel : les suivantes modifient
-    des tables existantes, donc passent par `batch_alter_table`, qui a besoin
-    d'une base vivante pour réfléchir la table avant de la recréer. La révision
-    de tête va plus loin encore, avec un rattrapage de données écrit en Python
-    (numérotation par nom) qu'aucun SQL statique ne peut rendre. Le mode hors
-    ligne ne sert de toute façon qu'à relire du DDL, pas à migrer.
+    Limité à la révision initiale, et c'est structurel : celles du Lot 2
+    modifient des tables existantes, donc passent par `batch_alter_table`, qui a
+    besoin d'une base vivante pour réfléchir la table avant de la recréer. La
+    révision du discriminant va plus loin encore, avec un rattrapage de données
+    écrit en Python (numérotation par nom) qu'aucun SQL statique ne peut rendre.
+    Le mode hors ligne ne sert de toute façon qu'à relire du DDL, pas à migrer.
+
+    La révision de tête (journal de synchronisation), elle, ne crée qu'une table
+    neuve : elle se rend bien hors ligne, prise isolément — cf.
+    `test_the_sync_revision_renders_offline`.
     """
     result = alembic(empty_db, "upgrade", INITIAL_REVISION, "--sql")
     assert "CREATE TABLE card_copy" in result.stdout
@@ -1004,7 +1021,7 @@ def test_downgrade_keeps_the_deck_composition(empty_db):
     alembic(empty_db, "upgrade", "head")
     seed_decks_at_head(empty_db)
 
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     assert rows(empty_db, "SELECT deck_id, card_id, quantity FROM deck_card") == [
         (2, 1, 2)
@@ -1016,7 +1033,7 @@ def test_downgrade_renames_only_the_decks_that_share_a_name(empty_db):
     alembic(empty_db, "upgrade", "head")
     seed_decks_at_head(empty_db)
 
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     assert scalar(empty_db, "SELECT version_num FROM alembic_version") == (
         ARCHIVE_REVISION
@@ -1041,7 +1058,7 @@ def test_downgrade_truncates_the_merged_name_to_the_column_length(empty_db):
         f" (2, '{long_name}', '0002', 'draft')",
     )
 
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     names = [name for (name,) in rows(empty_db, "SELECT name FROM deck ORDER BY id")]
     assert [len(name) for name in names] == [120, 120]
@@ -1054,15 +1071,15 @@ def test_downgrade_drops_the_frozen_decklists(empty_db):
     seed_decks_at_head(empty_db)
     assert scalar(empty_db, "SELECT COUNT(*) FROM deleted_deck_card") == 1
 
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     assert "deleted_deck_card" not in table_names(empty_db)
     assert scalar(empty_db, "SELECT COUNT(*) FROM deck WHERE id = 1") == 1
 
 
-def test_downgrade_one_step_gives_the_archive_schema(empty_db, tmp_path):
+def test_downgrade_to_the_archive_revision_gives_the_archive_schema(empty_db, tmp_path):
     alembic(empty_db, "upgrade", "head")
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     reference = tmp_path / "archive.db"
     alembic(reference, "upgrade", ARCHIVE_REVISION)
@@ -1082,7 +1099,7 @@ def test_downgrade_to_base_from_head_leaves_nothing(empty_db):
 def test_upgrade_again_after_the_downgrade_and_no_drift(empty_db):
     alembic(empty_db, "upgrade", "head")
     seed_decks_at_head(empty_db)
-    alembic(empty_db, "downgrade", "-1")
+    alembic(empty_db, "downgrade", ARCHIVE_REVISION)
 
     alembic(empty_db, "upgrade", "head")
 
@@ -1099,3 +1116,192 @@ def test_upgrade_again_after_the_downgrade_and_no_drift(empty_db):
     result = alembic(empty_db, "check", check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "No new upgrade operations detected" in result.stdout + result.stderr
+
+
+# --------------------------------------------------------------------------
+# Révision « journal d'idempotence de la file hors ligne » (Lot 3)
+# --------------------------------------------------------------------------
+
+
+def insert_sync_row(db_path: Path, **columns) -> None:
+    """Insère une ligne de journal, colonnes nommées, sans passer par l'ORM."""
+    names = ", ".join(columns)
+    placeholders = ", ".join(f":{name}" for name in columns)
+    engine = create_engine(url_for(db_path))
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"INSERT INTO sync_operation ({names}) VALUES ({placeholders})"),
+                columns,
+            )
+    finally:
+        engine.dispose()
+
+
+def applied_row(**overrides) -> dict:
+    """Ligne minimale d'une opération appliquée."""
+    return {
+        "operation_id": "op-1",
+        "batch_id": "batch-1",
+        "operation_type": "deck.create",
+        "request_hash": "h" * 64,
+        "status": "applied",
+        "resource_kind": "deck",
+        "deck_id": 1,
+        "recorded_at": "2026-09-20 18:00:00",
+        "processed_at": "2026-09-20 18:00:05",
+    } | overrides
+
+
+def test_the_journal_holds_no_foreign_key(migrated):
+    """Un journal décrit ce qui s'est passé, pas ce qui existe (cf. modèle)."""
+    engine = create_engine(url_for(migrated))
+    try:
+        assert inspect(engine).get_foreign_keys("sync_operation") == []
+    finally:
+        engine.dispose()
+
+    # Conséquence directe : on journalise un deck qui n'existe pas (ou plus).
+    insert_sync_row(migrated, **applied_row(deck_id=4242))
+    assert foreign_key_violations(migrated) == []
+
+
+def test_the_idempotency_key_is_unique(migrated):
+    insert_sync_row(migrated, **applied_row())
+    with pytest.raises(Exception) as duplicate:
+        insert_sync_row(migrated, **applied_row(batch_id="batch-2", deck_id=2))
+    assert "UNIQUE" in str(duplicate.value)
+
+
+def test_a_client_reference_is_claimed_by_a_single_applied_creation(migrated):
+    insert_sync_row(migrated, **applied_row(client_ref="ref-1"))
+
+    with pytest.raises(Exception) as duplicate:
+        insert_sync_row(
+            migrated, **applied_row(operation_id="op-2", client_ref="ref-1", deck_id=2)
+        )
+    assert "UNIQUE" in str(duplicate.value)
+
+
+def test_a_rejected_creation_does_not_lock_its_client_reference(migrated):
+    """Tout l'intérêt de l'index *partiel* : un refus se corrige et se rejoue."""
+    insert_sync_row(
+        migrated,
+        **applied_row(
+            operation_id="op-refusee",
+            client_ref="ref-1",
+            status="rejected",
+            error_code="conflict",
+            error_message="Aucun discriminant libre.",
+            resource_kind=None,
+            deck_id=None,
+        ),
+    )
+
+    insert_sync_row(
+        migrated, **applied_row(operation_id="op-reprise", client_ref="ref-1")
+    )
+
+    assert rows(
+        migrated,
+        "SELECT status FROM sync_operation WHERE client_ref = 'ref-1' ORDER BY id",
+    ) == [("rejected",), ("applied",)]
+
+
+def test_a_verdict_carries_its_reason_only_when_it_is_a_refusal(migrated):
+    # Appliquée avec un motif d'erreur : incohérent.
+    with pytest.raises(Exception) as applied_with_error:
+        insert_sync_row(migrated, **applied_row(error_code="conflict"))
+    assert "CHECK" in str(applied_with_error.value)
+
+    # Refusée sans motif : incohérent aussi.
+    with pytest.raises(Exception) as rejected_without_error:
+        insert_sync_row(
+            migrated,
+            **applied_row(
+                operation_id="op-2", status="rejected", resource_kind=None, deck_id=None
+            ),
+        )
+    assert "CHECK" in str(rejected_without_error.value)
+
+
+def test_an_applied_operation_names_the_resource_it_touched(migrated):
+    with pytest.raises(Exception) as headless:
+        insert_sync_row(migrated, **applied_row(resource_kind=None))
+    assert "CHECK" in str(headless.value)
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("operation_type", "game.create"),
+        ("status", "pending"),
+        ("error_code", "teapot"),
+        ("resource_kind", "tournament"),
+    ],
+)
+def test_the_journal_enumerations_are_closed(migrated, column, value):
+    row = applied_row(operation_id=f"op-{column}")
+    if column == "error_code":
+        row |= {"status": "rejected", "resource_kind": None, "deck_id": None}
+    row[column] = value
+    with pytest.raises(Exception) as outside:
+        insert_sync_row(migrated, **row)
+    assert "CHECK" in str(outside.value)
+
+
+def test_upgrading_an_existing_database_adds_only_the_journal(empty_db, tmp_path):
+    """La révision ne touche à aucune table existante : rien ne doit bouger."""
+    alembic(empty_db, "upgrade", DECK_IDENTITY_REVISION)
+    seed_decks_at_head(empty_db)
+    before = snapshot_of(empty_db)
+
+    alembic(empty_db, "upgrade", "head")
+
+    after = snapshot_of(empty_db)
+    assert set(after) - set(before) == {"sync_operation"}
+    for table in before:
+        assert after[table] == before[table], table
+    assert rows(empty_db, "SELECT deck_id, card_id, quantity FROM deck_card") == [
+        (2, 1, 2)
+    ]
+    assert scalar(empty_db, "SELECT COUNT(*) FROM deleted_deck_card") == 1
+    assert foreign_key_violations(empty_db) == []
+
+
+def test_downgrading_the_sync_revision_drops_the_journal_and_nothing_else(
+    empty_db, tmp_path
+):
+    alembic(empty_db, "upgrade", "head")
+    seed_decks_at_head(empty_db)
+    insert_sync_row(empty_db, **applied_row(client_ref="ref-1"))
+
+    alembic(empty_db, "downgrade", DECK_IDENTITY_REVISION)
+
+    reference = tmp_path / "deck-identity.db"
+    alembic(reference, "upgrade", DECK_IDENTITY_REVISION)
+    assert snapshot_of(empty_db) == snapshot_of(reference)
+    assert rows(
+        empty_db,
+        "SELECT type, name FROM sqlite_master WHERE name LIKE '%sync_operation%'",
+    ) == []
+    assert rows(empty_db, "SELECT deck_id, card_id, quantity FROM deck_card") == [
+        (2, 1, 2)
+    ]
+    assert foreign_key_violations(empty_db) == []
+
+
+def test_the_sync_revision_renders_offline(empty_db):
+    """Prise isolément, elle se rejoue en `--sql` : elle ne crée qu'une table.
+
+    Contre-exemple utile face aux deux révisions du Lot 2, qui ne le peuvent pas
+    (mode batch, rattrapage en Python). Ce n'est pas une garantie de l'histoire
+    complète — `upgrade head --sql` reste en échec, cf. le `xfail` plus haut.
+    """
+    result = alembic(
+        empty_db, "upgrade", f"{DECK_IDENTITY_REVISION}:{HEAD_REVISION}", "--sql"
+    )
+
+    assert "CREATE TABLE sync_operation" in result.stdout
+    assert "ux_sync_operation_client_ref" in result.stdout
+    assert not empty_db.exists()

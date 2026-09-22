@@ -95,6 +95,7 @@ EXPECTED_OPERATIONS = {
     ("post", "/decks/{deck_id}/cartes"): "addDeckCard",
     ("patch", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "updateDeckCard",
     ("delete", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "removeDeckCard",
+    ("post", "/sync"): "syncOperations",
 }
 
 

@@ -29,3 +29,31 @@ CONFLICT = {
         "description": "Conflit avec l'état des données (doublon, stock, règle).",
     }
 }
+
+RETRY_AFTER_SECONDS = 1
+"""Délai conseillé au client avant de renvoyer une requête refusée pour cause de
+verrou d'écriture. Une seconde : le verrou couvre le temps d'un lot, pas plus."""
+
+# Seule `POST /sync` prend le verrou d'écriture (`app.db.locking`), mais la
+# réponse vit ici avec les autres. Ce n'est pas un verdict métier : c'est une
+# indisponibilité passagère, rien n'a été appliqué, et le client rejoue à
+# l'identique — ses clés d'idempotence le rendent sûr.
+WRITE_LOCK_BUSY = {
+    503: {
+        "model": ErrorResponse,
+        "description": (
+            "Une autre écriture tient la base : rien n'a été appliqué. Erreur "
+            "transitoire, jamais un refus — la requête se renvoie telle quelle, "
+            "après le délai de l'en-tête `Retry-After`."
+        ),
+        "headers": {
+            "Retry-After": {
+                "description": (
+                    "Délai conseillé avant de renvoyer la requête, en secondes."
+                ),
+                "required": True,
+                "schema": {"type": "integer", "minimum": 0},
+            }
+        },
+    }
+}

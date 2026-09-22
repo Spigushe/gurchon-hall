@@ -1480,6 +1480,68 @@
           }
         }
       }
+    },
+    "/sync": {
+      "post": {
+        "tags": [
+          "sync"
+        ],
+        "summary": "Rejoue un lot d'écritures faites hors ligne",
+        "description": "Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Le seul autre code est un 503 transitoire, quand une écriture concurrente tient la base — rien n'a alors été appliqué, et le lot se renvoie à l'identique.",
+        "operationId": "syncOperations",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResult"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Une autre écriture tient la base : rien n'a été appliqué. Erreur transitoire, jamais un refus — la requête se renvoie telle quelle, après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai conseillé avant de renvoyer la requête, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0.0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1598,6 +1660,47 @@
         ],
         "title": "BundleDeposit",
         "description": "Versement du contenu d'un produit dans la collection.\n\nLe produit fixe les cartes et leurs exemplaires ; il ne manque que la\nlangue de ce qui a été acheté, et le nombre de produits identiques."
+      },
+      "BundleDepositOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "bundle.deposit",
+            "title": "Type"
+          },
+          "bundle_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Bundle Id"
+          },
+          "data": {
+            "$ref": "#/components/schemas/BundleDeposit"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "bundle_id",
+          "data"
+        ],
+        "title": "BundleDepositOperation",
+        "description": "Verse le contenu d'un produit dans la collection.\n\nL'opération qui justifie à elle seule le journal : hors `/sync`,\n`POST /bundles/{id}/stock` additionne le produit à chaque appel, donc un\nrejeu double le stock. Passée par ici, elle est tranchée une fois pour\ntoutes — un second envoi de la même clé d'idempotence est « rejouée », sans\neffet."
       },
       "BundleRead": {
         "properties": {
@@ -2513,6 +2616,54 @@
         "title": "DeckCardCreate",
         "description": "Ajout d'une carte à un deck.\n\nLa carte doit déjà exister dans la collection pour la langue demandée\n(CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du\nservice, la base garantissant déjà l'existence de l'entrée de collection."
       },
+      "DeckCardDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "deck_card.delete",
+            "title": "Type"
+          },
+          "deck": {
+            "$ref": "#/components/schemas/DeckRef"
+          },
+          "card_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Language Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "deck",
+          "card_id",
+          "language_code"
+        ],
+        "title": "DeckCardDeleteOperation",
+        "description": "Retire une carte d'un deck."
+      },
       "DeckCardRead": {
         "properties": {
           "card_id": {
@@ -2574,6 +2725,44 @@
         "title": "DeckCardUpdate",
         "description": "Modification d'une ligne de decklist.\n\nLe contrôle `proxy_quantity <= quantity` n'est complet que si les deux\nvaleurs sont fournies. Sinon la comparaison porterait sur une valeur que\nseule la base connaît : **le service du Lot 2 doit refaire la vérification**\naprès fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`\nreste le dernier filet, mais elle produirait un 500 plutôt qu'un 422)."
       },
+      "DeckCardUpsertOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "deck_card.upsert",
+            "title": "Type"
+          },
+          "deck": {
+            "$ref": "#/components/schemas/DeckRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeckCardCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "deck",
+          "data"
+        ],
+        "title": "DeckCardUpsertOperation",
+        "description": "Place une carte dans un deck, ou remplace sa ligne.\n\n`data` porte l'état complet voulu de la ligne (`quantity`,\n`proxy_quantity`). La carte doit être en collection dans cette langue et\nles exemplaires disponibles doivent suffire : sinon `conflict`, comme en\nligne."
+      },
       "DeckCreate": {
         "properties": {
           "name": {
@@ -2629,6 +2818,82 @@
         ],
         "title": "DeckCreate",
         "description": "Création d'un deck.\n\nPas de discriminant : il est tiré par le serveur, qui garantit son unicité\nau sein du nom. Un client qui l'imposerait entrerait en course avec un\nautre, pour un gain nul."
+      },
+      "DeckCreateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "deck.create",
+            "title": "Type"
+          },
+          "client_ref": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client Ref",
+            "description": "Référence du deck côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour désigner ce deck, dans ce lot comme dans les suivants."
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeckCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "client_ref",
+          "data"
+        ],
+        "title": "DeckCreateOperation",
+        "description": "Crée un deck saisi hors ligne.\n\n`client_ref` est **obligatoire** : sans elle, aucune des opérations\nsuivantes de la file ne pourrait désigner le deck, puisque son identifiant\nn'existe pas encore. Le discriminant, lui, reste tiré par le serveur\n(CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus\nqu'en ligne."
+      },
+      "DeckDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "deck.delete",
+            "title": "Type"
+          },
+          "deck": {
+            "$ref": "#/components/schemas/DeckRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "deck"
+        ],
+        "title": "DeckDeleteOperation",
+        "description": "Supprime logiquement un deck archivé (cf. `DELETE /decks/{id}`)."
       },
       "DeckDetailRead": {
         "properties": {
@@ -2951,6 +3216,41 @@
         "title": "DeckRead",
         "description": "Un deck, sans sa composition."
       },
+      "DeckRef": {
+        "properties": {
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client au deck lors de sa création hors ligne (`deck.create`). Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DeckRef",
+        "description": "Désignation d'un deck : son identifiant serveur, ou sa référence client.\n\nExactement l'un des deux. `deck_id` pour un deck que le client a déjà vu\nrevenir du serveur ; `client_ref` pour un deck créé hors ligne, dont\nl'identifiant n'existe pas encore au moment où la file est constituée."
+      },
       "DeckStatus": {
         "type": "string",
         "enum": [
@@ -3016,6 +3316,44 @@
         "type": "object",
         "title": "DeckUpdate",
         "description": "Modification partielle d'un deck.\n\n`name`, `status` et `archived` sont facultatifs mais non nullables ;\n`created_on`, `archetype` et `notes` acceptent `null` pour effacer la\nvaleur. Le discriminant ne se modifie pas : renommer un deck ne change pas\nson identité (le serveur n'en retire un autre que si le nouveau couple est\ndéjà pris)."
+      },
+      "DeckUpdateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "deck.update",
+            "title": "Type"
+          },
+          "deck": {
+            "$ref": "#/components/schemas/DeckRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/DeckUpdate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "deck",
+          "data"
+        ],
+        "title": "DeckUpdateOperation",
+        "description": "Modifie un deck — y compris pour l'archiver ou le désarchiver.\n\n`data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis\nsont appliqués, et `archived` range ou sort de l'archive. Passer le deck à\n`active` exige qu'il soit légal, comme en ligne."
       },
       "DisciplineRead": {
         "properties": {
@@ -3201,6 +3539,388 @@
         ],
         "title": "SectRead",
         "description": "Sect."
+      },
+      "StockDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "stock.delete",
+            "title": "Type"
+          },
+          "card_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Id"
+          },
+          "language_code": {
+            "type": "string",
+            "maxLength": 8,
+            "minLength": 1,
+            "title": "Language Code"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "card_id",
+          "language_code"
+        ],
+        "title": "StockDeleteOperation",
+        "description": "Retire une entrée de collection.\n\nRefusée (`conflict`) tant qu'un deck vivant l'utilise, comme\n`DELETE /stock/{card_id}/{language_code}`."
+      },
+      "StockUpsertOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "stock.upsert",
+            "title": "Type"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CardCopyCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "data"
+        ],
+        "title": "StockUpsertOperation",
+        "description": "Crée ou remplace une entrée de collection (carte × langue).\n\n`data` porte l'**état complet voulu** de l'entrée : les champs omis\nreprennent leur valeur par défaut (0 exemplaire, proxy interdit, pas de\nnote), ils ne conservent pas ce que le serveur avait. C'est ce qui rend\nl'opération indifférente à l'ordre du rejeu.\n\nLes règles de stock restent celles du serveur : descendre\n`quantity_owned` sous ce que les decks ont déjà alloué, ou retirer le droit\nde proxy alors qu'un deck en joue, est refusé (`conflict`)."
+      },
+      "SyncErrorCode": {
+        "type": "string",
+        "enum": [
+          "not_found",
+          "conflict",
+          "invalid",
+          "unresolved_client_ref",
+          "mismatched_replay"
+        ],
+        "title": "SyncErrorCode",
+        "description": "Motif de refus d'une opération, lisible par la machine.\n\nLes trois premiers reprennent les erreurs métier des services\n(`app.services.errors`), qui restent la seule autorité sur les règles :\n`not_found` ← `NotFoundError`, `conflict` ← `ConflictError`, `invalid` ←\n`InvalidRequestError`. Les deux derniers sont propres à la\nsynchronisation."
+      },
+      "SyncOperationError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/SyncErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "SyncOperationError",
+        "description": "Motif de refus d'une opération.\n\n`code` est fait pour le code du client (router l'opération vers une file\n« à corriger », par exemple), `message` pour l'utilisateur : c'est le texte\ndu service qui a refusé, celui-là même que la route en ligne aurait mis\ndans son 404 ou son 409."
+      },
+      "SyncOperationResult": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SyncOperationType"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/SyncOutcome"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence client de l'opération, renvoyée telle quelle. Avec `resource.deck_id`, c'est la correspondance que le client doit enregistrer pour ses prochaines requêtes."
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncResourceRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ressource touchée ; nul si l'opération a été refusée."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncOperationError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motif du refus ; nul si l'opération a abouti. Une opération `replayed` peut en porter un : c'est alors le refus mémorisé."
+          },
+          "processed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Processed At",
+            "description": "Instant du verdict (UTC). Pour une opération rejouée, c'est celui du verdict d'origine, pas celui de ce rejeu."
+          }
+        },
+        "type": "object",
+        "required": [
+          "operation_id",
+          "type",
+          "outcome",
+          "client_ref",
+          "resource",
+          "error",
+          "processed_at"
+        ],
+        "title": "SyncOperationResult",
+        "description": "Verdict rendu sur une opération du lot."
+      },
+      "SyncOperationType": {
+        "type": "string",
+        "enum": [
+          "stock.upsert",
+          "stock.delete",
+          "deck.create",
+          "deck.update",
+          "deck.delete",
+          "deck_card.upsert",
+          "deck_card.delete",
+          "bundle.deposit"
+        ],
+        "title": "SyncOperationType",
+        "description": "Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).\n\nUne valeur par intention de l'utilisateur, limitée aux ressources qui\nexistent déjà : collection, decks, composition, versement d'un produit. Le\ncatalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md\n§11) et les parties, tournois et participations attendent le Lot 4 — les\najouter ici avant qu'elles aient une route serait promettre une\nsynchronisation sans destination.\n\nLes langues n'y sont pas non plus : `POST /langues` reste une écriture en\nligne. Une saisie hors ligne dans une langue inconnue du serveur doit se\nrabattre sur « XX » (autre), cf. le point ouvert du rapport de lot.\n\nDeux nuances de vocabulaire par rapport aux routes REST :\n\n* `stock.upsert` et `deck_card.upsert` créent **ou** remplacent l'entrée,\n  là où REST distingue `POST` et `PATCH`. Une file rejouée n'a pas de\n  garantie sur ce que le serveur possède déjà ; l'upsert rend l'ordre des\n  opérations indifférent et la charge utile porte l'état complet voulu.\n* il n'y a pas d'opération d'archivage : archiver, c'est `deck.update` avec\n  `archived`, exactement comme `PATCH /decks/{id}`."
+      },
+      "SyncOutcome": {
+        "type": "string",
+        "enum": [
+          "applied",
+          "replayed",
+          "rejected"
+        ],
+        "title": "SyncOutcome",
+        "description": "Issue d'une opération, du point de vue du client.\n\n`REPLAYED` n'est pas un état stocké (le journal ne connaît que « appliquée »\net « refusée ») : c'est la façon dont le serveur a répondu — il a retrouvé\nla clé d'idempotence et rendu le verdict d'alors sans rien refaire. Ce\nverdict peut très bien avoir été un refus : `error` le dit."
+      },
+      "SyncRequest": {
+        "properties": {
+          "operations": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/StockUpsertOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/StockDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/DeckCreateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/DeckUpdateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/DeckDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/DeckCardUpsertOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/DeckCardDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/BundleDepositOperation"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "bundle.deposit": "#/components/schemas/BundleDepositOperation",
+                  "deck.create": "#/components/schemas/DeckCreateOperation",
+                  "deck.delete": "#/components/schemas/DeckDeleteOperation",
+                  "deck.update": "#/components/schemas/DeckUpdateOperation",
+                  "deck_card.delete": "#/components/schemas/DeckCardDeleteOperation",
+                  "deck_card.upsert": "#/components/schemas/DeckCardUpsertOperation",
+                  "stock.delete": "#/components/schemas/StockDeleteOperation",
+                  "stock.upsert": "#/components/schemas/StockUpsertOperation"
+                }
+              }
+            },
+            "type": "array",
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Operations",
+            "description": "Opérations à appliquer dans l'ordre donné. L'ordre compte : une carte ne s'ajoute qu'à un deck déjà créé."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operations"
+        ],
+        "title": "SyncRequest",
+        "description": "Un lot d'opérations à rejouer, dans l'ordre où elles ont été saisies."
+      },
+      "SyncResourceKind": {
+        "type": "string",
+        "enum": [
+          "card_copy",
+          "deck",
+          "deck_card",
+          "bundle"
+        ],
+        "title": "SyncResourceKind",
+        "description": "Nature de la ressource touchée par une opération de synchronisation."
+      },
+      "SyncResourceRef": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/SyncResourceKind"
+          },
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "card_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Id"
+          },
+          "language_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Code"
+          },
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "deck_id",
+          "card_id",
+          "language_code",
+          "bundle_id"
+        ],
+        "title": "SyncResourceRef",
+        "description": "Identité de la ressource touchée par une opération.\n\nVolontairement réduite à des identifiants : la réponse ne renvoie pas les\nobjets. Un versement de produit touche des centaines d'entrées de\ncollection, et le client est en ligne au moment où il synchronise — il\nrafraîchit par les `GET` existants. Ce dont il a réellement besoin ici,\nc'est du `deck_id` attribué à un deck créé hors ligne."
+      },
+      "SyncResult": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Batch Id",
+            "description": "Identifiant de ce traitement, tiré par le serveur. Sans valeur métier : il sert à relier une trace client à ce qui a été journalisé côté serveur."
+          },
+          "synced_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Synced At",
+            "description": "Instant du traitement du lot (UTC)."
+          },
+          "applied": {
+            "type": "integer",
+            "title": "Applied",
+            "description": "Opérations appliquées maintenant."
+          },
+          "replayed": {
+            "type": "integer",
+            "title": "Replayed",
+            "description": "Opérations déjà connues, non réappliquées."
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected",
+            "description": "Opérations refusées, motif à l'appui."
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SyncOperationResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "Un résultat par opération reçue, dans l'ordre de la requête.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "synced_at",
+          "applied",
+          "replayed",
+          "rejected",
+          "results"
+        ],
+        "title": "SyncResult",
+        "description": "Réponse de `POST /sync` : un verdict par opération, dans le même ordre."
       },
       "ValidationError": {
         "properties": {

@@ -6,35 +6,26 @@ synchronisée le lendemain depuis un autre fuseau doit désigner le même instan
 qu'au moment de la saisie ; sans fuseau, « 20:00 » est ambigu et la file de
 synchronisation du Lot 3 n'a aucun moyen de trancher. Le stockage, lui, est de
 l'UTC naïf (cf. `app.models.types.UtcDateTime`).
+
+`AwareDateTime`, qui porte cette règle, vivait ici ; il est passé dans
+`app.schemas.base` au Lot 3, la file de synchronisation en ayant besoin pour
+`recorded_at` (`app.schemas.sync`) — deux familles de charges utiles, un seul
+endroit où la règle est écrite.
 """
 
-from datetime import UTC, date, datetime
-from typing import Annotated
+from datetime import date, datetime
 
-from pydantic import AfterValidator, Field
+from pydantic import Field
 
 from app.models.enums import DeckPolicy, RoundType, TournamentFormat
 from app.schemas.base import (
     MAX_DB_INT,
     UNSET,
+    AwareDateTime,
     ReadModel,
     RequiredText,
     WriteModel,
 )
-
-
-def _to_utc(value: datetime) -> datetime:
-    """Refuse un instant sans fuseau, et normalise le reste en UTC."""
-    if value.tzinfo is None or value.utcoffset() is None:
-        raise ValueError(
-            "un fuseau est obligatoire (ex. 2026-02-01T20:00:00+01:00 ou "
-            "2026-02-01T19:00:00Z) : sans lui, l'instant est ambigu."
-        )
-    return value.astimezone(UTC)
-
-
-AwareDateTime = Annotated[datetime, AfterValidator(_to_utc)]
-"""Date-heure d'entrée : fuseau obligatoire, normalisée en UTC."""
 
 
 class PlayerRead(ReadModel):

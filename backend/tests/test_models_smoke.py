@@ -49,6 +49,10 @@ from app.models import (
     PrintOccurrence,
     RoundType,
     Sect,
+    SyncOperation,
+    SyncOperationStatus,
+    SyncOperationType,
+    SyncResourceKind,
     Tournament,
     TournamentFormat,
     Venue,
@@ -209,6 +213,23 @@ def seeded(session):
             seat=3,
             victory_points=2.5,
             game_win=True,
+        )
+    )
+
+    # Journal de la file hors ligne (Lot 3) : la création du deck ci-dessus,
+    # telle qu'elle serait revenue d'un `POST /sync`. Aucune clé étrangère —
+    # `deck_id` n'est qu'un identifiant recopié.
+    session.add(
+        SyncOperation(
+            operation_id="0f8f8b8e-1111-4222-8333-444444444444",
+            batch_id="6f1d2a4e-0e9e-4a1a-9a0f-2f7b3c4d5e6f",
+            operation_type=SyncOperationType.DECK_CREATE,
+            request_hash="a" * 64,
+            status=SyncOperationStatus.APPLIED,
+            client_ref="ref-ventrue-grinder",
+            resource_kind=SyncResourceKind.DECK,
+            deck_id=deck.id,
+            recorded_at=datetime(2026, 2, 1, 19, 0, tzinfo=UTC),
         )
     )
     session.commit()

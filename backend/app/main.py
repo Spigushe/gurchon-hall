@@ -1,8 +1,10 @@
 """Application FastAPI du suivi VtES.
 
 Lot 0 : squelette + `/health`. Lot 2 : catalogue (`/cartes`, `/bundles`,
-`/langues`), collection (`/stock`) et decks (`/decks`). Les parties, tournois
-et `/sync` (CLAUDE.md §7) arrivent aux lots suivants.
+`/langues`), collection (`/stock`) et decks (`/decks`). Lot 3 : `/sync`, la
+file de synchronisation hors ligne (cf. `app.routers.sync` et
+`app.services.sync`). Les parties et les tournois (CLAUDE.md §7) arrivent au
+Lot 4.
 """
 
 import os
@@ -16,6 +18,7 @@ from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
 from app.routers.health import router as health_router
 from app.routers.stock import router as stock_router
+from app.routers.sync import router as sync_router
 from app.services.errors import DomainError, InvalidRequestError
 
 # Origines autorisées par défaut : le serveur de dev Vite (front React), sur
@@ -52,12 +55,16 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Retry-After accompagne les 503 de POST /sync (cf. docs/lot3-sync-contrat.md) :
+    # sans expose_headers, un navigateur cross-origin ne peut pas le lire.
+    expose_headers=["Retry-After"],
 )
 
 app.include_router(health_router)
 app.include_router(catalog_router)
 app.include_router(stock_router)
 app.include_router(decks_router)
+app.include_router(sync_router)
 
 
 @app.exception_handler(DomainError)

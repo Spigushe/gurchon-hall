@@ -22,7 +22,13 @@ contrat que le Lot 2 implémentera, sans encore l'exposer.
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    StringConstraints,
+    field_validator,
+)
 
 UNSET: Any = None
 """Sentinelle « champ non fourni » pour les champs facultatifs non nullables.
@@ -61,6 +67,27 @@ MAX_DB_INT = 2**31 - 1
 Plafond des entiers entrants : un identifiant ou une quantité au-delà n'a
 aucune chance d'exister en base, et sans borne il part jusqu'au pilote, qui le
 refuse par une erreur d'exécution (500). Borné ici, le client reçoit un 422.
+"""
+
+
+def _to_utc(value: datetime) -> datetime:
+    """Refuse un instant sans fuseau, et normalise le reste en UTC."""
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError(
+            "un fuseau est obligatoire (ex. 2026-02-01T20:00:00+01:00 ou "
+            "2026-02-01T19:00:00Z) : sans lui, l'instant est ambigu."
+        )
+    return value.astimezone(UTC)
+
+
+AwareDateTime = Annotated[datetime, AfterValidator(_to_utc)]
+"""Date-heure d'entrée : fuseau obligatoire, normalisée en UTC.
+
+Posée ici, et non dans un seul module de schémas, parce que deux familles de
+charges utiles en dépendent : l'instant d'une partie (`app.schemas.play`) et
+celui d'une saisie hors ligne rejouée (`app.schemas.sync`). Ce sont justement
+les deux cas où la valeur traverse un fuseau — saisie au club le soir,
+synchronisée ailleurs le lendemain.
 """
 
 

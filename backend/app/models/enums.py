@@ -116,3 +116,76 @@ class RoundType(StrEnum):
     CASUAL = "casual"
     PRELIMINARY = "preliminary"
     FINAL = "final"
+
+
+class SyncOperationType(StrEnum):
+    """Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).
+
+    Une valeur par intention de l'utilisateur, limitée aux ressources qui
+    existent déjà : collection, decks, composition, versement d'un produit. Le
+    catalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md
+    §11) et les parties, tournois et participations attendent le Lot 4 — les
+    ajouter ici avant qu'elles aient une route serait promettre une
+    synchronisation sans destination.
+
+    Les langues n'y sont pas non plus : `POST /langues` reste une écriture en
+    ligne. Une saisie hors ligne dans une langue inconnue du serveur doit se
+    rabattre sur « XX » (autre), cf. le point ouvert du rapport de lot.
+
+    Deux nuances de vocabulaire par rapport aux routes REST :
+
+    * `stock.upsert` et `deck_card.upsert` créent **ou** remplacent l'entrée,
+      là où REST distingue `POST` et `PATCH`. Une file rejouée n'a pas de
+      garantie sur ce que le serveur possède déjà ; l'upsert rend l'ordre des
+      opérations indifférent et la charge utile porte l'état complet voulu.
+    * il n'y a pas d'opération d'archivage : archiver, c'est `deck.update` avec
+      `archived`, exactement comme `PATCH /decks/{id}`.
+    """
+
+    STOCK_UPSERT = "stock.upsert"
+    STOCK_DELETE = "stock.delete"
+    DECK_CREATE = "deck.create"
+    DECK_UPDATE = "deck.update"
+    DECK_DELETE = "deck.delete"
+    DECK_CARD_UPSERT = "deck_card.upsert"
+    DECK_CARD_DELETE = "deck_card.delete"
+    BUNDLE_DEPOSIT = "bundle.deposit"
+
+
+class SyncOperationStatus(StrEnum):
+    """Verdict rendu par le serveur sur une opération, tel qu'il est journalisé.
+
+    Deux valeurs seulement : une opération a été appliquée, ou refusée. Le
+    « rejouée » que voit le client (`SyncOutcome`) n'est pas un état stocké
+    mais la façon dont le journal a répondu — le verdict mémorisé, lui, reste
+    l'un de ces deux-là.
+    """
+
+    APPLIED = "applied"
+    REJECTED = "rejected"
+
+
+class SyncErrorCode(StrEnum):
+    """Motif de refus d'une opération, lisible par la machine.
+
+    Les trois premiers reprennent les erreurs métier des services
+    (`app.services.errors`), qui restent la seule autorité sur les règles :
+    `not_found` ← `NotFoundError`, `conflict` ← `ConflictError`, `invalid` ←
+    `InvalidRequestError`. Les deux derniers sont propres à la
+    synchronisation.
+    """
+
+    NOT_FOUND = "not_found"
+    CONFLICT = "conflict"
+    INVALID = "invalid"
+    UNRESOLVED_CLIENT_REF = "unresolved_client_ref"
+    MISMATCHED_REPLAY = "mismatched_replay"
+
+
+class SyncResourceKind(StrEnum):
+    """Nature de la ressource touchée par une opération de synchronisation."""
+
+    CARD_COPY = "card_copy"
+    DECK = "deck"
+    DECK_CARD = "deck_card"
+    BUNDLE = "bundle"

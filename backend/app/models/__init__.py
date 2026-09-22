@@ -9,7 +9,8 @@ Découpage :
 * `reference` — listes de référence (langues, clans, disciplines, extensions…) ;
 * `catalog`   — le catalogue VEKN, identité de carte sans langue ;
 * `collection`— la collection possédée (langue, proxy) et les decks ;
-* `play`      — joueurs, parties, tournois, participations.
+* `play`      — joueurs, parties, tournois, participations ;
+* `sync`      — journal d'idempotence de la file hors ligne (`POST /sync`).
 """
 
 from app.models.base import Base, TimestampMixin
@@ -30,6 +31,10 @@ from app.models.enums import (
     DisciplineRequirement,
     PrintOccurrence,
     RoundType,
+    SyncErrorCode,
+    SyncOperationStatus,
+    SyncOperationType,
+    SyncResourceKind,
     TournamentFormat,
 )
 from app.models.play import Game, Participation, Player, Tournament
@@ -43,6 +48,7 @@ from app.models.reference import (
     Sect,
     Venue,
 )
+from app.models.sync import SyncOperation
 
 __all__ = [
     "Base",
@@ -73,6 +79,11 @@ __all__ = [
     "PrintOccurrence",
     "RoundType",
     "Sect",
+    "SyncErrorCode",
+    "SyncOperation",
+    "SyncOperationStatus",
+    "SyncOperationType",
+    "SyncResourceKind",
     "TimestampMixin",
     "TournamentFormat",
     "Tournament",
