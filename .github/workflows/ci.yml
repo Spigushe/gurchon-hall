@@ -74,6 +74,23 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Les e2e du projet Playwright « real-backend » (frontend/tests/e2e-real,
+      # Lot 3) démarrent le VRAI back : uvicorn, sur une base SQLite jetable
+      # migrée par Alembic et remplie avec l'échantillon figé du catalogue
+      # (frontend/tests/e2e-real/support/backend.ts). Il leur faut donc le venv
+      # du back, `backend/.venv`, dont le python est lancé directement. Aucun
+      # service à démarrer à part : le harnais lance et arrête le back lui-même,
+      # test par test, sur le port de frontend/.env.e2e (8765).
+      - name: Setup uv (back de test des e2e real-backend)
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          working-directory: backend
+          enable-cache: true
+
+      - name: Install backend (uv sync, pour les e2e real-backend)
+        working-directory: backend
+        run: uv sync --extra dev
+
       - name: Lint frontend (eslint)
         working-directory: frontend
         run: npm run lint
@@ -117,11 +134,15 @@ jobs:
         working-directory: frontend
         run: npx playwright install --with-deps chromium
 
-      # npm run test:e2e relance son propre build (cf. frontend/package.json :
-      # "test:e2e": "npm run build && playwright test") ; l'étape de build
-      # explicite ci-dessus reste utile car elle isole le contrôle
-      # d'installabilité du comportement interne du script e2e.
-      - name: Tests e2e frontend (Playwright, dont scénario offline)
+      # npm run test:e2e relance ses propres builds (cf. frontend/package.json :
+      # "test:e2e": "npm run build && npm run build:e2e && playwright test") ;
+      # l'étape de build explicite ci-dessus reste utile car elle isole le
+      # contrôle d'installabilité du comportement interne du script e2e. Le
+      # second build (`dist-real`, mode `e2e`) compile l'URL du back de test.
+      # Deux projets Playwright tournent ici : `chromium` (sans API) et
+      # `real-backend` (contre le vrai back, scénarios offline complets,
+      # idempotence, refus, deux onglets, parité de recherche).
+      - name: Tests e2e frontend (Playwright : app shell, offline, vrai back)
         if: steps.fe_scripts.outputs.has_e2e == 'true'
         working-directory: frontend
         run: npm run test:e2e

@@ -20,6 +20,7 @@ import tseslint from "typescript-eslint";
 export default defineConfig([
   globalIgnores([
     "dist",
+    "dist-real",
     "coverage",
     "playwright-report",
     "test-results",

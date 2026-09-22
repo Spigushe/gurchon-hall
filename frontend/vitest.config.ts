@@ -14,5 +14,17 @@ export default defineConfig({
     include: ["tests/unit/**/*.test.{ts,tsx}"],
     css: false,
     restoreMocks: true,
+    // Marge de délai, pas un `retry` : un test qui échoue échoue toujours, il a
+    // seulement le temps de finir quand la machine est chargée (deux lancements
+    // en parallèle, premier lancement à froid, CI partagée). Mesuré : les tests
+    // UI les plus lents durent 0,3 s à vide et ~2 s sous une charge 6 fois
+    // supérieure au nombre de coeurs ; le défaut de vitest (5 s) laissait moins
+    // de 2,5 fois de marge, et le parcours exhaustif de `foldText` (voir son
+    // fichier) le dépassait. 15 s = trois fois le défaut ; un vrai blocage se
+    // signale toujours, seulement plus tard. Les détecteurs d'interblocage des
+    // tests (`within(..., 2000)`) restent plus courts que ce délai et parlent
+    // les premiers.
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
   },
 });
