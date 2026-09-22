@@ -122,7 +122,8 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  ├─ src/ (features, components, api-client généré, offline/)
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
-├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md)
+├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
+│                               design (ex. design-handoff-mobile/, Lot 7)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -695,7 +696,11 @@ Tranchées pendant le Lot 3 :
    (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
    vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
    préciser. À prendre de préférence avant le Lot 4, pour que la saisie des parties
-   hérite du nouveau socle visuel au lieu d'être reprise deux fois.
+   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
+   disponible, lot non commencé : un handoff de design (direction « 1b », design system
+   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
+   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
+   routes, mêmes données, même sémantique offline).
 9. **Lot 8 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
    (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 2 (stock par langue,
    `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg

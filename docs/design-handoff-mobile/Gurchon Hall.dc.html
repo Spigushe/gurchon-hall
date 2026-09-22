@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  body { margin: 0; background: #0d0e16; }
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: var(--color-accent-400); }
+  i[class^="ph"] { display: block; }
+</style>
+</helmet>
+
+<section style="padding:56px 64px 40px;display:flex;flex-direction:column;gap:40px;font-family:var(--font-body);color:var(--color-text)">
+  <div id="2a" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">2a</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Écrans restants — direction 1b, prêts pour implémentation</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">decks, création, sync, correction, versement, états</span>
+    </div>
+
+    <div style="display:flex;gap:28px;flex-wrap:wrap">
+
+      <div id="shot-2a-decks" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:18</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:26px 26px 176px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Decks</h3>
+            <span style="font-size:13px;color:var(--color-neutral-400)">6 decks · lecture locale</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+            <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-neutral-500)"></i>
+            <span style="font-size:15px;color:var(--color-neutral-500)">Filtrer par nom</span>
+          </div>
+          <div style="display:flex;gap:20px;font-size:13px">
+            <span style="font-family:var(--font-heading);border-bottom:2px solid var(--color-accent);padding-bottom:5px">En cours</span>
+            <span style="color:var(--color-neutral-500);padding-bottom:5px">Archivés</span>
+            <span style="color:var(--color-neutral-500);padding-bottom:5px">Tous</span>
+          </div>
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:18px">Toreador Mass Vote</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">#0001 · actif · vote</span>
+              </div>
+              <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:18px">Nosferatu Rush</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">#0004 · brouillon · combat</span>
+              </div>
+              <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:18px">Ventrue Grinder</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">numéro à l'attribution · brouillon</span>
+                <span style="font-size:12px;color:var(--color-accent-300);display:flex;align-items:center;gap:6px"><i class="ph ph-clock-countdown" style="font-size:14px"></i>En attente de synchronisation</span>
+              </div>
+              <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:18px">Malkavian Bleed</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">#0002 · actif · bleed</span>
+              </div>
+              <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+            </div>
+          </div>
+        </div>
+        <div style="position:absolute;left:26px;right:26px;bottom:104px;display:flex">
+          <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Nouveau deck</span>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-cards" style="font-size:22px"></i>Decks</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+        </div>
+      </div>
+
+      <div id="shot-2a-nouveau-deck" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:19</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:24px;padding:22px 26px 26px;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <h3 style="font-size:28px;margin:0;letter-spacing:-.02em">Nouveau deck</h3>
+            <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Nom du deck</span>
+            <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--color-accent);padding:0 2px 10px;min-height:44px">
+              <span style="font-size:17px">Ventrue Grinder</span>
+              <span style="width:1px;height:20px;background:var(--color-accent)"></span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Archétype (facultatif)</span>
+            <div style="display:flex;align-items:center;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <span style="font-size:17px;color:var(--color-neutral-500)">ex. grind, vote, combat</span>
+            </div>
+          </div>
+          <p style="margin:0;font-size:13px;color:var(--color-neutral-400);border-left:2px solid var(--color-divider);padding-left:14px">Le deck est créé en brouillon. Le serveur lui attribuera son numéro (« #0001 ») à la synchronisation.</p>
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+            <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Créer le deck</span>
+            <span style="font-size:12px;color:var(--color-neutral-500);text-align:center">Créé sur cet appareil, envoyé au prochain réseau</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="shot-2a-synchronisation" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:33</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:26px 26px 112px;overflow:hidden">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Synchronisation</span>
+            <h3 style="font-size:28px;margin:0;letter-spacing:-.02em">Hors ligne</h3>
+            <span style="font-size:14px;color:var(--color-neutral-300)">3 opérations en attente · nouvel essai à 21:36</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;border-left:2px solid var(--color-accent);padding-left:16px">
+            <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-200)">2 opérations refusées</span>
+            <span style="font-size:13px;color:var(--color-neutral-400)">Le serveur n'a pas appliqué ces saisies : elles n'ont aucun effet sur vos données. Renvoyez d'abord une création de deck refusée.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column">
+            <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <span style="font-size:15px">Ajouter 2 × Govern the Unaligned au deck #0001</span>
+              <span style="font-size:13px;color:var(--color-accent-200)">Règle de gestion non respectée : la carte n'est pas encore légale.</span>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Saisie du 21/09/2026 21:12</span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+                <span style="font-size:13px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent);display:flex;align-items:center">Corriger et renvoyer</span>
+                <span style="font-size:13px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300);display:flex;align-items:center">Renvoyer tel quel</span>
+                <span style="font-size:13px;min-height:40px;padding:0 14px;color:var(--color-accent-300);display:flex;align-items:center">Abandonner</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;padding:18px 0;border-top:1px solid var(--color-divider)">
+              <span style="font-size:15px">Créer le deck « Ventrue Grinder »</span>
+              <span style="font-size:13px;color:var(--color-accent-200)">Données invalides : le nom est déjà utilisé.</span>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Saisie du 21/09/2026 21:08</span>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+                <span style="font-size:13px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent);display:flex;align-items:center">Corriger et renvoyer</span>
+                <span style="font-size:13px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300);display:flex;align-items:center">Renvoyer tel quel</span>
+                <span style="font-size:13px;min-height:40px;padding:0 14px;color:var(--color-accent-300);display:flex;align-items:center">Abandonner</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-house" style="font-size:22px"></i>Atelier</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+        </div>
+      </div>
+
+      <div id="shot-2a-corriger" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:34</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:22px 26px 26px;overflow:hidden">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Opération refusée</span>
+              <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Corriger</h3>
+            </div>
+            <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--color-accent);padding-left:16px">
+            <span style="font-size:15px">Ajouter 2 × Govern the Unaligned au deck #0001</span>
+            <span style="font-size:13px;color:var(--color-accent-200)">Règle de gestion non respectée : la carte n'est pas encore légale.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Carte</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <span style="font-size:17px">Govern the Unaligned</span>
+              <span style="font-size:13px;color:var(--color-accent)">Changer</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Exemplaires</span>
+            <div style="display:flex;align-items:center;gap:20px">
+              <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:20px">−</span>
+              <span style="font-family:var(--font-heading);font-size:30px;font-variant-numeric:tabular-nums;min-width:32px;text-align:center">1</span>
+              <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:20px">+</span>
+            </div>
+          </div>
+
+          <p style="margin:0;font-size:13px;color:var(--color-neutral-400)">Renvoyer crée une nouvelle opération : la clé refusée n'est jamais rejouée telle quelle.</p>
+
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+            <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Renvoyer la correction</span>
+            <span style="min-height:44px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--color-accent-300)">Abandonner la saisie</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="shot-2a-verser-produit" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:40</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:22px 26px 176px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;color:var(--color-neutral-400);font-size:14px">
+            <i class="ph ph-arrow-left" style="font-size:20px"></i> Collection
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <h3 style="font-size:28px;margin:0;letter-spacing:-.02em">Verser un produit</h3>
+            <span style="font-size:13px;color:var(--color-neutral-400)">Précon ou boîte : tout son contenu entre en collection.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Produit</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <span style="font-size:17px">Fifth Edition — Nosferatu (5E-NOS)</span>
+              <span style="font-size:13px;color:var(--color-accent)">Changer</span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">77 cartes · la recherche d'un produit demande le réseau</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Langue du produit</span>
+            <div style="display:flex;gap:8px">
+              <span style="font-size:14px;min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)">FR</span>
+              <span style="font-size:14px;min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">EN</span>
+              <span style="font-size:14px;min-height:44px;padding:0 14px;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400)">Autre<i class="ph ph-caret-down" style="font-size:14px"></i></span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Nombre de produits</span>
+            <div style="display:flex;align-items:center;gap:20px">
+              <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:20px">−</span>
+              <span style="font-family:var(--font-heading);font-size:30px;font-variant-numeric:tabular-nums;min-width:32px;text-align:center">1</span>
+              <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:20px">+</span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">Entier entre 1 et 1000</span>
+          </div>
+        </div>
+        <div style="position:absolute;left:26px;right:26px;bottom:104px;display:flex;flex-direction:column;gap:8px">
+          <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Verser dans la collection</span>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-stack" style="font-size:22px"></i>Collection</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+        </div>
+      </div>
+
+      <div id="shot-2a-etats" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:42</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:26px;padding:26px 26px 112px;overflow:hidden">
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">États — même gabarit, trois cas</span>
+
+          <div style="display:flex;flex-direction:column;gap:10px;padding-bottom:24px;border-bottom:1px solid var(--color-divider)">
+            <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Collection vide</h3>
+            <span style="font-size:14px;color:var(--color-neutral-400)">Aucune carte en collection pour l'instant. Ajoutez-en une, ou versez un produit entier.</span>
+            <div style="display:flex;gap:10px;margin-top:4px">
+              <span style="min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent);font-family:var(--font-heading);font-size:14px;display:flex;align-items:center;gap:8px"><i class="ph ph-plus" style="font-size:16px"></i>Ajouter une carte</span>
+              <span style="min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300);font-size:14px;display:flex;align-items:center">Verser un produit</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:24px;border-bottom:1px solid var(--color-divider)">
+            <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Chargement</h3>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="height:17px;width:62%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span>
+                <span style="height:12px;width:40%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="height:17px;width:48%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span>
+                <span style="height:12px;width:54%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span>
+              </div>
+            </div>
+            <span style="font-size:13px;color:var(--color-neutral-500)">Lecture du miroir local — aucun appel réseau.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Page introuvable</h3>
+            <span style="font-size:14px;color:var(--color-neutral-400)">Cette adresse ne correspond à rien dans l'application.</span>
+            <span style="font-size:14px;color:var(--color-accent-300)">Retour à l'atelier →</span>
+          </div>
+        </div>
+        <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-stack" style="font-size:22px"></i>Collection</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section style="padding:0 64px 96px;display:flex;flex-direction:column;gap:40px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:720px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · PWA VtES · deux directions</div>
+    <h2 style="font-size:30px;margin:0">Refonte mobile — deckbuilding à la maison</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:60ch">Même design system (Nocturne, fond sombre), deux structures. <a href="#1a">1a</a> pose des cartes de surface et une barre d'onglets pleine largeur ; <a href="#1b">1b</a> reste typographique et aligné à gauche, sur la même barre d'onglets pleine largeur. L'état hors-ligne n'apparaît que lorsqu'il y a un problème.</p>
+  </div>
+
+  <div style="display:flex;flex-wrap:wrap;gap:64px;align-items:flex-start">
+
+    <div id="1a" style="display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1a</span>
+        <span style="font-family:var(--font-heading);font-size:19px">Surfaces — cartes et onglets</span>
+        <span style="font-size:13px;color:var(--color-neutral-500)">tout est un objet tappable</span>
+      </div>
+
+      <div style="display:flex;gap:28px">
+
+        <div id="shot-1a-accueil" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:14</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:24px 22px 110px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall</span>
+              <h3 style="font-size:27px;margin:0">Bonsoir, Spigushe</h3>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow-sm)">
+                <i class="ph ph-stack" style="font-size:20px;color:var(--color-accent)"></i>
+                <span style="font-family:var(--font-heading);font-size:26px;letter-spacing:-.02em">412</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">entrées en collection</span>
+              </div>
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow-sm)">
+                <i class="ph ph-cards" style="font-size:20px;color:var(--color-accent)"></i>
+                <span style="font-family:var(--font-heading);font-size:26px;letter-spacing:-.02em">6</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">decks actifs</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ syncAlert }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:12px;align-items:flex-start;background:var(--color-accent-900);border-radius:var(--radius-md);padding:14px 16px">
+                <i class="ph-fill ph-warning-circle" style="font-size:18px;color:var(--color-accent-300);margin-top:2px"></i>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-family:var(--font-heading);font-size:14px">2 opérations refusées</span>
+                  <span style="font-size:13px;color:var(--color-neutral-300)">Hors ligne depuis 14 min. Les écritures attendent le réseau.</span>
+                  <a href="#1a" style="font-size:13px;color:var(--color-accent-300)">Voir la file →</a>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Reprendre</span>
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                  <div style="display:flex;flex-direction:column;gap:3px">
+                    <span style="font-family:var(--font-heading);font-size:17px">Toreador Mass Vote</span>
+                    <span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 78 bibliothèque</span>
+                  </div>
+                  <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-accent-800);color:var(--color-accent-200)">Actif</span>
+                </div>
+                <div style="height:1px;background:var(--color-divider)"></div>
+                <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-300)">
+                  <i class="ph-fill ph-check-circle" style="font-size:16px;color:var(--color-accent-400)"></i>
+                  Légal — verdict du 21/09
+                </div>
+              </div>
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <span style="font-family:var(--font-heading);font-size:17px">Nosferatu Rush</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">10 crypte · 54 bibliothèque</span>
+                </div>
+                <span style="font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">Brouillon</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--color-neutral-500)">
+              <i class="ph ph-database" style="font-size:16px"></i>
+              Catalogue à jour — 3 812 cartes
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-house" style="font-size:22px"></i>Accueil</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1a-collection" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:16</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:22px 22px 110px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <h3 style="font-size:25px;margin:0">Collection</h3>
+              <span style="font-size:13px;color:var(--color-neutral-400)">412 entrées · comptées par langue</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;background:var(--color-surface);border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:10px 12px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-neutral-500)"></i>
+              <span style="font-size:14px;color:var(--color-neutral-500)">Filtrer par nom</span>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <span style="font-size:13px;padding:7px 14px;border-radius:999px;background:var(--color-accent-800);color:var(--color-accent-100)">Toutes</span>
+              <span style="font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">EN</span>
+              <span style="font-size:13px;padding:7px 14px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">FR</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font-family:var(--font-heading);font-size:16px">Theo Bell (G2, Adv)</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Crypte · Brujah · capacité 8</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                  <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-neutral-900);color:var(--color-neutral-300)">EN</span>
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:18px">−</span>
+                    <span style="font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums;min-width:18px;text-align:center">3</span>
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font-family:var(--font-heading);font-size:16px">Govern the Unaligned</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Bibliothèque · Action</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                  <div style="display:flex;gap:6px">
+                    <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-neutral-900);color:var(--color-neutral-300)">FR</span>
+                    <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-accent-900);color:var(--color-accent-200)">Proxy autorisé</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:18px">−</span>
+                    <span style="font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums;min-width:18px;text-align:center">6</span>
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <span style="font-family:var(--font-heading);font-size:16px">Villein</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Bibliothèque · Master</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+                  <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-neutral-900);color:var(--color-neutral-300)">EN</span>
+                  <div style="display:flex;align-items:center;gap:14px">
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:18px">−</span>
+                    <span style="font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums;min-width:18px;text-align:center">4</span>
+                    <span style="width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:absolute;right:20px;bottom:104px;width:56px;height:56px;border-radius:999px;background:var(--color-accent-900);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-md)">
+            <i class="ph ph-plus" style="font-size:24px;color:var(--color-accent-200)"></i>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Accueil</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1a-deck" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:22</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:18px 22px 110px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;color:var(--color-neutral-400);font-size:14px">
+              <i class="ph ph-arrow-left" style="font-size:20px"></i> Decks
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <h3 style="font-size:25px;margin:0">Toreador Mass Vote</h3>
+              <div style="display:flex;gap:8px;align-items:center">
+                <span style="font-size:12px;padding:3px 9px;border-radius:999px;background:var(--color-accent-800);color:var(--color-accent-100)">Actif</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">modifié il y a 2 h</span>
+              </div>
+            </div>
+
+            <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-sm)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Légalité</span>
+                <i class="ph ph-arrows-clockwise" style="font-size:17px;color:var(--color-accent)"></i>
+              </div>
+              <sc-if value="{{ legal }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <i class="ph-fill ph-check-circle" style="font-size:22px;color:var(--color-accent-400)"></i>
+                  <div style="display:flex;flex-direction:column">
+                    <span style="font-family:var(--font-heading);font-size:17px">Deck légal</span>
+                    <span style="font-size:13px;color:var(--color-neutral-400)">verdict du 21/09/2026</span>
+                  </div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ illegal }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:10px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    <i class="ph-fill ph-x-circle" style="font-size:22px;color:var(--color-accent-300)"></i>
+                    <div style="display:flex;flex-direction:column">
+                      <span style="font-family:var(--font-heading);font-size:17px">Deck illégal</span>
+                      <span style="font-size:13px;color:var(--color-neutral-400)">verdict du 21/09/2026</span>
+                    </div>
+                  </div>
+                  <p style="margin:0;font-size:13px;color:var(--color-accent-200);background:var(--color-accent-900);border-radius:var(--radius-md);padding:10px 12px">Ce deck est actif mais n'est plus légal. Corrigez-le ou repassez-le en brouillon.</p>
+                </div>
+              </sc-if>
+              <div style="height:1px;background:var(--color-divider)"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-family:var(--font-heading);font-size:20px;font-variant-numeric:tabular-nums">12</span>
+                  <span style="font-size:12px;color:var(--color-neutral-400)">crypte · min 12</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px">
+                  <span style="font-family:var(--font-heading);font-size:20px;font-variant-numeric:tabular-nums">78</span>
+                  <span style="font-size:12px;color:var(--color-neutral-400)">bibliothèque · 60–90</span>
+                </div>
+              </div>
+              <div style="font-size:13px;color:var(--color-neutral-300)">Groupes de la crypte : 4, 5</div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Crypte</span>
+                <span style="font-size:13px;color:var(--color-neutral-500)">12 cartes</span>
+              </div>
+              <div style="background:var(--color-surface);border-radius:var(--radius-lg);padding:4px 16px;box-shadow:var(--shadow-sm)">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--color-divider)">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:15px">Anneke (G4)</span>
+                    <span style="font-size:12px;color:var(--color-neutral-500)">Toreador · capacité 7</span>
+                  </div>
+                  <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-300)">×2</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--color-divider)">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:15px">Lodin (G4, Adv)</span>
+                    <span style="font-size:12px;color:var(--color-neutral-500)">Ventrue · capacité 9</span>
+                  </div>
+                  <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-300)">×1</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:13px 0">
+                  <div style="display:flex;flex-direction:column;gap:2px">
+                    <span style="font-size:15px">Victoria Ash (G5)</span>
+                    <span style="font-size:12px;color:var(--color-neutral-500)">Toreador · capacité 9</span>
+                  </div>
+                  <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-300)">×3</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Accueil</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1a-ajouter" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:25</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:18px 22px;overflow:hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-family:var(--font-heading);font-size:18px">Ajouter une carte</span>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;background:var(--color-surface);border:1px solid var(--color-accent);border-radius:var(--radius-md);padding:10px 12px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-accent)"></i>
+              <span style="font-size:15px">govern</span>
+              <span style="width:1px;height:18px;background:var(--color-accent);margin-left:1px"></span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">3 résultats dans le catalogue local</span>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="background:var(--color-accent-900);border-radius:var(--radius-md);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:3px">
+                  <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-100)">Govern the Unaligned</span>
+                  <span style="font-size:12px;color:var(--color-accent-200)">Bibliothèque · Action · Dominate</span>
+                </div>
+                <i class="ph-fill ph-check-circle" style="font-size:20px;color:var(--color-accent-300)"></i>
+              </div>
+              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:3px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-size:15px">Governed Territory</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Master</span>
+              </div>
+              <div style="padding:14px 16px;display:flex;flex-direction:column;gap:3px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-size:15px">Sela (G6)</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Crypte · Gangrel · capacité 6</span>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:16px;background:var(--color-surface);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-md)">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font-family:var(--font-heading);font-size:16px">Govern the Unaligned</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">En collection : 6 · déjà 4 dans ce deck</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Exemplaires à ajouter</span>
+                <div style="display:flex;align-items:center;gap:18px">
+                  <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:20px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:24px;font-variant-numeric:tabular-nums;min-width:26px;text-align:center">2</span>
+                  <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:20px">+</span>
+                </div>
+              </div>
+              <div style="display:flex;gap:10px">
+                <span style="flex:1;min-height:48px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-300)">Annuler</span>
+                <span style="flex:2;min-height:48px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:15px;color:var(--color-accent)">Ajouter au deck</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:20px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b</span>
+        <span style="font-family:var(--font-heading);font-size:19px">Colonne — typographique, barre d’onglets</span>
+        <span style="font-size:13px;color:var(--color-neutral-500)">filets au lieu de cartes, barre de 1a</span>
+      </div>
+
+      <div style="display:flex;gap:28px">
+
+        <div id="shot-1b-atelier" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:14</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:30px;padding:30px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall</span>
+              <h3 style="font-size:34px;margin:0;letter-spacing:-.02em">Atelier</h3>
+              <span style="font-size:14px;color:var(--color-neutral-400)">Lundi 21 septembre · tout est local</span>
+            </div>
+
+            <div style="display:flex;gap:34px">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">412</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">entrées</span>
+              </div>
+              <div style="width:1px;background:var(--color-divider)"></div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">6</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">decks actifs</span>
+              </div>
+              <div style="width:1px;background:var(--color-divider)"></div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">2</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">brouillons</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ syncAlert }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:12px;align-items:flex-start;border-left:2px solid var(--color-accent);padding:2px 0 2px 14px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent-200)">2 opérations refusées</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Hors ligne depuis 14 min — les écritures attendent le réseau.</span>
+                  <a href="#1b" style="font-size:13px;color:var(--color-accent-300)">Corriger maintenant →</a>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);margin-bottom:12px">En cours</span>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:19px">Toreador Mass Vote</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 78 bibliothèque · légal</span>
+                </div>
+                <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:19px">Nosferatu Rush</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">10 crypte · 54 bibliothèque · brouillon</span>
+                </div>
+                <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:19px">Malkavian Bleed</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 90 bibliothèque · actif</span>
+                </div>
+                <i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent);margin-top:4px"></i>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:auto">
+              <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Catalogue à jour — 3 812 cartes, synchronisé à 20:41</span>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-house" style="font-size:22px"></i>Atelier</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1b-collection" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:16</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:24px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Collection</h3>
+              <span style="font-size:13px;color:var(--color-neutral-400)">412 entrées · une ligne par carte et par langue</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-neutral-500)"></i>
+              <span style="font-size:15px;color:var(--color-neutral-500)">Chercher dans ma collection</span>
+            </div>
+
+            <div style="display:flex;gap:20px;font-size:13px">
+              <span style="font-family:var(--font-heading);color:var(--color-text);border-bottom:2px solid var(--color-accent);padding-bottom:5px">Toutes</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Crypte</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Bibliothèque</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Proxy</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">Theo Bell (G2, Adv)</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Crypte · Brujah · capacité 8 · EN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex:none">
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400);font-size:18px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">3</span>
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">Govern the Unaligned</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Action · FR · proxy autorisé</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex:none">
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400);font-size:18px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">6</span>
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">Villein</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Master · EN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex:none">
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400);font-size:18px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">4</span>
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">Anneke (G4)</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Crypte · Toreador · capacité 7 · EN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex:none">
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400);font-size:18px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">2</span>
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                </div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:18px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">Deflection</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Reaction · EN</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;flex:none">
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400);font-size:18px">−</span>
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">8</span>
+                  <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:18px">+</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1b-deck" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:22</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:22px 26px 176px;overflow:hidden">
+            <i class="ph ph-arrow-left" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Deck actif</span>
+              <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Toreador Mass Vote</h3>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;border-left:2px solid var(--color-accent);padding-left:16px">
+              <sc-if value="{{ legal }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:21px;color:var(--color-accent-200)">Deck légal</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Verdict du serveur, 21/09/2026 · recalculer</span>
+                </div>
+              </sc-if>
+              <sc-if value="{{ illegal }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:21px;color:var(--color-accent-200)">Deck illégal</span>
+                  <span style="font-size:13px;color:var(--color-neutral-300)">Actif mais plus légal : corrigez-le ou repassez-le en brouillon.</span>
+                </div>
+              </sc-if>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-size:14px;color:var(--color-neutral-400)">Crypte</span>
+                <span style="font-family:var(--font-heading);font-size:16px;font-variant-numeric:tabular-nums">12 <span style="font-size:12px;color:var(--color-neutral-500)">/ min 12</span></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-size:14px;color:var(--color-neutral-400)">Bibliothèque</span>
+                <span style="font-family:var(--font-heading);font-size:16px;font-variant-numeric:tabular-nums">78 <span style="font-size:12px;color:var(--color-neutral-500)">/ 60–90</span></span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-size:14px;color:var(--color-neutral-400)">Groupes</span>
+                <span style="font-family:var(--font-heading);font-size:16px">4, 5</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:14px;color:var(--color-neutral-400)">Cartes bannies</span>
+                <span style="font-family:var(--font-heading);font-size:16px">aucune</span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Composition</span>
+                <span style="font-size:12px;color:var(--color-accent)">Tout voir</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-size:15px">Victoria Ash (G5)</span>
+                <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-400)">×3</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-size:15px">Anneke (G4)</span>
+                <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-400)">×2</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-size:15px">Govern the Unaligned</span>
+                <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-400)">×4</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:absolute;left:26px;right:26px;bottom:104px;display:flex;gap:10px">
+            <span style="flex:1;min-height:48px;border-radius:999px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:15px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Ajouter des cartes</span>
+            <span style="width:48px;min-height:48px;border-radius:999px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)"><i class="ph ph-dots-three" style="font-size:20px"></i></span>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+        <div id="shot-1b-ajouter" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:25</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:22px 26px 26px;overflow:hidden">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Toreador Mass Vote</span>
+                <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Ajouter</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--color-accent);padding:0 2px 10px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-accent)"></i>
+              <span style="font-size:16px">govern</span>
+              <span style="width:1px;height:20px;background:var(--color-accent)"></span>
+            </div>
+
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-200)">Govern the Unaligned</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Action · en collection : 6</span>
+                </div>
+                <span style="font-family:var(--font-heading);font-size:13px;color:var(--color-accent)">+2</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:17px">Governed Territory</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Master · en collection : 2</span>
+                </div>
+                <i class="ph ph-plus" style="font-size:18px;color:var(--color-accent)"></i>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:17px">Sela (G6)</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Crypte · Gangrel · capacité 6 · absente</span>
+                </div>
+                <i class="ph ph-plus" style="font-size:18px;color:var(--color-accent)"></i>
+              </div>
+            </div>
+
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:14px">
+              <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:13px;color:var(--color-neutral-400)">Panier</span>
+                <span style="font-family:var(--font-heading);font-size:15px">3 cartes · 5 exemplaires</span>
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">Govern ×2</span>
+                <span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">Villein ×2</span>
+                <span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-300)">Sela ×1</span>
+              </div>
+              <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Enregistrer dans le deck</span>
+              <span style="font-size:12px;color:var(--color-neutral-500);text-align:center">Enregistré localement, envoyé au prochain réseau</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="shot-1b-modifier-entree" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:31</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:22px 26px 176px;overflow:hidden">
+            <div style="display:flex;align-items:center;gap:12px;color:var(--color-neutral-400);font-size:14px">
+              <i class="ph ph-arrow-left" style="font-size:20px"></i> Collection
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Modifier une entrée</span>
+              <h3 style="font-size:28px;margin:0;letter-spacing:-.02em">Theo Bell (G2, Adv)</h3>
+              <span style="font-size:13px;color:var(--color-neutral-400)">Crypte · Brujah · capacité 8</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Langue</span>
+              <div style="display:flex;gap:8px">
+                <span style="font-size:14px;min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)">EN</span>
+                <span style="font-size:14px;min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">FR</span>
+                <span style="font-size:14px;min-height:44px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">ES</span>
+                <span style="font-size:14px;min-height:44px;padding:0 14px;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400)">Autre<i class="ph ph-caret-down" style="font-size:14px"></i></span>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Une ligne par carte et par langue : changer la langue crée une autre entrée.</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Exemplaires possédés</span>
+              <div style="display:flex;align-items:center;gap:20px">
+                <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300);font-size:20px">−</span>
+                <span style="font-family:var(--font-heading);font-size:30px;font-variant-numeric:tabular-nums;min-width:32px;text-align:center">3</span>
+                <span style="width:48px;height:48px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent);font-size:20px">+</span>
+              </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:15px">Proxy autorisé</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Compté comme jouable en partie amicale</span>
+              </div>
+              <span style="width:46px;height:28px;border-radius:999px;background:var(--color-accent-800);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:flex-end;padding:0 3px;flex:none"><span style="width:22px;height:22px;border-radius:999px;background:var(--color-accent-200)"></span></span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Notes</span>
+                <span style="font-size:13px;color:var(--color-accent-300);display:flex;align-items:center;gap:6px"><i class="ph ph-trash" style="font-size:15px"></i>Retirer</span>
+              </div>
+              <div style="min-height:88px;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:var(--color-surface);padding:12px 14px;font-size:14px;color:var(--color-neutral-300)">Deux exemplaires prêtés à Marc — rendus au prochain tournoi.</div>
+            </div>
+
+          </div>
+
+          <div style="position:absolute;left:26px;right:26px;bottom:104px;display:flex;gap:10px">
+            <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Enregistrer</span>
+          </div>
+
+          <div style="position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);padding:10px 14px 26px;background:var(--color-surface);border-top:1px solid var(--color-divider)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-house" style="font-size:22px"></i>Atelier</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-accent);font-size:11px;min-height:44px;justify-content:center"><i class="ph-fill ph-stack" style="font-size:22px"></i>Collection</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-cards" style="font-size:22px"></i>Decks</div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--color-neutral-500);font-size:11px;min-height:44px;justify-content:center"><i class="ph ph-magnifying-glass" style="font-size:22px"></i>Chercher</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showSyncAlert&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;États&quot;},&quot;deckLegal&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;États&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const legal = (this.props.deckLegal ?? true) === true;
+    return {
+      syncAlert: (this.props.showSyncAlert ?? true) === true,
+      legal,
+      illegal: !legal,
+    };
+  }
+}
+</script>
+</body>
+</html>
