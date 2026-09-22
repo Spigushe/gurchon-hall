@@ -1,64 +1,65 @@
-import { act, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import App from "../../src/App";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { renderApp, setOnline } from "./ui/harness";
 
-function setNavigatorOnLine(value: boolean) {
-  Object.defineProperty(window.navigator, "onLine", {
-    configurable: true,
-    value,
-  });
-}
+describe("<App /> : coquille", () => {
+  it("affiche l'app shell (titre) sans aucun appel réseau quand on est hors ligne", async () => {
+    const { server, ui } = await renderApp({ online: false });
 
-describe("<App />", () => {
-  afterEach(() => {
-    setNavigatorOnLine(true);
-  });
-
-  it("affiche l'app shell (titre) sans aucun appel réseau", () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-
-    render(<App />);
-
-    expect(screen.getByRole("heading", { name: /gurchon hall/i })).toBeInTheDocument();
-    expect(fetchSpy).not.toHaveBeenCalled();
-
-    vi.unstubAllGlobals();
+    expect(screen.getByRole("heading", { name: /gurchon hall/i, level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Navigation principale" })).toBeInTheDocument();
+    expect(await screen.findByTestId("home-page")).toBeInTheDocument();
+    expect(server.state.requests).toEqual([]);
+    expect(ui.requests).toEqual([]);
   });
 
-  it("affiche « En ligne » quand navigator.onLine est vrai", () => {
-    setNavigatorOnLine(true);
-    render(<App />);
+  it("garde le texte de la coquille et un seul indicateur role=status (contrat des tests e2e)", async () => {
+    await renderApp({ online: false });
 
-    const status = screen.getByRole("status");
-    expect(status).toHaveTextContent("En ligne");
+    expect(
+      screen.getByText(
+        "Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour l'expérience hors-ligne (PWA).",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
-  it("bascule sur « Hors ligne » quand l'événement 'offline' survient", () => {
-    setNavigatorOnLine(true);
-    render(<App />);
+  it("affiche « En ligne » quand navigator.onLine est vrai", async () => {
+    await renderApp({ online: true });
+    expect(screen.getByRole("status")).toHaveTextContent("En ligne");
+  });
 
+  it("bascule sur « Hors ligne » puis revient « En ligne » avec les événements du navigateur", async () => {
+    await renderApp({ online: true });
     expect(screen.getByRole("status")).toHaveTextContent("En ligne");
 
-    act(() => {
-      setNavigatorOnLine(false);
-      window.dispatchEvent(new Event("offline"));
-    });
-
+    act(() => setOnline(false));
     expect(screen.getByRole("status")).toHaveTextContent("Hors ligne");
+
+    act(() => setOnline(true));
+    expect(screen.getByRole("status")).toHaveTextContent("En ligne");
   });
 
-  it("revient sur « En ligne » quand l'événement 'online' survient après une coupure", () => {
-    setNavigatorOnLine(false);
-    render(<App />);
+  it("navigue par le hash : collection, decks, page inconnue", async () => {
+    await renderApp({ online: false });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Hors ligne");
+    fireEvent.click(screen.getByTestId("nav-stock"));
+    expect(await screen.findByTestId("stock-page")).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/collection");
+    expect(screen.getByTestId("nav-stock")).toHaveAttribute("aria-current", "page");
+
+    fireEvent.click(screen.getByTestId("nav-decks"));
+    expect(await screen.findByTestId("decks-page")).toBeInTheDocument();
 
     act(() => {
-      setNavigatorOnLine(true);
-      window.dispatchEvent(new Event("online"));
+      window.location.hash = "#/nimportequoi";
     });
+    expect(await screen.findByTestId("not-found")).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole("status")).toHaveTextContent("En ligne");
+  it("ouvre directement la route du hash au chargement (rechargement hors ligne)", async () => {
+    await renderApp({ online: false, hash: "#/collection" });
+    expect(await screen.findByTestId("stock-page")).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).not.toBeNull());
   });
 });
