@@ -142,7 +142,7 @@ jobs:
       # Deux projets Playwright tournent ici : `chromium` (sans API) et
       # `real-backend` (contre le vrai back, scénarios offline complets,
       # idempotence, refus, deux onglets, parité de recherche).
-      - name: Tests e2e frontend (Playwright : app shell, offline, vrai back)
+      - name: "Tests e2e frontend (Playwright : app shell, offline, vrai back)"
         if: steps.fe_scripts.outputs.has_e2e == 'true'
         working-directory: frontend
         run: npm run test:e2e
