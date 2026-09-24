@@ -43,9 +43,9 @@ de `uv run python scripts/import_catalog.py`.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
 `/sync` — 23 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
-`/parties`, `/participations` : elles viennent au Lot 4. Une UI métier de consultation
+`/parties`, `/participations` : elles viennent au Lot 6. Une UI métier de consultation
 et de saisie existe pour la collection et les decks (`frontend/src/features/`,
-routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 4.
+routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 6.
 
 ---
 
@@ -76,7 +76,7 @@ plus fiable.
 | PWA | **vite-plugin-pwa** (Workbox) | manifest + service worker |
 | Stockage client | **IndexedDB** (via Dexie) | données locales + file d'attente offline |
 | Back | **FastAPI + Pydantic v2** | contrat OpenAPI généré |
-| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | mono-utilisateur ; migration Postgres possible plus tard |
+| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | pilote mono-utilisateur aujourd'hui ; modèle multi-utilisateur à prévoir ; migration Postgres possible plus tard |
 | Client API | **client TS typé généré** depuis l'OpenAPI | contract-first, pas de types réécrits à la main |
 
 > Versions précises à figer au démarrage (lockfiles). Ne pas épingler ici des
@@ -123,7 +123,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff-mobile/, Lot 7)
+│                               design (ex. design-handoff-mobile/, Lot 9)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -152,7 +152,10 @@ ici comme repères, pas comme vérités arrêtées.
   `banned_on`, jour inclus) ; aucune carte **pas encore légale** (jouable à partir de sa
   `legal_from`, jour inclus). Les deux dates se lisent à une date d'évaluation passée
   en paramètre, et une carte sans date est tenue pour jouable. Les proxies comptent
-  dans les effectifs.
+  dans les effectifs. L'autorisation de jouer des proxies est une propriété du deck
+  (`proxy_allowed`), car elle dépend du tournoi auquel le deck est destiné et non de
+  la carte ou de la collection ; le nombre de proxies reste porté par chaque ligne
+  (`proxy_quantity`), avec `quantity - proxy_quantity` exemplaires réels consommés.
 - **Partie** : en général **4 à 5 joueurs** (5 = table idéale). Table directionnelle
   (proie / prédateur) → siège éventuellement pertinent à enregistrer.
 - **Score** : **1 VP** par joueur évincé ; **+1 VP** au dernier survivant ; **+0.5 VP**
@@ -194,7 +197,7 @@ Cette révision ne touche qu'une table neuve, sans mode batch, et se rejoue hors
 | --- | --- | --- |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | `card_copy` PK (carte, langue) : `quantity_owned` + `proxy_allowed` ; `deck_card` PK (deck, carte, langue) avec **FK composite vers `card_copy`** : une carte hors collection est refusée en deck, un deck mélange les langues ; `quantity` + `proxy_quantity` ; `deleted_deck_card` reprend les mêmes colonnes **sans lien vers `card_copy`** — la decklist figée d'un deck supprimé ne réserve plus rien |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | cible à faire évoluer vers une identité d'inventaire **carte × langue × extension** : `quantity_owned` par exemplaire imprimé, et `proxy_allowed` au niveau du deck selon le tournoi visé ; `deck_card` et `deleted_deck_card` doivent conserver l'extension et leurs FK/comptabilités ; les règles de stock, les bundles, les recherches, les routes, le client offline et les écrans doivent tous distinguer deux impressions de même carte et langue |
 | Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
@@ -229,8 +232,9 @@ l'expose pas, il reste dans le texte de carte).
 colonne) → en logique de service + tests :
 
 - deck légal, les cinq règles du §5 — *fait au Lot 2* (`services/vtes_rules.py`) ;
-- comptabilité du stock : la somme des exemplaires réels alloués à travers les decks
-  vivants ne dépasse pas `quantity_owned` — *fait au Lot 2* (`services/stock.py`) ;
+- comptabilité du stock : la somme des exemplaires réels (`quantity - proxy_quantity`)
+  alloués à travers les decks vivants ne dépasse pas `quantity_owned` — *fait au
+  Lot 2* (`services/stock.py`) ;
 - tournoi mono-deck → toutes mes participations pointent le même deck ;
 - cohérence VP/GW **[à confirmer]** ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
@@ -413,9 +417,11 @@ Tranchées (contexte VtES, avant Lot 1) :
    `name_variants`, `variants`, `legal`, `formats`.
 
 2. **Une carte doit être en collection pour être ajoutée à un deck** — la
-   composition d'un deck s'appuie donc sur le stock possédé, pas sur une liste
-   logique déconnectée. Un **statut « proxy »** est nécessaire pour suivre les
-   cartes jouées en proxy (donc dans un deck sans être réellement possédées).
+  composition d'un deck s'appuie donc sur le stock possédé, pas sur une liste
+  logique déconnectée. Le deck porte `proxy_allowed`, une autorisation globale
+  indiquant qu'il est compatible avec un tournoi acceptant les proxies ; cette
+  propriété ne décrit ni la carte ni l'entrée de collection. Le nombre de
+  proxies reste porté par chaque ligne (`proxy_quantity`).
    Langues possibles pour une carte : **FR, ES, EN, ou autre** — les traductions
    officielles disponibles (krcg / vekn.net) sont fr et es ; « autre » reste
    possible pour les exemplaires possédés, d'où une table `language` ouverte.
@@ -427,7 +433,7 @@ Tranchées (contexte VtES, avant Lot 1) :
 
 *Résolu au Lot 1* : le modèle §6 a été révisé en conséquence — catalogue
 (`card`, sans langue) distinct des exemplaires possédés (`card_copy`, par langue,
-avec statut proxy), et composition de deck allouée depuis ces exemplaires
+), et composition de deck allouée depuis ces exemplaires
 (`deck_card`, FK composite vers `card_copy`).
 
 Tranchées pendant le Lot 1 :
@@ -449,14 +455,16 @@ Tranchées pendant le Lot 1 :
 
 Tranchées pendant le Lot 2, passe 1 :
 
-- **Sémantique du proxy** : `card_copy.proxy_allowed` reste un booléen (autorise à jouer
-  la carte en proxy, sans la posséder) ; le nombre de proxies vit sur la ligne de deck
-  (`deck_card.proxy_quantity`). Un proxy n'est pas un exemplaire possédé. Une ligne de
+- **Sémantique du proxy** : `deck.proxy_allowed` est un booléen global au deck, choisi
+  selon le tournoi visé : certains tournois refusent les proxies, d'autres les
+  acceptent. Le nombre de proxies vit sur la ligne de deck
+  (`deck_card.proxy_quantity`), un proxy n'est pas un exemplaire possédé. Une ligne de
   deck consomme donc `quantity - proxy_quantity` exemplaires réels, et la somme de ces
   consommations sur tous les decks ne peut pas dépasser `quantity_owned`. Refus en 409 :
-  exemplaires insuffisants, proxy non autorisé, baisse du stock sous ce qui est alloué,
-  interdiction du proxy alors qu'un deck en utilise, suppression d'une entrée encore
-  utilisée.
+  exemplaires insuffisants, proxy non autorisé par le deck, baisse du stock sous ce qui
+  est alloué, désactivation du proxy sur un deck qui en utilise, suppression d'une
+  entrée encore utilisée. Cette propriété de deck permettra aussi d'identifier plus
+  facilement les decks jouables dans un tournoi donné.
 - **Légalité et statut** : la légalité est calculée à la demande et ne bloque jamais la
   construction (un brouillon est incomplet par nature). Elle ne gate que le passage à
   `active`, en 409, que ce soit à la création ou par `PATCH` ; un deck déjà actif peut
@@ -688,27 +696,46 @@ Tranchées pendant le Lot 3 :
    limites restent ouvertes par décision assumée, pas par oubli : la course entre un lot
    et une écriture en ligne (§11), et le `downgrade` de la migration qui supprime le
    journal (§6, §11).
-5. **Lot 4 — Parties & tournois** : saisie, mono/multi-deck, participations.
-6. **Lot 5 — Analyse** : perf par deck, historique par lieu/date.
-7. **Lot 6 — Portage** : packager le socle offline pour barrins-project, côté code —
-   le déploiement de gurchon-hall lui-même est traité au Lot 9.
-8. **Lot 7 — Passe design** : reprendre l'UI React sur un design produit avec Claude
+5. **Lot 4 — Inventaire par impression** : faire évoluer l'identité de l'inventaire vers
+  **carte × langue × extension**. Créer la migration et le modèle de référence
+  nécessaires pour rattacher chaque exemplaire possédé à une impression/extension,
+  puis propager cette dimension à `card_copy`, `deck_card` et
+  `deleted_deck_card`, à la comptabilité du stock et aux règles de proxy. Le contrat
+  OpenAPI et le client TS devront exposer l'extension sur les lectures, écritures,
+  recherches, versements de bundles et opérations `/sync` ; l'import catalogue devra
+  préserver l'association carte × extension × occurrence. L'UI collection et decks,
+  le miroir IndexedDB, les clés de recherche locale, les conflits/idempotences et les
+  tests devront distinguer deux impressions de la même carte dans la même langue.
+6. **Lot 5 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
+  introduisant un compte et l'isolation des données par utilisateur. Prévoir les
+  parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,
+  le hachage des secrets, les routes d'authentification, la protection de toutes les
+  ressources métier et les migrations des données existantes vers un propriétaire.
+  Le cache PWA, IndexedDB, la file `/sync`, les clés d'idempotence, le changement de
+  compte et la déconnexion devront empêcher toute fuite de données entre utilisateurs;
+  les tests devront couvrir autorisation, expiration de session, séparation des
+  inventaires et synchronisation après reconnexion.
+7. **Lot 6 — Parties & tournois** : saisie, mono/multi-deck, participations.
+8. **Lot 7 — Analyse** : perf par deck, historique par lieu/date.
+9. **Lot 8 — Portage** : packager le socle offline pour barrins-project, côté code —
+  le déploiement de gurchon-hall lui-même est traité au Lot 11.
+10. **Lot 9 — Passe design** : reprendre l'UI React sur un design produit avec Claude
    (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
    vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
-   préciser. À prendre de préférence avant le Lot 4, pour que la saisie des parties
+  préciser. À prendre de préférence avant le Lot 6, pour que la saisie des parties
    hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
    disponible, lot non commencé : un handoff de design (direction « 1b », design system
    Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
    vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
    routes, mêmes données, même sémantique offline).
-9. **Lot 8 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
-   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 2 (stock par langue,
-   `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
+11. **Lot 10 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+  (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
+  langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
    collection, un deck ne s'alimentant que du stock possédé (§11.2).
-10. **Lot 9 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
+12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
-    Dépend du Lot 6 : le portage prépare le terrain côté code, ce lot met gurchon-hall
+    Dépend du Lot 8 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
