@@ -27,8 +27,12 @@ export async function waitForServiceWorkerControl(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
 }
 
-/** Le catalogue (échantillon : 9 cartes) est téléchargé ; le panneau se trouve sur l'accueil. */
-export async function expectCatalogDownloaded(page: Page, count = 9): Promise<void> {
+/**
+ * Le catalogue (échantillon : 10 cartes, dont « Fantome Sans Extension », la
+ * carte sans impression ajoutée au Lot 4 pour exercer l'extension tampon,
+ * D2b/D2c) est téléchargé ; le panneau se trouve sur l'accueil.
+ */
+export async function expectCatalogDownloaded(page: Page, count = 10): Promise<void> {
   await expect(page.getByTestId("catalog-state")).toHaveAttribute("data-count", String(count));
 }
 
@@ -59,7 +63,13 @@ export interface StockInput {
   card: string;
   quantity: number;
   language?: string;
-  proxyAllowed?: boolean;
+  /**
+   * Libellé exact (`cardSetLabel`, `src/labels.ts`) de l'extension à choisir
+   * parmi les impressions de la carte (Lot 4). Sans lui, le formulaire garde
+   * sa présélection (`latestCardSetId`, D2a). Construire ce libellé avec
+   * `cardSetOptionLabel` à partir d'une extension lue par `GET /extensions`.
+   */
+  cardSetLabel?: string;
 }
 
 /** Saisit une entrée de collection par le formulaire (page Collection). */
@@ -70,18 +80,36 @@ export async function addStock(page: Page, input: StockInput): Promise<void> {
   await expect(form.getByTestId("stock-form-card")).toContainText(input.card);
   if (input.language) await form.getByLabel("Langue", { exact: true }).selectOption(input.language);
   await form.getByLabel("Exemplaires possédés").fill(String(input.quantity));
-  const proxy = form.getByLabel("Proxy autorisé");
-  if (input.proxyAllowed) await proxy.check();
-  else await proxy.uncheck();
+  if (input.cardSetLabel) {
+    await form.getByTestId("stock-form-card-set").selectOption({ label: input.cardSetLabel });
+  }
   await form.getByTestId("stock-form-submit").click();
   await expect(form.getByTestId("stock-form-card")).toHaveCount(0); // formulaire remis à zéro
   await expect(form.getByTestId("stock-form-error")).toHaveCount(0);
 }
 
-export function stockEntry(page: Page, cardId: number, language: string): Locator {
-  return page
+/**
+ * Reproduit `cardSetLabel` (`src/labels.ts`) pour construire le libellé exact
+ * d'une option du sélecteur d'extension à partir d'une extension lue par
+ * `GET /extensions`.
+ */
+export function cardSetOptionLabel(set: { abbrev: string; full_name: string | null }): string {
+  return set.full_name ? `${set.abbrev} — ${set.full_name}` : set.abbrev;
+}
+
+/**
+ * Une entrée de collection, par carte et langue. Deux impressions de la même
+ * carte et langue (Lot 4) partagent ces deux attributs : distinguer l'une de
+ * l'autre demande le libellé de son extension (badge `stock-entry-card-set`),
+ * faute d'un attribut `data-card-set-id` sur la ligne.
+ */
+export function stockEntry(page: Page, cardId: number, language: string, cardSetLabel?: string): Locator {
+  const locator = page
     .getByTestId("stock-entry")
     .and(page.locator(`[data-card-id="${cardId}"][data-language="${language}"]`));
+  return cardSetLabel
+    ? locator.filter({ has: page.getByTestId("stock-entry-card-set").getByText(cardSetLabel, { exact: true }) })
+    : locator;
 }
 
 /** Crée un deck (le formulaire de la page Decks) et rend sa clé locale (`ref:<uuid>`). */
@@ -101,6 +129,8 @@ export interface DeckCardInput {
   /** Texte de l'option de la collection à choisir. */
   card: string;
   language?: string;
+  /** Extension de l'entrée de collection visée (Lot 4) ; `deck-card-option` porte `data-card-set-id`. */
+  cardSetId?: number;
   quantity: number;
   proxyQuantity?: number;
 }
@@ -111,6 +141,9 @@ export async function addDeckCard(page: Page, input: DeckCardInput): Promise<voi
   await form.getByTestId("deck-card-search").fill(input.search);
   let option = form.getByTestId("deck-card-option").filter({ hasText: input.card });
   if (input.language) option = option.and(page.locator(`[data-language="${input.language}"]`));
+  if (input.cardSetId !== undefined) {
+    option = option.and(page.locator(`[data-card-set-id="${input.cardSetId}"]`));
+  }
   await option.first().click();
   await form.getByLabel("Quantité dans le deck").fill(String(input.quantity));
   await form.getByLabel("Dont proxies").fill(String(input.proxyQuantity ?? 0));
@@ -119,10 +152,19 @@ export async function addDeckCard(page: Page, input: DeckCardInput): Promise<voi
   await expect(form.getByTestId("deck-card-form-feedback")).toContainText("dans le deck");
 }
 
-export function deckCardLine(page: Page, cardId: number, language: string): Locator {
-  return page
+/**
+ * Une ligne de composition, par carte et langue. Comme `stockEntry`, deux
+ * impressions de la même carte et langue (Lot 4) ne se distinguent qu'au
+ * libellé de leur extension (badge `deck-card-set`), la ligne elle-même ne
+ * portant pas `data-card-set-id`.
+ */
+export function deckCardLine(page: Page, cardId: number, language: string, cardSetLabel?: string): Locator {
+  const locator = page
     .getByTestId("deck-card")
     .and(page.locator(`[data-card-id="${cardId}"][data-language="${language}"]`));
+  return cardSetLabel
+    ? locator.filter({ has: page.getByTestId("deck-card-set").getByText(cardSetLabel, { exact: true }) })
+    : locator;
 }
 
 /** Noms des cartes de l'échantillon figé (`backend/tests/fixtures`) utilisées par les scénarios. */
@@ -139,8 +181,9 @@ export const BUNDLE_KIASYD = { search: "Kiasyd", card: CARDS.aura, copies: 4 } a
 export interface StockLine {
   card_id: number;
   language_code: string;
+  /** Extension de l'impression possédée (Lot 4) : deux impressions de la même carte et langue sont deux lignes. */
+  card_set_id: number;
   quantity_owned: number;
-  proxy_allowed: boolean;
 }
 
 export interface DeckRead {
@@ -148,17 +191,51 @@ export interface DeckRead {
   name: string;
   discriminator: string;
   status: string;
+  /** Autorisation de proxy du deck (Lot 4) : ce n'est plus une propriété de l'entrée de collection. */
+  proxy_allowed: boolean;
   archived_at: string | null;
   deleted_at: string | null;
-  cards: Array<{ card_id: number; language_code: string; quantity: number; proxy_quantity: number }>;
+  cards: Array<{
+    card_id: number;
+    language_code: string;
+    card_set_id: number;
+    quantity: number;
+    proxy_quantity: number;
+  }>;
+}
+
+export interface CardSetSummary {
+  id: number;
+  abbrev: string;
+  full_name: string | null;
+}
+
+interface CardListEntry {
+  id: number;
+  name: string;
+  card_set_ids: number[];
+  latest_card_set_id: number;
+}
+
+/** Une carte du catalogue et ses impressions (Lot 4), par son nom exact. */
+export async function cardInfo(
+  api: { get<T>(route: string): Promise<T> },
+  name: string,
+): Promise<CardListEntry> {
+  const cards = await api.get<CardListEntry[]>("/cartes?limit=200");
+  const found = cards.find((card) => card.name === name);
+  if (!found) throw new Error(`carte absente de l'échantillon : ${name}`);
+  return found;
 }
 
 /** Identifiant serveur d'une carte du catalogue, par son nom exact. */
 export async function cardId(api: { get<T>(route: string): Promise<T> }, name: string): Promise<number> {
-  const cards = await api.get<Array<{ id: number; name: string }>>("/cartes?limit=200");
-  const found = cards.find((card) => card.name === name);
-  if (!found) throw new Error(`carte absente de l'échantillon : ${name}`);
-  return found.id;
+  return (await cardInfo(api, name)).id;
+}
+
+/** Toutes les extensions du catalogue (`GET /extensions`, Lot 4). */
+export async function cardSets(api: { get<T>(route: string): Promise<T> }): Promise<CardSetSummary[]> {
+  return api.get<CardSetSummary[]>("/extensions");
 }
 
 interface OutboxRow {

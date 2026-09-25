@@ -115,7 +115,9 @@ describe("createVtesSyncTransport", () => {
         422,
       ),
     );
-    const outcome = await transport.send([ops.stockUpsert(clock, { cardId: 1, languageCode: "EN" })]);
+    const outcome = await transport.send([
+      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9 }),
+    ]);
     expect(outcome).toEqual({
       status: "invalid",
       message: "body.operations.0.data.quantity : doit être positif",
@@ -124,7 +126,7 @@ describe("createVtesSyncTransport", () => {
 
   it.each([500, 502, 503, 501, 404, 429])("traduit un HTTP %i en indisponibilité", async (status) => {
     const { transport } = transportWith(() => json({ detail: "non disponible" }, status));
-    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN")]);
+    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);
     expect(outcome).toEqual({ status: "unavailable", httpStatus: status, message: "non disponible" });
   });
 
@@ -136,7 +138,7 @@ describe("createVtesSyncTransport", () => {
           headers: { "content-type": "application/json", "Retry-After": "3" },
         }),
     );
-    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN")]);
+    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);
     expect(outcome).toEqual({
       status: "unavailable",
       httpStatus: 503,
@@ -156,7 +158,7 @@ describe("createVtesSyncTransport", () => {
     const { transport } = transportWith(() => {
       throw new TypeError("Failed to fetch");
     });
-    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN")]);
+    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);
     expect(outcome).toEqual({ status: "unavailable", message: "Failed to fetch" });
   });
 });

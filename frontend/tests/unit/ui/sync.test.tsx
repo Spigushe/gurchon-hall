@@ -23,7 +23,7 @@ const refreshMirrors = (app: App) =>
  */
 async function refusedDeckCard(app: App) {
   const { key } = await app.runtime.actions.createDeck({ name: "Gangrel" });
-  await app.runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", quantity: 3 });
+  await app.runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", cardSetId: 9, quantity: 3 });
   act(() => setOnline(true));
   await screen.findByTestId("rejected-operations");
   await app.settle();
@@ -97,7 +97,7 @@ describe("opérations refusées", () => {
     expect(item).toHaveAttribute("data-rejection-code", "conflict");
     await waitFor(() =>
       expect(within(item).getByTestId("rejected-description")).toHaveTextContent(
-        "Deck « Gangrel » : 3 × « Œuvre » (EN)",
+        "Deck « Gangrel » : 3 × « Œuvre » (EN, TEST — Extension de test)",
       ),
     );
     expect(within(item).getByTestId("rejection-reason")).toHaveTextContent(

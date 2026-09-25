@@ -68,27 +68,66 @@ def make_card(
     return card
 
 
+_card_set_abbrevs = count(1)
+
+
+def make_card_set(session: Session, abbrev: str | None = None, **fields) -> CardSet:
+    """Une extension du catalogue, `abbrev` unique généré si omis."""
+    if abbrev is None:
+        abbrev = f"TS{next(_card_set_abbrevs)}"
+    card_set = CardSet(abbrev=abbrev, **fields)
+    session.add(card_set)
+    session.flush()
+    return card_set
+
+
+def make_printing(
+    session: Session, card: Card, card_set: CardSet | None = None, **fields
+) -> CardPrinting:
+    """Une impression (carte × extension) ; l'extension est créée si omise.
+
+    C'est ce que la FK composite de `card_copy` vers `card_printing` (Lot 4,
+    D2) exige avant toute entrée de collection.
+    """
+    if card_set is None:
+        card_set = make_card_set(session)
+    printing = CardPrinting(card_id=card.id, card_set_id=card_set.id, **fields)
+    session.add(printing)
+    session.flush()
+    return printing
+
+
 def make_copy(
     session: Session,
     card: Card,
     language_code: str = "EN",
     quantity_owned: int = 1,
-    proxy_allowed: bool = False,
+    card_set_id: int | None = None,
 ) -> CardCopy:
+    """Une entrée de collection. Sans `card_set_id`, une impression de test
+    est créée pour la carte (extension neuve), comme `make_card` génère son
+    propre `vekn_id`."""
+    if card_set_id is None:
+        card_set_id = make_printing(session, card).card_set_id
     copy = CardCopy(
         card_id=card.id,
         language_code=language_code,
+        card_set_id=card_set_id,
         quantity_owned=quantity_owned,
-        proxy_allowed=proxy_allowed,
     )
     session.add(copy)
     session.flush()
     return copy
 
 
-def make_deck(session: Session, name: str = "Deck de test", **fields) -> Deck:
+def make_deck(
+    session: Session,
+    name: str = "Deck de test",
+    proxy_allowed: bool = False,
+    **fields,
+) -> Deck:
     fields.setdefault("discriminator", next(_discriminators))
-    deck = Deck(name=name, **fields)
+    deck = Deck(name=name, proxy_allowed=proxy_allowed, **fields)
     session.add(deck)
     session.flush()
     return deck
@@ -122,7 +161,8 @@ def populate_world(session: Session) -> SimpleNamespace:
     """Une ligne dans chaque table, reliées entre elles, et committées.
 
     Le deck contient la carte en EN (4 exemplaires possédés) ; la même carte
-    existe aussi en FR en collection, à 0 exemplaire avec proxy autorisé.
+    existe aussi en FR en collection, à 0 exemplaire (cas normal d'une carte
+    qui ne serait jouée qu'en proxy — l'autorisation vit sur le deck, Lot 4).
     """
     add_languages(session, "EN", "FR")
     clan = Clan(name="Ventrue", abbrev="VEN")
@@ -191,8 +231,12 @@ def populate_world(session: Session) -> SimpleNamespace:
             ),
         ]
     )
-    copy_en = make_copy(session, card, "EN", quantity_owned=4)
-    copy_fr = make_copy(session, card, "FR", quantity_owned=0, proxy_allowed=True)
+    copy_en = make_copy(
+        session, card, "EN", quantity_owned=4, card_set_id=printing.card_set_id
+    )
+    copy_fr = make_copy(
+        session, card, "FR", quantity_owned=0, card_set_id=printing.card_set_id
+    )
 
     deck = make_deck(
         session,
@@ -202,7 +246,11 @@ def populate_world(session: Session) -> SimpleNamespace:
         archetype="Vote",
     )
     deck_card = DeckCard(
-        deck_id=deck.id, card_id=card.id, language_code="EN", quantity=4
+        deck_id=deck.id,
+        card_id=card.id,
+        language_code="EN",
+        card_set_id=printing.card_set_id,
+        quantity=4,
     )
     session.add(deck_card)
 

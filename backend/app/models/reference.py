@@ -21,6 +21,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -111,6 +112,15 @@ class CardSet(Base):
     full_name: Mapped[str | None] = mapped_column(String(120))
     release_date: Mapped[date | None] = mapped_column(Date())
     company: Mapped[str | None] = mapped_column(String(60))
+    # Extension tampon (Lot 4, décision D2b) : créée par l'import, une seule
+    # pour tout le catalogue, pour rattacher une carte que krcg publierait sans
+    # aucune impression — la carte reste ainsi saisissable en collection. Rien
+    # de tel n'existe dans la source aujourd'hui. `server_default` : les lignes
+    # existantes (et toute insertion hors ORM) valent `false`.
+    is_placeholder: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=false(),
+    )
 
     bundles: Mapped[list[Bundle]] = relationship(
         back_populates="card_set",

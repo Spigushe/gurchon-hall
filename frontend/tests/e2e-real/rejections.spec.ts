@@ -4,6 +4,7 @@ import {
   addDeckCard,
   addStock,
   cardId,
+  cardInfo,
   createDeck,
   deckCardLine,
   expectCatalogDownloaded,
@@ -29,19 +30,27 @@ import {
 
 const rejected = (page: import("@playwright/test").Page) => page.getByTestId("rejected-operation");
 
-async function seedStock(api: Api, card: number, language: string, quantity: number, proxy = false) {
-  await api.post("/stock", {
-    card_id: card,
-    language_code: language,
-    quantity_owned: quantity,
-    proxy_allowed: proxy,
-  }, 201);
+/** Seme une entrée de collection sous la dernière impression connue de la carte (D2a). */
+async function seedStock(api: Api, card: number, language: string, quantity: number, cardSetId: number) {
+  await api.post(
+    "/stock",
+    { card_id: card, language_code: language, card_set_id: cardSetId, quantity_owned: quantity },
+    201,
+  );
 }
 
-async function seedDeck(api: Api, name: string, lines: Array<[number, string, number]> = []) {
+async function seedDeck(
+  api: Api,
+  name: string,
+  lines: Array<[number, string, number, number]> = [],
+) {
   const deck = await api.post<DeckRead>("/decks", { name }, 201);
-  for (const [card, language, quantity] of lines) {
-    await api.post(`/decks/${deck.id}/cartes`, { card_id: card, language_code: language, quantity }, 201);
+  for (const [card, language, quantity, cardSetId] of lines) {
+    await api.post(
+      `/decks/${deck.id}/cartes`,
+      { card_id: card, language_code: language, card_set_id: cardSetId, quantity },
+      201,
+    );
   }
   return deck;
 }
@@ -60,7 +69,7 @@ test("proxy non autorisé : refus motivé, les opérations suivantes passent, «
   await context.setOffline(true);
 
   await goToStock(page);
-  await addStock(page, { search: "awe", card: CARDS.awe, quantity: 1, language: "EN", proxyAllowed: false });
+  await addStock(page, { search: "awe", card: CARDS.awe, quantity: 1, language: "EN" });
   await addStock(page, { search: "aura", card: CARDS.aura, quantity: 2, language: "EN" });
   await goToDecks(page);
   await createDeck(page, "Refus proxy");
@@ -119,13 +128,15 @@ test("exemplaires insuffisants : refus motivé, la suite du lot passe, « Abando
   context,
   api,
 }) => {
-  const awe = await cardId(api, CARDS.awe);
-  const aura = await cardId(api, CARDS.aura);
+  const aweInfo = await cardInfo(api, CARDS.awe);
+  const auraInfo = await cardInfo(api, CARDS.aura);
+  const awe = aweInfo.id;
+  const aura = auraInfo.id;
   // Le serveur alloue déjà l'unique Awe à un autre deck : le client ne le sait pas
   // (son instantané est celui d'avant), il l'apprend au refus.
-  await seedStock(api, awe, "EN", 1);
-  await seedStock(api, aura, "EN", 2);
-  await seedDeck(api, "Déjà servi", [[awe, "EN", 1]]);
+  await seedStock(api, awe, "EN", 1, aweInfo.latest_card_set_id);
+  await seedStock(api, aura, "EN", 2, auraInfo.latest_card_set_id);
+  await seedDeck(api, "Déjà servi", [[awe, "EN", 1, aweInfo.latest_card_set_id]]);
 
   await openApp(page);
   await expectCatalogDownloaded(page);
@@ -167,9 +178,10 @@ test("deck archivé entre-temps : la modification saisie hors ligne est refusée
   context,
   api,
 }) => {
-  const awe = await cardId(api, CARDS.awe);
-  await seedStock(api, awe, "EN", 3);
-  const deck = await seedDeck(api, "Archivable", [[awe, "EN", 1]]);
+  const aweInfo = await cardInfo(api, CARDS.awe);
+  const awe = aweInfo.id;
+  await seedStock(api, awe, "EN", 3, aweInfo.latest_card_set_id);
+  const deck = await seedDeck(api, "Archivable", [[awe, "EN", 1, aweInfo.latest_card_set_id]]);
   const syncCalls = recordSyncRequests(page);
 
   await openApp(page);
@@ -211,9 +223,10 @@ test("la file fait foi, les invariants font loi : dernière écriture gagnante, 
   context,
   api,
 }) => {
-  const awe = await cardId(api, CARDS.awe);
-  await seedStock(api, awe, "EN", 5);
-  await seedDeck(api, "Retient trois", [[awe, "EN", 3]]);
+  const aweInfo = await cardInfo(api, CARDS.awe);
+  const awe = aweInfo.id;
+  await seedStock(api, awe, "EN", 5, aweInfo.latest_card_set_id);
+  await seedDeck(api, "Retient trois", [[awe, "EN", 3, aweInfo.latest_card_set_id]]);
 
   await openApp(page);
   await expectCatalogDownloaded(page);
@@ -223,7 +236,7 @@ test("la file fait foi, les invariants font loi : dernière écriture gagnante, 
   await context.setOffline(true);
 
   // Pendant ce temps, le serveur change de valeur (8) : aucune comparaison de version.
-  await api.patch(`/stock/${awe}/EN`, { quantity_owned: 8 });
+  await api.patch(`/stock/${awe}/EN/${aweInfo.latest_card_set_id}`, { quantity_owned: 8 });
 
   // Trois saisies dans l'ordre : 4, 3, puis 2 (en dessous des 3 retenus par le deck).
   for (const expected of ["4", "3", "2"]) {

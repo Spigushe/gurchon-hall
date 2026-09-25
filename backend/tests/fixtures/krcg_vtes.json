@@ -697,5 +697,38 @@
    "PRE"
   ],
   "title": "Cardinal"
+ },
+ {
+  "id": 100999,
+  "printed_name": "Fantome Sans Extension",
+  "unicity_suffix": "",
+  "suffix": "",
+  "kind": "Library",
+  "name_variants": [],
+  "prints": [],
+  "i18n": {},
+  "url": "",
+  "types": [
+   "Action"
+  ],
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "Carte de test sans impression connue (Lot 4, D2b).",
+  "draft": "",
+  "flavor": "",
+  "legal": "2020-01-01",
+  "banned": null,
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
  }
 ]

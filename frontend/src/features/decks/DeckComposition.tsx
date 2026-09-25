@@ -1,10 +1,11 @@
 import { useGuardedAction } from "../../components/useGuardedAction";
-import { plural } from "../../labels";
+import { cardSetLabelById, plural } from "../../labels";
 import {
   useVtesOffline,
   type DeckKey,
   type LocalDeckCard,
 } from "../../offline/vtes";
+import { useCardSetOptions } from "../stock/useCardSetOptions";
 
 const cardName = (line: Pick<LocalDeckCard, "cardName" | "cardId">) =>
   line.cardName ?? `Carte n° ${line.cardId}`;
@@ -19,15 +20,18 @@ function CompositionRow({
   locked: boolean;
 }) {
   const { actions } = useVtesOffline();
+  const cardSets = useCardSetOptions();
   const action = useGuardedAction();
   const who = `${cardName(line)} (${line.languageCode})`;
 
   // Un upsert porte l'état complet de la ligne : quantité et proxies ensemble.
+  // L'extension fait partie de l'identité de la ligne (Lot 4) : elle ne change pas ici.
   const save = (quantity: number, proxyQuantity: number) =>
     action.run(() =>
       actions.saveDeckCard(deckKey, {
         cardId: line.cardId,
         languageCode: line.languageCode,
+        cardSetId: line.cardSetId,
         quantity,
         proxyQuantity: Math.min(proxyQuantity, quantity),
       }),
@@ -46,6 +50,9 @@ function CompositionRow({
       <div className="row__main">
         <strong>{cardName(line)}</strong>
         <span className="badge">{line.languageCode}</span>
+        <span className="badge" data-testid="deck-card-set">
+          {cardSetLabelById(line.cardSetId, cardSets.byId)}
+        </span>
         {line.pending && (
           <span className="badge badge--pending" data-testid="pending-badge">
             En attente de synchronisation
@@ -102,7 +109,9 @@ function CompositionRow({
           aria-label={`Retirer ${who} du deck`}
           data-testid="deck-card-remove"
           onClick={() =>
-            void action.run(() => actions.removeDeckCard(deckKey, line.cardId, line.languageCode))
+            void action.run(() =>
+              actions.removeDeckCard(deckKey, line.cardId, line.languageCode, line.cardSetId),
+            )
           }
         >
           Retirer
@@ -145,7 +154,7 @@ export function DeckComposition({
       <ul className="list" data-testid="deck-cards">
         {lines.map((line) => (
           <CompositionRow
-            key={`${line.cardId}|${line.languageCode}`}
+            key={`${line.cardId}|${line.languageCode}|${line.cardSetId}`}
             deckKey={deckKey}
             line={line}
             locked={locked}

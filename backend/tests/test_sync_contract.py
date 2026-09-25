@@ -42,7 +42,12 @@ def operation(**overrides) -> dict:
         "type": "stock.upsert",
         "operation_id": str(uuid4()),
         "recorded_at": RECORDED_AT,
-        "data": {"card_id": 1, "language_code": "FR", "quantity_owned": 3},
+        "data": {
+            "card_id": 1,
+            "language_code": "FR",
+            "card_set_id": 1,
+            "quantity_owned": 3,
+        },
     } | overrides
 
 
@@ -68,7 +73,12 @@ def test_a_batch_parses_each_operation_into_its_own_type():
             operation(
                 type="deck_card.upsert",
                 deck={"client_ref": "ref-deck"},
-                data={"card_id": 2, "language_code": "EN", "quantity": 4},
+                data={
+                    "card_id": 2,
+                    "language_code": "EN",
+                    "card_set_id": 1,
+                    "quantity": 4,
+                },
             ),
             operation(type="bundle.deposit", bundle_id=7, data={"language_code": "ES"}),
         )
@@ -289,7 +299,12 @@ def test_a_different_body_gives_a_different_fingerprint():
         batch(
             operation(
                 operation_id=key,
-                data={"card_id": 1, "language_code": "FR", "quantity_owned": 4},
+                data={
+                    "card_id": 1,
+                    "language_code": "FR",
+                    "card_set_id": 1,
+                    "quantity_owned": 4,
+                },
             )
         )
     ).operations[0]

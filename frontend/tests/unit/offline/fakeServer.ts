@@ -9,7 +9,19 @@ import type { ApiClient } from "../../../src/offline/vtes/types";
  * exercent). Il reproduit ce qui compte pour l'idempotence : un journal indexé
  * par `operation_id`, une empreinte du corps, et le verdict mémorisé rendu en
  * `replayed`.
+ *
+ * Lot 4 : chaque carte n'a qu'une impression (`CARD_SET_ID`), et le versement
+ * de produit range sous cette même extension — assez pour exercer l'extension
+ * dans les clés sans construire un catalogue multi-impressions ici (ce cas est
+ * couvert par les tests d'overlay/clés Dexie, sur des données construites à la
+ * main).
  */
+
+export const CARD_SET_ID = 9;
+
+export const CARD_SETS = [
+  { id: CARD_SET_ID, abbrev: "TEST", full_name: "Extension de test", release_date: "2020-01-01", company: null, is_placeholder: false },
+] as const;
 
 export const CARDS = [
   { id: 1, vekn_id: 100001, name: "Élan vital", category: "library" },
@@ -31,9 +43,32 @@ interface Verdict {
 export interface FakeServer {
   client: ApiClient;
   state: {
-    stock: Map<string, { card_id: number; language_code: string; quantity_owned: number; proxy_allowed: boolean; notes: string | null }>;
-    decks: Array<{ id: number; name: string; discriminator: string; client_ref: string | null; archived_at: string | null }>;
-    deckCards: Array<{ deck_id: number; card_id: number; language_code: string; quantity: number; proxy_quantity: number }>;
+    stock: Map<
+      string,
+      {
+        card_id: number;
+        language_code: string;
+        card_set_id: number;
+        quantity_owned: number;
+        notes: string | null;
+      }
+    >;
+    decks: Array<{
+      id: number;
+      name: string;
+      discriminator: string;
+      client_ref: string | null;
+      proxy_allowed: boolean;
+      archived_at: string | null;
+    }>;
+    deckCards: Array<{
+      deck_id: number;
+      card_id: number;
+      language_code: string;
+      card_set_id: number;
+      quantity: number;
+      proxy_quantity: number;
+    }>;
     languages: string[];
     journal: Map<string, { fingerprint: string; verdict: Verdict }>;
     requests: Array<{ method: string; path: string; body: unknown }>;
@@ -76,6 +111,8 @@ export function createFakeServer(): FakeServer {
   let nextDeckId = 1;
 
   const fingerprint = (op: Json) => JSON.stringify(op, Object.keys(op).sort());
+  const stockKey = (cardId: unknown, language: unknown, cardSetId: unknown) =>
+    `${cardId}|${language}|${cardSetId}`;
 
   function resolveDeck(ref: { deck_id?: number | null; client_ref?: string | null }) {
     return ref.deck_id != null
@@ -105,14 +142,20 @@ export function createFakeServer(): FakeServer {
     switch (op.type) {
       case "stock.upsert": {
         const language = data.language_code as string;
-        state.stock.set(`${data.card_id}|${language}`, {
+        const cardSetId = (data.card_set_id as number | undefined) ?? CARD_SET_ID;
+        state.stock.set(stockKey(data.card_id, language, cardSetId), {
           card_id: data.card_id as number,
           language_code: language,
+          card_set_id: cardSetId,
           quantity_owned: (data.quantity_owned as number | undefined) ?? 0,
-          proxy_allowed: (data.proxy_allowed as boolean | undefined) ?? false,
           notes: (data.notes as string | null | undefined) ?? null,
         });
-        return ok({ kind: "card_copy", card_id: data.card_id, language_code: language });
+        return ok({
+          kind: "card_copy",
+          card_id: data.card_id,
+          language_code: language,
+          card_set_id: cardSetId,
+        });
       }
       case "deck.create": {
         if (state.decks.some((deck) => deck.client_ref === op.client_ref)) {
@@ -123,6 +166,7 @@ export function createFakeServer(): FakeServer {
           name: data.name as string,
           discriminator: String(1000 + nextDeckId),
           client_ref: op.client_ref as string,
+          proxy_allowed: (data.proxy_allowed as boolean | undefined) ?? false,
           archived_at: null,
         };
         state.decks.push(deck);
@@ -131,33 +175,46 @@ export function createFakeServer(): FakeServer {
       case "deck_card.upsert": {
         const deck = resolveDeck(op.deck as Json);
         if (!deck) return refuse("unresolved_client_ref", "deck introuvable");
-        const owned = state.stock.get(`${data.card_id}|${data.language_code}`);
+        const cardSetId = (data.card_set_id as number | undefined) ?? CARD_SET_ID;
+        const owned = state.stock.get(stockKey(data.card_id, data.language_code, cardSetId));
         const real = (data.quantity as number) - ((data.proxy_quantity as number | undefined) ?? 0);
         if (!owned || owned.quantity_owned < real) {
           return refuse("conflict", "exemplaires insuffisants");
         }
         state.deckCards = state.deckCards.filter(
           (line) =>
-            !(line.deck_id === deck.id && line.card_id === data.card_id && line.language_code === data.language_code),
+            !(
+              line.deck_id === deck.id &&
+              line.card_id === data.card_id &&
+              line.language_code === data.language_code &&
+              line.card_set_id === cardSetId
+            ),
         );
         state.deckCards.push({
           deck_id: deck.id,
           card_id: data.card_id as number,
           language_code: data.language_code as string,
+          card_set_id: cardSetId,
           quantity: data.quantity as number,
           proxy_quantity: (data.proxy_quantity as number | undefined) ?? 0,
         });
-        return ok({ kind: "deck_card", deck_id: deck.id, card_id: data.card_id });
+        return ok({
+          kind: "deck_card",
+          deck_id: deck.id,
+          card_id: data.card_id,
+          language_code: data.language_code,
+          card_set_id: cardSetId,
+        });
       }
       case "bundle.deposit": {
         state.depositsApplied += 1;
-        const key = `1|${data.language_code}`;
+        const key = stockKey(1, data.language_code, CARD_SET_ID);
         const existing = state.stock.get(key);
         state.stock.set(key, {
           card_id: 1,
           language_code: data.language_code as string,
+          card_set_id: CARD_SET_ID,
           quantity_owned: (existing?.quantity_owned ?? 0) + 3 * ((data.count as number | undefined) ?? 1),
-          proxy_allowed: existing?.proxy_allowed ?? false,
           notes: existing?.notes ?? null,
         });
         return ok({ kind: "bundle", bundle_id: op.bundle_id });
@@ -192,7 +249,14 @@ export function createFakeServer(): FakeServer {
         outcome = verdict.outcome;
       }
       const resource = verdict.resource
-        ? { deck_id: null, card_id: null, language_code: null, bundle_id: null, ...verdict.resource }
+        ? {
+            deck_id: null,
+            card_id: null,
+            language_code: null,
+            card_set_id: null,
+            bundle_id: null,
+            ...verdict.resource,
+          }
         : null;
       return { operation_id: id, ...verdict, outcome, resource };
     });
@@ -211,6 +275,12 @@ export function createFakeServer(): FakeServer {
     const card = CARDS.find((item) => item.id === id)!;
     return { ...card, clan: null, capacity: null, group_code: null, advanced: false, image_url: null };
   };
+
+  const cardListItem = (id: number) => ({
+    ...cardSummary(id),
+    card_set_ids: [CARD_SET_ID],
+    latest_card_set_id: CARD_SET_ID,
+  });
 
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -244,7 +314,8 @@ export function createFakeServer(): FakeServer {
       if (url.pathname === "/langues") {
         return json(state.languages.map((code, i) => ({ code, label: code, sort_order: i })));
       }
-      if (url.pathname === "/cartes") return json(page(CARDS.map((c) => cardSummary(c.id))));
+      if (url.pathname === "/extensions") return json(CARD_SETS);
+      if (url.pathname === "/cartes") return json(page(CARDS.map((c) => cardListItem(c.id))));
       if (url.pathname === "/stock") {
         return json(
           page([...state.stock.values()].map((entry) => ({ ...entry, card: cardSummary(entry.card_id) }))),
@@ -258,6 +329,7 @@ export function createFakeServer(): FakeServer {
         status: "draft",
         archetype: null,
         notes: null,
+        proxy_allowed: deck.proxy_allowed,
         archived_at: deck.archived_at,
         deleted_at: null,
         created_at: "2026-09-20T12:00:00Z",
@@ -290,11 +362,11 @@ export function createFakeServer(): FakeServer {
     next,
     addBulkStock(count) {
       for (let i = 0; i < count; i++) {
-        state.stock.set(`1|L${i}`, {
+        state.stock.set(stockKey(1, `L${i}`, CARD_SET_ID), {
           card_id: 1,
           language_code: `L${i}`,
+          card_set_id: CARD_SET_ID,
           quantity_owned: 1,
-          proxy_allowed: false,
           notes: null,
         });
       }

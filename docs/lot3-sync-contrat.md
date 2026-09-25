@@ -29,17 +29,17 @@ decks, leur composition, le versement d'un produit. Huit types d'opérations :
 | `type` | Équivalent en ligne |
 | --- | --- |
 | `stock.upsert` | `POST` ou `PATCH /stock` |
-| `stock.delete` | `DELETE /stock/{card_id}/{language_code}` |
+| `stock.delete` | `DELETE /stock/{card_id}/{language_code}/{card_set_id}` |
 | `deck.create` | `POST /decks` |
 | `deck.update` | `PATCH /decks/{id}` (archivage compris) |
 | `deck.delete` | `DELETE /decks/{id}` |
 | `deck_card.upsert` | `POST` ou `PATCH /decks/{id}/cartes` |
-| `deck_card.delete` | `DELETE /decks/{id}/cartes/{card_id}/{language_code}` |
+| `deck_card.delete` | `DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` |
 | `bundle.deposit` | `POST /bundles/{id}/stock` |
 
 Le catalogue n'y est pas : il ne bouge que par l'import krcg. Les langues non
 plus, `POST /langues` restant une écriture en ligne (voir les points ouverts).
-Les parties et les tournois attendent le Lot 4 ; les inscrire ici avant qu'ils
+Les parties et les tournois attendent le Lot 7 ; les inscrire ici avant qu'ils
 aient une route serait promettre une synchronisation sans destination.
 
 Deux écarts de vocabulaire par rapport à REST. D'abord, `upsert` : une file
@@ -52,6 +52,24 @@ Pour le reste, la charge utile est celle de la route correspondante, réutilisé
 telle quelle (`CardCopyCreate`, `DeckCreate`, `DeckUpdate`, `DeckCardCreate`,
 `BundleDeposit`). Le front n'a donc qu'une forme à écrire, à stocker et à
 tester, en ligne comme hors ligne.
+
+Depuis le Lot 4 (passe A), l'autorisation de proxy appartient au deck et non
+plus à l'entrée de collection. `deck.create` et `deck.update` la transportent
+dans `data.proxy_allowed` (`DeckCreate` : facultatif, `false` par défaut ;
+`DeckUpdate` : facultatif, non nullable). `stock.upsert` ne la porte plus :
+`CardCopyCreate` a perdu le champ, sans période de compatibilité (décision D4,
+`docs/lot4-plan-inventaire.md`). Une ancienne opération `stock.upsert` qui le
+contiendrait encore serait refusée en 422 (champ inconnu), et la bissection du
+client l'isolerait.
+
+Depuis le Lot 4 (passe B), une entrée de collection se désigne par carte ×
+langue × extension. `card_set_id` est **obligatoire** partout où figure
+`language_code` : dans `data` de `stock.upsert` (`CardCopyCreate`) et de
+`deck_card.upsert` (`DeckCardCreate`), et à plat dans `stock.delete` et
+`deck_card.delete`. Même règle que pour le proxy, sans période de
+compatibilité (D4) : une opération en file sans `card_set_id` est refusée en
+422 et isolée par la bissection. `bundle.deposit` ne change pas, l'extension
+venant du produit. Le détail est dans la dernière section de ce document.
 
 ## Clés d'idempotence
 
@@ -128,8 +146,9 @@ retarder. Aucune comparaison de version, aucune comparaison d'horloge.
 
 Les invariants font loi. Une opération n'est refusée que si le serveur l'aurait
 refusée en ligne, et pour les mêmes raisons : exemplaires insuffisants, proxy
-non autorisé, deck archivé ou supprimé, activation d'un deck illégal, entrée de
-stock encore allouée. `/sync` n'assouplit ni ne durcit les règles des services ;
+non autorisé par le deck, interdiction du proxy sur un deck qui en joue, deck
+archivé ou supprimé, activation d'un deck illégal, entrée de stock encore
+allouée, extension où la carte n'a pas été imprimée. `/sync` n'assouplit ni ne durcit les règles des services ;
 il les traverse.
 
 Un refus n'arrête rien. Le lot continue, chaque opération reçoit son verdict, et
@@ -156,7 +175,8 @@ refait) et `rejected`. Le conflit n'est pas une quatrième issue mais un code
 d'erreur, parce que deux axes valent mieux qu'un : l'issue dit si l'écriture a
 eu lieu, le code dit pourquoi elle n'a pas eu lieu.
 
-Les cinq motifs : `not_found` (la ressource n'existe pas), `conflict` (une règle
+Les cinq motifs : `not_found` (la ressource n'existe pas, y compris une
+impression : une carte rangée dans une extension où elle n'a pas été imprimée), `conflict` (une règle
 métier s'y oppose), `invalid` (charge utile invalide, typiquement après fusion
 avec la ligne existante), `unresolved_client_ref` (le deck désigné n'a jamais
 été créé, ou sa création a échoué) et `mismatched_replay` (même clé, autre
@@ -170,7 +190,9 @@ mémorisé, rendu à l'identique.
 La ressource touchée revient en identifiants seulement (`resource`), pas en
 objets. Un versement de produit touche des centaines d'entrées de collection, et
 le client rafraîchit par les `GET`. Ce dont il a réellement besoin ici, c'est du
-`deck_id` attribué à un deck créé hors ligne.
+`deck_id` attribué à un deck créé hors ligne. Depuis le Lot 4, `resource`
+porte aussi `card_set_id` pour les opérations `stock.*` et `deck_card.*` (nul
+pour un deck, un versement, ou une opération journalisée avant le Lot 4).
 
 ## Les deux réponses qui ne tranchent rien
 
@@ -231,7 +253,7 @@ opération avec une nouvelle clé.
 autre lot : deux `/sync` concurrents se font la queue, et la comptabilité du
 stock — « vérifier puis écrire », limite connue n° 1 du §11 de CLAUDE.md —
 devient sûre entre eux. Elle ne l'est pas vis-à-vis des routes en ligne :
-`POST /decks/{id}/cartes`, `PATCH /stock/{card_id}/{language_code}` et leurs
+`POST /decks/{id}/cartes`, `PATCH /stock/{card_id}/{language_code}/{card_set_id}` et leurs
 voisines écrivent sur une session ordinaire, sans passer par
 `serialized_writes`. Une saisie faite dans l'interface pendant qu'un lot se
 synchronise peut donc encore sur-allouer une entrée. Sans effet en usage
@@ -274,3 +296,92 @@ toutes les écritures de l'application — cher payé tant qu'un seul utilisateu
 Enfin, un retour arrière sur la migration `8cc70f4bbbcc` supprime le journal.
 Une file déjà synchronisée et rejouée ensuite serait réappliquée, versements de
 produits compris. Vider la file côté client avant tout `downgrade`.
+
+## Lot 4, passe B : l'extension dans l'identité du stock
+
+Décisions de schéma prises à l'étape B1 (architecte-contrat), à l'usage du
+backend (B2) et du front (C, D, E). Le cadre est dans
+`docs/lot4-plan-inventaire.md` (D1 à D6) ; ce qui suit en est la traduction
+dans le modèle et le contrat.
+
+**Révision `b7e41d0c9a52`**, à la suite de `6c9a178b7a1d`. Même garde que la
+passe A : elle exige `card_copy`, `deck_card` et `deleted_deck_card` vides, à
+la montée comme à la descente, et s'arrête sur un message explicite sinon
+(D3). Les trois tables sont supprimées puis recréées (elles sont vides), dans
+l'ordre imposé par leurs références ; la descente rend exactement le schéma de
+`6c9a178b7a1d`. Elle ne se rejoue pas hors ligne (`--sql`), la garde lisant la
+base.
+
+**Modèle.**
+
+- `card_copy` : clé (`card_id`, `language_code`, `card_set_id`). Clé
+  étrangère composite (`card_id`, `card_set_id`) vers `card_printing`, qui
+  porte depuis la révision initiale l'unicité
+  `uq_card_printing_card_id_card_set_id` : la base refuse une entrée dans une
+  extension où la carte n'a pas été imprimée. Les clés étrangères vers `card`
+  et `language` restent. Pas d'`ondelete` : une impression utilisée par le
+  stock ne se supprime pas, ce qui protège la seule suppression que l'import
+  s'autorise (l'impression tampon, D2c).
+- `deck_card` : clé (`deck_id`, `card_id`, `language_code`, `card_set_id`),
+  clé étrangère à trois colonnes vers `card_copy`. L'index de réconciliation
+  s'appelle désormais `ix_deck_card_card_id_language_code_card_set_id`.
+- `deleted_deck_card` : `card_set_id` dans la clé, clé étrangère vers
+  `card_set` (pas vers `card_printing` ni `card_copy`).
+- `card_set.is_placeholder` : booléen NOT NULL, `false` par défaut (aussi
+  côté base), marqueur de l'extension tampon (D2b).
+- `sync_operation.card_set_id` : entier nullable, pour que le verdict rejoué
+  d'une opération `stock.*` ou `deck_card.*` rende la même `SyncResourceRef`
+  que le verdict d'origine. Ajout qui n'était pas dans le plan : sans cette
+  colonne, `resource.card_set_id` d'un `replayed` serait toujours nul.
+
+**Contrat** (24 opérations, 16 chemins).
+
+- `card_set_id` obligatoire, entier de 1 à 2³¹ − 1 : `CardCopyCreate`,
+  `DeckCardCreate`, `StockDeleteOperation`, `DeckCardDeleteOperation`, et en
+  lecture `CardCopyRead`, `DeckCardRead`. `SyncResourceRef.card_set_id` est
+  nullable. `BundleDeposit` et `CardCopyUpdate` ne changent pas.
+- Chemins : `/stock/{card_id}/{language_code}/{card_set_id}` et
+  `/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}`. Les
+  `operationId` ne changent pas.
+- `GET /stock` accepte un filtre `card_set_id`.
+- Nouvelle opération `GET /extensions` (`listCardSets`) : liste de
+  `CardSetRead`, qui gagne `is_placeholder`. Tri par date de sortie, les
+  extensions sans date en dernier, puis par abréviation.
+- `GET /cartes` rend désormais des `CardListItem` (et non plus des
+  `CardSummary`) : `CardSummary` plus `card_set_ids` (extensions
+  d'impression, triées par identifiant) et `latest_card_set_id` (D2a). La
+  fiche `CardRead` hérite des deux champs. `CardSummary` lui-même ne change
+  pas : c'est la vue courte embarquée dans le stock, les decks et les
+  produits, où ces champs n'auraient pas d'usage et coûteraient une requête.
+- Refus « hors impression » : 404 en ligne (`POST /stock`,
+  `POST /decks/{id}/cartes`), `not_found` par `/sync`, comme pour une carte ou
+  une langue inconnue. Pour une ligne de deck, le contrôle d'impression passe
+  avant celui de la présence en collection : une entrée qui ne peut pas
+  exister est un 404, une entrée qui pourrait exister mais manque reste un
+  409.
+
+**Laissé à B2** (marqué `TODO B2` dans le code) :
+
+- le contrôle d'impression avant écriture dans `stock.create_copy` et
+  `decks.add_card` ; en attendant, la clé étrangère refuse et le refus sort
+  en 409 par `commit_or_conflict` (création de stock) ou en 409 « pas en
+  collection » (ligne de deck), pas en 404 ;
+- `catalog.latest_card_set_id` : calcul provisoire sur la seule
+  `release_date` de l'extension ; la règle complète de D2a (dates des
+  occurrences, extension datée avant non datée, abréviation, tampon en
+  dernier recours) et son calcul par page de résultats restent à écrire ;
+- l'import : identifiants d'extension et d'impression stables au rejeu,
+  extension tampon, rapport enrichi, `--json` (D2b, D2c) ;
+- la légalité : agrégation des lignes d'une même carte sur ses impressions,
+  dédoublonnage de `banned_cards` et `not_yet_legal_cards`.
+
+La clé a déjà été propagée mécaniquement dans les services (recherches,
+écritures, comptabilité par carte × langue × extension, versement sous
+`bundle.card_set_id`, recopie dans `deleted_deck_card`, journal de `/sync`),
+pour que les routes restent cohérentes avec leurs signatures.
+
+**Pour le front.** Les miroirs locaux se clefent sur les mêmes triplets
+(`[cardId+languageCode+cardSetId]`), `cardSets` se remplit par
+`GET /extensions`, et `CardRow` stocke `card_set_ids` et
+`latest_card_set_id` tels que le serveur les rend : l'impression par défaut
+d'une carte jouée en proxy ne se recalcule pas côté client.

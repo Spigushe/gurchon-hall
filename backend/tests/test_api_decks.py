@@ -7,21 +7,51 @@ import re
 import time
 from datetime import UTC, date, datetime, timedelta
 
-from app.models import Card, CardCategory
+from sqlalchemy import select
+
+from app.models import Card, CardCategory, CardCopy
 from app.services import decks
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
 
 
-def add_line(api, deck_id, card_id, language="EN", quantity=1, proxy=0):
+def card_set_id_of(db, card_id, language="EN") -> int:
+    """L'extension d'une entrée de collection, pour composer chemin ou corps.
+
+    Se rabat sur n'importe quelle impression connue de la carte si la langue
+    demandée n'a pas d'entrée (cas volontaire : « carte pas dans cette langue »
+    doit rester un refus du service, pas un lookup qui échoue côté test), puis
+    sur `1` si la carte elle-même est inconnue de la collection — un refus
+    « carte introuvable » ne dépend de toute façon pas de l'extension fournie.
+    """
+    exact = db.scalars(
+        select(CardCopy.card_set_id).where(
+            CardCopy.card_id == card_id, CardCopy.language_code == language
+        )
+    ).first()
+    if exact is not None:
+        return exact
+    any_printing = db.scalars(
+        select(CardCopy.card_set_id).where(CardCopy.card_id == card_id)
+    ).first()
+    return any_printing if any_printing is not None else 1
+
+
+def add_line(api, db, deck_id, card_id, language="EN", quantity=1, proxy=0):
     return api.post(
         f"/decks/{deck_id}/cartes",
         json={
             "card_id": card_id,
             "language_code": language,
+            "card_set_id": card_set_id_of(db, card_id, language),
             "quantity": quantity,
             "proxy_quantity": proxy,
         },
     )
+
+
+def line_url(db, deck_id, card_id, language="EN") -> str:
+    card_set_id = card_set_id_of(db, card_id, language)
+    return f"/decks/{deck_id}/cartes/{card_id}/{language}/{card_set_id}"
 
 
 def stocked_cards(db, crypt_quantity, library_quantity):
@@ -87,7 +117,7 @@ def test_get_deck_returns_sorted_composition_with_cards(api, db):
         (crypt_a, "FR"),
         (crypt_a, "EN"),
     ):
-        assert add_line(api, deck.id, card.id, language).status_code == 201
+        assert add_line(api, db, deck.id, card.id, language).status_code == 201
 
     body = api.get(f"/decks/{deck.id}").json()
 
@@ -140,7 +170,7 @@ def test_add_card_returns_the_line_with_its_card(api, db):
     deck = make_deck(db)
     db.commit()
 
-    response = add_line(api, deck.id, crypt.id, "en", quantity=2)
+    response = add_line(api, db, deck.id, crypt.id, "en", quantity=2)
 
     assert response.status_code == 201
     body = response.json()
@@ -154,8 +184,8 @@ def test_add_card_needs_to_be_in_the_collection_in_that_language(api, db):
     deck = make_deck(db)
     db.commit()
 
-    not_in_language = add_line(api, deck.id, crypt.id, "FR")
-    unknown_card = add_line(api, deck.id, 9999)
+    not_in_language = add_line(api, db, deck.id, crypt.id, "FR")
+    unknown_card = add_line(api, db, deck.id, 9999)
 
     assert not_in_language.status_code == 409
     assert "collection" in not_in_language.json()["detail"]
@@ -167,13 +197,35 @@ def test_add_card_twice_conflicts(api, db):
     deck = make_deck(db)
     db.commit()
 
-    assert add_line(api, deck.id, crypt.id).status_code == 201
-    assert add_line(api, deck.id, crypt.id).status_code == 409
+    assert add_line(api, db, deck.id, crypt.id).status_code == 201
+    assert add_line(api, db, deck.id, crypt.id).status_code == 409
 
 
 def test_add_card_to_unknown_deck_is_404(api, db):
     crypt, _ = stocked_cards(db, 3, 1)
-    assert add_line(api, 9999, crypt.id).status_code == 404
+    assert add_line(api, db, 9999, crypt.id).status_code == 404
+
+
+def test_add_card_in_a_real_but_unrelated_card_set_is_404(api, db, world):
+    """Comme pour `/stock` (`test_api_stock.py::
+    test_create_entry_in_a_real_but_unrelated_card_set_is_404`) : une
+    extension réelle sans impression de la carte visée doit être un 404, et
+    ce contrôle passe avant celui de « pas en collection » (409) — la carte de
+    `world` a bien une entrée FR, mais pas sous cette extension-ci."""
+    other_card = make_card(db, "Autre carte du deck")
+    other_printing = make_printing(db, other_card)
+    db.commit()
+
+    response = api.post(
+        f"/decks/{world.deck.id}/cartes",
+        json={
+            "card_id": world.card.id,
+            "language_code": "FR",
+            "card_set_id": other_printing.card_set_id,
+            "quantity": 1,
+        },
+    )
+    assert response.status_code == 404
 
 
 def test_add_card_cannot_exceed_owned_copies(api, db):
@@ -181,7 +233,7 @@ def test_add_card_cannot_exceed_owned_copies(api, db):
     deck = make_deck(db)
     db.commit()
 
-    response = add_line(api, deck.id, crypt.id, quantity=4)
+    response = add_line(api, db, deck.id, crypt.id, quantity=4)
 
     assert response.status_code == 409
     assert "insuffisants" in response.json()["detail"]
@@ -193,9 +245,9 @@ def test_copies_are_shared_across_decks(api, db):
     second = make_deck(db, "Second")
     db.commit()
 
-    assert add_line(api, first.id, crypt.id, quantity=2).status_code == 201
-    too_many = add_line(api, second.id, crypt.id, quantity=2)
-    fits = add_line(api, second.id, crypt.id, quantity=1)
+    assert add_line(api, db, first.id, crypt.id, quantity=2).status_code == 201
+    too_many = add_line(api, db, second.id, crypt.id, quantity=2)
+    fits = add_line(api, db, second.id, crypt.id, quantity=1)
 
     assert too_many.status_code == 409
     assert "1 disponible" in too_many.json()["detail"]
@@ -207,24 +259,54 @@ def test_proxy_needs_the_proxy_status(api, db):
     deck = make_deck(db)
     db.commit()
 
-    refused = add_line(api, deck.id, crypt.id, quantity=2, proxy=1)
+    refused = add_line(api, db, deck.id, crypt.id, quantity=2, proxy=1)
     assert refused.status_code == 409
     assert "proxy" in refused.json()["detail"]
 
-    api.patch(f"/stock/{crypt.id}/EN", json={"proxy_allowed": True})
-    accepted = add_line(api, deck.id, crypt.id, quantity=2, proxy=1)
+    api.patch(f"/decks/{deck.id}", json={"proxy_allowed": True})
+    accepted = add_line(api, db, deck.id, crypt.id, quantity=2, proxy=1)
     assert accepted.status_code == 201
     assert accepted.json()["proxy_quantity"] == 1
 
 
-def test_a_card_can_be_played_entirely_in_proxy_with_none_owned(api, world):
-    # `world` : la carte existe en FR à 0 exemplaire, proxy autorisé.
-    response = add_line(api, world.deck.id, world.card.id, "FR", quantity=3, proxy=3)
+def test_disabling_proxy_on_a_deck_that_plays_one_is_refused(api, db):
+    """Lot 4 : le refus se déplace sur le `PATCH` du deck (§11, A2). Couvert
+    par `/sync` dans `test_sync_service.py::
+    test_disabling_proxy_on_a_deck_that_plays_one_is_refused` ; ce test-ci
+    vérifie la même règle en ligne."""
+    crypt, _ = stocked_cards(db, crypt_quantity=1, library_quantity=1)
+    deck = make_deck(db)
+    db.commit()
+    api.patch(f"/decks/{deck.id}", json={"proxy_allowed": True})
+    added = add_line(api, db, deck.id, crypt.id, quantity=1, proxy=1)
+    assert added.status_code == 201
+
+    refused = api.patch(f"/decks/{deck.id}", json={"proxy_allowed": False})
+
+    assert refused.status_code == 409
+    assert "proxy" in refused.json()["detail"]
+    # Refus sans effet : l'autorisation du deck n'a pas bougé.
+    assert api.get(f"/decks/{deck.id}").json()["proxy_allowed"] is True
+
+    # Une fois le proxy retiré de la ligne, la désactivation passe.
+    line = line_url(db, deck.id, crypt.id)
+    assert api.patch(line, json={"proxy_quantity": 0}).status_code == 200
+    accepted = api.patch(f"/decks/{deck.id}", json={"proxy_allowed": False})
+    assert accepted.status_code == 200
+
+
+def test_a_card_can_be_played_entirely_in_proxy_with_none_owned(api, db, world):
+    # `world` : la carte existe en FR à 0 exemplaire ; le deck autorise le proxy.
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    response = add_line(
+        api, db, world.deck.id, world.card.id, "FR", quantity=3, proxy=3
+    )
     assert response.status_code == 201
 
 
-def test_a_deck_can_mix_languages_of_the_same_card(api, world):
-    add_line(api, world.deck.id, world.card.id, "FR", quantity=1, proxy=1)
+def test_a_deck_can_mix_languages_of_the_same_card(api, db, world):
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    add_line(api, db, world.deck.id, world.card.id, "FR", quantity=1, proxy=1)
 
     cards = api.get(f"/decks/{world.deck.id}").json()["cards"]
     assert sorted(c["language_code"] for c in cards) == ["EN", "FR"]
@@ -235,43 +317,40 @@ def test_add_card_validates_quantities(api, db):
     deck = make_deck(db)
     db.commit()
 
-    assert add_line(api, deck.id, crypt.id, quantity=0).status_code == 422
-    assert add_line(api, deck.id, crypt.id, quantity=1, proxy=2).status_code == 422
+    assert add_line(api, db, deck.id, crypt.id, quantity=0).status_code == 422
+    assert add_line(api, db, deck.id, crypt.id, quantity=1, proxy=2).status_code == 422
 
 
 # --- Modification et retrait de lignes -------------------------------------
 
 
-def test_patch_line_quantity(api, world):
-    response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN", json={"quantity": 2}
-    )
+def test_patch_line_quantity(api, db, world):
+    url = line_url(db, world.deck.id, world.card.id)
+    response = api.patch(url, json={"quantity": 2})
     assert response.status_code == 200
     assert response.json()["quantity"] == 2
 
 
-def test_patch_line_does_not_count_its_own_allocation(api, world):
+def test_patch_line_does_not_count_its_own_allocation(api, db, world):
     # 4 possédés, 4 déjà dans ce deck : réécrire 4 ne doit pas être refusé.
-    response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN", json={"quantity": 4}
-    )
+    url = line_url(db, world.deck.id, world.card.id)
+    response = api.patch(url, json={"quantity": 4})
     assert response.status_code == 200
 
 
-def test_patch_line_cannot_exceed_available_copies(api, world):
-    response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN", json={"quantity": 5}
-    )
+def test_patch_line_cannot_exceed_available_copies(api, db, world):
+    url = line_url(db, world.deck.id, world.card.id)
+    response = api.patch(url, json={"quantity": 5})
     assert response.status_code == 409
 
 
-def test_patch_line_checks_the_merged_proxy_rule(api, world):
+def test_patch_line_checks_the_merged_proxy_rule(api, db, world):
     # Le schéma ne voit que `quantity` ; la ligne a 4 exemplaires, dont 0 proxy.
     # Passer `proxy_quantity` à 5 sans toucher `quantity` dépasse la ligne.
-    api.patch(f"/stock/{world.card.id}/EN", json={"proxy_allowed": True})
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
 
     response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN",
+        line_url(db, world.deck.id, world.card.id),
         json={"proxy_quantity": 5},
     )
 
@@ -281,50 +360,48 @@ def test_patch_line_checks_the_merged_proxy_rule(api, world):
     assert "ne peut pas dépasser" in error["msg"]
 
 
-def test_patch_line_lowering_quantity_below_existing_proxies_is_422(api, world):
-    api.patch(f"/stock/{world.card.id}/EN", json={"proxy_allowed": True})
+def test_patch_line_lowering_quantity_below_existing_proxies_is_422(api, db, world):
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
     api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN",
+        line_url(db, world.deck.id, world.card.id),
         json={"proxy_quantity": 3},
     )
 
     response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN", json={"quantity": 2}
+        line_url(db, world.deck.id, world.card.id), json={"quantity": 2}
     )
 
     assert response.status_code == 422
 
 
-def test_patch_line_rejects_the_proxy_without_status(api, world):
+def test_patch_line_rejects_the_proxy_without_status(api, db, world):
     response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN",
+        line_url(db, world.deck.id, world.card.id),
         json={"proxy_quantity": 1},
     )
     assert response.status_code == 409
 
 
-def test_patch_unknown_line_is_404(api, world):
+def test_patch_unknown_line_is_404(api, db, world):
     response = api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/ES", json={"quantity": 1}
+        line_url(db, world.deck.id, world.card.id, "ES"), json={"quantity": 1}
     )
     assert response.status_code == 404
 
 
-def test_remove_line(api, world):
-    url = f"/decks/{world.deck.id}/cartes/{world.card.id}/EN"
+def test_remove_line(api, db, world):
+    url = line_url(db, world.deck.id, world.card.id)
 
     assert api.delete(url).status_code == 204
     assert api.get(f"/decks/{world.deck.id}").json()["cards"] == []
     assert api.delete(url).status_code == 404
 
 
-def test_composition_changes_touch_the_deck_timestamp(api, world):
+def test_composition_changes_touch_the_deck_timestamp(api, db, world):
     before = api.get(f"/decks/{world.deck.id}").json()["updated_at"]
     time.sleep(0.01)
 
-    api.patch(
-        f"/decks/{world.deck.id}/cartes/{world.card.id}/EN", json={"quantity": 3}
-    )
+    api.patch(line_url(db, world.deck.id, world.card.id), json={"quantity": 3})
 
     assert api.get(f"/decks/{world.deck.id}").json()["updated_at"] > before
 
@@ -360,8 +437,9 @@ def make_legal_deck(api, db, library_count=60):
     crypt, library = stocked_cards(db, crypt_quantity=12, library_quantity=90)
     deck = make_deck(db)
     db.commit()
-    assert add_line(api, deck.id, crypt.id, quantity=12).status_code == 201
-    assert add_line(api, deck.id, library.id, quantity=library_count).status_code == 201
+    assert add_line(api, db, deck.id, crypt.id, quantity=12).status_code == 201
+    added_library = add_line(api, db, deck.id, library.id, quantity=library_count)
+    assert added_library.status_code == 201
     return deck
 
 
@@ -382,10 +460,11 @@ def test_legality_upper_bound_of_the_library(api, db):
     lines = api.get(f"/decks/{deck.id}").json()["cards"]
     library_line = next(c for c in lines if c["card"]["category"] == "library")
     # 91 cartes : la possession (90) l'interdit avant même la règle du deck.
-    too_many = api.patch(
-        f"/decks/{deck.id}/cartes/{library_line['card_id']}/EN",
-        json={"quantity": 91},
+    line_path = (
+        f"/decks/{deck.id}/cartes/{library_line['card_id']}"
+        f"/EN/{library_line['card_set_id']}"
     )
+    too_many = api.patch(line_path, json={"quantity": 91})
     assert too_many.status_code == 409
 
 
@@ -468,8 +547,8 @@ def build_deck(
     deck = make_deck(db)
     db.commit()
     for card in crypt_cards:
-        assert add_line(api, deck.id, card.id, quantity=per_card).status_code == 201
-    assert add_line(api, deck.id, library.id, quantity=60).status_code == 201
+        assert add_line(api, db, deck.id, card.id, quantity=per_card).status_code == 201
+    assert add_line(api, db, deck.id, library.id, quantity=60).status_code == 201
     return deck
 
 
@@ -723,7 +802,7 @@ def test_a_card_owned_in_two_languages_is_reported_once(api, db):
     crypt = api.get(f"/decks/{deck.id}").json()["cards"][0]["card"]
     make_copy(db, db.get(Card, crypt["id"]), "FR", quantity_owned=1)
     db.commit()
-    assert add_line(api, deck.id, crypt["id"], "FR").status_code == 201
+    assert add_line(api, db, deck.id, crypt["id"], "FR").status_code == 201
 
     body = legality(api, deck)
 

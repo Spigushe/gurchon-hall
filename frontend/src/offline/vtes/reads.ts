@@ -1,5 +1,5 @@
 import { foldText } from "../core/foldText";
-import type { CardRow, VtesOfflineDb } from "./db";
+import type { CardRow, CardSetRow, VtesOfflineDb } from "./db";
 import {
   project,
   type LocalDeck,
@@ -57,6 +57,8 @@ export interface StockQuery {
   /** Texte cherché dans le nom de la carte (casse et accents ignorés). */
   q?: string;
   languageCode?: string;
+  /** Extension de l'impression (Lot 4), comme le filtre `card_set_id` de `GET /stock`. */
+  cardSetId?: number;
   category?: CardCategory;
 }
 
@@ -72,13 +74,15 @@ export async function readStock(
       (entry) =>
         (!needle || (foldText(entry.cardName) ?? "").includes(needle)) &&
         (!language || entry.languageCode === language) &&
+        (query.cardSetId === undefined || entry.cardSetId === query.cardSetId) &&
         (!query.category || entry.category === query.category),
     )
     .sort(
       (a, b) =>
         compare(a.cardName ?? "", b.cardName ?? "") ||
         compare(a.languageCode, b.languageCode) ||
-        a.cardId - b.cardId,
+        a.cardId - b.cardId ||
+        a.cardSetId - b.cardSetId,
     );
 }
 
@@ -117,7 +121,8 @@ export async function readDeckCards(db: VtesOfflineDb, key: DeckKey): Promise<Lo
     (a, b) =>
       compare(a.cardName ?? "", b.cardName ?? "") ||
       compare(a.languageCode, b.languageCode) ||
-      a.cardId - b.cardId,
+      a.cardId - b.cardId ||
+      a.cardSetId - b.cardSetId,
   );
 }
 
@@ -139,4 +144,22 @@ export async function searchCards(db: VtesOfflineDb, query: CardQuery = {}): Pro
     .toArray();
   found.sort((a, b) => compare(a.name, b.name) || a.id - b.id);
   return found.slice(0, query.limit ?? 50);
+}
+
+/**
+ * Extensions du catalogue (miroir de `GET /extensions`), triées comme le
+ * serveur : date de sortie, les extensions sans date en dernier, puis
+ * abréviation (CLAUDE.md §7, Lot 4).
+ */
+export async function readCardSets(db: VtesOfflineDb): Promise<CardSetRow[]> {
+  const found = await db.cardSets.toArray();
+  found.sort((a, b) => {
+    if (a.releaseDate !== b.releaseDate) {
+      if (a.releaseDate === null) return 1;
+      if (b.releaseDate === null) return -1;
+      return compare(a.releaseDate, b.releaseDate);
+    }
+    return compare(a.abbrev, b.abbrev);
+  });
+  return found;
 }

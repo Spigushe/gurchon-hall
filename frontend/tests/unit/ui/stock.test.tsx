@@ -25,13 +25,17 @@ describe("collection : saisie hors ligne", () => {
     const form = screen.getByTestId("stock-form");
     expect(within(form).getByTestId("stock-form-card")).toHaveTextContent("Élan vital");
     fireEvent.change(within(form).getByLabelText("Exemplaires possédés"), { target: { value: "3" } });
-    fireEvent.click(within(form).getByLabelText(/Proxy autorisé/));
+    // Une seule impression connue du serveur factice : l'extension est déjà présélectionnée.
+    expect(within(form).getByTestId("stock-form-card-set")).toHaveValue("9");
     fireEvent.click(within(form).getByTestId("stock-form-submit"));
 
     await waitFor(() => expect(screen.getByTestId("stock-entry")).toBeInTheDocument());
     const entry = screen.getByTestId("stock-entry");
     expect(entry).toHaveAttribute("data-card-id", "1");
     expect(entry).toHaveAttribute("data-language", "FR");
+    await waitFor(() =>
+      expect(within(entry).getByTestId("stock-entry-card-set")).toHaveTextContent("TEST"),
+    );
     expect(within(entry).getByTestId("stock-entry-quantity")).toHaveTextContent("3");
     expect(within(entry).getByTestId("pending-badge")).toHaveTextContent(
       "En attente de synchronisation",
@@ -42,7 +46,7 @@ describe("collection : saisie hors ligne", () => {
     expect(queued).toHaveLength(1);
     expect(queued[0].operation).toMatchObject({
       type: "stock.upsert",
-      data: { card_id: 1, language_code: "FR", quantity_owned: 3, proxy_allowed: true },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity_owned: 3 },
     });
     expect(server.state.requests).toEqual([]);
     expect(ui.requests).toEqual([]);
@@ -124,13 +128,13 @@ describe("collection : saisie hors ligne", () => {
     expect(await runtime.outbox.list()).toHaveLength(0);
   });
 
-  it("le pas +/− renvoie l'état complet : proxy et notes ne sont pas remis à zéro", async () => {
+  it("le pas +/− renvoie l'état complet : l'extension et les notes ne sont pas remis à zéro", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
     await runtime.actions.saveStock({
       cardId: 1,
       languageCode: "FR",
+      cardSetId: 9,
       quantityOwned: 2,
-      proxyAllowed: true,
       notes: "foil",
     });
     const entry = await screen.findByTestId("stock-entry");
@@ -144,7 +148,72 @@ describe("collection : saisie hors ligne", () => {
     expect(queued).toHaveLength(2);
     expect(queued[1].operation).toMatchObject({
       type: "stock.upsert",
-      data: { card_id: 1, language_code: "FR", quantity_owned: 3, proxy_allowed: true, notes: "foil" },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity_owned: 3, notes: "foil" },
+    });
+  });
+
+  it("propose l'extension quand la carte a plusieurs impressions, présélectionnée sur la dernière version", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    // Une seconde impression, plus récente, pour « Élan vital » (une seule dans le serveur factice).
+    await runtime.db.cardSets.put({
+      id: 21,
+      abbrev: "NEW",
+      fullName: "Extension récente",
+      releaseDate: "2022-01-01",
+      company: null,
+      isPlaceholder: false,
+    });
+    const card = await runtime.db.cards.get(1);
+    await runtime.db.cards.put({ ...card!, cardSetIds: [9, 21], latestCardSetId: 21 });
+
+    await screen.findByTestId("stock-form");
+    await pickCard("elan");
+    const form = screen.getByTestId("stock-form");
+    fireEvent.change(within(form).getByLabelText("Exemplaires possédés"), { target: { value: "2" } });
+    const select = within(form).getByTestId("stock-form-card-set") as HTMLSelectElement;
+    expect(select).toHaveValue("21"); // présélection sur la dernière version (D2a)
+    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "TEST — Extension de test",
+      "NEW — Extension récente",
+    ]);
+
+    fireEvent.change(select, { target: { value: "9" } });
+    fireEvent.click(within(form).getByTestId("stock-form-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("stock-entry")).toBeInTheDocument());
+    const queued = await runtime.outbox.list();
+    expect(queued[0].operation).toMatchObject({
+      type: "stock.upsert",
+      data: { card_id: 1, card_set_id: 9, quantity_owned: 2 },
+    });
+  });
+
+  it("enregistre une carte à 0 exemplaire sous sa dernière version, sans demander l'extension (D2a)", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.db.cardSets.put({
+      id: 21,
+      abbrev: "NEW",
+      fullName: "Extension récente",
+      releaseDate: "2022-01-01",
+      company: null,
+      isPlaceholder: false,
+    });
+    const card = await runtime.db.cards.get(1);
+    await runtime.db.cards.put({ ...card!, cardSetIds: [9, 21], latestCardSetId: 21 });
+
+    await screen.findByTestId("stock-form");
+    await pickCard("elan");
+    const form = screen.getByTestId("stock-form");
+    fireEvent.change(within(form).getByLabelText("Exemplaires possédés"), { target: { value: "0" } });
+    expect(within(form).queryByTestId("stock-form-card-set")).not.toBeInTheDocument();
+    expect(within(form).getByTestId("stock-form-proxy-hint")).toBeInTheDocument();
+    fireEvent.click(within(form).getByTestId("stock-form-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("stock-entry")).toBeInTheDocument());
+    const queued = await runtime.outbox.list();
+    expect(queued[0].operation).toMatchObject({
+      type: "stock.upsert",
+      data: { card_id: 1, card_set_id: 21, quantity_owned: 0 },
     });
   });
 

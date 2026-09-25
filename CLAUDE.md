@@ -4,7 +4,7 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 3 livrés**. Lot 0 : squelette monorepo, FastAPI `/health`,
+**État actuel** : **Lots 0 à 4 livrés**. Lot 0 : squelette monorepo, FastAPI `/health`,
 React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -16,36 +16,37 @@ que par une bascule en bloc), couche offline `frontend/src/offline/` (Dexie, fil
 d'attente, moteur de rejeu, recherche locale repliée comme le back), et première UI
 métier (collection, decks) sur routeur à hash. Détail des décisions au §11, point
 d'entrée du contrat de sync dans `docs/lot3-sync-contrat.md`, de la couche offline dans
-`frontend/src/offline/README.md`. Le modèle compte **23 tables** et quatre révisions
-Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+`frontend/src/offline/README.md`. Lot 4 : l'autorisation de proxy passe de l'entrée de
+stock au deck, et une entrée de collection est désormais identifiée par carte × langue ×
+extension, de la base jusqu'à l'UI (plan dans `docs/lot4-plan-inventaire.md`). Le modèle
+compte **23 tables** et six révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1488 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (1552 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
-`--from-dir` pour des fichiers locaux ; à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 216 tests),
-`npm run test:e2e` (Playwright, 22 tests, dont 13 contre un vrai back sur base
+`--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
+à lancer une fois la base migrée).
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 228 tests),
+`npm run test:e2e` (Playwright, 23 tests, dont 14 contre un vrai back sur base
 éphémère — projet `real-backend`, cf. `frontend/tests/e2e-real/`),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
-la base de développement. Vérifier la variable avant toute migration. Cette base est
-restée à la révision `5dc50e3c1701` pendant tout le Lot 3 (les migrations et tests du
-lot ont tourné sur des bases éphémères) : elle reste donc en retard d'une révision,
-`8cc70f4bbbcc` (journal d'idempotence), tant qu'un `uv run alembic upgrade head` n'a
-pas été lancé dessus — nécessaire avant d'utiliser `/sync` en local. Catalogue krcg
-importé (4149 cartes) et aucun deck. Une base plus ancienne se remet à niveau par ce
+la base de développement. Vérifier la variable avant toute migration. Cette base n'est
+pas versionnée ; elle a été reconstruite le 2026-09-25 à la révision `b7e41d0c9a52`
+(la tête), avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits),
+aucune entrée de stock et aucun deck. Une base plus ancienne se remet à niveau par ce
 même `upgrade head` ; une base repartie de zéro se reconstruit par `upgrade head` suivi
 de `uv run python scripts/import_catalog.py`.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
-`/sync` — 23 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
-`/parties`, `/participations` : elles viennent au Lot 6. Une UI métier de consultation
+`/extensions`, `/sync` — 24 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
+`/parties`, `/participations` : elles viennent au Lot 7. Une UI métier de consultation
 et de saisie existe pour la collection et les decks (`frontend/src/features/`,
-routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 6.
+routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 7.
 
 ---
 
@@ -123,7 +124,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff-mobile/, Lot 9)
+│                               design (ex. design-handoff-mobile/, Lot 5)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -192,12 +193,18 @@ Le Lot 3 ajoute une quatrième révision, `8cc70f4bbbcc` : la table `sync_operat
 journal d'idempotence de `/sync` (§7, §11). Le modèle compte désormais **23 tables**.
 Cette révision ne touche qu'une table neuve, sans mode batch, et se rejoue hors ligne
 (`upgrade 5dc50e3c1701:8cc70f4bbbcc --sql`), contrairement aux deux précédentes.
+Le Lot 4 en ajoute deux, sans table nouvelle : `6c9a178b7a1d` (`proxy_allowed` passe de
+`card_copy` à `deck`) puis `b7e41d0c9a52` (l'extension entre dans la clé du stock, et
+`card_set.is_placeholder` marque l'extension tampon de l'import). Toutes deux passent
+par le mode batch et ne convertissent aucune donnée : montée comme descente refusent de
+s'exécuter (`RuntimeError`, avant toute modification) si `card_copy`, `deck_card` ou
+`deleted_deck_card` contiennent des lignes (§11, Lot 4).
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
-| Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension |
+| Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | cible à faire évoluer vers une identité d'inventaire **carte × langue × extension** : `quantity_owned` par exemplaire imprimé, et `proxy_allowed` au niveau du deck selon le tournoi visé ; `deck_card` et `deleted_deck_card` doivent conserver l'extension et leurs FK/comptabilités ; les règles de stock, les bundles, les recherches, les routes, le client offline et les écrans doivent tous distinguer deux impressions de même carte et langue |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK et sa FK vers `card_copy` ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien) ; `deck.proxy_allowed` porte l'autorisation de proxy |
 | Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
@@ -224,7 +231,8 @@ au format carte × exemplaires, entrée prévue pour verser un produit dans le s
 
 Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
 source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
-possédés) ; VP/GW. La sémantique du proxy est tranchée depuis le Lot 2 (§11).
+possédés) ; VP/GW. La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
+deck depuis le Lot 4 (§11).
 Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
 l'expose pas, il reste dans le texte de carte).
 
@@ -233,8 +241,9 @@ colonne) → en logique de service + tests :
 
 - deck légal, les cinq règles du §5 — *fait au Lot 2* (`services/vtes_rules.py`) ;
 - comptabilité du stock : la somme des exemplaires réels (`quantity - proxy_quantity`)
-  alloués à travers les decks vivants ne dépasse pas `quantity_owned` — *fait au
-  Lot 2* (`services/stock.py`) ;
+  alloués à travers les decks vivants ne dépasse pas `quantity_owned`, entrée par entrée
+  (carte × langue × extension) — *fait au Lot 2, par impression au Lot 4*
+  (`services/stock.py`) ;
 - tournoi mono-deck → toutes mes participations pointent le même deck ;
 - cohérence VP/GW **[à confirmer]** ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
@@ -252,24 +261,25 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 et 3 (chemins en français, `operationId` en anglais camelCase),
-23 opérations sur 15 chemins :
+Livré aux Lots 2 à 4 (chemins en français, `operationId` en anglais camelCase),
+24 opérations sur 16 chemins :
 
 | Route | Rôle |
 | --- | --- |
-| `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule |
+| `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule ; chaque carte porte `card_set_ids` (ses impressions) et `latest_card_set_id` (sa dernière version, §11 Lot 4) |
+| `GET /extensions` | liste des extensions du catalogue, marqueur `is_placeholder` compris (Lot 4) |
 | `GET /bundles`, `GET /bundles/{id}` | produits et leur contenu (carte × exemplaires) |
-| `POST /bundles/{id}/stock` | verse le contenu d'un produit dans le stock (`language_code`, `count`) ; 409 si un total dépasserait le plafond entier |
+| `POST /bundles/{id}/stock` | verse le contenu d'un produit dans le stock (`language_code`, `count`), chaque carte sous l'extension du produit ; 409 si un total dépasserait le plafond entier |
 | `GET/POST /langues` | liste ouverte des langues |
-| `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}` | collection, une entrée par carte et par langue |
+| `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}/{card_set_id}` | collection, une entrée par carte, langue et extension ; filtre `card_set_id` sur la liste ; 404 pour une extension où la carte n'a pas été imprimée |
 | `GET /decks` | liste filtrée par `state` (`active` par défaut, `archived`, `all`), `status` et `q` ; tri nom puis discriminant. Les decks supprimés n'y figurent jamais |
-| `POST /decks` | crée un deck ; le discriminant est tiré par le serveur, jamais fourni par le client |
+| `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client |
 | `GET /decks/{id}` | deck et composition ; un deck supprimé se lit encore, en lecture seule, depuis sa decklist figée |
-| `PATCH /decks/{id}` | modification partielle, et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
+| `PATCH /decks/{id}` | modification partielle, `proxy_allowed` compris (409 s'il est retiré à un deck qui joue des proxies), et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
-| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}` | composition du deck |
-| `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`) ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
+| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck, chaque ligne allouée depuis une entrée de stock précise |
+| `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
 l'archivage passe par le `PATCH`, seul point d'entrée de la modification d'un deck.
@@ -653,6 +663,59 @@ Tranchées pendant le Lot 3 :
   versement à travers la file ne double-compte plus (verdict mémorisé au journal), mais
   `POST /bundles/{id}/stock` appelé hors file reste tel quel (additionne à chaque appel).
 
+Tranchées pendant le Lot 4 (plan et justification complète dans
+`docs/lot4-plan-inventaire.md`, décisions validées le 2026-09-24) :
+
+- **Le proxy est une propriété du deck.** `deck.proxy_allowed` remplace
+  `card_copy.proxy_allowed`. Les refus 409 suivent : ajout ou modification d'une ligne à
+  proxies dans un deck qui ne les autorise pas, retrait de l'autorisation à un deck qui en
+  joue. Le refus qui portait sur l'entrée de stock a disparu.
+- **L'extension élargit la clé primaire (D1).** Pas de clé technique : le client hors
+  ligne désigne une entrée par des valeurs qu'il connaît, et les chemins restent lisibles.
+- **Toute entrée pointe une impression réelle (D2).** La FK composite vers
+  `card_printing` sert de dernier filet ; avant elle, le service rend un 404 (ou
+  `not_found` par `/sync`), comme pour une langue inconnue. Un exemplaire dont on ignore
+  l'extension se range sous une impression plausible, corrigée plus tard.
+- **Une carte jouée en proxy entre sous sa dernière version (D2a).** Pour une entrée à
+  0 exemplaire, l'UI prend `latest_card_set_id`, calculé une seule fois côté serveur
+  (`services/catalog.py`) : date la plus récente des occurrences de l'impression, à
+  défaut celle de l'extension, puis extension datée avant extension sans date, puis
+  abréviation par ordre alphabétique. Le miroir local stocke la valeur au lieu de la
+  recalculer, pour ne pas ouvrir d'écart entre en ligne et hors ligne comme celui de
+  `fold_text`. C'est une valeur par défaut, pas une contrainte.
+- **Extension tampon pour une carte sans impression (D2b, D2c).** L'import la crée au
+  besoin (`is_placeholder`), la signale dans son rapport et en avertissement sans échouer,
+  et la retire au rejeu une fois krcg corrigé si aucune entrée de stock ne l'utilise. C'est
+  la seule suppression que l'import s'autorise. Aucune carte n'est concernée aujourd'hui.
+- **Aucune conversion de données (D3).** La base ne contenait ni stock ni deck : les
+  migrations refusent de tourner sur des tables non vides plutôt que de porter un code de
+  conversion jamais exécuté. Choix de pilote, à ne pas reproduire sur Barrin.
+- **Pas de compatibilité avec l'ancienne file (D4).** `card_set_id` est obligatoire dans
+  toutes les écritures. Côté client, la base Dexie monte en versions 3 puis 4 : IndexedDB
+  ne change pas la clé primaire d'un magasin existant, il faut le supprimer puis le
+  recréer. Les miroirs sont vidés et rechargés, la file et `settled` ne sont pas
+  réécrites. La marche à suivre sur une base en service (champ d'abord facultatif, le
+  temps de vider les files) est décrite pour Barrin dans `frontend/src/offline/README.md`.
+- **La source reste krcg, avec ses extensions (D6).** vtescsv a été évalué puis écarté.
+  Limite acceptée : les 26 cartes qui ont plusieurs promos distinctes n'ont qu'une
+  impression `Promo`, et leurs exemplaires promo se confondent dans le stock.
+
+Limites connues à la clôture du Lot 4 :
+
+- **Les identifiants du catalogue sont devenus des références.** L'import garde ceux des
+  extensions et des impressions d'un rejeu à l'autre (vérifié sur la base de
+  développement le 2026-09-25), mais un renommage d'abréviation chez krcg recréerait
+  l'extension et laisserait orphelines les entrées de stock de l'ancienne.
+- **Deux révisions de plus ne se rejouent pas hors ligne** (`upgrade head --sql`), à cause
+  du mode batch ; le `xfail` existant couvre la plage, puisqu'il vise la tête.
+- **Le handoff de design ne connaît pas l'extension** : l'UI du Lot 4 se contente d'un
+  champ fonctionnel, le Lot 5 devra l'intégrer (noté dans `docs/lot5-plan-design.md`).
+- **Sous OneDrive, uv et Playwright demandent une précaution.** Les liens physiques de uv
+  échouent dans le dossier synchronisé (`UV_LINK_MODE=copy`). Les fichiers que OneDrive
+  n'a pas réécrits localement apparaissent à Node comme des liens symboliques, et
+  Playwright les ignore sans prévenir : un run e2e n'est vert qu'avec le bon nombre de
+  tests.
+
 ---
 
 ## 12. Roadmap
@@ -696,17 +759,27 @@ Tranchées pendant le Lot 3 :
    limites restent ouvertes par décision assumée, pas par oubli : la course entre un lot
    et une écriture en ligne (§11), et le `downgrade` de la migration qui supprime le
    journal (§6, §11).
-5. **Lot 4 — Inventaire par impression** : faire évoluer l'identité de l'inventaire vers
-  **carte × langue × extension**. Créer la migration et le modèle de référence
-  nécessaires pour rattacher chaque exemplaire possédé à une impression/extension,
-  puis propager cette dimension à `card_copy`, `deck_card` et
-  `deleted_deck_card`, à la comptabilité du stock et aux règles de proxy. Le contrat
-  OpenAPI et le client TS devront exposer l'extension sur les lectures, écritures,
-  recherches, versements de bundles et opérations `/sync` ; l'import catalogue devra
-  préserver l'association carte × extension × occurrence. L'UI collection et decks,
-  le miroir IndexedDB, les clés de recherche locale, les conflits/idempotences et les
-  tests devront distinguer deux impressions de la même carte dans la même langue.
-6. **Lot 5 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
+5. **Lot 4 — Inventaire par impression** — *livré.* Autorisation de proxy portée par le
+   deck, puis identité d'inventaire **carte × langue × extension** à travers le modèle
+   (deux révisions, `6c9a178b7a1d` et `b7e41d0c9a52`), le contrat (24e opération,
+   `GET /extensions` ; `card_set_id` dans les chemins, les écritures et `/sync`), l'import
+   krcg (dernière version d'une carte, extension tampon, `--json`), le miroir Dexie
+   (versions 3 et 4) et l'UI collection et decks. Plan dans
+   `docs/lot4-plan-inventaire.md`, décisions et limites au §11. 1552 tests backend
+   (2 `xfail` assumés), 228 tests vitest et 23 tests Playwright passent, dont un nouveau
+   scénario contre le vrai back : deux impressions de la même carte et langue saisies hors
+   ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
+   import rejoué sans doublon ni changement d'identifiant.
+6. **Lot 5 — Passe design** : reprendre l'UI React sur un design produit avec Claude
+   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
+   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
+  préciser. À prendre de préférence avant le Lot 7, pour que la saisie des parties
+   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
+   disponible, lot non commencé : un handoff de design (direction « 1b », design system
+   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
+   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
+   routes, mêmes données, même sémantique offline).
+7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
   introduisant un compte et l'isolation des données par utilisateur. Prévoir les
   parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,
   le hachage des secrets, les routes d'authentification, la protection de toutes les
@@ -715,27 +788,18 @@ Tranchées pendant le Lot 3 :
   compte et la déconnexion devront empêcher toute fuite de données entre utilisateurs;
   les tests devront couvrir autorisation, expiration de session, séparation des
   inventaires et synchronisation après reconnexion.
-7. **Lot 6 — Parties & tournois** : saisie, mono/multi-deck, participations.
-8. **Lot 7 — Analyse** : perf par deck, historique par lieu/date.
-9. **Lot 8 — Portage** : packager le socle offline pour barrins-project, côté code —
-  le déploiement de gurchon-hall lui-même est traité au Lot 11.
-10. **Lot 9 — Passe design** : reprendre l'UI React sur un design produit avec Claude
-   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
-   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
-  préciser. À prendre de préférence avant le Lot 6, pour que la saisie des parties
-   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
-   disponible, lot non commencé : un handoff de design (direction « 1b », design system
-   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
-   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
-   routes, mêmes données, même sémantique offline).
-11. **Lot 10 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
+9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
+10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
    collection, un deck ne s'alimentant que du stock possédé (§11.2).
+11. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
+  le déploiement de gurchon-hall lui-même est traité au Lot 11.
 12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
-    Dépend du Lot 8 : le portage prépare le terrain côté code, ce lot met gurchon-hall
+    Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).

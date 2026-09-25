@@ -1,4 +1,4 @@
-# Lot 7 — passe design Nocturne : plan d'implémentation
+# Lot 5 — passe design Nocturne : plan d'implémentation
 
 Brief de mise en œuvre du handoff `docs/design-handoff-mobile/` (direction « 1b »,
 système Nocturne), écrit avant toute implémentation, sur le même principe que
@@ -254,7 +254,7 @@ pas l'offline en profondeur mais en modifie la coquille visible :
 ## Suivi
 
 Ce document est un plan d'entrée de lot, pas un journal de décisions au sens
-du § 11 de CLAUDE.md. Une fois le Lot 7 clos, les arbitrages qui en valent la
+du § 11 de CLAUDE.md. Une fois le Lot 5 clos, les arbitrages qui en valent la
 peine (sort de `CatalogPanel`, choix self-host vs CDN pour Inter, `data-testid`
 retenus pour le picker fusionné) ont vocation à migrer vers CLAUDE.md § 11 et
 § 12, comme pour les lots précédents.

@@ -4,7 +4,7 @@ import { createVtesOffline, type VtesOfflineRuntime } from "../../../src/offline
 import { readDeck, readDeckCards, readDecks, readStock } from "../../../src/offline/vtes/reads";
 import { refreshCatalog, refreshDecks } from "../../../src/offline/vtes/refresh";
 import type { ApiClient } from "../../../src/offline/vtes/types";
-import { createFakeServer, type FakeServer } from "./fakeServer";
+import { CARD_SET_ID, createFakeServer, type FakeServer } from "./fakeServer";
 import { freshDbName, manualTimers, restoreNavigatorOnLine, setNavigatorOnLine, until, within } from "./helpers";
 
 const runtimes: VtesOfflineRuntime[] = [];
@@ -40,9 +40,9 @@ describe("saisie hors ligne", () => {
     await refreshCatalog(server.client, runtime.db); // catalogue mis en cache quand on était en ligne
     server.state.requests.length = 0;
 
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "fr", quantityOwned: 4, proxyAllowed: true });
-    const { key } = await runtime.actions.createDeck({ name: "Malkavien" });
-    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", quantity: 2 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "fr", cardSetId: CARD_SET_ID, quantityOwned: 4 });
+    const { key } = await runtime.actions.createDeck({ name: "Malkavien", proxyAllowed: true });
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: CARD_SET_ID, quantity: 2 });
 
     expect(server.state.requests).toEqual([]); // §10 : jamais d'appel API dans le chemin de saisie
     const queued = await runtime.outbox.list();
@@ -62,16 +62,28 @@ describe("saisie hors ligne", () => {
       { code: "EN", label: "Anglais", sortOrder: 0 },
       { code: "XX", label: "Autre", sortOrder: 9 },
     ]);
-    const entry = await runtime.actions.saveStock({ cardId: 1, languageCode: "de", quantityOwned: 1 });
+    const entry = await runtime.actions.saveStock({
+      cardId: 1,
+      languageCode: "de",
+      cardSetId: CARD_SET_ID,
+      quantityOwned: 1,
+    });
     expect(entry.operation).toMatchObject({ data: { language_code: "XX" } });
-    await expect(runtime.actions.saveStock({ cardId: 1, languageCode: "  " })).rejects.toThrow(RangeError);
+    await expect(
+      runtime.actions.saveStock({ cardId: 1, languageCode: "  ", cardSetId: CARD_SET_ID }),
+    ).rejects.toThrow(RangeError);
   });
 
   it("garde la file et les clés à travers un rechargement", async () => {
     const dbName = freshDbName("reload");
     const first = await boot({ online: false, dbName });
     const { key } = await first.runtime.actions.createDeck({ name: "Ventrue" });
-    await first.runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "EN", quantity: 1 });
+    await first.runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 1,
+    });
     const before = await first.runtime.outbox.list();
     first.runtime.stop();
     first.runtime.dispose();
@@ -88,9 +100,14 @@ describe("saisie hors ligne", () => {
 describe("rejeu vers /sync", () => {
   it("envoie la file dans l'ordre au retour du réseau, raccorde le deck à son identité serveur", async () => {
     const { server, runtime, state } = await boot({ online: false });
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 3 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 3 });
     const { key, clientRef } = await runtime.actions.createDeck({ name: "Malkavien" });
-    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "EN", quantity: 2 });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 2,
+    });
     expect(server.state.requests).toEqual([]);
 
     state.online = true;
@@ -138,14 +155,19 @@ describe("rejeu vers /sync", () => {
       entry.operationId,
     );
     expect(server.state.depositsApplied).toBe(1); // « replayed » : rien n'a été réappliqué
-    expect(server.state.stock.get("1|EN")?.quantity_owned).toBe(3);
+    expect(server.state.stock.get(`1|EN|${CARD_SET_ID}`)?.quantity_owned).toBe(3);
   });
 
   it("expose un refus, et sa correction repart sous une nouvelle clé", async () => {
     const { server, runtime } = await boot({ online: false });
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
     const { key } = await runtime.actions.createDeck({ name: "Gangrel" });
-    const tooMany = await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "EN", quantity: 5 });
+    const tooMany = await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 5,
+    });
 
     const summary = await runtime.engine.flush();
     expect(summary).toMatchObject({ applied: 2, rejected: 1 });
@@ -173,8 +195,13 @@ describe("rejeu vers /sync", () => {
     const { runtime } = await boot({ online: false });
     const { key } = await runtime.actions.createDeck({ name: "Brujah" });
     await runtime.actions.createDeck({ name: "Brujah" }); // ne conflit pas : autre référence
-    await runtime.actions.saveDeckCard("ref:jamais-cree", { cardId: 1, languageCode: "EN", quantity: 1 });
-    await runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await runtime.actions.saveDeckCard("ref:jamais-cree", {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 1,
+    });
+    await runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
 
     const summary = await runtime.engine.flush();
     expect(summary).toMatchObject({ applied: 3, rejected: 1 });
@@ -190,7 +217,7 @@ describe("indisponibilité du serveur", () => {
     runtime.engine.start();
     await runtime.engine.whenIdle();
     server.next.status = 503;
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
     await until(() => runtime.engine.getStatus().failures === 1);
     await runtime.engine.whenIdle();
 
@@ -214,7 +241,13 @@ describe("rafraîchissement des miroirs", () => {
 
   it("n'écrase pas l'ancien instantané quand la lecture échoue", async () => {
     const { server, runtime } = await boot();
-    server.state.stock.set("1|EN", { card_id: 1, language_code: "EN", quantity_owned: 2, proxy_allowed: false, notes: null });
+    server.state.stock.set(`1|EN|${CARD_SET_ID}`, {
+      card_id: 1,
+      language_code: "EN",
+      card_set_id: CARD_SET_ID,
+      quantity_owned: 2,
+      notes: null,
+    });
     await runtime.refresh();
     expect(await runtime.db.stock.count()).toBe(1);
 
@@ -255,9 +288,14 @@ describe("rafraîchissement automatique et rejeu", () => {
     runtime.start();
 
     // Hors ligne : file non vide, aucun appel réseau.
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 3 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 3 });
     const { key } = await runtime.actions.createDeck({ name: "Malkavien" });
-    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "EN", quantity: 2 });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 2,
+    });
     expect(server.state.requests).toEqual([]);
 
     // Retour du réseau : le moteur rejoue, et la couche relit les miroirs.
@@ -279,9 +317,14 @@ describe("rafraîchissement automatique et rejeu", () => {
 
 describe("entre le verdict et le rafraîchissement", () => {
   const seedOffline = async (runtime: VtesOfflineRuntime) => {
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 3 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 3 });
     const created = await runtime.actions.createDeck({ name: "Malkavien" });
-    await runtime.actions.saveDeckCard(created.key, { cardId: 1, languageCode: "EN", quantity: 2 });
+    await runtime.actions.saveDeckCard(created.key, {
+      cardId: 1,
+      languageCode: "EN",
+      cardSetId: CARD_SET_ID,
+      quantity: 2,
+    });
     return created;
   };
 
@@ -389,8 +432,8 @@ describe("coalescence des rafraîchissements", () => {
     const { server, runtime } = await boot();
     const first = runtime.refresh();
     await until(() => server.state.requests.length > 0); // la lecture est en route
-    server.state.stock.set("1|EN", {
-      card_id: 1, language_code: "EN", quantity_owned: 5, proxy_allowed: false, notes: null,
+    server.state.stock.set(`1|EN|${CARD_SET_ID}`, {
+      card_id: 1, language_code: "EN", card_set_id: CARD_SET_ID, quantity_owned: 5, notes: null,
     });
     await runtime.refresh(); // demandé après le changement : doit le voir
     await first;

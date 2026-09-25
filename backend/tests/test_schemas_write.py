@@ -66,9 +66,14 @@ PLAYED_AT = datetime(2026, 2, 1, 14, 0, tzinfo=UTC)
 MINIMAL_CREATE = {
     LanguageCreate: {"code": "DE", "label": "Allemand"},
     VenueCreate: {"name": "Club"},
-    CardCopyCreate: {"card_id": 1, "language_code": "EN"},
+    CardCopyCreate: {"card_id": 1, "language_code": "EN", "card_set_id": 1},
     DeckCreate: {"name": "Grinder"},
-    DeckCardCreate: {"card_id": 1, "language_code": "EN", "quantity": 1},
+    DeckCardCreate: {
+        "card_id": 1,
+        "language_code": "EN",
+        "card_set_id": 1,
+        "quantity": 1,
+    },
     BundleDeposit: {"language_code": "EN"},
     PlayerCreate: {"name": "Alice"},
     ParticipationCreate: {"player_id": 1},
@@ -182,9 +187,9 @@ def test_every_write_schema_is_covered_by_this_module():
     [
         (LanguageCreate, {"code", "label"}),
         (VenueCreate, {"name"}),
-        (CardCopyCreate, {"card_id", "language_code"}),
+        (CardCopyCreate, {"card_id", "language_code", "card_set_id"}),
         (DeckCreate, {"name"}),
-        (DeckCardCreate, {"card_id", "language_code", "quantity"}),
+        (DeckCardCreate, {"card_id", "language_code", "card_set_id", "quantity"}),
         (BundleDeposit, {"language_code"}),
         (PlayerCreate, {"name"}),
         (ParticipationCreate, {"player_id"}),
@@ -499,9 +504,11 @@ def test_numeric_lower_bounds(schema, field, lowest_valid, highest_invalid):
 UPPER_BOUNDED = [
     (LanguageCreate, "sort_order"),
     (CardCopyCreate, "card_id"),
+    (CardCopyCreate, "card_set_id"),
     (CardCopyCreate, "quantity_owned"),
     (CardCopyUpdate, "quantity_owned"),
     (DeckCardCreate, "card_id"),
+    (DeckCardCreate, "card_set_id"),
     (DeckCardCreate, "quantity"),
     (DeckCardUpdate, "quantity"),
     (DeckCardUpdate, "proxy_quantity"),
@@ -542,7 +549,9 @@ def test_integers_are_capped_at_the_database_maximum(schema, field):
     ("schema", "field"),
     [
         (CardCopyCreate, "card_id"),
+        (CardCopyCreate, "card_set_id"),
         (DeckCardCreate, "card_id"),
+        (DeckCardCreate, "card_set_id"),
         (ParticipationCreate, "player_id"),
         (ParticipationCreate, "deck_id"),
         (GameCreate, "venue_id"),
@@ -558,7 +567,12 @@ def test_identifiers_in_the_body_start_at_one(schema, field):
 
 def test_proxy_quantity_is_capped_too():
     """À part : le plafond doit rester sous la quantité, elle-même plafonnée."""
-    line = {"card_id": 1, "language_code": "EN", "quantity": MAX_DB_INT}
+    line = {
+        "card_id": 1,
+        "language_code": "EN",
+        "card_set_id": 1,
+        "quantity": MAX_DB_INT,
+    }
     DeckCardCreate.model_validate({**line, "proxy_quantity": MAX_DB_INT})
     with pytest.raises(ValidationError) as excinfo:
         DeckCardCreate.model_validate({**line, "proxy_quantity": MAX_DB_INT + 1})
@@ -591,11 +605,12 @@ def test_no_upper_bound_on_victory_points_or_player_count():
 
 def test_create_defaults():
     assert LanguageCreate(code="DE", label="Allemand").sort_order == 0
-    copy = CardCopyCreate(card_id=1, language_code="EN")
-    assert (copy.quantity_owned, copy.proxy_allowed, copy.notes) == (0, False, None)
+    copy = CardCopyCreate(card_id=1, language_code="EN", card_set_id=1)
+    assert (copy.quantity_owned, copy.notes) == (0, None)
     deck = DeckCreate(name="D")
     assert deck.status is DeckStatus.DRAFT
-    line = DeckCardCreate(card_id=1, language_code="EN", quantity=2)
+    assert deck.proxy_allowed is False
+    line = DeckCardCreate(card_id=1, language_code="EN", card_set_id=1, quantity=2)
     assert line.proxy_quantity == 0
     assert PlayerCreate(name="A").is_me is False
     game = GameCreate(played_at=PLAYED_AT, player_count=4)
@@ -718,7 +733,8 @@ def test_deck_status_is_reduced_to_draft_and_active():
 def test_language_is_not_a_closed_enum_in_the_contract():
     """§11.2 : le code de langue est une chaîne libre (liste ouverte)."""
     for code in ("EN", "FR", "ES", "XX", "DE", "pt-BR"):
-        assert CardCopyCreate(card_id=1, language_code=code).language_code == code
+        copy = CardCopyCreate(card_id=1, language_code=code, card_set_id=1)
+        assert copy.language_code == code
 
 
 # --------------------------------------------------------------------------
@@ -731,7 +747,11 @@ def test_language_is_not_a_closed_enum_in_the_contract():
 )
 def test_deck_card_create_accepts_proxy_up_to_quantity(quantity, proxy_quantity):
     line = DeckCardCreate(
-        card_id=1, language_code="FR", quantity=quantity, proxy_quantity=proxy_quantity
+        card_id=1,
+        language_code="FR",
+        card_set_id=1,
+        quantity=quantity,
+        proxy_quantity=proxy_quantity,
     )
     assert (line.quantity, line.proxy_quantity) == (quantity, proxy_quantity)
 
@@ -742,6 +762,7 @@ def test_deck_card_create_rejects_proxy_above_quantity(quantity):
         DeckCardCreate(
             card_id=1,
             language_code="FR",
+            card_set_id=1,
             quantity=quantity,
             proxy_quantity=quantity + 1,
         )
@@ -764,12 +785,16 @@ def test_deck_card_rules_agree_between_schema_and_database(db, quantity, proxy, 
     """Le schéma refuse exactement ce que le CHECK de `deck_card` refuse."""
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=0, proxy_allowed=True)
-    deck = make_deck(db)
+    copy = make_copy(db, card, "EN", quantity_owned=0)
+    deck = make_deck(db, proxy_allowed=True)
 
     try:
         DeckCardCreate(
-            card_id=card.id, language_code="EN", quantity=quantity, proxy_quantity=proxy
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=copy.card_set_id,
+            quantity=quantity,
+            proxy_quantity=proxy,
         )
         schema_accepts = True
     except ValidationError:
@@ -780,6 +805,7 @@ def test_deck_card_rules_agree_between_schema_and_database(db, quantity, proxy, 
             deck_id=deck.id,
             card_id=card.id,
             language_code="EN",
+            card_set_id=copy.card_set_id,
             quantity=quantity,
             proxy_quantity=proxy,
         )
@@ -800,7 +826,7 @@ def test_deck_card_rules_agree_between_schema_and_database(db, quantity, proxy, 
 
 def test_ids_reject_non_numeric_strings():
     with pytest.raises(ValidationError):
-        CardCopyCreate(card_id="abc", language_code="EN")
+        CardCopyCreate(card_id="abc", language_code="EN", card_set_id=1)
     with pytest.raises(ValidationError):
         ParticipationCreate(player_id="abc")
 

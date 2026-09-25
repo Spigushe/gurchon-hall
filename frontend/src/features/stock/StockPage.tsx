@@ -31,7 +31,7 @@ export function StockPage() {
       {catalog.count === 0 && <CatalogPanel compact />}
 
       <StockForm
-        key={editing ? `${editing.cardId}|${editing.languageCode}` : "new"}
+        key={editing ? `${editing.cardId}|${editing.languageCode}|${editing.cardSetId}` : "new"}
         editing={editing}
         onDone={() => setEditing(null)}
       />

@@ -73,6 +73,7 @@ from app.schemas.reference import (
     SectRead,
     VenueRead,
 )
+from app.services import catalog
 from tests.helpers import add_languages, make_card, make_copy, make_deck
 
 # --------------------------------------------------------------------------
@@ -132,7 +133,7 @@ def test_reference_optional_columns_map_to_none(db):
 
 
 def test_card_read_maps_scalar_columns(db, world):
-    read = CardRead.model_validate(world.card)
+    read = catalog.get_card(db, world.card.id)
     assert read.id == world.card.id
     assert read.vekn_id == world.card.vekn_id
     assert read.name == "Aabbt Kindred"
@@ -150,7 +151,7 @@ def test_card_read_maps_scalar_columns(db, world):
 
 
 def test_card_read_maps_nested_relations(db, world):
-    read = CardRead.model_validate(world.card)
+    read = catalog.get_card(db, world.card.id)
 
     assert read.clan == ClanRead(id=world.clan.id, name="Ventrue", abbrev="VEN")
     assert read.sect is not None and read.sect.name == "Camarilla"
@@ -189,7 +190,7 @@ def test_card_read_maps_nested_relations(db, world):
 
 
 def test_card_read_json_dump_uses_enum_values(db, world):
-    dumped = CardRead.model_validate(world.card).model_dump(mode="json")
+    dumped = catalog.get_card(db, world.card.id).model_dump(mode="json")
     assert dumped["category"] == "crypt"
     assert dumped["discipline_links"][0]["discipline"]["name"] == "Dominate"
 
@@ -205,6 +206,11 @@ def test_card_read_of_a_bare_library_card_uses_empty_collections(db):
         trifle=True,
     )
     db.commit()
+    # `latest_card_set_id` est calculé par `catalog.latest_card_set_id`, qui
+    # suppose au moins une impression (garantie D2b à l'import) ; ce test-ci ne
+    # porte que sur le mapping ORM -> schéma des collections vides, donc on
+    # pose la valeur à la main plutôt que de fabriquer une impression réelle.
+    card.latest_card_set_id = 0
     read = CardRead.model_validate(card)
     assert read.category is CardCategory.LIBRARY
     assert (read.cost_type, read.cost_value) == (CostType.BLOOD, "X")
@@ -261,7 +267,7 @@ def test_card_summary_is_a_strict_subset_of_card_read(db, world):
     summary = CardSummary.model_validate(world.card)
     assert summary.model_dump() == {
         key: value
-        for key, value in CardRead.model_validate(world.card).model_dump().items()
+        for key, value in catalog.get_card(db, world.card.id).model_dump().items()
         if key in CardSummary.model_fields
     }
 
@@ -286,18 +292,17 @@ def test_translation_read_from_orm(db, world):
 def test_card_copy_read_with_nested_card(db, world):
     read = CardCopyRead.model_validate(world.copy_en)
     assert (read.card_id, read.language_code) == (world.card.id, "EN")
-    assert (read.quantity_owned, read.proxy_allowed) == (4, False)
+    assert read.quantity_owned == 4
     assert read.card is not None and read.card.name == "Aabbt Kindred"
 
 
 def test_card_copy_read_of_a_proxy_only_entry(db, world):
-    """0 possédé + proxy autorisé se lit tel quel (§11.2)."""
+    """0 possédé se lit tel quel : c'est ainsi qu'une carte jouée uniquement
+    en proxy entre en collection (§11.2). L'autorisation de proxy elle-même
+    n'est plus portée par l'entrée (Lot 4) : elle vit sur le deck.
+    """
     read = CardCopyRead.model_validate(world.copy_fr)
-    assert (read.language_code, read.quantity_owned, read.proxy_allowed) == (
-        "FR",
-        0,
-        True,
-    )
+    assert (read.language_code, read.quantity_owned) == ("FR", 0)
 
 
 def test_deck_read_maps_columns_and_timestamps(db, world):
@@ -309,6 +314,7 @@ def test_deck_read_maps_columns_and_timestamps(db, world):
     assert read.created_on == date(2026, 1, 15)
     assert read.archetype == "Vote"
     assert read.notes is None
+    assert read.proxy_allowed is False
     assert isinstance(read.created_at, datetime)
     assert isinstance(read.updated_at, datetime)
 
@@ -346,6 +352,7 @@ def test_deck_detail_read_keeps_one_line_per_language(db, world):
             deck_id=world.deck.id,
             card_id=world.card.id,
             language_code="FR",
+            card_set_id=world.printing.card_set_id,
             quantity=2,
             proxy_quantity=2,
         )
@@ -514,6 +521,7 @@ def _deck_read(**instants) -> DeckRead:
         status=DeckStatus.ACTIVE,
         archetype=None,
         notes=None,
+        proxy_allowed=False,
         **instants,
     )
 
@@ -594,33 +602,45 @@ def test_read_of_a_persisted_deck_carries_the_utc_suffix(db, world):
 # --------------------------------------------------------------------------
 
 READ_PAIRS = [
-    pytest.param(Card, CardRead, set(), id="Card"),
-    pytest.param(CardCopy, CardCopyRead, set(), id="CardCopy"),
+    # Lot 4 : `card_set_ids`/`latest_card_set_id` sont calculés (D2a, D5), pas
+    # des colonnes ni des relations du modèle — `computed` les excuse dans la
+    # réciproque ci-dessous, sans les dispenser d'être testés ailleurs
+    # (`test_catalog.py` côté service).
+    pytest.param(
+        Card, CardRead, set(), {"card_set_ids", "latest_card_set_id"}, id="Card"
+    ),
+    pytest.param(CardCopy, CardCopyRead, set(), set(), id="CardCopy"),
     # `deleted_at` compris : un deck supprimé reste lisible par identifiant, et
     # c'est ce champ qui dit au front qu'il est en lecture seule.
-    pytest.param(Deck, DeckRead, set(), id="Deck"),
+    pytest.param(Deck, DeckRead, set(), set(), id="Deck"),
     # `deck_id` est porté par le deck parent dans `DeckDetailRead.cards`.
-    pytest.param(DeckCard, DeckCardRead, {"deck_id"}, id="DeckCard"),
-    pytest.param(Player, PlayerRead, set(), id="Player"),
-    pytest.param(Game, GameRead, set(), id="Game"),
-    pytest.param(Tournament, TournamentRead, set(), id="Tournament"),
-    pytest.param(Participation, ParticipationRead, set(), id="Participation"),
-    pytest.param(Language, LanguageRead, set(), id="Language"),
-    pytest.param(Clan, ClanRead, set(), id="Clan"),
-    pytest.param(Discipline, DisciplineRead, set(), id="Discipline"),
-    pytest.param(Sect, SectRead, set(), id="Sect"),
-    pytest.param(CardType, CardTypeRead, set(), id="CardType"),
-    pytest.param(CardSet, CardSetRead, set(), id="CardSet"),
-    pytest.param(Venue, VenueRead, set(), id="Venue"),
+    pytest.param(DeckCard, DeckCardRead, {"deck_id"}, set(), id="DeckCard"),
+    pytest.param(Player, PlayerRead, set(), set(), id="Player"),
+    pytest.param(Game, GameRead, set(), set(), id="Game"),
+    pytest.param(Tournament, TournamentRead, set(), set(), id="Tournament"),
+    pytest.param(Participation, ParticipationRead, set(), set(), id="Participation"),
+    pytest.param(Language, LanguageRead, set(), set(), id="Language"),
+    pytest.param(Clan, ClanRead, set(), set(), id="Clan"),
+    pytest.param(Discipline, DisciplineRead, set(), set(), id="Discipline"),
+    pytest.param(Sect, SectRead, set(), set(), id="Sect"),
+    pytest.param(CardType, CardTypeRead, set(), set(), id="CardType"),
+    pytest.param(CardSet, CardSetRead, set(), set(), id="CardSet"),
+    pytest.param(Venue, VenueRead, set(), set(), id="Venue"),
     # `card_id` est porté par la carte parente dans `CardRead.translations`.
     pytest.param(
-        CardTranslation, CardTranslationRead, {"card_id"}, id="CardTranslation"
+        CardTranslation,
+        CardTranslationRead,
+        {"card_id"},
+        set(),
+        id="CardTranslation",
     ),
 ]
 
 
-@pytest.mark.parametrize(("model", "schema", "omitted"), READ_PAIRS)
-def test_read_schema_exposes_every_column_of_its_model(model, schema, omitted):
+@pytest.mark.parametrize(("model", "schema", "omitted", "computed"), READ_PAIRS)
+def test_read_schema_exposes_every_column_of_its_model(
+    model, schema, omitted, computed
+):
     """Garde-fou de dérive : une colonne ajoutée au modèle doit être décidée.
 
     Une colonne `xxx_id` peut être remplacée par la relation imbriquée `xxx`
@@ -637,11 +657,15 @@ def test_read_schema_exposes_every_column_of_its_model(model, schema, omitted):
     assert missing == omitted
 
 
-@pytest.mark.parametrize(("model", "schema", "omitted"), READ_PAIRS)
-def test_read_schema_has_no_field_unknown_to_the_model(model, schema, omitted):
-    """Réciproque : chaque champ de lecture vient du modèle (colonne ou relation)."""
+@pytest.mark.parametrize(("model", "schema", "omitted", "computed"), READ_PAIRS)
+def test_read_schema_has_no_field_unknown_to_the_model(
+    model, schema, omitted, computed
+):
+    """Réciproque : chaque champ de lecture vient du modèle (colonne ou
+    relation), à l'exception des champs `computed` (calculés par le service,
+    par exemple `latest_card_set_id`)."""
     attributes = set(model.__mapper__.attrs.keys())
-    assert set(schema.model_fields) <= attributes
+    assert set(schema.model_fields) - computed <= attributes
 
 
 def test_every_read_schema_reads_from_attributes():

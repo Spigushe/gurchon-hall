@@ -1,4 +1,4 @@
-import type { CardRow, DeckPatch, LocalStockEntry } from "./offline/vtes";
+import type { CardRow, CardSetRow, DeckPatch, LocalStockEntry } from "./offline/vtes";
 import type { RejectionCode } from "./offline/core";
 
 /** Libellés d'interface (français) des valeurs du contrat. */
@@ -34,6 +34,17 @@ export function cardLabel(card: Pick<CardRow, "name" | "groupCode" | "advanced" 
 
 export function stockEntryLabel(entry: Pick<LocalStockEntry, "cardName" | "cardId">): string {
   return entry.cardName ?? `Carte n° ${entry.cardId}`;
+}
+
+/** Libellé d'une extension du catalogue (Lot 4) : abréviation, puis nom complet s'il est connu. */
+export function cardSetLabel(set: Pick<CardSetRow, "abbrev" | "fullName">): string {
+  return set.fullName ? `${set.abbrev} — ${set.fullName}` : set.abbrev;
+}
+
+/** Libellé d'une extension à partir de son seul identifiant, tant que le miroir local n'a pas de nom. */
+export function cardSetLabelById(id: number, sets: ReadonlyMap<number, CardSetRow>): string {
+  const set = sets.get(id);
+  return set ? cardSetLabel(set) : `Extension n° ${id}`;
 }
 
 export function formatDateTime(iso: string): string {

@@ -15,9 +15,14 @@ from app.routers.common import (
     PathId,
     QueryId,
 )
-from app.schemas.catalog import BundleContentRead, CardRead, CardSummary
+from app.schemas.catalog import BundleContentRead, CardListItem, CardRead
 from app.schemas.collection import BundleDeposit, CardCopyRead
-from app.schemas.reference import BundleRead, LanguageCreate, LanguageRead
+from app.schemas.reference import (
+    BundleRead,
+    CardSetRead,
+    LanguageCreate,
+    LanguageRead,
+)
 from app.services import catalog, stock
 
 router = APIRouter(tags=["catalogue"])
@@ -25,12 +30,14 @@ router = APIRouter(tags=["catalogue"])
 
 @router.get(
     "/cartes",
-    response_model=list[CardSummary],
+    response_model=list[CardListItem],
     operation_id="listCards",
     summary="Recherche dans le catalogue",
     description=(
         "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom "
-        "anglais (sous-chaîne, sans tenir compte de la casse ni des accents)."
+        "anglais (sous-chaîne, sans tenir compte de la casse ni des accents). "
+        "Chaque carte porte ses extensions d'impression et celle de sa "
+        "dernière version (`latest_card_set_id`)."
     ),
 )
 def list_cards(
@@ -55,6 +62,21 @@ def list_cards(
 )
 def get_card(card_id: PathId, db: DbSession):
     return catalog.get_card(db, card_id)
+
+
+@router.get(
+    "/extensions",
+    response_model=list[CardSetRead],
+    operation_id="listCardSets",
+    summary="Extensions du catalogue",
+    description=(
+        "Toutes les extensions, des plus anciennes aux plus récentes, les "
+        "extensions sans date en dernier. `is_placeholder` signale l'extension "
+        "tampon de l'import (cartes publiées sans impression)."
+    ),
+)
+def list_card_sets(db: DbSession):
+    return catalog.list_card_sets(db)
 
 
 @router.get(
@@ -92,11 +114,12 @@ def get_bundle(bundle_id: PathId, db: DbSession):
     operation_id="depositBundle",
     summary="Verser un produit dans la collection",
     description=(
-        "Ajoute le contenu du produit au stock, dans la langue indiquée. Les "
-        "quantités s'additionnent à l'existant. Non idempotent : deux appels "
-        "versent deux produits. 409 si le produit est sans contenu connu, ou si "
-        "le total d'une entrée dépasserait le plafond (2147483647) : aucune "
-        "entrée n'est alors modifiée."
+        "Ajoute le contenu du produit au stock, dans la langue indiquée et "
+        "sous l'extension du produit. Les quantités s'additionnent à "
+        "l'existant. Non idempotent : deux appels versent deux produits. 409 "
+        "si le produit est sans contenu connu, ou si le total d'une entrée "
+        "dépasserait le plafond (2147483647) : aucune entrée n'est alors "
+        "modifiée."
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )

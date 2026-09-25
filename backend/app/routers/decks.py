@@ -146,9 +146,10 @@ def get_deck_legality(deck_id: PathId, db: DbSession):
     operation_id="addDeckCard",
     summary="Ajoute une carte au deck",
     description=(
-        "La carte doit être en collection dans la langue demandée, avec assez "
-        "d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le "
-        "deck est archivé ou supprimé."
+        "La carte doit être en collection dans la langue et l'extension "
+        "demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon "
+        "409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte "
+        "n'a pas été imprimée dans cette extension."
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )
@@ -157,7 +158,7 @@ def add_deck_card(deck_id: PathId, payload: DeckCardCreate, db: DbSession):
 
 
 @router.patch(
-    "/{deck_id}/cartes/{card_id}/{language_code}",
+    "/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
     response_model=DeckCardRead,
     operation_id="updateDeckCard",
     summary="Modifie une ligne du deck",
@@ -171,14 +172,17 @@ def update_deck_card(
     deck_id: PathId,
     card_id: PathId,
     language_code: str,
+    card_set_id: PathId,
     payload: DeckCardUpdate,
     db: DbSession,
 ):
-    return decks.update_card(db, deck_id, card_id, language_code, payload)
+    return decks.update_card(
+        db, deck_id, card_id, language_code, card_set_id, payload
+    )
 
 
 @router.delete(
-    "/{deck_id}/cartes/{card_id}/{language_code}",
+    "/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
     status_code=204,
     operation_id="removeDeckCard",
     summary="Retire une carte du deck",
@@ -186,7 +190,11 @@ def update_deck_card(
     responses={**NOT_FOUND, **CONFLICT},
 )
 def remove_deck_card(
-    deck_id: PathId, card_id: PathId, language_code: str, db: DbSession
+    deck_id: PathId,
+    card_id: PathId,
+    language_code: str,
+    card_set_id: PathId,
+    db: DbSession,
 ):
-    decks.remove_card(db, deck_id, card_id, language_code)
+    decks.remove_card(db, deck_id, card_id, language_code, card_set_id)
     return Response(status_code=204)

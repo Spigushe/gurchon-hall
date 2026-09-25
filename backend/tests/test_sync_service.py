@@ -26,7 +26,7 @@ from app.models.enums import SyncOperationStatus
 from app.schemas.sync import SyncRequest
 from app.services import stock, sync
 from app.services.errors import InvalidRequestError
-from tests.helpers import make_card, make_copy
+from tests.helpers import make_card, make_copy, make_printing
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
 
@@ -50,11 +50,16 @@ def upsert_stock(
     card_id: int,
     quantity: int,
     language: str = "EN",
+    card_set_id: int = 1,
     *,
     operation_id: str | None = None,
     recorded_at: str | None = None,
     **data,
 ) -> dict:
+    """`card_set_id` vaut 1 par défaut : suffisant pour les cartes inconnues des
+    tests d'erreur (le refus porte sur la carte, pas sur l'extension) ; les
+    écritures censées réussir doivent passer l'extension réelle de la carte
+    visée (`spare.card_set_id`, `world.printing.card_set_id`)."""
     envelope = {}
     if operation_id is not None:
         envelope["operation_id"] = operation_id
@@ -65,6 +70,7 @@ def upsert_stock(
         data={
             "card_id": card_id,
             "language_code": language,
+            "card_set_id": card_set_id,
             "quantity_owned": quantity,
         }
         | data,
@@ -91,9 +97,15 @@ def journal(db) -> list[SyncOperation]:
 
 @pytest.fixture
 def spare(db, world) -> Card:
-    """Une carte de library possédée en trois exemplaires EN, sans proxy."""
+    """Une carte de library possédée en trois exemplaires EN, sans proxy.
+
+    `card_set_id` est posé comme attribut dynamique (pas une colonne du
+    modèle) : un raccourci pour les tests, qui doivent tous désigner une
+    impression réelle depuis le Lot 4.
+    """
     card = make_card(db, "Spare Part", CardCategory.LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=3)
+    copy = make_copy(db, card, "EN", quantity_owned=3)
+    card.card_set_id = copy.card_set_id
     db.commit()
     return card
 
@@ -105,7 +117,10 @@ def spare(db, world) -> Card:
 
 def test_an_applied_operation_answers_with_its_verdict(api, world, spare):
     key = str(uuid4())
-    body = sync_batch(api, upsert_stock(spare.id, 5, operation_id=key))
+    body = sync_batch(
+        api,
+        upsert_stock(spare.id, 5, card_set_id=spare.card_set_id, operation_id=key),
+    )
 
     assert (body["applied"], body["replayed"], body["rejected"]) == (1, 0, 0)
     [result] = body["results"]
@@ -118,6 +133,7 @@ def test_an_applied_operation_answers_with_its_verdict(api, world, spare):
         "deck_id": None,
         "card_id": spare.id,
         "language_code": "EN",
+        "card_set_id": spare.card_set_id,
         "bundle_id": None,
     }
     assert result["processed_at"].endswith("Z")
@@ -128,7 +144,12 @@ def test_the_results_follow_the_order_of_the_request(api, world, spare):
     keys = [str(uuid4()) for _ in range(4)]
     body = sync_batch(
         api,
-        *(upsert_stock(spare.id, n, operation_id=key) for n, key in enumerate(keys)),
+        *(
+            upsert_stock(
+                spare.id, n, card_set_id=spare.card_set_id, operation_id=key
+            )
+            for n, key in enumerate(keys)
+        ),
     )
     assert [r["operation_id"] for r in body["results"]] == keys
 
@@ -139,10 +160,10 @@ def test_a_rejection_does_not_stop_the_batch_and_writes_nothing_partial(
     """[bon, refusé, bon] : les deux bons passent, le refus laisse la base intacte."""
     body = sync_batch(
         api,
-        upsert_stock(spare.id, 5),
+        upsert_stock(spare.id, 5, card_set_id=spare.card_set_id),
         # 4 exemplaires alloués à un deck : descendre à 1 est refusé.
-        upsert_stock(world.card.id, 1),
-        upsert_stock(spare.id, 6),
+        upsert_stock(world.card.id, 1, card_set_id=world.printing.card_set_id),
+        upsert_stock(spare.id, 6, card_set_id=spare.card_set_id),
     )
 
     assert [r["outcome"] for r in body["results"]] == ["applied", "rejected", "applied"]
@@ -157,18 +178,21 @@ def test_a_rejection_does_not_stop_the_batch_and_writes_nothing_partial(
 
 def test_the_error_message_is_the_one_the_online_route_gives(api, world):
     """Le service refuse, `/sync` ne fait que rapporter son texte."""
-    online = api.patch(f"/stock/{world.card.id}/EN", json={"quantity_owned": 1})
+    card_set_id = world.printing.card_set_id
+    online = api.patch(
+        f"/stock/{world.card.id}/EN/{card_set_id}", json={"quantity_owned": 1}
+    )
     assert online.status_code == 409
 
-    body = sync_batch(api, upsert_stock(world.card.id, 1))
+    body = sync_batch(api, upsert_stock(world.card.id, 1, card_set_id=card_set_id))
     assert body["results"][0]["error"]["message"] == online.json()["detail"]
 
 
 def test_the_journal_records_every_verdict_with_the_batch_and_the_client_clock(
     api, db, world, spare
 ):
-    good = upsert_stock(spare.id, 2)
-    bad = upsert_stock(world.card.id, 1)
+    good = upsert_stock(spare.id, 2, card_set_id=spare.card_set_id)
+    bad = upsert_stock(world.card.id, 1, card_set_id=world.printing.card_set_id)
     body = sync_batch(api, good, bad)
 
     applied, rejected = journal(db)
@@ -229,7 +253,7 @@ def test_replaying_a_bundle_deposit_does_not_count_it_twice(api, db, world):
 
 
 def test_a_replay_returns_the_original_verdict_untouched(api, world, spare):
-    upsert = upsert_stock(spare.id, 5)
+    upsert = upsert_stock(spare.id, 5, card_set_id=spare.card_set_id)
     original = sync_batch(api, upsert)["results"][0]
     replay = sync_batch(api, upsert)["results"][0]
 
@@ -240,7 +264,9 @@ def test_a_replay_returns_the_original_verdict_untouched(api, world, spare):
 
 def test_a_replayed_rejection_stays_a_rejection(api, world):
     """Une opération `replayed` peut porter une erreur : le refus mémorisé."""
-    refused = upsert_stock(world.card.id, 1)
+    refused = upsert_stock(
+        world.card.id, 1, card_set_id=world.printing.card_set_id
+    )
     first = sync_batch(api, refused)["results"][0]
     assert first["outcome"] == "rejected"
 
@@ -274,9 +300,15 @@ def test_a_rejected_key_is_not_retried_even_once_the_cause_is_gone(api, db, worl
 
 def test_the_same_key_with_another_body_is_a_mismatched_replay(api, db, world, spare):
     key = str(uuid4())
-    sync_batch(api, upsert_stock(spare.id, 5, operation_id=key))
+    sync_batch(
+        api,
+        upsert_stock(spare.id, 5, card_set_id=spare.card_set_id, operation_id=key),
+    )
 
-    body = sync_batch(api, upsert_stock(spare.id, 9, operation_id=key))
+    body = sync_batch(
+        api,
+        upsert_stock(spare.id, 9, card_set_id=spare.card_set_id, operation_id=key),
+    )
     [result] = body["results"]
     assert result["outcome"] == "rejected"
     assert result["error"]["code"] == "mismatched_replay"
@@ -286,7 +318,10 @@ def test_the_same_key_with_another_body_is_a_mismatched_replay(api, db, world, s
 
     # Le journal garde le verdict d'origine : l'opération d'origine se rejoue.
     assert len(journal(db)) == 1
-    original = sync_batch(api, upsert_stock(spare.id, 5, operation_id=key))
+    original = sync_batch(
+        api,
+        upsert_stock(spare.id, 5, card_set_id=spare.card_set_id, operation_id=key),
+    )
     assert original["results"][0]["outcome"] == "replayed"
 
 
@@ -310,10 +345,12 @@ def test_omitting_a_field_and_sending_null_are_two_different_bodies(api, world):
 def test_a_replay_within_a_mixed_batch_does_not_disturb_the_new_operations(
     api, db, world, spare
 ):
-    known = upsert_stock(spare.id, 5)
+    known = upsert_stock(spare.id, 5, card_set_id=spare.card_set_id)
     sync_batch(api, known)
 
-    body = sync_batch(api, known, upsert_stock(spare.id, 8))
+    body = sync_batch(
+        api, known, upsert_stock(spare.id, 8, card_set_id=spare.card_set_id)
+    )
     assert [r["outcome"] for r in body["results"]] == ["replayed", "applied"]
     assert (body["applied"], body["replayed"], body["rejected"]) == (1, 1, 0)
     assert owned(db, spare.id) == 8
@@ -325,17 +362,31 @@ def test_a_replay_within_a_mixed_batch_does_not_disturb_the_new_operations(
 
 
 def test_the_last_write_of_the_queue_wins(api, db, world, spare):
-    sync_batch(api, upsert_stock(spare.id, 3), upsert_stock(spare.id, 1))
+    sync_batch(
+        api,
+        upsert_stock(spare.id, 3, card_set_id=spare.card_set_id),
+        upsert_stock(spare.id, 1, card_set_id=spare.card_set_id),
+    )
     assert owned(db, spare.id) == 1
 
-    sync_batch(api, upsert_stock(spare.id, 1), upsert_stock(spare.id, 3))
+    sync_batch(
+        api,
+        upsert_stock(spare.id, 1, card_set_id=spare.card_set_id),
+        upsert_stock(spare.id, 3, card_set_id=spare.card_set_id),
+    )
     assert owned(db, spare.id) == 3
 
 
 def test_the_client_clock_arbitrates_nothing(api, db, world, spare):
     """Un `recorded_at` plus ancien, reçu après, n'est pas écarté ni réordonné."""
-    late = upsert_stock(spare.id, 7, recorded_at="2026-09-20T23:00:00+00:00")
-    early = upsert_stock(spare.id, 2, recorded_at="2026-01-01T00:00:00+00:00")
+    late = upsert_stock(
+        spare.id, 7, card_set_id=spare.card_set_id,
+        recorded_at="2026-09-20T23:00:00+00:00",
+    )
+    early = upsert_stock(
+        spare.id, 2, card_set_id=spare.card_set_id,
+        recorded_at="2026-01-01T00:00:00+00:00",
+    )
     sync_batch(api, late, early)
     assert owned(db, spare.id) == 2  # l'ordre de la file, pas celui des horloges
 
@@ -345,7 +396,12 @@ def test_an_operation_needing_a_later_creation_is_refused(api, world, spare):
     add = op(
         "deck_card.upsert",
         deck={"client_ref": "deck-1"},
-        data={"card_id": spare.id, "language_code": "EN", "quantity": 1},
+        data={
+            "card_id": spare.id,
+            "language_code": "EN",
+            "card_set_id": spare.card_set_id,
+            "quantity": 1,
+        },
     )
     create = op("deck.create", client_ref="deck-1", data={"name": "Trop tard"})
 
@@ -361,29 +417,32 @@ def test_an_operation_needing_a_later_creation_is_refused(api, world, spare):
 
 def test_a_stock_upsert_creates_then_replaces_with_the_full_state(api, db, world):
     card = make_card(db, "Upserted", CardCategory.LIBRARY)
+    printing = make_printing(db, card)
     db.commit()
 
     sync_batch(
         api,
-        upsert_stock(card.id, 4, language="fr", proxy_allowed=True, notes="reçue"),
+        upsert_stock(
+            card.id, 4, language="fr", card_set_id=printing.card_set_id, notes="reçue"
+        ),
     )
-    entry = api.get(f"/stock/{card.id}/FR").json()
-    assert (entry["quantity_owned"], entry["proxy_allowed"], entry["notes"]) == (
-        4,
-        True,
-        "reçue",
-    )
+    entry = api.get(f"/stock/{card.id}/FR/{printing.card_set_id}").json()
+    assert (entry["quantity_owned"], entry["notes"]) == (4, "reçue")
 
     # Champs omis : ils reprennent leur défaut, ils ne conservent rien.
     sync_batch(
-        api, op("stock.upsert", data={"card_id": card.id, "language_code": "FR"})
+        api,
+        op(
+            "stock.upsert",
+            data={
+                "card_id": card.id,
+                "language_code": "FR",
+                "card_set_id": printing.card_set_id,
+            },
+        ),
     )
-    entry = api.get(f"/stock/{card.id}/FR").json()
-    assert (entry["quantity_owned"], entry["proxy_allowed"], entry["notes"]) == (
-        0,
-        False,
-        None,
-    )
+    entry = api.get(f"/stock/{card.id}/FR/{printing.card_set_id}").json()
+    assert (entry["quantity_owned"], entry["notes"]) == (0, None)
 
 
 def test_a_deck_card_upsert_creates_then_replaces_the_line(api, db, world, spare):
@@ -396,7 +455,12 @@ def test_a_deck_card_upsert_creates_then_replaces_the_line(api, db, world, spare
         return op(
             "deck_card.upsert",
             deck={"deck_id": deck_id},
-            data={"card_id": spare.id, "language_code": "EN", "quantity": quantity},
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+                "quantity": quantity,
+            },
         )
 
     assert sync_batch(api, upsert(2))["results"][0]["outcome"] == "applied"
@@ -419,13 +483,24 @@ def test_a_line_removal_and_a_stock_removal_apply(api, db, world, spare):
         op(
             "deck_card.upsert",
             deck={"deck_id": deck_id},
-            data={"card_id": spare.id, "language_code": "EN", "quantity": 1},
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+                "quantity": 1,
+            },
         ),
     )
 
     # Encore utilisée par un deck : refusé, comme `DELETE /stock/...`.
     refused = sync_batch(
-        api, op("stock.delete", card_id=spare.id, language_code="EN")
+        api,
+        op(
+            "stock.delete",
+            card_id=spare.id,
+            language_code="EN",
+            card_set_id=spare.card_set_id,
+        ),
     )["results"][0]
     assert refused["error"]["code"] == "conflict"
 
@@ -436,8 +511,14 @@ def test_a_line_removal_and_a_stock_removal_apply(api, db, world, spare):
             deck={"deck_id": deck_id},
             card_id=spare.id,
             language_code="EN",
+            card_set_id=spare.card_set_id,
         ),
-        op("stock.delete", card_id=spare.id, language_code="EN"),
+        op(
+            "stock.delete",
+            card_id=spare.id,
+            language_code="EN",
+            card_set_id=spare.card_set_id,
+        ),
     )
     assert [r["outcome"] for r in body["results"]] == ["applied", "applied"]
     assert api.get(f"/decks/{deck_id}").json()["cards"] == []
@@ -458,7 +539,12 @@ def test_a_deck_created_offline_is_designated_by_its_reference_in_the_same_batch
         op(
             "deck_card.upsert",
             deck={"client_ref": "ref-A"},
-            data={"card_id": spare.id, "language_code": "EN", "quantity": 2},
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+                "quantity": 2,
+            },
         ),
         op("deck.update", deck={"client_ref": "ref-A"}, data={"archetype": "Bleed"}),
     )
@@ -487,7 +573,12 @@ def test_the_reference_still_resolves_in_a_later_batch(api, world, spare):
         op(
             "deck_card.upsert",
             deck={"client_ref": "ref-B"},
-            data={"card_id": spare.id, "language_code": "EN", "quantity": 1},
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+                "quantity": 1,
+            },
         ),
     )
     assert body["results"][0]["outcome"] == "applied"
@@ -501,7 +592,12 @@ def test_a_refused_creation_makes_its_followers_unresolved_and_frees_the_referen
     """Une référence n'est réservée que par une création **appliquée**."""
     add = {
         "deck": {"client_ref": "ref-C"},
-        "data": {"card_id": spare.id, "language_code": "EN", "quantity": 1},
+        "data": {
+            "card_id": spare.id,
+            "language_code": "EN",
+            "card_set_id": spare.card_set_id,
+            "quantity": 1,
+        },
     }
     body = sync_batch(
         api,
@@ -617,12 +713,17 @@ def test_a_deck_creation_replayed_in_another_batch_keeps_its_identity(
     # Le rejeu est mêlé à d'autres opérations, neuves, dans un lot différent.
     body = sync_batch(
         api,
-        upsert_stock(spare.id, 2),
+        upsert_stock(spare.id, 2, card_set_id=spare.card_set_id),
         creation,
         op(
             "deck_card.upsert",
             deck={"client_ref": "ref-R2"},
-            data={"card_id": spare.id, "language_code": "EN", "quantity": 1},
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+                "quantity": 1,
+            },
         ),
     )
     assert [r["outcome"] for r in body["results"]] == [
@@ -693,10 +794,46 @@ def test_not_found_covers_unknown_cards_decks_and_languages(api, world, spare):
         upsert_stock(spare.id, 1, language="ZZ"),
         op("deck.update", deck={"deck_id": 999_999}, data={"notes": "x"}),
         op("bundle.deposit", bundle_id=999_999, data={"language_code": "EN"}),
-        op("stock.delete", card_id=spare.id, language_code="ES"),
+        op(
+            "stock.delete",
+            card_id=spare.id,
+            language_code="ES",
+            card_set_id=spare.card_set_id,
+        ),
     )
     assert [r["error"]["code"] for r in body["results"]] == ["not_found"] * 5
     assert body["rejected"] == 5
+
+
+def test_stock_and_deck_card_upserts_reject_a_real_but_unrelated_card_set(
+    api, db, world
+):
+    """Distinct de `test_not_found_covers_unknown_cards_decks_and_languages` :
+    ici l'extension existe bien au catalogue (une autre carte y est
+    imprimée), mais pas celle visée par l'opération (Lot 4, D2), en ligne
+    comme par `/sync`."""
+    other_card = make_card(db, "Autre carte /sync")
+    other_printing = make_printing(db, other_card)
+    db.commit()
+
+    body = sync_batch(
+        api,
+        upsert_stock(
+            world.card.id, 1, language="FR", card_set_id=other_printing.card_set_id
+        ),
+        op(
+            "deck_card.upsert",
+            deck={"deck_id": world.deck.id},
+            data={
+                "card_id": world.card.id,
+                "language_code": "FR",
+                "card_set_id": other_printing.card_set_id,
+                "quantity": 1,
+            },
+        ),
+    )
+    assert [r["error"]["code"] for r in body["results"]] == ["not_found"] * 2
+    assert body["rejected"] == 2
 
 
 def test_an_unknown_language_is_not_replaced_by_the_server(api, db, world, spare):
@@ -716,7 +853,12 @@ def test_deck_composition_rules_are_the_ones_of_the_service(api, world, spare):
         return op(
             "deck_card.upsert",
             deck={"deck_id": deck_id},
-            data={"card_id": spare.id, "language_code": "EN"} | data,
+            data={
+                "card_id": spare.id,
+                "language_code": "EN",
+                "card_set_id": spare.card_set_id,
+            }
+            | data,
         )
 
     body = sync_batch(
@@ -726,13 +868,52 @@ def test_deck_composition_rules_are_the_ones_of_the_service(api, world, spare):
         op(  # carte absente de la collection dans cette langue
             "deck_card.upsert",
             deck={"deck_id": deck_id},
-            data={"card_id": spare.id, "language_code": "FR", "quantity": 1},
+            data={
+                "card_id": spare.id,
+                "language_code": "FR",
+                "card_set_id": spare.card_set_id,
+                "quantity": 1,
+            },
         ),
     )
     assert [r["error"]["code"] for r in body["results"]] == ["conflict"] * 3
     assert "insuffisants" in body["results"][0]["error"]["message"]
     assert "proxy" in body["results"][1]["error"]["message"]
     assert api.get(f"/decks/{deck_id}").json()["cards"] == []
+
+
+def test_disabling_proxy_on_a_deck_that_plays_one_is_refused(api, world):
+    """Refus déplacé sur le deck (Lot 4) : même motif qu'en ligne, par `/sync`."""
+    body = sync_batch(
+        api,
+        op(
+            "deck.update",
+            deck={"deck_id": world.deck.id},
+            data={"proxy_allowed": True},
+        ),
+        op(
+            "deck_card.upsert",
+            deck={"deck_id": world.deck.id},
+            data={
+                "card_id": world.card.id,
+                "language_code": "FR",
+                "card_set_id": world.printing.card_set_id,
+                "quantity": 1,
+                "proxy_quantity": 1,
+            },
+        ),
+        op(
+            "deck.update",
+            deck={"deck_id": world.deck.id},
+            data={"proxy_allowed": False},
+        ),
+    )
+    allow, add_proxy_line, disallow = body["results"]
+    assert allow["outcome"] == "applied"
+    assert add_proxy_line["outcome"] == "applied"
+    assert disallow["error"]["code"] == "conflict"
+    assert "proxy" in disallow["error"]["message"]
+    assert api.get(f"/decks/{world.deck.id}").json()["proxy_allowed"] is True
 
 
 def test_activating_an_illegal_deck_is_refused(api, world):
@@ -773,7 +954,12 @@ def test_the_deck_lifecycle_goes_through_the_queue(api, db, world):
         op(  # supprimé : plus rien ne s'écrit
             "deck_card.upsert",
             deck=deck,
-            data={"card_id": world.card.id, "language_code": "EN", "quantity": 1},
+            data={
+                "card_id": world.card.id,
+                "language_code": "EN",
+                "card_set_id": world.printing.card_set_id,
+                "quantity": 1,
+            },
         ),
     )
     assert [r["outcome"] for r in body["results"]] == [
@@ -787,7 +973,9 @@ def test_the_deck_lifecycle_goes_through_the_queue(api, db, world):
     assert "supprimé" in body["results"][4]["error"]["message"]
     assert api.get(f"/decks/{world.deck.id}").json()["deleted_at"] is not None
     # Le deck supprimé a rendu ses exemplaires : le stock n'est plus retenu.
-    assert stock.allocated_real(db, world.card.id, "EN") == 0
+    assert (
+        stock.allocated_real(db, world.card.id, "EN", world.printing.card_set_id) == 0
+    )
 
 
 def test_a_bundle_deposit_goes_through_the_queue_and_respects_the_ceiling(
@@ -833,7 +1021,7 @@ def test_an_unexpected_error_cancels_the_whole_batch_and_its_journal(
 
     monkeypatch.setattr(stock, "deposit_bundle", deposit_then_crash)
     request = _valid_request(
-        upsert_stock(spare.id, 9),
+        upsert_stock(spare.id, 9, card_set_id=spare.card_set_id),
         op(
             "bundle.deposit",
             bundle_id=world.bundle.id,
@@ -857,8 +1045,10 @@ def test_an_unexpected_error_cancels_the_whole_batch_and_its_journal(
 
 def test_every_operation_of_a_batch_is_journaled_exactly_once(api, db, world, spare):
     operations = [
-        upsert_stock(spare.id, 5),
-        upsert_stock(world.card.id, 1),  # refusé
+        upsert_stock(spare.id, 5, card_set_id=spare.card_set_id),
+        upsert_stock(
+            world.card.id, 1, card_set_id=world.printing.card_set_id
+        ),  # refusé
         op("deck.create", client_ref="r", data={"name": "Journal"}),
         op("deck.delete", deck={"client_ref": "inconnue"}),  # irrésolu
     ]
@@ -876,7 +1066,9 @@ def test_every_operation_of_a_batch_is_journaled_exactly_once(api, db, world, sp
 
 
 def test_the_journal_error_columns_match_the_verdict(api, db, world):
-    sync_batch(api, upsert_stock(world.card.id, 1))
+    sync_batch(
+        api, upsert_stock(world.card.id, 1, card_set_id=world.printing.card_set_id)
+    )
     [entry] = journal(db)
     assert entry.error_code.value == "conflict"
     assert entry.error_message
@@ -903,7 +1095,12 @@ def test_no_operation_leaves_a_deck_card_without_its_stock(api, db, world, spare
             op(
                 "deck_card.upsert",
                 deck={"deck_id": deck_id},
-                data={"card_id": spare.id, "language_code": "EN", "quantity": 1},
+                data={
+                    "card_id": spare.id,
+                    "language_code": "EN",
+                    "card_set_id": spare.card_set_id,
+                    "quantity": 1,
+                },
             )
             for deck_id in deck_ids
         ),
@@ -912,4 +1109,4 @@ def test_no_operation_leaves_a_deck_card_without_its_stock(api, db, world, spare
         select(func.count()).select_from(DeckCard).where(DeckCard.card_id == spare.id)
     )
     assert lines == 3  # 3 exemplaires possédés : le 4e deck est refusé
-    assert stock.allocated_real(db, spare.id, "EN") == 3
+    assert stock.allocated_real(db, spare.id, "EN", spare.card_set_id) == 3

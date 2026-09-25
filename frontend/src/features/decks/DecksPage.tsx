@@ -23,6 +23,7 @@ function DeckCreateForm() {
   const formId = useId();
   const [name, setName] = useState("");
   const [archetype, setArchetype] = useState("");
+  const [proxyAllowed, setProxyAllowed] = useState(false);
   const [invalid, setInvalid] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
@@ -37,6 +38,7 @@ function DeckCreateForm() {
       const result = await actions.createDeck({
         name: trimmed,
         archetype: archetype.trim() === "" ? undefined : archetype.trim(),
+        proxyAllowed,
       });
       created.key = result.key;
     });
@@ -69,6 +71,18 @@ function DeckCreateForm() {
             autoComplete="off"
           />
         </div>
+      </div>
+      <div className="field field--check">
+        <input
+          id={`${formId}-proxy-allowed`}
+          type="checkbox"
+          checked={proxyAllowed}
+          onChange={(event) => setProxyAllowed(event.target.checked)}
+          data-testid="deck-form-proxy-allowed"
+        />
+        <label htmlFor={`${formId}-proxy-allowed`}>
+          Proxies autorisés (deck compatible avec un tournoi qui les accepte)
+        </label>
       </div>
       {invalid && (
         <p className="error" role="alert" data-testid="deck-form-error">
@@ -110,6 +124,11 @@ function DeckItem({ deck }: { deck: LocalDeck }) {
           {DECK_STATUS_LABELS[deck.status]}
         </span>
         {deck.archivedAt && <span className="badge">Archivé</span>}
+        {deck.proxyAllowed && (
+          <span className="badge badge--info" data-testid="deck-proxy-allowed-badge">
+            Proxies autorisés
+          </span>
+        )}
         {deck.pending && (
           <span className="badge badge--pending" data-testid="pending-badge">
             En attente de synchronisation

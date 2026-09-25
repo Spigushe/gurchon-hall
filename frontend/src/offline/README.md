@@ -49,7 +49,8 @@ suit le même protocole, rien d'autre n'est à écrire dans `core/`.
 ## Ce qui est propre à VtES
 
 - `vtes/db.ts` : les tables miroirs (`stock`, `decks`, `deckCards`, `cards`,
-  `languages`) et les versions 1 et 2 du schéma.
+  `cardSets`, `languages`) et les versions du schéma (1 à 4, cf. « Versionnage
+  du schéma IndexedDB » plus bas).
 - `vtes/operations.ts` : un constructeur par type d'opération du contrat.
 - `vtes/transport.ts` : `POST /sync` par le client typé généré.
 - `vtes/overlay.ts`, `vtes/reads.ts` : ce que l'UI lit.
@@ -82,9 +83,12 @@ n'est jamais attendu.
 
 ```ts
 const { actions } = useVtesOffline();
-await actions.saveStock({ cardId: 12, languageCode: "FR", quantityOwned: 2 });
-const { key } = await actions.createDeck({ name: "Malkavien" });
-await actions.saveDeckCard(key, { cardId: 12, languageCode: "FR", quantity: 2 });
+// Depuis le Lot 4, une entrée de collection se désigne par carte × langue ×
+// extension (`cardSetId`, `GET /extensions` ou `CardRow.cardSetIds`) ;
+// `proxyAllowed` est passé de l'entrée de stock au deck.
+await actions.saveStock({ cardId: 12, languageCode: "FR", cardSetId: 3, quantityOwned: 2 });
+const { key } = await actions.createDeck({ name: "Malkavien", proxyAllowed: true });
+await actions.saveDeckCard(key, { cardId: 12, languageCode: "FR", cardSetId: 3, quantity: 2 });
 ```
 
 Lire. Les hooks rendent l'instantané du serveur plus ce qui est encore en file, et
@@ -93,7 +97,8 @@ se remettent à jour tout seuls.
 ```ts
 const stock = useLocalStock({ q: "elan" });      // trouve « Élan vital »
 const decks = useLocalDecks({ state: "active" });
-const cards = useLocalCardSearch({ q: "theo" }); // catalogue mis en cache
+const cards = useLocalCardSearch({ q: "theo" }); // catalogue mis en cache, avec cardSetIds/latestCardSetId
+const cardSets = useLocalCardSets();             // extensions du catalogue (GET /extensions)
 ```
 
 Suivre la file :
@@ -239,11 +244,41 @@ semées par le serveur (`EN`, `FR`, `ES`, `XX`) font foi. Un code vide est refus
 ## Versionnage du schéma IndexedDB
 
 Une base IndexedDB a un seul numéro de version pour toutes ses tables. Le schéma
-actuel est la version 2 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), et la 2 qui
-ajoute `settled` (`CORE_STORES_V2`). Pour le faire
-évoluer, ajouter un `this.version(3).stores({...})` avec les seules tables modifiées,
-et un `.upgrade()` si des données doivent migrer. Ne jamais réécrire une version déjà
+actuel est la version 4 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), la 2 qui
+ajoute `settled` (`CORE_STORES_V2`), puis les 3 et 4 du Lot 4 (`VTES_STORES_V2`,
+`VTES_STORES_V3`). Pour faire évoluer le schéma en temps normal, ajouter un
+`this.version(n + 1).stores({...})` avec les seules tables modifiées, et un
+`.upgrade()` si des données doivent migrer. Ne jamais réécrire une version déjà
 livrée : des navigateurs ont déjà ouvert la base.
+
+**Cas particulier : changer la clé primaire d'une table.** IndexedDB ne permet pas
+de modifier le `keyPath` d'un magasin existant ; Dexie lève `Not yet support for
+changing primary key` si on le tente dans un seul cran de version. Le Lot 4 en a eu
+besoin pour `stock` et `deckCards` (l'extension s'ajoute à leur clé) : la seule voie
+est de supprimer le magasin dans un cran (`{ stock: null }`) puis de le recréer avec
+sa nouvelle clé dans le suivant (`db.ts`, `VTES_STORES_V2` puis `VTES_STORES_V3`,
+déclarés en version 3 puis 4). Les deux crans se jouent dans la **même** transaction
+de mise à niveau pour un navigateur qui ouvre la base pour la première fois, et à la
+suite l'un de l'autre pour un navigateur qui a déjà une version antérieure — pas
+besoin de prévoir un cas particulier pour l'un ou l'autre. Un magasin dont seule la
+*forme* des lignes change (un champ de plus, comme `cards.cardSetIds` ou
+`decks.proxyAllowed` au Lot 4), sans changement de clé, n'a pas besoin d'être
+supprimé : un `.upgrade()` qui vide la table suffit à écarter les lignes
+incomplètes, le prochain rafraîchissement les recharge dans la forme du contrat.
+
+**Note pour Barrin (D4, `docs/lot4-plan-inventaire.md`).** Un changement de contrat
+qui rend **obligatoire** un champ nouveau (ici `card_set_id`) casse toute opération
+restée dans la file d'un client qui n'a pas encore mis à jour son application : le
+serveur la refuse en 422 (champ manquant), et la bissection du moteur l'isole comme
+n'importe quelle opération mal formée. gurchon-hall a pu se permettre cette rupture
+sans période de transition (D4 : base de développement vide, aucun utilisateur réel).
+Sur une base en service, l'ordre à respecter est l'inverse : déclarer le champ
+nouveau **facultatif** côté contrat le temps que les clients déployés vident leur
+file, puis seulement ensuite le rendre obligatoire. Ce que l'empreinte d'idempotence
+(`schemas/sync.py`, `fingerprint`, `exclude_unset=True`) permet directement : elle ne
+porte que sur les champs effectivement envoyés, donc une ancienne opération sans le
+nouveau champ garde la même empreinte tant qu'elle n'est pas rejouée avec un corps
+différent.
 
 ## Service worker
 

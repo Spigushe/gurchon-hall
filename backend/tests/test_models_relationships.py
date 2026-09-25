@@ -99,7 +99,12 @@ def test_card_child_collections_point_back_to_the_card(
 def test_in_memory_append_sets_the_other_side_before_flush(db, world):
     """Le `back_populates` synchronise les deux côtés sans passer par la base."""
     other = make_deck(db, "Autre deck")
-    line = DeckCard(card_id=world.card.id, language_code="EN", quantity=1)
+    line = DeckCard(
+        card_id=world.card.id,
+        language_code="EN",
+        card_set_id=world.printing.card_set_id,
+        quantity=1,
+    )
     other.cards.append(line)
     assert line.deck is other
     db.flush()

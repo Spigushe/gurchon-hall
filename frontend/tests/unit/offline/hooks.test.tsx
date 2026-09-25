@@ -9,7 +9,7 @@ import {
 import { useLocalDeck, useLocalDecks, useLocalStock } from "../../../src/offline/vtes/hooks";
 import { VtesOfflineProvider } from "../../../src/offline/vtes/VtesOfflineProvider";
 import { createVtesOffline, type VtesOfflineRuntime } from "../../../src/offline/vtes/runtime";
-import { createFakeServer } from "./fakeServer";
+import { CARD_SET_ID, createFakeServer } from "./fakeServer";
 import { freshDbName, manualTimers } from "./helpers";
 
 const runtimes: VtesOfflineRuntime[] = [];
@@ -67,7 +67,7 @@ describe("hooks de la couche offline", () => {
     expect(screen.getByTestId("status")).toHaveTextContent("0 en attente / 0 refusées / hors ligne");
 
     await act(async () => {
-      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 2 });
+      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 2 });
       await runtime.actions.createDeck({ name: "Malkavien" });
     });
 
@@ -86,10 +86,10 @@ describe("hooks de la couche offline", () => {
       </VtesOfflineProvider>,
     );
     await act(async () => {
-      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
       // Sans le stock voulu, ce deck_card sera refusé par le serveur factice.
       const { key } = await runtime.actions.createDeck({ name: "Gangrel" });
-      await runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", quantity: 3 });
+      await runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", cardSetId: CARD_SET_ID, quantity: 3 });
     });
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("3 en attente"));
 
@@ -112,14 +112,14 @@ describe("hooks de la couche offline", () => {
       </VtesOfflineProvider>,
     );
     await act(async () => {
-      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
     });
     await waitFor(() => expect(server.state.stock.size).toBe(1)); // rejeu automatique à la saisie
     await runtime.engine.whenIdle();
 
     view.unmount();
     state.online = true;
-    await runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
     await runtime.engine.whenIdle();
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(server.state.stock.size).toBe(1); // moteur arrêté : pas de rejeu automatique

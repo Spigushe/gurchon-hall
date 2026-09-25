@@ -6,7 +6,7 @@ import App from "../../../src/App";
 import { ApiClientContext } from "../../../src/app/apiClientContext";
 import { VtesOfflineProvider } from "../../../src/offline/vtes/VtesOfflineProvider";
 import { createVtesOffline, type VtesOfflineRuntime } from "../../../src/offline/vtes/runtime";
-import { refreshCatalog } from "../../../src/offline/vtes/refresh";
+import { refreshCardSets, refreshCatalog } from "../../../src/offline/vtes/refresh";
 import { createFakeServer, type FakeServer } from "../offline/fakeServer";
 import { freshDbName, manualTimers } from "../offline/helpers";
 
@@ -96,7 +96,12 @@ export async function renderApp(options: AppOptions = {}) {
     engine: { lockName: null, timers: manualTimers().timers, backoff: { jitter: 0 } },
   });
   runtimes.push(runtime);
-  if (options.catalog) await refreshCatalog(server.client, runtime.db);
+  // Les extensions accompagnent toujours le catalogue (Lot 4) : une carte sans son
+  // miroir d'extensions ne pourrait pas libeller son impression dans l'UI.
+  if (options.catalog) {
+    await refreshCatalog(server.client, runtime.db);
+    await refreshCardSets(server.client, runtime.db);
+  }
   server.state.requests.length = 0;
 
   const view = render(

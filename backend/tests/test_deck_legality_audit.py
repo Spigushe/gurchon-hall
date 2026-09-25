@@ -24,12 +24,15 @@ def frozen_today(monkeypatch):
     return DAY
 
 
-def add_line(api, deck_id, card_id, language="EN", quantity=1, proxy=0):
+def add_line(
+    api, deck_id, card_id, card_set_id, language="EN", quantity=1, proxy=0
+):
     return api.post(
         f"/decks/{deck_id}/cartes",
         json={
             "card_id": card_id,
             "language_code": language,
+            "card_set_id": card_set_id,
             "quantity": quantity,
             "proxy_quantity": proxy,
         },
@@ -49,12 +52,13 @@ def build(api, db, *specs, name="Deck"):
         quantity = fields.pop("quantity")
         category = fields.pop("category", CardCategory.CRYPT)
         card = make_card(db, fields.pop("name"), category=category, **fields)
-        make_copy(db, card, quantity_owned=quantity)
-        made.append((card, quantity))
+        copy = make_copy(db, card, quantity_owned=quantity)
+        made.append((card, copy.card_set_id, quantity))
     deck = make_deck(db, name)
     db.commit()
-    for card, quantity in made:
-        assert add_line(api, deck.id, card.id, quantity=quantity).status_code == 201
+    for card, card_set_id, quantity in made:
+        response = add_line(api, deck.id, card.id, card_set_id, quantity=quantity)
+        assert response.status_code == 201
     return deck
 
 
@@ -272,6 +276,36 @@ def test_two_distinct_same_name_cards_only_the_early_one_is_reported(api, db):
     assert len(body["not_yet_legal_cards"]) == 1
 
 
+def test_a_banned_card_in_two_printings_is_reported_once(api, db):
+    """Lot 4, B2 : les effectifs additionnent une même carte sur toutes ses
+    impressions, et `banned_cards` la signale une seule fois, pas une par
+    extension possédée."""
+    add_languages(db, "EN")
+    vampire = make_card(
+        db, "Vampire Banni", group_code="G1", banned_on=DAY - timedelta(days=1)
+    )
+    book = make_card(db, "Livre", category=LIBRARY)
+    copy_a = make_copy(db, vampire, quantity_owned=6)
+    copy_b = make_copy(db, vampire, quantity_owned=6)
+    book_copy = make_copy(db, book, quantity_owned=60)
+    deck = make_deck(db)
+    db.commit()
+    added_a = add_line(api, deck.id, vampire.id, copy_a.card_set_id, quantity=6)
+    assert added_a.status_code == 201
+    added_b = add_line(api, deck.id, vampire.id, copy_b.card_set_id, quantity=6)
+    assert added_b.status_code == 201
+    added_book = add_line(api, deck.id, book.id, book_copy.card_set_id, quantity=60)
+    assert added_book.status_code == 201
+
+    body = decks.get_legality(db, deck.id, on=DAY)
+
+    # Les deux lignes (deux extensions différentes) s'additionnent bien.
+    assert body.crypt_count == 12
+    # Mais la carte n'est signalée qu'une fois.
+    assert [c.id for c in body.banned_cards] == [vampire.id]
+    assert body.is_legal is False
+
+
 def test_same_name_cards_count_separately_in_the_deck_sizes(api, db):
     deck = build(
         api, db, crypt("Homonyme", 6, "G1"), crypt("Homonyme", 6, "G1"), library()
@@ -290,12 +324,18 @@ def test_proxies_count_in_the_deck_sizes(api, db):
     add_languages(db, "EN")
     vampire = make_card(db, "Vampire", group_code="G1")
     book = make_card(db, "Livre", category=LIBRARY)
-    make_copy(db, vampire, quantity_owned=0, proxy_allowed=True)
-    make_copy(db, book, quantity_owned=0, proxy_allowed=True)
-    deck = make_deck(db)
+    vampire_copy = make_copy(db, vampire, quantity_owned=0)
+    book_copy = make_copy(db, book, quantity_owned=0)
+    deck = make_deck(db, proxy_allowed=True)
     db.commit()
-    assert add_line(api, deck.id, vampire.id, quantity=12, proxy=12).status_code == 201
-    assert add_line(api, deck.id, book.id, quantity=60, proxy=60).status_code == 201
+    added_vampire = add_line(
+        api, deck.id, vampire.id, vampire_copy.card_set_id, quantity=12, proxy=12
+    )
+    assert added_vampire.status_code == 201
+    added_book = add_line(
+        api, deck.id, book.id, book_copy.card_set_id, quantity=60, proxy=60
+    )
+    assert added_book.status_code == 201
 
     result = decks.get_legality(db, deck.id, on=DAY)
 
@@ -443,9 +483,12 @@ def test_an_active_deck_stays_active_when_a_removal_makes_it_illegal(
 ):
     deck = legal_deck(api, db)
     assert activate(api, deck.id).status_code == 200
-    library_id = api.get(f"/decks/{deck.id}").json()["cards"][1]["card_id"]
+    library_line = api.get(f"/decks/{deck.id}").json()["cards"][1]
+    library_id = library_line["card_id"]
+    library_set_id = library_line["card_set_id"]
 
-    assert api.delete(f"/decks/{deck.id}/cartes/{library_id}/EN").status_code == 204
+    delete_url = f"/decks/{deck.id}/cartes/{library_id}/EN/{library_set_id}"
+    assert api.delete(delete_url).status_code == 204
 
     body = api.get(f"/decks/{deck.id}").json()
     assert body["status"] == "active"
@@ -463,8 +506,10 @@ def test_an_illegal_active_deck_that_goes_back_to_draft_cannot_return(
 ):
     deck = legal_deck(api, db)
     activate(api, deck.id)
-    library_id = api.get(f"/decks/{deck.id}").json()["cards"][1]["card_id"]
-    api.delete(f"/decks/{deck.id}/cartes/{library_id}/EN")
+    library_line = api.get(f"/decks/{deck.id}").json()["cards"][1]
+    library_id = library_line["card_id"]
+    library_set_id = library_line["card_set_id"]
+    api.delete(f"/decks/{deck.id}/cartes/{library_id}/EN/{library_set_id}")
 
     assert api.patch(f"/decks/{deck.id}", json={"status": "draft"}).status_code == 200
     assert activate(api, deck.id).status_code == 409

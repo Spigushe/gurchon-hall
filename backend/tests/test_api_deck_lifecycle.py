@@ -11,19 +11,48 @@ import pytest
 from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
-from app.models import CardCategory, Deck, DeckCard, DeletedDeckCard, Participation
-from app.services import decks
+from app.models import (
+    CardCategory,
+    CardCopy,
+    Deck,
+    DeckCard,
+    DeletedDeckCard,
+    Participation,
+)
+from app.services import decks, stock
 from tests.helpers import add_languages, make_card, make_copy, make_deck
 
-LINE = {"card_id": 1, "language_code": "EN", "quantity": 1}
+LINE = {"card_id": 1, "language_code": "EN", "card_set_id": 1, "quantity": 1}
 
 
-def add_line(api, deck_id, card_id, language="EN", quantity=1, proxy=0):
+def card_set_id_of(db, card_id, language="EN") -> int:
+    """Cf. `test_api_decks.py` : même repli sur n'importe quelle impression
+    connue de la carte, puis sur `1` si la carte est inconnue de la collection."""
+    exact = db.scalars(
+        select(CardCopy.card_set_id).where(
+            CardCopy.card_id == card_id, CardCopy.language_code == language
+        )
+    ).first()
+    if exact is not None:
+        return exact
+    any_printing = db.scalars(
+        select(CardCopy.card_set_id).where(CardCopy.card_id == card_id)
+    ).first()
+    return any_printing if any_printing is not None else 1
+
+
+def line_url(db, deck_id, card_id, language="EN") -> str:
+    card_set_id = card_set_id_of(db, card_id, language)
+    return f"/decks/{deck_id}/cartes/{card_id}/{language}/{card_set_id}"
+
+
+def add_line(api, db, deck_id, card_id, language="EN", quantity=1, proxy=0):
     return api.post(
         f"/decks/{deck_id}/cartes",
         json={
             "card_id": card_id,
             "language_code": language,
+            "card_set_id": card_set_id_of(db, card_id, language),
             "quantity": quantity,
             "proxy_quantity": proxy,
         },
@@ -283,6 +312,76 @@ def test_rename_retries_when_the_database_refuses_the_kept_couple(
     assert len(calls) == 1
 
 
+# --- Autorisation de proxy (Lot 4 : propriété du deck) ----------------------
+
+
+def test_deck_is_created_with_proxy_forbidden_by_default(api):
+    response = api.post("/decks", json={"name": "Sans proxy"})
+    assert response.status_code == 201
+    assert response.json()["proxy_allowed"] is False
+
+
+def test_a_deck_can_be_created_with_proxy_allowed(api):
+    response = api.post(
+        "/decks", json={"name": "Avec proxy", "proxy_allowed": True}
+    )
+    assert response.status_code == 201
+    assert response.json()["proxy_allowed"] is True
+
+
+def test_disabling_proxy_is_refused_while_a_line_plays_one(api, world):
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    added = api.post(
+        f"/decks/{world.deck.id}/cartes",
+        json={
+            "card_id": world.card.id,
+            "language_code": "FR",
+            "card_set_id": world.printing.card_set_id,
+            "quantity": 1,
+            "proxy_quantity": 1,
+        },
+    )
+    assert added.status_code == 201
+
+    response = api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": False})
+
+    assert response.status_code == 409
+    assert "proxy" in response.json()["detail"]
+    # Rien n'a changé : le deck autorise toujours le proxy.
+    assert api.get(f"/decks/{world.deck.id}").json()["proxy_allowed"] is True
+
+
+def test_disabling_proxy_succeeds_once_no_line_uses_it(api, db, world):
+    card_set_id = world.printing.card_set_id
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    added = api.post(
+        f"/decks/{world.deck.id}/cartes",
+        json={
+            "card_id": world.card.id,
+            "language_code": "FR",
+            "card_set_id": card_set_id,
+            "quantity": 1,
+            "proxy_quantity": 1,
+        },
+    )
+    assert added.status_code == 201
+    removed_url = f"/decks/{world.deck.id}/cartes/{world.card.id}/FR/{card_set_id}"
+    removed = api.delete(removed_url)
+    assert removed.status_code == 204
+
+    response = api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": False})
+
+    assert response.status_code == 200
+    assert response.json()["proxy_allowed"] is False
+
+
+def test_stock_no_longer_accepts_proxy_allowed(api, world):
+    """Lot 4 : le champ a quitté l'entrée de collection pour le deck."""
+    url = f"/stock/{world.card.id}/EN/{world.printing.card_set_id}"
+    response = api.patch(url, json={"proxy_allowed": True})
+    assert response.status_code == 422
+
+
 # --- Archivage par PATCH -----------------------------------------------------
 
 
@@ -391,14 +490,14 @@ def test_a_refused_activation_leaves_the_deck_archived(api, db):
     assert (body["status"], body["archived_at"] is not None) == ("draft", True)
 
 
-def test_composition_of_an_archived_deck_is_refused(api, world):
+def test_composition_of_an_archived_deck_is_refused(api, db, world):
     archive(api, world.deck.id)
     url = f"/decks/{world.deck.id}"
-    line = f"{url}/cartes/{world.card.id}"
+    line = line_url(db, world.deck.id, world.card.id)
 
-    assert add_line(api, world.deck.id, world.card.id, "FR").status_code == 409
-    assert api.patch(f"{line}/EN", json={"quantity": 1}).status_code == 409
-    assert api.delete(f"{line}/EN").status_code == 409
+    assert add_line(api, db, world.deck.id, world.card.id, "FR").status_code == 409
+    assert api.patch(line, json={"quantity": 1}).status_code == 409
+    assert api.delete(line).status_code == 409
     assert len(api.get(url).json()["cards"]) == 1
 
 
@@ -412,8 +511,9 @@ def test_an_archived_deck_stays_readable(api, world):
 def test_an_archived_deck_still_holds_its_copies(api, world):
     archive(api, world.deck.id)
 
-    lowered = api.patch(f"/stock/{world.card.id}/EN", json={"quantity_owned": 3})
-    removed = api.delete(f"/stock/{world.card.id}/EN")
+    url = f"/stock/{world.card.id}/EN/{world.printing.card_set_id}"
+    lowered = api.patch(url, json={"quantity_owned": 3})
+    removed = api.delete(url)
 
     assert lowered.status_code == 409
     assert removed.status_code == 409
@@ -439,7 +539,9 @@ def test_delete_requires_the_deck_to_be_archived(api, world):
 
 def test_delete_freezes_the_decklist_and_drops_the_live_lines(api, world, db):
     # Deux lignes : EN (4, aucun proxy) et FR (2, tous en proxy).
-    assert add_line(api, world.deck.id, world.card.id, "FR", 2, 2).status_code == 201
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    added = add_line(api, db, world.deck.id, world.card.id, "FR", 2, 2)
+    assert added.status_code == 201
 
     delete_from_archive(api, world.deck.id)
 
@@ -472,7 +574,8 @@ def test_delete_is_a_single_transaction(api, world, db, monkeypatch):
     # Ni figée à moitié, ni à moitié supprimée : rien n'a été écrit.
     db.expire_all()
     assert db.get(Deck, world.deck.id).deleted_at is None
-    assert db.get(DeckCard, (world.deck.id, world.card.id, "EN")) is not None
+    key = (world.deck.id, world.card.id, "EN", world.printing.card_set_id)
+    assert db.get(DeckCard, key) is not None
     frozen = db.scalars(select(DeletedDeckCard)).all()
     assert frozen == []
 
@@ -494,44 +597,51 @@ def test_a_deck_without_cards_can_be_deleted(api, db):
     assert body["deleted_at"] is not None and body["cards"] == []
 
 
-def test_delete_returns_the_stock_including_proxies(api, world):
-    api.patch(f"/stock/{world.card.id}/FR", json={"proxy_allowed": True})
-    assert add_line(api, world.deck.id, world.card.id, "FR", 1, 1).status_code == 201
-    blocked = api.patch(f"/stock/{world.card.id}/FR", json={"proxy_allowed": False})
+def test_delete_returns_the_stock_including_proxies(api, world, db):
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    added = add_line(api, db, world.deck.id, world.card.id, "FR", 1, 1)
+    assert added.status_code == 201
+    blocked = api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": False})
     assert blocked.status_code == 409
 
     delete_from_archive(api, world.deck.id)
 
-    for entry, payload in (
-        ("FR", {"proxy_allowed": False}),
-        ("EN", {"quantity_owned": 0}),
-    ):
-        response = api.patch(f"/stock/{world.card.id}/{entry}", json=payload)
-        assert response.status_code == 200, entry
+    # L'exemplaire réel (EN) et le proxy (FR) redeviennent disponibles : la
+    # decklist figée ne référence plus `card_copy` (§6).
+    card_set_id = world.printing.card_set_id
+    response = api.patch(
+        f"/stock/{world.card.id}/EN/{card_set_id}", json={"quantity_owned": 0}
+    )
+    assert response.status_code == 200
+    db.expire_all()
+    assert stock.allocated_real(db, world.card.id, "FR", card_set_id) == 0
+    assert stock.proxies_allocated(db, world.card.id, "FR", card_set_id) == 0
 
 
 def test_the_copies_of_a_deleted_deck_are_available_to_another_deck(api, world, db):
     other = make_deck(db, "Autre")
     db.commit()
-    assert add_line(api, other.id, world.card.id, quantity=1).status_code == 409
+    assert add_line(api, db, other.id, world.card.id, quantity=1).status_code == 409
 
     delete_from_archive(api, world.deck.id)
 
-    assert add_line(api, other.id, world.card.id, quantity=4).status_code == 201
+    assert add_line(api, db, other.id, world.card.id, quantity=4).status_code == 201
 
 
 def test_a_stock_entry_used_by_a_deleted_deck_can_be_removed(api, world):
     delete_from_archive(api, world.deck.id)
 
-    assert api.delete(f"/stock/{world.card.id}/EN").status_code == 204
-    assert api.get(f"/stock/{world.card.id}/EN").status_code == 404
+    url = f"/stock/{world.card.id}/EN/{world.printing.card_set_id}"
+    assert api.delete(url).status_code == 204
+    assert api.get(url).status_code == 404
     # La decklist figée, elle, n'a pas bougé.
     cards = api.get(f"/decks/{world.deck.id}").json()["cards"]
     assert [(c["language_code"], c["quantity"]) for c in cards] == [("EN", 4)]
 
 
 def test_a_stock_entry_used_by_a_live_deck_still_cannot_be_removed(api, world):
-    response = api.delete(f"/stock/{world.card.id}/EN")
+    url = f"/stock/{world.card.id}/EN/{world.printing.card_set_id}"
+    response = api.delete(url)
 
     assert response.status_code == 409
     assert "ligne(s) de deck" in response.json()["detail"]
@@ -540,8 +650,10 @@ def test_a_stock_entry_used_by_a_live_deck_still_cannot_be_removed(api, world):
 # --- Deck supprimé : lecture seule par identifiant ---------------------------
 
 
-def test_a_deleted_deck_is_readable_by_id_with_its_frozen_decklist(api, world):
-    assert add_line(api, world.deck.id, world.card.id, "FR", 1, 1).status_code == 201
+def test_a_deleted_deck_is_readable_by_id_with_its_frozen_decklist(api, db, world):
+    api.patch(f"/decks/{world.deck.id}", json={"proxy_allowed": True})
+    added = add_line(api, db, world.deck.id, world.card.id, "FR", 1, 1)
+    assert added.status_code == 201
     before = api.get(f"/decks/{world.deck.id}").json()
     delete_from_archive(api, world.deck.id)
 
@@ -575,7 +687,7 @@ def test_a_deleted_deck_lists_crypt_first_then_by_name_then_by_language(api, db)
         (alice, "FR"),
         (alice, "EN"),
     ):
-        assert add_line(api, deck.id, card.id, language).status_code == 201
+        assert add_line(api, db, deck.id, card.id, language).status_code == 201
     delete_from_archive(api, deck.id)
 
     body = api.get(f"/decks/{deck.id}").json()
@@ -604,17 +716,17 @@ def test_a_deleted_deck_is_in_no_list(api, world, db):
     assert listed(api, state="all", status="active") == ["Vivant"]
 
 
-def test_a_deleted_deck_refuses_every_write_with_a_clear_409(api, world):
+def test_a_deleted_deck_refuses_every_write_with_a_clear_409(api, db, world):
     delete_from_archive(api, world.deck.id)
     url = f"/decks/{world.deck.id}"
-    line = f"{url}/cartes/{world.card.id}/EN"
+    line = line_url(db, world.deck.id, world.card.id)
 
     responses = {
         "patch": api.patch(url, json={"notes": "x"}),
         "unarchive": api.patch(url, json={"archived": False}),
         "archive": api.patch(url, json={"archived": True}),
         "delete": api.delete(url),
-        "add": add_line(api, world.deck.id, world.card.id, "FR"),
+        "add": add_line(api, db, world.deck.id, world.card.id, "FR"),
         "patch line": api.patch(line, json={"quantity": 1}),
         "delete line": api.delete(line),
     }
@@ -643,8 +755,8 @@ def test_an_unknown_deck_stays_404_everywhere(api, world):
         ("patch", "/decks/9999", {"archived": False}),
         ("delete", "/decks/9999", None),
         ("post", "/decks/9999/cartes", LINE),
-        ("patch", "/decks/9999/cartes/1/EN", {"quantity": 1}),
-        ("delete", "/decks/9999/cartes/1/EN", None),
+        ("patch", "/decks/9999/cartes/1/EN/1", {"quantity": 1}),
+        ("delete", "/decks/9999/cartes/1/EN/1", None),
     ):
         kwargs = {"json": body} if body else {}
         assert getattr(api, method)(url, **kwargs).status_code == 404, url

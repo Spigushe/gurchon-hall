@@ -34,7 +34,7 @@
           "catalogue"
         ],
         "summary": "Recherche dans le catalogue",
-        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents).",
+        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents). Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`).",
         "operationId": "listCards",
         "parameters": [
           {
@@ -122,7 +122,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/CardSummary"
+                    "$ref": "#/components/schemas/CardListItem"
                   },
                   "title": "Response Listcards"
                 }
@@ -189,6 +189,32 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extensions": {
+      "get": {
+        "tags": [
+          "catalogue"
+        ],
+        "summary": "Extensions du catalogue",
+        "description": "Toutes les extensions, des plus anciennes aux plus récentes, les extensions sans date en dernier. `is_placeholder` signale l'extension tampon de l'import (cartes publiées sans impression).",
+        "operationId": "listCardSets",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CardSetRead"
+                  },
+                  "type": "array",
+                  "title": "Response Listcardsets"
                 }
               }
             }
@@ -330,7 +356,7 @@
           "catalogue"
         ],
         "summary": "Verser un produit dans la collection",
-        "description": "Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.",
+        "description": "Ajoute le contenu du produit au stock, dans la langue indiquée et sous l'extension du produit. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.",
         "operationId": "depositBundle",
         "parameters": [
           {
@@ -503,6 +529,24 @@
             }
           },
           {
+            "name": "card_set_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Set Id"
+            }
+          },
+          {
             "name": "category",
             "in": "query",
             "required": false,
@@ -592,7 +636,8 @@
         "tags": [
           "stock"
         ],
-        "summary": "Déclare une carte dans une langue",
+        "summary": "Déclare une carte dans une langue et une extension",
+        "description": "404 si la carte, la langue ou l'extension est inconnue, ou si la carte n'a pas été imprimée dans cette extension. 409 si l'entrée existe déjà.",
         "operationId": "createStockEntry",
         "requestBody": {
           "required": true,
@@ -648,7 +693,7 @@
         }
       }
     },
-    "/stock/{card_id}/{language_code}": {
+    "/stock/{card_id}/{language_code}/{card_set_id}": {
       "get": {
         "tags": [
           "stock"
@@ -674,6 +719,17 @@
             "schema": {
               "type": "string",
               "title": "Language Code"
+            }
+          },
+          {
+            "name": "card_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Set Id"
             }
           }
         ],
@@ -735,6 +791,17 @@
             "schema": {
               "type": "string",
               "title": "Language Code"
+            }
+          },
+          {
+            "name": "card_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Set Id"
             }
           }
         ],
@@ -817,6 +884,17 @@
             "schema": {
               "type": "string",
               "title": "Language Code"
+            }
+          },
+          {
+            "name": "card_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Set Id"
             }
           }
         ],
@@ -1241,7 +1319,7 @@
           "decks"
         ],
         "summary": "Ajoute une carte au deck",
-        "description": "La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé.",
+        "description": "La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.",
         "operationId": "addDeckCard",
         "parameters": [
           {
@@ -1310,7 +1388,7 @@
         }
       }
     },
-    "/decks/{deck_id}/cartes/{card_id}/{language_code}": {
+    "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}": {
       "patch": {
         "tags": [
           "decks"
@@ -1348,6 +1426,17 @@
             "schema": {
               "type": "string",
               "title": "Language Code"
+            }
+          },
+          {
+            "name": "card_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Set Id"
             }
           }
         ],
@@ -1441,6 +1530,17 @@
             "schema": {
               "type": "string",
               "title": "Language Code"
+            }
+          },
+          {
+            "name": "card_set_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Card Set Id"
             }
           }
         ],
@@ -1659,7 +1759,7 @@
           "language_code"
         ],
         "title": "BundleDeposit",
-        "description": "Versement du contenu d'un produit dans la collection.\n\nLe produit fixe les cartes et leurs exemplaires ; il ne manque que la\nlangue de ce qui a été acheté, et le nombre de produits identiques."
+        "description": "Versement du contenu d'un produit dans la collection.\n\nLe produit fixe les cartes et leurs exemplaires ; il ne manque que la\nlangue de ce qui a été acheté, et le nombre de produits identiques.\nL'extension n'y figure pas (Lot 4) : chaque carte est rangée sous\nl'extension du produit (`BundleRead.card_set_id`), dont elle est toujours\nune impression."
       },
       "BundleDepositOperation": {
         "properties": {
@@ -1787,17 +1887,19 @@
             "minLength": 1,
             "title": "Language Code"
           },
+          "card_set_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Set Id",
+            "description": "Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404."
+          },
           "quantity_owned": {
             "type": "integer",
             "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Quantity Owned",
             "default": 0
-          },
-          "proxy_allowed": {
-            "type": "boolean",
-            "title": "Proxy Allowed",
-            "default": false
           },
           "notes": {
             "anyOf": [
@@ -1815,7 +1917,8 @@
         "type": "object",
         "required": [
           "card_id",
-          "language_code"
+          "language_code",
+          "card_set_id"
         ],
         "title": "CardCopyCreate",
         "description": "Déclaration d'une entrée de collection."
@@ -1830,15 +1933,15 @@
             "type": "string",
             "title": "Language Code"
           },
+          "card_set_id": {
+            "type": "integer",
+            "title": "Card Set Id",
+            "description": "Extension de l'impression possédée (`GET /extensions`)."
+          },
           "quantity_owned": {
             "type": "integer",
             "title": "Quantity Owned",
-            "description": "Nombre d'exemplaires réellement possédés."
-          },
-          "proxy_allowed": {
-            "type": "boolean",
-            "title": "Proxy Allowed",
-            "description": "Autorise à jouer cette carte en proxy dans cette langue, sans la posséder. Une entrée avec 0 exemplaire possédé et le proxy autorisé est le cas normal d'une carte jouée en proxy."
+            "description": "Nombre d'exemplaires réellement possédés. Une entrée à 0 est valide : c'est ainsi qu'une carte jouée uniquement en proxy entre en collection."
           },
           "notes": {
             "anyOf": [
@@ -1866,13 +1969,13 @@
         "required": [
           "card_id",
           "language_code",
+          "card_set_id",
           "quantity_owned",
-          "proxy_allowed",
           "notes",
           "card"
         ],
         "title": "CardCopyRead",
-        "description": "Exemplaires possédés d'une carte dans une langue."
+        "description": "Exemplaires possédés d'une carte, dans une langue, pour une impression."
       },
       "CardCopyUpdate": {
         "properties": {
@@ -1881,10 +1984,6 @@
             "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Quantity Owned"
-          },
-          "proxy_allowed": {
-            "type": "boolean",
-            "title": "Proxy Allowed"
           },
           "notes": {
             "anyOf": [
@@ -1901,7 +2000,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "CardCopyUpdate",
-        "description": "Modification d'une entrée de collection.\n\nLa carte et la langue forment la clé : elles ne se modifient pas, on crée\nune autre entrée. `quantity_owned` et `proxy_allowed` sont facultatifs mais\nnon nullables (colonnes NOT NULL) ; `notes`, lui, accepte `null` pour\neffacer la note."
+        "description": "Modification d'une entrée de collection.\n\nLa carte, la langue et l'extension forment la clé : elles ne se modifient\npas, on crée une autre entrée. `quantity_owned` est facultatif mais non nullable\n(colonne NOT NULL) ; `notes`, lui, accepte `null` pour effacer la note.\nL'autorisation de proxy n'est plus ici : elle appartient au deck."
       },
       "CardDisciplineRead": {
         "properties": {
@@ -1921,6 +2020,104 @@
         ],
         "title": "CardDisciplineRead",
         "description": "Discipline requise par une carte, avec son niveau."
+      },
+      "CardListItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CardCategory"
+          },
+          "clan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClanRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "group_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Code"
+          },
+          "advanced": {
+            "type": "boolean",
+            "title": "Advanced",
+            "default": false
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la carte (version anglaise de référence)."
+          },
+          "card_set_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Card Set Ids",
+            "description": "Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.",
+            "default": []
+          },
+          "latest_card_set_id": {
+            "type": "integer",
+            "title": "Latest Card Set Id",
+            "description": "Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vekn_id",
+          "name",
+          "category",
+          "clan",
+          "capacity",
+          "group_code",
+          "advanced",
+          "image_url",
+          "card_set_ids",
+          "latest_card_set_id"
+        ],
+        "title": "CardListItem",
+        "description": "Une carte dans les résultats de recherche, avec ses impressions (Lot 4).\n\nCe que le client hors ligne doit connaître pour ranger un exemplaire sous\nune impression réelle sans rappeler l'API : les extensions où la carte a\nété imprimée, et celle qu'il faut prendre par défaut quand la carte entre\nen collection pour être jouée en proxy (décision D2a).\n\nDistinct de `CardSummary`, qui reste la vue courte embarquée dans le\nstock, les decks et les produits : ces deux champs n'y ont pas d'usage."
       },
       "CardPrintingOccurrenceRead": {
         "properties": {
@@ -2098,6 +2295,20 @@
             ],
             "title": "Image Url",
             "description": "Scan de la carte (version anglaise de référence)."
+          },
+          "card_set_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Card Set Ids",
+            "description": "Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.",
+            "default": []
+          },
+          "latest_card_set_id": {
+            "type": "integer",
+            "title": "Latest Card Set Id",
+            "description": "Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy."
           },
           "sect": {
             "anyOf": [
@@ -2301,6 +2512,8 @@
           "group_code",
           "advanced",
           "image_url",
+          "card_set_ids",
+          "latest_card_set_id",
           "sect",
           "title",
           "path",
@@ -2367,6 +2580,12 @@
               }
             ],
             "title": "Company"
+          },
+          "is_placeholder": {
+            "type": "boolean",
+            "title": "Is Placeholder",
+            "description": "Extension tampon créée par l'import pour une carte publiée sans aucune impression (une seule pour tout le catalogue). Une entrée rangée dessous est à réattribuer à une vraie extension dès que la source sera corrigée.",
+            "default": false
           }
         },
         "type": "object",
@@ -2375,10 +2594,11 @@
           "abbrev",
           "full_name",
           "release_date",
-          "company"
+          "company",
+          "is_placeholder"
         ],
         "title": "CardSetRead",
-        "description": "Extension."
+        "description": "Extension.\n\nListe servie par `GET /extensions` (Lot 4) : le client hors ligne s'en sert\npour proposer, et afficher, l'extension d'une entrée de collection."
       },
       "CardSummary": {
         "properties": {
@@ -2604,6 +2824,13 @@
             "maxLength": 8,
             "minLength": 1,
             "title": "Language Code"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Set Id",
+            "description": "Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404."
           }
         },
         "additionalProperties": false,
@@ -2611,10 +2838,11 @@
         "required": [
           "quantity",
           "card_id",
-          "language_code"
+          "language_code",
+          "card_set_id"
         ],
         "title": "DeckCardCreate",
-        "description": "Ajout d'une carte à un deck.\n\nLa carte doit déjà exister dans la collection pour la langue demandée\n(CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du\nservice, la base garantissant déjà l'existence de l'entrée de collection."
+        "description": "Ajout d'une carte à un deck.\n\nLa carte doit déjà exister dans la collection pour la langue et\nl'extension demandées (CLAUDE.md §11 point 2) ; la vérification de\ndisponibilité relève du service, la base garantissant déjà l'existence de\nl'entrée de collection."
       },
       "DeckCardDeleteOperation": {
         "properties": {
@@ -2649,6 +2877,13 @@
             "maxLength": 8,
             "minLength": 1,
             "title": "Language Code"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Set Id",
+            "description": "Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404."
           }
         },
         "additionalProperties": false,
@@ -2659,7 +2894,8 @@
           "type",
           "deck",
           "card_id",
-          "language_code"
+          "language_code",
+          "card_set_id"
         ],
         "title": "DeckCardDeleteOperation",
         "description": "Retire une carte d'un deck."
@@ -2673,6 +2909,11 @@
           "language_code": {
             "type": "string",
             "title": "Language Code"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "title": "Card Set Id",
+            "description": "Extension de l'entrée de collection allouée."
           },
           "quantity": {
             "type": "integer",
@@ -2698,6 +2939,7 @@
         "required": [
           "card_id",
           "language_code",
+          "card_set_id",
           "quantity",
           "proxy_quantity",
           "card"
@@ -2761,7 +3003,7 @@
           "data"
         ],
         "title": "DeckCardUpsertOperation",
-        "description": "Place une carte dans un deck, ou remplace sa ligne.\n\n`data` porte l'état complet voulu de la ligne (`quantity`,\n`proxy_quantity`). La carte doit être en collection dans cette langue et\nles exemplaires disponibles doivent suffire : sinon `conflict`, comme en\nligne."
+        "description": "Place une carte dans un deck, ou remplace sa ligne.\n\n`data` porte l'état complet voulu de la ligne (`quantity`,\n`proxy_quantity`). La carte doit être en collection dans cette langue et\ncette extension, les exemplaires disponibles doivent suffire, et un\n`proxy_quantity` non nul exige un deck qui autorise les proxies : sinon\n`conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée\nest refusée (`not_found`)."
       },
       "DeckCreate": {
         "properties": {
@@ -2809,6 +3051,12 @@
               }
             ],
             "title": "Notes"
+          },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "description": "Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`). Interdit par défaut.",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2859,7 +3107,7 @@
           "data"
         ],
         "title": "DeckCreateOperation",
-        "description": "Crée un deck saisi hors ligne.\n\n`client_ref` est **obligatoire** : sans elle, aucune des opérations\nsuivantes de la file ne pourrait désigner le deck, puisque son identifiant\nn'existe pas encore. Le discriminant, lui, reste tiré par le serveur\n(CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus\nqu'en ligne."
+        "description": "Crée un deck saisi hors ligne.\n\n`client_ref` est **obligatoire** : sans elle, aucune des opérations\nsuivantes de la file ne pourrait désigner le deck, puisque son identifiant\nn'existe pas encore. Le discriminant, lui, reste tiré par le serveur\n(CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus\nqu'en ligne. `data.proxy_allowed` fixe l'autorisation de proxy du deck\n(interdite si omise)."
       },
       "DeckDeleteOperation": {
         "properties": {
@@ -2947,6 +3195,11 @@
             ],
             "title": "Notes"
           },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "description": "Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`)."
+          },
           "archived_at": {
             "anyOf": [
               {
@@ -3001,6 +3254,7 @@
           "status",
           "archetype",
           "notes",
+          "proxy_allowed",
           "archived_at",
           "deleted_at",
           "created_at",
@@ -3162,6 +3416,11 @@
             ],
             "title": "Notes"
           },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "description": "Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`)."
+          },
           "archived_at": {
             "anyOf": [
               {
@@ -3208,6 +3467,7 @@
           "status",
           "archetype",
           "notes",
+          "proxy_allowed",
           "archived_at",
           "deleted_at",
           "created_at",
@@ -3306,6 +3566,11 @@
             ],
             "title": "Notes"
           },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed",
+            "description": "Autorise (`true`) ou interdit (`false`) les proxies dans ce deck. Interdire est refusé tant qu'une ligne du deck en joue."
+          },
           "archived": {
             "type": "boolean",
             "title": "Archived",
@@ -3315,7 +3580,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "DeckUpdate",
-        "description": "Modification partielle d'un deck.\n\n`name`, `status` et `archived` sont facultatifs mais non nullables ;\n`created_on`, `archetype` et `notes` acceptent `null` pour effacer la\nvaleur. Le discriminant ne se modifie pas : renommer un deck ne change pas\nson identité (le serveur n'en retire un autre que si le nouveau couple est\ndéjà pris)."
+        "description": "Modification partielle d'un deck.\n\n`name`, `status`, `proxy_allowed` et `archived` sont facultatifs mais non\nnullables ;\n`created_on`, `archetype` et `notes` acceptent `null` pour effacer la\nvaleur. Le discriminant ne se modifie pas : renommer un deck ne change pas\nson identité (le serveur n'en retire un autre que si le nouveau couple est\ndéjà pris)."
       },
       "DeckUpdateOperation": {
         "properties": {
@@ -3353,7 +3618,7 @@
           "data"
         ],
         "title": "DeckUpdateOperation",
-        "description": "Modifie un deck — y compris pour l'archiver ou le désarchiver.\n\n`data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis\nsont appliqués, et `archived` range ou sort de l'archive. Passer le deck à\n`active` exige qu'il soit légal, comme en ligne."
+        "description": "Modifie un deck — y compris pour l'archiver ou le désarchiver.\n\n`data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis\nsont appliqués, et `archived` range ou sort de l'archive. Passer le deck à\n`active` exige qu'il soit légal, comme en ligne ; passer `proxy_allowed` à\n`false` est refusé (`conflict`) tant qu'une ligne du deck joue un proxy."
       },
       "DisciplineRead": {
         "properties": {
@@ -3570,6 +3835,13 @@
             "maxLength": 8,
             "minLength": 1,
             "title": "Language Code"
+          },
+          "card_set_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Card Set Id",
+            "description": "Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404."
           }
         },
         "additionalProperties": false,
@@ -3579,10 +3851,11 @@
           "recorded_at",
           "type",
           "card_id",
-          "language_code"
+          "language_code",
+          "card_set_id"
         ],
         "title": "StockDeleteOperation",
-        "description": "Retire une entrée de collection.\n\nRefusée (`conflict`) tant qu'un deck vivant l'utilise, comme\n`DELETE /stock/{card_id}/{language_code}`."
+        "description": "Retire une entrée de collection.\n\nRefusée (`conflict`) tant qu'un deck vivant l'utilise, comme\n`DELETE /stock/{card_id}/{language_code}/{card_set_id}`."
       },
       "StockUpsertOperation": {
         "properties": {
@@ -3616,7 +3889,7 @@
           "data"
         ],
         "title": "StockUpsertOperation",
-        "description": "Crée ou remplace une entrée de collection (carte × langue).\n\n`data` porte l'**état complet voulu** de l'entrée : les champs omis\nreprennent leur valeur par défaut (0 exemplaire, proxy interdit, pas de\nnote), ils ne conservent pas ce que le serveur avait. C'est ce qui rend\nl'opération indifférente à l'ordre du rejeu.\n\nLes règles de stock restent celles du serveur : descendre\n`quantity_owned` sous ce que les decks ont déjà alloué, ou retirer le droit\nde proxy alors qu'un deck en joue, est refusé (`conflict`)."
+        "description": "Crée ou remplace une entrée de collection (carte × langue × extension).\n\n`data` porte l'**état complet voulu** de l'entrée : les champs omis\nreprennent leur valeur par défaut (0 exemplaire, pas de note), ils ne\nconservent pas ce que le serveur avait. C'est ce qui rend l'opération\nindifférente à l'ordre du rejeu.\n\nLes règles de stock restent celles du serveur : descendre\n`quantity_owned` sous ce que les decks ont déjà alloué est refusé\n(`conflict`), et une extension où la carte n'a pas été imprimée est\nrefusée (`not_found`), comme une carte ou une langue inconnue.\nL'autorisation de proxy n'est plus une propriété de l'entrée de collection\n(Lot 4) : elle voyage avec le deck (`deck.create`, `deck.update`)."
       },
       "SyncErrorCode": {
         "type": "string",
@@ -3848,6 +4121,18 @@
             ],
             "title": "Language Code"
           },
+          "card_set_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Set Id",
+            "description": "Extension de l'entrée touchée (`stock.*`, `deck_card.*`). Nulle pour un deck, un versement de produit, ou une opération journalisée avant le Lot 4."
+          },
           "bundle_id": {
             "anyOf": [
               {
@@ -3866,6 +4151,7 @@
           "deck_id",
           "card_id",
           "language_code",
+          "card_set_id",
           "bundle_id"
         ],
         "title": "SyncResourceRef",

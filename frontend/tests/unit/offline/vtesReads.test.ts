@@ -34,11 +34,17 @@ function open() {
   return { db, outbox };
 }
 
-const stockRow = (cardId: number, name: string, languageCode = "EN", quantityOwned = 1): StockRow => ({
+const stockRow = (
+  cardId: number,
+  name: string,
+  languageCode = "EN",
+  quantityOwned = 1,
+  cardSetId = 9,
+): StockRow => ({
   cardId,
   languageCode,
+  cardSetId,
   quantityOwned,
-  proxyAllowed: false,
   notes: null,
   cardName: name,
   foldedName: foldText(name),
@@ -56,6 +62,8 @@ const cardRow = (id: number, name: string): CardRow => ({
   groupCode: null,
   advanced: false,
   imageUrl: null,
+  cardSetIds: [9],
+  latestCardSetId: 9,
 });
 
 const NAMES = ["Élan vital", "École de sang", "Niño", "Ça ira", "Plain", "100% Bleed", "Under_score", "Elan brut", "Łódź", "Œuvre"];
@@ -75,6 +83,7 @@ describe("recherche locale : parité avec la recherche du serveur", () => {
         status: "draft" as const,
         archetype: null,
         notes: null,
+        proxyAllowed: false,
         archivedAt: null,
       })),
     );
@@ -128,15 +137,15 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
     const { db, outbox } = open();
     await db.cards.bulkPut([cardRow(1, "Élan vital")]);
     await outbox.enqueue(
-      ops.stockUpsert(clock, { cardId: 1, languageCode: "FR", quantityOwned: 3, proxyAllowed: true }),
+      ops.stockUpsert(clock, { cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 }),
     );
 
     expect(await readStock(db)).toEqual([
       {
         cardId: 1,
         languageCode: "FR",
+        cardSetId: 9,
         quantityOwned: 3,
-        proxyAllowed: true,
         notes: null,
         cardName: "Élan vital",
         category: "library",
@@ -148,9 +157,11 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
   it("applique la dernière écriture de la file (upsert puis suppression)", async () => {
     const { db, outbox } = open();
     await db.stock.put(stockRow(1, "Élan vital", "EN", 5));
-    await outbox.enqueue(ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", quantityOwned: 2 }));
+    await outbox.enqueue(
+      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 2 }),
+    );
     expect((await readStock(db))[0]).toMatchObject({ quantityOwned: 2, pending: true });
-    await outbox.enqueue(ops.stockDelete(clock, 1, "EN"));
+    await outbox.enqueue(ops.stockDelete(clock, 1, "EN", 9));
     expect(await readStock(db)).toEqual([]);
   });
 
@@ -158,7 +169,7 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
     const { db, outbox } = open();
     await db.stock.put(stockRow(1, "Élan vital", "EN", 5));
     const entry = await outbox.enqueue(
-      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", quantityOwned: 99 }),
+      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 99 }),
     );
     expect((await readStock(db))[0].quantityOwned).toBe(99);
 
@@ -177,7 +188,9 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
     const { db, outbox } = open();
     await db.cards.bulkPut([cardRow(1, "Élan vital")]);
     await outbox.enqueue(ops.deckCreate(clock, "ref-A", { name: "Malkavien" }), { createsRef: "ref-A" });
-    await outbox.enqueue(ops.deckCardUpsert(clock, "ref:ref-A", { cardId: 1, languageCode: "EN", quantity: 2 }));
+    await outbox.enqueue(
+      ops.deckCardUpsert(clock, "ref:ref-A", { cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 2 }),
+    );
 
     const [deck] = await readDecks(db);
     expect(deck).toMatchObject({
@@ -187,10 +200,19 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
       name: "Malkavien",
       discriminator: null,
       status: "draft",
+      proxyAllowed: false,
       pending: true,
     });
     expect(await readDeckCards(db, "ref:ref-A")).toEqual([
-      { cardId: 1, languageCode: "EN", quantity: 2, proxyQuantity: 0, cardName: "Élan vital", pending: true },
+      {
+        cardId: 1,
+        languageCode: "EN",
+        cardSetId: 9,
+        quantity: 2,
+        proxyQuantity: 0,
+        cardName: "Élan vital",
+        pending: true,
+      },
     ]);
   });
 
@@ -208,10 +230,13 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
       status: "draft",
       archetype: null,
       notes: null,
+      proxyAllowed: false,
       archivedAt: null,
     });
     // Une opération encore en file peut continuer de désigner le deck par sa référence.
-    await outbox.enqueue(ops.deckCardUpsert(clock, "ref:ref-A", { cardId: 1, languageCode: "EN", quantity: 1 }));
+    await outbox.enqueue(
+      ops.deckCardUpsert(clock, "ref:ref-A", { cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 1 }),
+    );
 
     expect(await readDeck(db, "ref:ref-A")).toMatchObject({
       key: "ref:ref-A",
@@ -234,6 +259,7 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
       status: "active",
       archetype: null,
       notes: null,
+      proxyAllowed: false,
       archivedAt: null,
     });
     await outbox.enqueue(ops.deckUpdate(clock, "id:3", { archived: true }));
@@ -250,7 +276,7 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
   it("ignore une opération dont le deck n'existe pas (création refusée)", () => {
     const projection = project(
       { stock: [], decks: [], deckCards: [], cards: [], refs: [] },
-      [ops.deckCardUpsert(clock, "ref:inconnue", { cardId: 1, languageCode: "EN", quantity: 1 })],
+      [ops.deckCardUpsert(clock, "ref:inconnue", { cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 1 })],
     );
     expect(projection.decks).toEqual([]);
     expect(projection.deckCards.size).toBe(0);
@@ -258,13 +284,13 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
 
   it("projette une création tranchée avec son identifiant serveur, sans marque d'attente", () => {
     const create = ops.deckCreate(clock, "r1", { name: "Malkavien" });
-    const line = ops.deckCardUpsert(clock, "ref:r1", { cardId: 1, languageCode: "EN", quantity: 2 });
+    const line = ops.deckCardUpsert(clock, "ref:r1", { cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 2 });
     const queued = ops.deckUpdate(clock, "ref:r1", { notes: "en file" });
     const empty = { stock: [], decks: [], deckCards: [], cards: [], refs: [{ ref: "r1", id: 7, boundAt: "x" }] };
 
     const projection = project(empty, [queued], [create, line]);
     expect(projection.decks).toMatchObject([
-      { key: "ref:r1", id: 7, clientRef: "r1", name: "Malkavien", notes: "en file", pending: true },
+      { key: "ref:r1", id: 7, clientRef: "r1", name: "Malkavien", notes: "en file", proxyAllowed: false, pending: true },
     ]);
     expect(projection.deckCards.get("ref:r1")).toMatchObject([{ cardId: 1, quantity: 2, pending: false }]);
 
@@ -281,13 +307,18 @@ describe("lecture locale = instantané du serveur + opérations en file", () => 
       decks: [
         {
           id: 7, name: "Nom du serveur", foldedName: "nom du serveur", discriminator: "4242",
-          createdOn: null, status: "draft" as const, archetype: null, notes: null, archivedAt: null,
+          createdOn: null, status: "draft" as const, archetype: null, notes: null, proxyAllowed: true,
+          archivedAt: null,
         },
       ],
-      deckCards: [{ deckId: 7, cardId: 1, languageCode: "EN", quantity: 1, proxyQuantity: 0, cardName: null }],
+      deckCards: [
+        { deckId: 7, cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 1, proxyQuantity: 0, cardName: null },
+      ],
     };
     const projection = project(mirrored, [], [create]);
-    expect(projection.decks).toMatchObject([{ key: "ref:r1", name: "Nom du serveur", discriminator: "4242" }]);
+    expect(projection.decks).toMatchObject([
+      { key: "ref:r1", name: "Nom du serveur", discriminator: "4242", proxyAllowed: true },
+    ]);
     expect(projection.deckCards.get("ref:r1")).toHaveLength(1); // composition intacte
   });
 

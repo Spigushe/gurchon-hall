@@ -16,7 +16,9 @@ from app.models import (
     Base,
     CardCategory,
     CardCopy,
+    CardSet,
     CostType,
+    Deck,
     DeckCard,
     DeckPolicy,
     DeckStatus,
@@ -34,6 +36,7 @@ from tests.helpers import (
     make_deck,
     make_game,
     make_player,
+    make_printing,
     make_tournament,
 )
 
@@ -76,22 +79,38 @@ def test_card_boolean_defaults_are_false(db):
     assert card.burn_option is False
 
 
-def test_card_copy_defaults_to_nothing_owned_and_no_proxy(db):
+def test_card_copy_defaults_to_nothing_owned(db):
     add_languages(db)
     card = make_card(db)
-    copy = CardCopy(card_id=card.id, language_code="EN")
+    printing = make_printing(db, card)
+    copy = CardCopy(
+        card_id=card.id, language_code="EN", card_set_id=printing.card_set_id
+    )
     db.add(copy)
     db.commit()
     assert copy.quantity_owned == 0
-    assert copy.proxy_allowed is False
+
+
+def test_deck_defaults_to_proxy_not_allowed(db):
+    # Lot 4 : l'autorisation de proxy est portée par le deck, pas par
+    # l'entrée de collection (`CardCopy` n'a plus ce champ).
+    deck = Deck(name="Sans proxy", discriminator="0001")
+    db.add(deck)
+    db.commit()
+    assert deck.proxy_allowed is False
 
 
 def test_deck_card_defaults_to_one_copy_without_proxy(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=1)
+    copy = make_copy(db, card, "EN", quantity_owned=1)
     deck = make_deck(db)
-    line = DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN")
+    line = DeckCard(
+        deck_id=deck.id,
+        card_id=card.id,
+        language_code="EN",
+        card_set_id=copy.card_set_id,
+    )
     db.add(line)
     db.commit()
     assert (line.quantity, line.proxy_quantity) == (1, 0)
@@ -101,8 +120,16 @@ def test_deleted_deck_card_has_the_same_defaults(db):
     """La decklist figée est une copie : mêmes valeurs par défaut."""
     add_languages(db)
     card = make_card(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
     deck = make_deck(db, deleted_at=datetime(2026, 1, 1))
-    line = DeletedDeckCard(deck_id=deck.id, card_id=card.id, language_code="EN")
+    line = DeletedDeckCard(
+        deck_id=deck.id,
+        card_id=card.id,
+        language_code="EN",
+        card_set_id=card_set.id,
+    )
     db.add(line)
     db.commit()
     assert (line.quantity, line.proxy_quantity) == (1, 0)

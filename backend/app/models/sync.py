@@ -29,7 +29,8 @@ existe. Le lier aux ressources qu'il mentionne le rendrait dépendant de leur
 cycle de vie (un jour, une purge des decks), et le couplerait au schéma métier
 alors que toute la mécanique doit pouvoir être portée telle quelle sur
 barrins-project (CLAUDE.md §1). Les colonnes `deck_id`, `card_id`,
-`language_code` et `bundle_id` sont donc des identifiants, pas des relations.
+`language_code`, `card_set_id` et `bundle_id` sont donc des identifiants, pas
+des relations.
 """
 
 from datetime import datetime
@@ -132,6 +133,11 @@ class SyncOperation(Base):
     deck_id: Mapped[int | None] = mapped_column()
     card_id: Mapped[int | None] = mapped_column()
     language_code: Mapped[str | None] = mapped_column(String(8))
+    card_set_id: Mapped[int | None] = mapped_column()
+    """Extension de l'entrée touchée (Lot 4) : une entrée de collection ou une
+    ligne de deck se désigne par carte × langue × extension. Nulle pour les
+    opérations journalisées avant le Lot 4 et pour celles qui ne visent pas
+    une entrée précise."""
     bundle_id: Mapped[int | None] = mapped_column()
 
     # --- Horodatages (UTC) --------------------------------------------------

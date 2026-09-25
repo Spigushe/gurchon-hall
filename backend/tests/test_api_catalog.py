@@ -29,7 +29,7 @@ def test_list_cards_is_sorted_by_name(api, catalog_in_db):
 
     assert response.status_code == 200
     assert names(response) == sorted(names(response))
-    assert len(response.json()) == 9
+    assert len(response.json()) == 10
 
 
 def test_list_cards_search_is_case_insensitive_and_partial(api, catalog_in_db):

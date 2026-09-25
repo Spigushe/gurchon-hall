@@ -33,7 +33,7 @@ export interface paths {
         };
         /**
          * Recherche dans le catalogue
-         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents).
+         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents). Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`).
          */
         get: operations["listCards"];
         put?: never;
@@ -53,6 +53,26 @@ export interface paths {
         };
         /** Fiche complète d'une carte */
         get: operations["getCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/extensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Extensions du catalogue
+         * @description Toutes les extensions, des plus anciennes aux plus récentes, les extensions sans date en dernier. `is_placeholder` signale l'extension tampon de l'import (cartes publiées sans impression).
+         */
+        get: operations["listCardSets"];
         put?: never;
         post?: never;
         delete?: never;
@@ -109,7 +129,7 @@ export interface paths {
         put?: never;
         /**
          * Verser un produit dans la collection
-         * @description Ajoute le contenu du produit au stock, dans la langue indiquée. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.
+         * @description Ajoute le contenu du produit au stock, dans la langue indiquée et sous l'extension du produit. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.
          */
         post: operations["depositBundle"];
         delete?: never;
@@ -149,7 +169,10 @@ export interface paths {
          */
         get: operations["listStock"];
         put?: never;
-        /** Déclare une carte dans une langue */
+        /**
+         * Déclare une carte dans une langue et une extension
+         * @description 404 si la carte, la langue ou l'extension est inconnue, ou si la carte n'a pas été imprimée dans cette extension. 409 si l'entrée existe déjà.
+         */
         post: operations["createStockEntry"];
         delete?: never;
         options?: never;
@@ -157,7 +180,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/stock/{card_id}/{language_code}": {
+    "/stock/{card_id}/{language_code}/{card_set_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -262,7 +285,7 @@ export interface paths {
         put?: never;
         /**
          * Ajoute une carte au deck
-         * @description La carte doit être en collection dans la langue demandée, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé.
+         * @description La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.
          */
         post: operations["addDeckCard"];
         delete?: never;
@@ -271,7 +294,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/decks/{deck_id}/cartes/{card_id}/{language_code}": {
+    "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -370,6 +393,9 @@ export interface components {
          *
          *     Le produit fixe les cartes et leurs exemplaires ; il ne manque que la
          *     langue de ce qui a été acheté, et le nombre de produits identiques.
+         *     L'extension n'y figure pas (Lot 4) : chaque carte est rangée sous
+         *     l'extension du produit (`BundleRead.card_set_id`), dont elle est toujours
+         *     une impression.
          */
         BundleDeposit: {
             /** Language Code */
@@ -454,21 +480,21 @@ export interface components {
             /** Language Code */
             language_code: string;
             /**
+             * Card Set Id
+             * @description Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404.
+             */
+            card_set_id: number;
+            /**
              * Quantity Owned
              * @default 0
              */
             quantity_owned?: number;
-            /**
-             * Proxy Allowed
-             * @default false
-             */
-            proxy_allowed?: boolean;
             /** Notes */
             notes?: string | null;
         };
         /**
          * CardCopyRead
-         * @description Exemplaires possédés d'une carte dans une langue.
+         * @description Exemplaires possédés d'une carte, dans une langue, pour une impression.
          */
         CardCopyRead: {
             /** Card Id */
@@ -476,15 +502,15 @@ export interface components {
             /** Language Code */
             language_code: string;
             /**
+             * Card Set Id
+             * @description Extension de l'impression possédée (`GET /extensions`).
+             */
+            card_set_id: number;
+            /**
              * Quantity Owned
-             * @description Nombre d'exemplaires réellement possédés.
+             * @description Nombre d'exemplaires réellement possédés. Une entrée à 0 est valide : c'est ainsi qu'une carte jouée uniquement en proxy entre en collection.
              */
             quantity_owned: number;
-            /**
-             * Proxy Allowed
-             * @description Autorise à jouer cette carte en proxy dans cette langue, sans la posséder. Une entrée avec 0 exemplaire possédé et le proxy autorisé est le cas normal d'une carte jouée en proxy.
-             */
-            proxy_allowed: boolean;
             /** Notes */
             notes: string | null;
             card: components["schemas"]["CardSummary"] | null;
@@ -493,16 +519,14 @@ export interface components {
          * CardCopyUpdate
          * @description Modification d'une entrée de collection.
          *
-         *     La carte et la langue forment la clé : elles ne se modifient pas, on crée
-         *     une autre entrée. `quantity_owned` et `proxy_allowed` sont facultatifs mais
-         *     non nullables (colonnes NOT NULL) ; `notes`, lui, accepte `null` pour
-         *     effacer la note.
+         *     La carte, la langue et l'extension forment la clé : elles ne se modifient
+         *     pas, on crée une autre entrée. `quantity_owned` est facultatif mais non nullable
+         *     (colonne NOT NULL) ; `notes`, lui, accepte `null` pour effacer la note.
+         *     L'autorisation de proxy n'est plus ici : elle appartient au deck.
          */
         CardCopyUpdate: {
             /** Quantity Owned */
             quantity_owned?: number;
-            /** Proxy Allowed */
-            proxy_allowed?: boolean;
             /** Notes */
             notes?: string | null;
         };
@@ -517,6 +541,53 @@ export interface components {
              * @description Niveau supérieur (code en majuscules chez krcg).
              */
             superior: boolean;
+        };
+        /**
+         * CardListItem
+         * @description Une carte dans les résultats de recherche, avec ses impressions (Lot 4).
+         *
+         *     Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
+         *     une impression réelle sans rappeler l'API : les extensions où la carte a
+         *     été imprimée, et celle qu'il faut prendre par défaut quand la carte entre
+         *     en collection pour être jouée en proxy (décision D2a).
+         *
+         *     Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
+         *     stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
+         */
+        CardListItem: {
+            /** Id */
+            id: number;
+            /** Vekn Id */
+            vekn_id: number;
+            /** Name */
+            name: string;
+            category: components["schemas"]["CardCategory"];
+            clan: components["schemas"]["ClanRead"] | null;
+            /** Capacity */
+            capacity: number | null;
+            /** Group Code */
+            group_code: string | null;
+            /**
+             * Advanced
+             * @default false
+             */
+            advanced: boolean;
+            /**
+             * Image Url
+             * @description Scan de la carte (version anglaise de référence).
+             */
+            image_url: string | null;
+            /**
+             * Card Set Ids
+             * @description Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.
+             * @default []
+             */
+            card_set_ids: number[];
+            /**
+             * Latest Card Set Id
+             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy.
+             */
+            latest_card_set_id: number;
         };
         /**
          * CardPrintingOccurrenceRead
@@ -590,6 +661,17 @@ export interface components {
              * @description Scan de la carte (version anglaise de référence).
              */
             image_url: string | null;
+            /**
+             * Card Set Ids
+             * @description Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.
+             * @default []
+             */
+            card_set_ids: number[];
+            /**
+             * Latest Card Set Id
+             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy.
+             */
+            latest_card_set_id: number;
             sect: components["schemas"]["SectRead"] | null;
             /** Title */
             title: string | null;
@@ -661,6 +743,9 @@ export interface components {
         /**
          * CardSetRead
          * @description Extension.
+         *
+         *     Liste servie par `GET /extensions` (Lot 4) : le client hors ligne s'en sert
+         *     pour proposer, et afficher, l'extension d'une entrée de collection.
          */
         CardSetRead: {
             /** Id */
@@ -673,6 +758,12 @@ export interface components {
             release_date: string | null;
             /** Company */
             company: string | null;
+            /**
+             * Is Placeholder
+             * @description Extension tampon créée par l'import pour une carte publiée sans aucune impression (une seule pour tout le catalogue). Une entrée rangée dessous est à réattribuer à une vraie extension dès que la source sera corrigée.
+             * @default false
+             */
+            is_placeholder: boolean;
         };
         /**
          * CardSummary
@@ -760,9 +851,10 @@ export interface components {
          * DeckCardCreate
          * @description Ajout d'une carte à un deck.
          *
-         *     La carte doit déjà exister dans la collection pour la langue demandée
-         *     (CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du
-         *     service, la base garantissant déjà l'existence de l'entrée de collection.
+         *     La carte doit déjà exister dans la collection pour la langue et
+         *     l'extension demandées (CLAUDE.md §11 point 2) ; la vérification de
+         *     disponibilité relève du service, la base garantissant déjà l'existence de
+         *     l'entrée de collection.
          */
         DeckCardCreate: {
             /** Quantity */
@@ -776,6 +868,11 @@ export interface components {
             card_id: number;
             /** Language Code */
             language_code: string;
+            /**
+             * Card Set Id
+             * @description Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404.
+             */
+            card_set_id: number;
         };
         /**
          * DeckCardDeleteOperation
@@ -804,6 +901,11 @@ export interface components {
             card_id: number;
             /** Language Code */
             language_code: string;
+            /**
+             * Card Set Id
+             * @description Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404.
+             */
+            card_set_id: number;
         };
         /**
          * DeckCardRead
@@ -814,6 +916,11 @@ export interface components {
             card_id: number;
             /** Language Code */
             language_code: string;
+            /**
+             * Card Set Id
+             * @description Extension de l'entrée de collection allouée.
+             */
+            card_set_id: number;
             /** Quantity */
             quantity: number;
             /**
@@ -845,8 +952,10 @@ export interface components {
          *
          *     `data` porte l'état complet voulu de la ligne (`quantity`,
          *     `proxy_quantity`). La carte doit être en collection dans cette langue et
-         *     les exemplaires disponibles doivent suffire : sinon `conflict`, comme en
-         *     ligne.
+         *     cette extension, les exemplaires disponibles doivent suffire, et un
+         *     `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
+         *     `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
+         *     est refusée (`not_found`).
          */
         DeckCardUpsertOperation: {
             /**
@@ -888,6 +997,12 @@ export interface components {
             archetype?: string | null;
             /** Notes */
             notes?: string | null;
+            /**
+             * Proxy Allowed
+             * @description Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`). Interdit par défaut.
+             * @default false
+             */
+            proxy_allowed?: boolean;
         };
         /**
          * DeckCreateOperation
@@ -897,7 +1012,8 @@ export interface components {
          *     suivantes de la file ne pourrait désigner le deck, puisque son identifiant
          *     n'existe pas encore. Le discriminant, lui, reste tiré par le serveur
          *     (CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus
-         *     qu'en ligne.
+         *     qu'en ligne. `data.proxy_allowed` fixe l'autorisation de proxy du deck
+         *     (interdite si omise).
          */
         DeckCreateOperation: {
             /**
@@ -969,6 +1085,11 @@ export interface components {
             archetype: string | null;
             /** Notes */
             notes: string | null;
+            /**
+             * Proxy Allowed
+             * @description Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`).
+             */
+            proxy_allowed: boolean;
             /**
              * Archived At
              * @description Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable.
@@ -1084,6 +1205,11 @@ export interface components {
             /** Notes */
             notes: string | null;
             /**
+             * Proxy Allowed
+             * @description Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`).
+             */
+            proxy_allowed: boolean;
+            /**
              * Archived At
              * @description Instant d'archivage (UTC), nul si le deck n'est pas archivé. Un deck archivé sort des listes par défaut et n'est plus modifiable.
              */
@@ -1136,7 +1262,8 @@ export interface components {
          * DeckUpdate
          * @description Modification partielle d'un deck.
          *
-         *     `name`, `status` et `archived` sont facultatifs mais non nullables ;
+         *     `name`, `status`, `proxy_allowed` et `archived` sont facultatifs mais non
+         *     nullables ;
          *     `created_on`, `archetype` et `notes` acceptent `null` pour effacer la
          *     valeur. Le discriminant ne se modifie pas : renommer un deck ne change pas
          *     son identité (le serveur n'en retire un autre que si le nouveau couple est
@@ -1153,6 +1280,11 @@ export interface components {
             /** Notes */
             notes?: string | null;
             /**
+             * Proxy Allowed
+             * @description Autorise (`true`) ou interdit (`false`) les proxies dans ce deck. Interdire est refusé tant qu'une ligne du deck en joue.
+             */
+            proxy_allowed?: boolean;
+            /**
              * Archived
              * @description Range le deck (`true`) ou le sort de l'archive (`false`). Pose ou efface `archived_at` ; un deck archivé n'est plus modifiable.
              */
@@ -1164,7 +1296,8 @@ export interface components {
          *
          *     `data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis
          *     sont appliqués, et `archived` range ou sort de l'archive. Passer le deck à
-         *     `active` exige qu'il soit légal, comme en ligne.
+         *     `active` exige qu'il soit légal, comme en ligne ; passer `proxy_allowed` à
+         *     `false` est refusé (`conflict`) tant qu'une ligne du deck joue un proxy.
          */
         DeckUpdateOperation: {
             /**
@@ -1312,7 +1445,7 @@ export interface components {
          * @description Retire une entrée de collection.
          *
          *     Refusée (`conflict`) tant qu'un deck vivant l'utilise, comme
-         *     `DELETE /stock/{card_id}/{language_code}`.
+         *     `DELETE /stock/{card_id}/{language_code}/{card_set_id}`.
          */
         StockDeleteOperation: {
             /**
@@ -1336,19 +1469,27 @@ export interface components {
             card_id: number;
             /** Language Code */
             language_code: string;
+            /**
+             * Card Set Id
+             * @description Extension de l'impression (`GET /extensions`). Le couple carte × extension doit être une impression du catalogue (`CardRead.card_set_ids`), sinon 404.
+             */
+            card_set_id: number;
         };
         /**
          * StockUpsertOperation
-         * @description Crée ou remplace une entrée de collection (carte × langue).
+         * @description Crée ou remplace une entrée de collection (carte × langue × extension).
          *
          *     `data` porte l'**état complet voulu** de l'entrée : les champs omis
-         *     reprennent leur valeur par défaut (0 exemplaire, proxy interdit, pas de
-         *     note), ils ne conservent pas ce que le serveur avait. C'est ce qui rend
-         *     l'opération indifférente à l'ordre du rejeu.
+         *     reprennent leur valeur par défaut (0 exemplaire, pas de note), ils ne
+         *     conservent pas ce que le serveur avait. C'est ce qui rend l'opération
+         *     indifférente à l'ordre du rejeu.
          *
          *     Les règles de stock restent celles du serveur : descendre
-         *     `quantity_owned` sous ce que les decks ont déjà alloué, ou retirer le droit
-         *     de proxy alors qu'un deck en joue, est refusé (`conflict`).
+         *     `quantity_owned` sous ce que les decks ont déjà alloué est refusé
+         *     (`conflict`), et une extension où la carte n'a pas été imprimée est
+         *     refusée (`not_found`), comme une carte ou une langue inconnue.
+         *     L'autorisation de proxy n'est plus une propriété de l'entrée de collection
+         *     (Lot 4) : elle voyage avec le deck (`deck.create`, `deck.update`).
          */
         StockUpsertOperation: {
             /**
@@ -1496,6 +1637,11 @@ export interface components {
             card_id: number | null;
             /** Language Code */
             language_code: string | null;
+            /**
+             * Card Set Id
+             * @description Extension de l'entrée touchée (`stock.*`, `deck_card.*`). Nulle pour un deck, un versement de produit, ou une opération journalisée avant le Lot 4.
+             */
+            card_set_id: number | null;
             /** Bundle Id */
             bundle_id: number | null;
         };
@@ -1601,7 +1747,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CardSummary"][];
+                    "application/json": components["schemas"]["CardListItem"][];
                 };
             };
             /** @description Validation Error */
@@ -1651,6 +1797,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listCardSets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardSetRead"][];
                 };
             };
         };
@@ -1846,6 +2012,7 @@ export interface operations {
         parameters: {
             query?: {
                 language_code?: string | null;
+                card_set_id?: number | null;
                 category?: components["schemas"]["CardCategory"] | null;
                 q?: string | null;
                 limit?: number;
@@ -1935,6 +2102,7 @@ export interface operations {
             path: {
                 card_id: number;
                 language_code: string;
+                card_set_id: number;
             };
             cookie?: never;
         };
@@ -1976,6 +2144,7 @@ export interface operations {
             path: {
                 card_id: number;
                 language_code: string;
+                card_set_id: number;
             };
             cookie?: never;
         };
@@ -2024,6 +2193,7 @@ export interface operations {
             path: {
                 card_id: number;
                 language_code: string;
+                card_set_id: number;
             };
             cookie?: never;
         };
@@ -2396,6 +2566,7 @@ export interface operations {
                 deck_id: number;
                 card_id: number;
                 language_code: string;
+                card_set_id: number;
             };
             cookie?: never;
         };
@@ -2445,6 +2616,7 @@ export interface operations {
                 deck_id: number;
                 card_id: number;
                 language_code: string;
+                card_set_id: number;
             };
             cookie?: never;
         };

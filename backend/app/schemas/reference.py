@@ -76,13 +76,26 @@ class CardTypeRead(ReadModel):
 
 
 class CardSetRead(ReadModel):
-    """Extension."""
+    """Extension.
+
+    Liste servie par `GET /extensions` (Lot 4) : le client hors ligne s'en sert
+    pour proposer, et afficher, l'extension d'une entrée de collection.
+    """
 
     id: int
     abbrev: str
     full_name: str | None = None
     release_date: date | None = None
     company: str | None = None
+    is_placeholder: bool = Field(
+        default=False,
+        description=(
+            "Extension tampon créée par l'import pour une carte publiée sans "
+            "aucune impression (une seule pour tout le catalogue). Une entrée "
+            "rangée dessous est à réattribuer à une vraie extension dès que la "
+            "source sera corrigée."
+        ),
+    )
 
 
 class BundleRead(ReadModel):

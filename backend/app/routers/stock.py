@@ -1,9 +1,16 @@
-"""Collection possédée : `/stock`, une entrée par carte et par langue."""
+"""Collection possédée : `/stock`, une entrée par carte, langue et extension."""
 
 from fastapi import APIRouter, Query, Response
 
 from app.models import CardCategory
-from app.routers.common import CONFLICT, MAX_DB_INT, NOT_FOUND, DbSession, PathId
+from app.routers.common import (
+    CONFLICT,
+    MAX_DB_INT,
+    NOT_FOUND,
+    DbSession,
+    PathId,
+    QueryId,
+)
 from app.schemas.collection import CardCopyCreate, CardCopyRead, CardCopyUpdate
 from app.services import stock
 
@@ -23,6 +30,7 @@ router = APIRouter(prefix="/stock", tags=["stock"])
 def list_stock(
     db: DbSession,
     language_code: str | None = None,
+    card_set_id: QueryId = None,
     category: CardCategory | None = None,
     q: str | None = Query(default=None, min_length=1, max_length=80),
     limit: int = Query(default=50, ge=1, le=200),
@@ -31,6 +39,7 @@ def list_stock(
     return stock.list_stock(
         db,
         language_code=language_code,
+        card_set_id=card_set_id,
         category=category,
         q=q,
         limit=limit,
@@ -43,7 +52,11 @@ def list_stock(
     response_model=CardCopyRead,
     status_code=201,
     operation_id="createStockEntry",
-    summary="Déclare une carte dans une langue",
+    summary="Déclare une carte dans une langue et une extension",
+    description=(
+        "404 si la carte, la langue ou l'extension est inconnue, ou si la carte "
+        "n'a pas été imprimée dans cette extension. 409 si l'entrée existe déjà."
+    ),
     responses={**NOT_FOUND, **CONFLICT},
 )
 def create_stock_entry(payload: CardCopyCreate, db: DbSession):
@@ -51,37 +64,45 @@ def create_stock_entry(payload: CardCopyCreate, db: DbSession):
 
 
 @router.get(
-    "/{card_id}/{language_code}",
+    "/{card_id}/{language_code}/{card_set_id}",
     response_model=CardCopyRead,
     operation_id="getStockEntry",
     summary="Lit une entrée de collection",
     responses={**NOT_FOUND},
 )
-def get_stock_entry(card_id: PathId, language_code: str, db: DbSession):
-    return stock.get_copy(db, card_id, language_code)
+def get_stock_entry(
+    card_id: PathId, language_code: str, card_set_id: PathId, db: DbSession
+):
+    return stock.get_copy(db, card_id, language_code, card_set_id)
 
 
 @router.patch(
-    "/{card_id}/{language_code}",
+    "/{card_id}/{language_code}/{card_set_id}",
     response_model=CardCopyRead,
     operation_id="updateStockEntry",
     summary="Modifie une entrée de collection",
     responses={**NOT_FOUND, **CONFLICT},
 )
 def update_stock_entry(
-    card_id: PathId, language_code: str, payload: CardCopyUpdate, db: DbSession
+    card_id: PathId,
+    language_code: str,
+    card_set_id: PathId,
+    payload: CardCopyUpdate,
+    db: DbSession,
 ):
-    return stock.update_copy(db, card_id, language_code, payload)
+    return stock.update_copy(db, card_id, language_code, card_set_id, payload)
 
 
 @router.delete(
-    "/{card_id}/{language_code}",
+    "/{card_id}/{language_code}/{card_set_id}",
     status_code=204,
     operation_id="deleteStockEntry",
     summary="Retire une entrée de collection",
     description="Refusé (409) tant que des decks utilisent l'entrée.",
     responses={**NOT_FOUND, **CONFLICT},
 )
-def delete_stock_entry(card_id: PathId, language_code: str, db: DbSession):
-    stock.delete_copy(db, card_id, language_code)
+def delete_stock_entry(
+    card_id: PathId, language_code: str, card_set_id: PathId, db: DbSession
+):
+    stock.delete_copy(db, card_id, language_code, card_set_id)
     return Response(status_code=204)

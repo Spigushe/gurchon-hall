@@ -3,8 +3,9 @@
 `tests/fixtures/` contient un échantillon figé de `vtes.json` /
 `expansions.json` (neuf cartes choisies pour couvrir les cas limites : crypt,
 imbued, coût « X », prérequis combo/choix, carte bannie, traductions fr/es,
-précons, promos). Le schéma krcg est versionné par un mainteneur unique
-(CLAUDE.md §11) : ce test est ce qui alerte quand il dérive.
+précons, promos — plus une dixième, synthétique, sans aucune impression, pour
+exercer l'extension tampon du Lot 4, D2b). Le schéma krcg est versionné par un
+mainteneur unique (CLAUDE.md §11) : ce test est ce qui alerte quand il dérive.
 """
 
 import copy
@@ -20,6 +21,7 @@ from app.models import (
     Card,
     CardCategory,
     CardCopy,
+    CardPrinting,
     CardPrintingOccurrence,
     CardSet,
     CardTranslation,
@@ -61,7 +63,7 @@ def count(db, model):
 
 def test_report_counts_what_was_imported(imported, krcg):
     vtes, expansions = krcg
-    assert imported.cards_created == len(vtes) == 9
+    assert imported.cards_created == len(vtes) == 10
     assert imported.cards_updated == 0
     assert imported.card_sets == len(expansions)
     assert imported.translations == 2  # Aidan Lyle en fr et es
@@ -238,6 +240,111 @@ def test_replay_creates_no_duplicates(db, krcg):
     assert {model: count(db, model) for model in tables} == before
 
 
+def test_replay_keeps_card_set_and_card_printing_identifiers(db, krcg):
+    """Lot 4 : le stock référence ces identifiants, un rejeu ne doit pas les
+    faire bouger (§ « Les identifiants du catalogue deviennent des
+    références », docs/lot4-plan-inventaire.md)."""
+    import_catalog(db, *krcg)
+    card_sets_before = dict(db.execute(select(CardSet.abbrev, CardSet.id)).all())
+    printing_key = func.printf(
+        "%d:%d", CardPrinting.card_id, CardPrinting.card_set_id
+    )
+    printings_before = dict(
+        db.execute(select(printing_key, CardPrinting.id)).all()
+    )
+
+    import_catalog(db, *krcg)
+
+    card_sets_after = dict(db.execute(select(CardSet.abbrev, CardSet.id)).all())
+    printings_after = dict(
+        db.execute(
+            select(
+                func.printf("%d:%d", CardPrinting.card_id, CardPrinting.card_set_id),
+                CardPrinting.id,
+            )
+        ).all()
+    )
+    assert card_sets_after == card_sets_before
+    assert printings_after == printings_before
+    assert len(printings_before) > 0  # le figement porte sur des lignes réelles
+
+
+def _give_ghost_a_real_printing(vtes: list[dict]) -> list[dict]:
+    """Le fixture reçoit un vrai `prints`, comme si krcg avait corrigé la carte."""
+    updated = copy.deepcopy(vtes)
+    ghost = next(c for c in updated if c["id"] == 100999)
+    ghost["prints"] = [
+        {
+            "set": {"id": 300023, "code": "EK"},
+            "occurrences": [
+                {
+                    "type": "Rarity",
+                    "frequency": "C",
+                    "multiplier": 1.0,
+                    "bundle": "",
+                    "copies": 0,
+                    "date": None,
+                }
+            ],
+            "url": "",
+        }
+    ]
+    return updated
+
+
+def test_placeholder_card_is_signalled_then_dropped_once_reprinted(db, krcg):
+    """D2b/D2c, cycle complet : tampon posé, signalé, puis retiré au rejeu
+    quand une impression réelle apparaît et qu'aucune entrée de stock ne
+    retient plus le tampon."""
+    vtes, expansions = krcg
+    first = import_catalog(db, vtes, expansions)
+    assert [c.vekn_id for c in first.placeholder_cards] == [100999]
+    assert first.reassign_cards == []
+    ghost = card_by_name(db, "Fantome Sans Extension")
+    assert len(ghost.printings) == 1
+    assert ghost.printings[0].card_set.is_placeholder is True
+
+    second = import_catalog(db, _give_ghost_a_real_printing(vtes), expansions)
+
+    assert second.placeholder_cards == []
+    assert second.reassign_cards == []
+    db.refresh(ghost)
+    assert [p.card_set.is_placeholder for p in ghost.printings] == [False]
+    assert {p.card_set.abbrev for p in ghost.printings} == {"EK"}
+
+
+def test_placeholder_card_is_kept_and_flagged_to_reassign_when_stock_uses_it(
+    db, krcg
+):
+    """La seule suppression que l'import s'autorise reste limitée à ce qu'il
+    a lui-même fabriqué et que rien d'autre ne référence (§11)."""
+    vtes, expansions = krcg
+    import_catalog(db, vtes, expansions)
+    ghost = card_by_name(db, "Fantome Sans Extension")
+    placeholder_set_id = ghost.printings[0].card_set_id
+    add_languages(db, "EN")
+    db.add(
+        CardCopy(
+            card_id=ghost.id,
+            language_code="EN",
+            card_set_id=placeholder_set_id,
+            quantity_owned=1,
+        )
+    )
+    db.commit()
+
+    report = import_catalog(db, _give_ghost_a_real_printing(vtes), expansions)
+
+    assert [c.vekn_id for c in report.reassign_cards] == [100999]
+    assert report.placeholder_cards == []
+    db.refresh(ghost)
+    abbrevs_by_placeholder = {
+        p.card_set.is_placeholder: p.card_set.abbrev for p in ghost.printings
+    }
+    assert abbrevs_by_placeholder[False] == "EK"
+    assert abbrevs_by_placeholder[True]  # le tampon existe toujours, référencé
+
+
 def test_replay_updates_changed_cards_and_realigns_links(db, krcg):
     vtes, expansions = krcg
     import_catalog(db, vtes, expansions)
@@ -335,7 +442,11 @@ def test_replay_with_a_missing_expansion_does_not_duplicate_it(db, krcg):
     import_catalog(db, vtes, known)
     import_catalog(db, vtes, known)
 
-    assert count(db, CardSet) == len(known) + 1
+    # +1 : "FN", citée par une impression mais absente de `known`, créée à la
+    # volée (§ ancien comportement). +1 : l'extension tampon (D2b), pour la
+    # carte du fixture sans aucune impression — une seule, elle aussi rejouée
+    # sans duplication.
+    assert count(db, CardSet) == len(known) + 2
     assert db.scalars(select(CardSet).where(CardSet.abbrev == "FN")).one()
 
 
@@ -421,13 +532,26 @@ def test_an_imported_legal_date_drives_the_deck_legality(api, db, krcg):
     import_catalog(db, vtes, expansions)
     add_languages(db, "EN")
     aabbt = card_by_name(db, "Aabbt Kindred")
-    db.add(CardCopy(card_id=aabbt.id, language_code="EN", quantity_owned=12))
+    card_set_id = aabbt.printings[0].card_set_id
+    db.add(
+        CardCopy(
+            card_id=aabbt.id,
+            language_code="EN",
+            card_set_id=card_set_id,
+            quantity_owned=12,
+        )
+    )
     deck = Deck(name="Futur", discriminator="0001")
     db.add(deck)
     db.commit()
     added = api.post(
         f"/decks/{deck.id}/cartes",
-        json={"card_id": aabbt.id, "language_code": "EN", "quantity": 12},
+        json={
+            "card_id": aabbt.id,
+            "language_code": "EN",
+            "card_set_id": card_set_id,
+            "quantity": 12,
+        },
     )
     assert added.status_code == 201
 

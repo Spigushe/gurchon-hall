@@ -62,6 +62,7 @@ from tests.helpers import (
     make_deck,
     make_game,
     make_player,
+    make_printing,
     make_tournament,
 )
 
@@ -88,8 +89,8 @@ def test_foreign_key_is_really_enforced(db):
     with pytest.raises(IntegrityError):
         run_sql(
             db,
-            "INSERT INTO card_copy (card_id, language_code, quantity_owned,"
-            " proxy_allowed) VALUES (999, 'EN', 1, 0)",
+            "INSERT INTO card_copy (card_id, language_code, card_set_id,"
+            " quantity_owned) VALUES (999, 'EN', 1, 1)",
         )
 
 
@@ -100,27 +101,29 @@ def test_foreign_key_is_really_enforced(db):
 
 def test_card_copy_primary_key_is_card_and_language(db_engine):
     columns = inspect(db_engine).get_pk_constraint("card_copy")
-    assert columns["constrained_columns"] == ["card_id", "language_code"]
+    assert columns["constrained_columns"] == ["card_id", "language_code", "card_set_id"]
 
 
 def test_card_copy_rejects_duplicate_card_and_language(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN")
+    copy = make_copy(db, card, "EN")
     with pytest.raises(IntegrityError):
         run_sql(
             db,
-            "INSERT INTO card_copy (card_id, language_code, quantity_owned,"
-            " proxy_allowed) VALUES (:c, 'EN', 2, 0)",
+            "INSERT INTO card_copy (card_id, language_code, card_set_id,"
+            " quantity_owned) VALUES (:c, 'EN', :s, 2)",
             c=card.id,
+            s=copy.card_set_id,
         )
 
 
 def test_card_copy_accepts_same_card_in_another_language(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN")
-    make_copy(db, card, "FR")
+    printing = make_printing(db, card)
+    make_copy(db, card, "EN", card_set_id=printing.card_set_id)
+    make_copy(db, card, "FR", card_set_id=printing.card_set_id)
     assert db.query(CardCopy).filter_by(card_id=card.id).count() == 2
 
 
@@ -133,53 +136,101 @@ def test_card_copy_accepts_same_language_for_another_card(db):
 
 def test_card_copy_requires_existing_card(db):
     add_languages(db)
-    db.add(CardCopy(card_id=424242, language_code="EN"))
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
+    db.add(
+        CardCopy(card_id=424242, language_code="EN", card_set_id=card_set.id)
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
 
 def test_card_copy_requires_existing_language(db):
+    """Impression réelle posée exprès : seule la langue doit faire échouer."""
     add_languages(db)
     card = make_card(db)
-    db.add(CardCopy(card_id=card.id, language_code="ZZ"))
+    printing = make_printing(db, card)
+    db.add(
+        CardCopy(
+            card_id=card.id, language_code="ZZ", card_set_id=printing.card_set_id
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
 
-def test_card_copy_accepts_proxy_only_entry(db):
-    """0 exemplaire possédé + proxy autorisé : le cas « joué en proxy » (§11.2)."""
+def test_card_copy_requires_a_real_printing(db):
+    """Lot 4, D2 : la FK composite vers `card_printing` refuse une extension où
+    la carte n'a pas été imprimée — le dernier filet derrière le contrôle
+    applicatif (`catalog.get_printing`, § B1/B2)."""
     add_languages(db)
-    copy = make_copy(db, make_card(db), "EN", quantity_owned=0, proxy_allowed=True)
+    card = make_card(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
+    db.add(CardCopy(card_id=card.id, language_code="EN", card_set_id=card_set.id))
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_card_copy_accepts_a_zero_owned_entry(db):
+    """0 exemplaire possédé : le cas « joué uniquement en proxy » (§11.2). Le
+    proxy lui-même s'autorise sur le deck, pas ici (Lot 4)."""
+    add_languages(db)
+    copy = make_copy(db, make_card(db), "EN", quantity_owned=0)
     db.commit()
     db.refresh(copy)
-    assert (copy.quantity_owned, copy.proxy_allowed) == (0, True)
+    assert copy.quantity_owned == 0
 
 
 def test_card_copy_rejects_negative_quantity(db):
     add_languages(db)
     card = make_card(db)
-    db.add(CardCopy(card_id=card.id, language_code="EN", quantity_owned=-1))
+    printing = make_printing(db, card)
+    db.add(
+        CardCopy(
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=printing.card_set_id,
+            quantity_owned=-1,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
 
 # --------------------------------------------------------------------------
-# deck_card : PK (deck_id, card_id, language_code) et FK composite -> card_copy
+# deck_card : PK (deck_id, card_id, language_code, card_set_id, Lot 4) et FK
+# composite -> card_copy
 # --------------------------------------------------------------------------
 
 
 def test_deck_card_primary_key_is_deck_card_and_language(db_engine):
     columns = inspect(db_engine).get_pk_constraint("deck_card")
-    assert columns["constrained_columns"] == ["deck_id", "card_id", "language_code"]
+    assert columns["constrained_columns"] == [
+        "deck_id",
+        "card_id",
+        "language_code",
+        "card_set_id",
+    ]
 
 
 def test_deck_card_foreign_key_to_card_copy_is_composite(db_engine):
-    """La FK vers la collection est bien une seule contrainte à deux colonnes."""
+    """La FK vers la collection est bien une seule contrainte à trois colonnes."""
     foreign_keys = inspect(db_engine).get_foreign_keys("deck_card")
     to_copy = [fk for fk in foreign_keys if fk["referred_table"] == "card_copy"]
     assert len(to_copy) == 1
-    assert to_copy[0]["constrained_columns"] == ["card_id", "language_code"]
-    assert to_copy[0]["referred_columns"] == ["card_id", "language_code"]
+    assert to_copy[0]["constrained_columns"] == [
+        "card_id",
+        "language_code",
+        "card_set_id",
+    ]
+    assert to_copy[0]["referred_columns"] == [
+        "card_id",
+        "language_code",
+        "card_set_id",
+    ]
     # Pas de FK directe vers `card` : l'intégrité passe par card_copy.
     assert not [fk for fk in foreign_keys if fk["referred_table"] == "card"]
 
@@ -187,23 +238,32 @@ def test_deck_card_foreign_key_to_card_copy_is_composite(db_engine):
 def test_deck_card_rejects_duplicate_line(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=4)
+    copy = make_copy(db, card, "EN", quantity_owned=4)
     deck = make_deck(db)
     insert = (
-        "INSERT INTO deck_card (deck_id, card_id, language_code, quantity,"
-        " proxy_quantity) VALUES (:d, :c, 'EN', 1, 0)"
+        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
+        " quantity, proxy_quantity) VALUES (:d, :c, 'EN', :s, 1, 0)"
     )
-    run_sql(db, insert, d=deck.id, c=card.id)
+    run_sql(db, insert, d=deck.id, c=card.id, s=copy.card_set_id)
     with pytest.raises(IntegrityError):
-        run_sql(db, insert, d=deck.id, c=card.id)
+        run_sql(db, insert, d=deck.id, c=card.id, s=copy.card_set_id)
 
 
 def test_deck_card_rejects_card_absent_from_collection(db):
     """Carte au catalogue, langue connue, mais aucun exemplaire déclaré."""
     add_languages(db)
     card = make_card(db)
+    printing = make_printing(db, card)
     deck = make_deck(db)
-    db.add(DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN", quantity=1))
+    db.add(
+        DeckCard(
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=printing.card_set_id,
+            quantity=1,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -212,9 +272,17 @@ def test_deck_card_rejects_language_missing_from_collection(db):
     """La carte est en collection en EN seulement : la FR est refusée en deck."""
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN")
+    copy = make_copy(db, card, "EN")
     deck = make_deck(db)
-    db.add(DeckCard(deck_id=deck.id, card_id=card.id, language_code="FR", quantity=1))
+    db.add(
+        DeckCard(
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="FR",
+            card_set_id=copy.card_set_id,
+            quantity=1,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -224,9 +292,17 @@ def test_deck_card_rejects_other_cards_collection_entry(db):
     add_languages(db)
     owned = make_card(db, "Possédée")
     other = make_card(db, "Autre")
-    make_copy(db, owned, "EN")
+    copy = make_copy(db, owned, "EN")
     deck = make_deck(db)
-    db.add(DeckCard(deck_id=deck.id, card_id=other.id, language_code="EN", quantity=1))
+    db.add(
+        DeckCard(
+            deck_id=deck.id,
+            card_id=other.id,
+            language_code="EN",
+            card_set_id=copy.card_set_id,
+            quantity=1,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -234,8 +310,16 @@ def test_deck_card_rejects_other_cards_collection_entry(db):
 def test_deck_card_requires_existing_deck(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN")
-    db.add(DeckCard(deck_id=777, card_id=card.id, language_code="EN", quantity=1))
+    copy = make_copy(db, card, "EN")
+    db.add(
+        DeckCard(
+            deck_id=777,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=copy.card_set_id,
+            quantity=1,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -244,13 +328,26 @@ def test_deck_card_accepts_same_card_in_two_languages(db):
     """§11.4 : un deck peut mêler les langues d'une même carte."""
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=2)
-    make_copy(db, card, "FR", quantity_owned=2)
+    printing = make_printing(db, card)
+    make_copy(db, card, "EN", quantity_owned=2, card_set_id=printing.card_set_id)
+    make_copy(db, card, "FR", quantity_owned=2, card_set_id=printing.card_set_id)
     deck = make_deck(db)
     db.add_all(
         [
-            DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2),
-            DeckCard(deck_id=deck.id, card_id=card.id, language_code="FR", quantity=1),
+            DeckCard(
+                deck_id=deck.id,
+                card_id=card.id,
+                language_code="EN",
+                card_set_id=printing.card_set_id,
+                quantity=2,
+            ),
+            DeckCard(
+                deck_id=deck.id,
+                card_id=card.id,
+                language_code="FR",
+                card_set_id=printing.card_set_id,
+                quantity=1,
+            ),
         ]
     )
     db.commit()
@@ -260,13 +357,14 @@ def test_deck_card_accepts_same_card_in_two_languages(db):
 def test_deck_card_accepts_proxy_line_backed_by_a_proxy_only_copy(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "FR", quantity_owned=0, proxy_allowed=True)
-    deck = make_deck(db)
+    copy = make_copy(db, card, "FR", quantity_owned=0)
+    deck = make_deck(db, proxy_allowed=True)
     db.add(
         DeckCard(
             deck_id=deck.id,
             card_id=card.id,
             language_code="FR",
+            card_set_id=copy.card_set_id,
             quantity=3,
             proxy_quantity=3,
         )
@@ -277,13 +375,23 @@ def test_deck_card_accepts_proxy_line_backed_by_a_proxy_only_copy(db):
 def test_same_card_can_be_in_several_decks(db):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=4)
+    copy = make_copy(db, card, "EN", quantity_owned=4)
     first, second = make_deck(db, "Un"), make_deck(db, "Deux")
     db.add_all(
         [
-            DeckCard(deck_id=first.id, card_id=card.id, language_code="EN", quantity=2),
             DeckCard(
-                deck_id=second.id, card_id=card.id, language_code="EN", quantity=2
+                deck_id=first.id,
+                card_id=card.id,
+                language_code="EN",
+                card_set_id=copy.card_set_id,
+                quantity=2,
+            ),
+            DeckCard(
+                deck_id=second.id,
+                card_id=card.id,
+                language_code="EN",
+                card_set_id=copy.card_set_id,
+                quantity=2,
             ),
         ]
     )
@@ -302,13 +410,14 @@ def test_same_card_can_be_in_several_decks(db):
 def test_deck_card_check_rejects_invalid_quantities(db, quantity, proxy_quantity):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=4)
+    copy = make_copy(db, card, "EN", quantity_owned=4)
     deck = make_deck(db)
     db.add(
         DeckCard(
             deck_id=deck.id,
             card_id=card.id,
             language_code="EN",
+            card_set_id=copy.card_set_id,
             quantity=quantity,
             proxy_quantity=proxy_quantity,
         )
@@ -324,13 +433,14 @@ def test_deck_card_check_rejects_invalid_quantities(db, quantity, proxy_quantity
 def test_deck_card_check_accepts_boundary_quantities(db, quantity, proxy_quantity):
     add_languages(db)
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=0, proxy_allowed=True)
-    deck = make_deck(db)
+    copy = make_copy(db, card, "EN", quantity_owned=0)
+    deck = make_deck(db, proxy_allowed=True)
     db.add(
         DeckCard(
             deck_id=deck.id,
             card_id=card.id,
             language_code="EN",
+            card_set_id=copy.card_set_id,
             quantity=quantity,
             proxy_quantity=proxy_quantity,
         )
@@ -345,22 +455,41 @@ def test_deck_card_check_accepts_boundary_quantities(db, quantity, proxy_quantit
 
 def test_deleted_deck_card_primary_key_is_deck_card_and_language(db_engine):
     columns = inspect(db_engine).get_pk_constraint("deleted_deck_card")
-    assert columns["constrained_columns"] == ["deck_id", "card_id", "language_code"]
+    assert columns["constrained_columns"] == [
+        "deck_id",
+        "card_id",
+        "language_code",
+        "card_set_id",
+    ]
 
 
 def test_deleted_deck_card_has_no_foreign_key_to_the_collection(db_engine):
     keys = inspect(db_engine).get_foreign_keys("deleted_deck_card")
-    assert {fk["referred_table"] for fk in keys} == {"deck", "card", "language"}
+    # `card_set` (Lot 4, D1) : l'extension reste connue, sans réserver de stock
+    # (pas de FK vers `card_copy` ni `card_printing`).
+    assert {fk["referred_table"] for fk in keys} == {
+        "deck",
+        "card",
+        "language",
+        "card_set",
+    }
 
 
 def test_deleted_deck_card_accepts_a_line_without_any_collection_entry(db):
     """Le cas nominal : la carte n'est plus en stock, la ligne figée demeure."""
     add_languages(db)
     card = make_card(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
     deck = make_deck(db, deleted_at=utcnow())
     db.add(
         DeletedDeckCard(
-            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=card_set.id,
+            quantity=2,
         )
     )
     db.commit()
@@ -373,7 +502,15 @@ def test_deleting_a_collection_entry_no_longer_trips_on_a_frozen_line(db):
     card = make_card(db)
     copy = make_copy(db, card, "EN", quantity_owned=2)
     deck = make_deck(db)
-    db.add(DeckCard(deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2))
+    db.add(
+        DeckCard(
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=copy.card_set_id,
+            quantity=2,
+        )
+    )
     db.commit()
 
     db.delete(copy)
@@ -385,12 +522,16 @@ def test_deleting_a_collection_entry_no_longer_trips_on_a_frozen_line(db):
     db.query(DeckCard).delete()
     db.add(
         DeletedDeckCard(
-            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=2
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=copy.card_set_id,
+            quantity=2,
         )
     )
     db.commit()
 
-    db.delete(db.get(CardCopy, (card.id, "EN")))
+    db.delete(db.get(CardCopy, (card.id, "EN", copy.card_set_id)))
     db.commit()
 
     assert db.query(DeletedDeckCard).count() == 1
@@ -400,10 +541,17 @@ def test_deleted_deck_card_disappears_with_its_deck(db):
     """`ON DELETE CASCADE` : une suppression *physique* du deck emporte tout."""
     add_languages(db)
     card = make_card(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
     deck = make_deck(db, deleted_at=utcnow())
     db.add(
         DeletedDeckCard(
-            deck_id=deck.id, card_id=card.id, language_code="EN", quantity=1
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=card_set.id,
+            quantity=1,
         )
     )
     db.commit()
@@ -427,12 +575,16 @@ def test_deleted_deck_card_check_rejects_invalid_quantities(
 ):
     add_languages(db)
     card = make_card(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
     deck = make_deck(db, deleted_at=utcnow())
     db.add(
         DeletedDeckCard(
             deck_id=deck.id,
             card_id=card.id,
             language_code="EN",
+            card_set_id=card_set.id,
             quantity=quantity,
             proxy_quantity=proxy_quantity,
         )
@@ -443,9 +595,18 @@ def test_deleted_deck_card_check_rejects_invalid_quantities(
 
 def test_deleted_deck_card_still_requires_a_known_card_and_language(db):
     add_languages(db)
+    card_set = CardSet(abbrev="TS")
+    db.add(card_set)
+    db.flush()
     deck = make_deck(db, deleted_at=utcnow())
     db.add(
-        DeletedDeckCard(deck_id=deck.id, card_id=999, language_code="EN", quantity=1)
+        DeletedDeckCard(
+            deck_id=deck.id,
+            card_id=999,
+            language_code="EN",
+            card_set_id=card_set.id,
+            quantity=1,
+        )
     )
     with pytest.raises(IntegrityError):
         db.flush()
@@ -454,7 +615,29 @@ def test_deleted_deck_card_still_requires_a_known_card_and_language(db):
     deck = make_deck(db, deleted_at=utcnow())
     db.add(
         DeletedDeckCard(
-            deck_id=deck.id, card_id=card.id, language_code="ZZ", quantity=1
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="ZZ",
+            card_set_id=card_set.id,
+            quantity=1,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_deleted_deck_card_still_requires_a_known_card_set(db):
+    """Lot 4, D1 : `card_set_id` fait partie de la clé et garde sa FK."""
+    add_languages(db)
+    card = make_card(db)
+    deck = make_deck(db, deleted_at=utcnow())
+    db.add(
+        DeletedDeckCard(
+            deck_id=deck.id,
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=424242,
+            quantity=1,
         )
     )
     with pytest.raises(IntegrityError):
