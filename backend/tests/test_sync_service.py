@@ -805,6 +805,37 @@ def test_not_found_covers_unknown_cards_decks_and_languages(api, world, spare):
     assert body["rejected"] == 5
 
 
+def test_stock_and_deck_card_upserts_reject_a_real_but_unrelated_card_set(
+    api, db, world
+):
+    """Distinct de `test_not_found_covers_unknown_cards_decks_and_languages` :
+    ici l'extension existe bien au catalogue (une autre carte y est
+    imprimée), mais pas celle visée par l'opération (Lot 4, D2), en ligne
+    comme par `/sync`."""
+    other_card = make_card(db, "Autre carte /sync")
+    other_printing = make_printing(db, other_card)
+    db.commit()
+
+    body = sync_batch(
+        api,
+        upsert_stock(
+            world.card.id, 1, language="FR", card_set_id=other_printing.card_set_id
+        ),
+        op(
+            "deck_card.upsert",
+            deck={"deck_id": world.deck.id},
+            data={
+                "card_id": world.card.id,
+                "language_code": "FR",
+                "card_set_id": other_printing.card_set_id,
+                "quantity": 1,
+            },
+        ),
+    )
+    assert [r["error"]["code"] for r in body["results"]] == ["not_found"] * 2
+    assert body["rejected"] == 2
+
+
 def test_an_unknown_language_is_not_replaced_by_the_server(api, db, world, spare):
     """Le repli sur `XX` est l'affaire de la file cliente (document de contrat)."""
     result = sync_batch(api, upsert_stock(spare.id, 1, language="ZZ"))["results"][0]

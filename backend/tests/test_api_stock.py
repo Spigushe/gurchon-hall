@@ -348,7 +348,9 @@ def test_deposit_bundle_adds_its_content_to_the_stock(api, world):
     assert found.json()["quantity_owned"] == 10
 
 
-def test_deposit_bundle_does_not_touch_the_same_card_under_another_extension(api, db, world):
+def test_deposit_bundle_does_not_touch_the_same_card_under_another_extension(
+    api, db, world
+):
     """Lot 4 : chaque carte du produit est rangée sous l'extension du produit
     (`bundle.card_set_id`), jamais sous une autre extension où la même carte
     et langue seraient déjà possédées."""

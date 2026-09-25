@@ -224,6 +224,60 @@ def test_archiving_alone_never_frees_the_stock(api, db):
     assert free(db, card, card_set_id=card_set_id) == 0
 
 
+def test_two_printings_of_the_same_card_and_language_have_independent_allocations(
+    api, db
+):
+    """Lot 4 : deux impressions de la même carte et de la même langue sont
+    deux pools de stock séparés. Épuiser l'un ne doit ni permettre de piocher
+    dans l'autre, ni être débloqué par lui — chaque refus se compte sur sa
+    propre impression."""
+    add_languages(db, "EN")
+    card = make_card(db)
+    first = make_copy(db, card, "EN", quantity_owned=3)  # première impression
+    second = make_copy(
+        db, card, "EN", quantity_owned=2, card_set_id=None
+    )  # seconde impression, propre extension
+    assert first.card_set_id != second.card_set_id
+    first_set, second_set = first.card_set_id, second.card_set_id
+    first_deck = make_deck(db, "Sous la première impression")
+    second_deck = make_deck(db, "Sous la seconde")
+    db.commit()
+
+    # La première impression est intégralement allouée...
+    added_first = add_line(
+        api, first_deck.id, card.id, quantity=3, card_set_id=first_set
+    )
+    assert added_first.status_code == 201
+    # ...un deck qui en redemande sous la MÊME impression est refusé, même si
+    # la seconde impression a encore 2 exemplaires libres.
+    blocked = add_line(api, second_deck.id, card.id, quantity=1, card_set_id=first_set)
+    assert blocked.status_code == 409
+    assert free(db, card, card_set_id=first_set) == 0
+    assert free(db, card, card_set_id=second_set) == 2
+
+    # La seconde impression, elle, reste allouable indépendamment.
+    added_second = add_line(
+        api, second_deck.id, card.id, quantity=2, card_set_id=second_set
+    )
+    assert added_second.status_code == 201
+    assert free(db, card, card_set_id=second_set) == 0
+    assert_stock_invariant(db)
+
+    # Baisser le stock de la première impression sous ce qu'elle alloue est
+    # refusé ; celui de la seconde n'est pas concerné.
+    assert set_stock(api, card, "EN", card_set_id=first_set, quantity_owned=2) == 409
+    assert set_stock(api, card, "EN", card_set_id=second_set, quantity_owned=2) == 200
+
+    # Une fois la seconde impression libérée par son deck, son entrée se
+    # supprime ; celle de la première, encore allouée, reste refusée.
+    released = api.delete(
+        f"/decks/{second_deck.id}/cartes/{card.id}/EN/{second_set}"
+    )
+    assert released.status_code == 204
+    assert api.delete(f"/stock/{card.id}/EN/{first_set}").status_code == 409
+    assert api.delete(f"/stock/{card.id}/EN/{second_set}").status_code == 204
+
+
 def test_switching_a_line_between_real_and_proxy_moves_the_stock(api, db):
     add_languages(db, "EN")
     card = make_card(db)
