@@ -106,7 +106,40 @@ class CardSummary(ReadModel):
     )
 
 
-class CardRead(CardSummary):
+class CardListItem(CardSummary):
+    """Une carte dans les résultats de recherche, avec ses impressions (Lot 4).
+
+    Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
+    une impression réelle sans rappeler l'API : les extensions où la carte a
+    été imprimée, et celle qu'il faut prendre par défaut quand la carte entre
+    en collection pour être jouée en proxy (décision D2a).
+
+    Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
+    stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
+    """
+
+    card_set_ids: list[int] = Field(
+        default=[],
+        description=(
+            "Extensions où la carte a été imprimée (`GET /extensions`), triées "
+            "par identifiant. Jamais vide : toute carte a au moins une "
+            "impression, au besoin sous l'extension tampon."
+        ),
+    )
+    latest_card_set_id: int = Field(
+        description=(
+            "Extension de la dernière version de la carte, calculée par le "
+            "serveur : date la plus récente parmi les occurrences de "
+            "l'impression (à défaut, la date de l'extension) ; à date égale, "
+            "une extension datée passe avant une extension sans date, puis la "
+            "première abréviation par ordre alphabétique. L'extension tampon "
+            "ne compte que si elle est la seule. Impression par défaut d'une "
+            "carte ajoutée en collection pour être jouée en proxy."
+        ),
+    )
+
+
+class CardRead(CardListItem):
     """Fiche complète d'une carte du catalogue."""
 
     sect: SectRead | None = None

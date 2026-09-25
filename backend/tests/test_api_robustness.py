@@ -34,9 +34,15 @@ LINE = {"quantity": 1}
         ("get", "/cartes/{bad}", None),
         ("get", "/bundles/{bad}", None),
         ("post", "/bundles/{bad}/stock", {"language_code": "EN"}),
-        ("get", "/stock/{bad}/EN", None),
-        ("patch", "/stock/{bad}/EN", {"quantity_owned": 1}),
-        ("delete", "/stock/{bad}/EN", None),
+        ("get", "/stock/{bad}/EN/1", None),
+        ("patch", "/stock/{bad}/EN/1", {"quantity_owned": 1}),
+        ("delete", "/stock/{bad}/EN/1", None),
+        # `card_set_id` (Lot 4) est le même type borné que les autres
+        # identifiants du chemin : un `bad` sur cette position rend 422 aussi.
+        ("get", "/stock/1/EN/{bad}", None),
+        ("delete", "/stock/1/EN/{bad}", None),
+        ("patch", "/decks/1/cartes/1/EN/{bad}", LINE),
+        ("delete", "/decks/1/cartes/1/EN/{bad}", None),
         ("get", "/decks/{bad}", None),
         ("patch", "/decks/{bad}", {"name": "x"}),
         ("delete", "/decks/{bad}", None),
@@ -44,12 +50,12 @@ LINE = {"quantity": 1}
         (
             "post",
             "/decks/{bad}/cartes",
-            {"card_id": 1, "language_code": "EN", "quantity": 1},
+            {"card_id": 1, "language_code": "EN", "card_set_id": 1, "quantity": 1},
         ),
-        ("patch", "/decks/{bad}/cartes/1/EN", LINE),
-        ("patch", "/decks/1/cartes/{bad}/EN", LINE),
-        ("delete", "/decks/{bad}/cartes/1/EN", None),
-        ("delete", "/decks/1/cartes/{bad}/EN", None),
+        ("patch", "/decks/{bad}/cartes/1/EN/1", LINE),
+        ("patch", "/decks/1/cartes/{bad}/EN/1", LINE),
+        ("delete", "/decks/{bad}/cartes/1/EN/1", None),
+        ("delete", "/decks/1/cartes/{bad}/EN/1", None),
     ],
 )
 @pytest.mark.parametrize("bad", [0, -1, MAX_INT + 1, HUGE])
@@ -134,11 +140,15 @@ def test_offset_beyond_the_bound_is_422(api, route, offset):
 def test_remove_deck_card_declares_and_returns_409_on_an_archived_deck(api, world):
     api.patch(f"/decks/{world.deck.id}", json={"archived": True})
 
-    response = api.delete(f"/decks/{world.deck.id}/cartes/{world.card.id}/EN")
+    card_set_id = world.printing.card_set_id
+    delete_url = f"/decks/{world.deck.id}/cartes/{world.card.id}/EN/{card_set_id}"
+    response = api.delete(delete_url)
 
     assert response.status_code == 409
     declared = api.get("/openapi.json").json()["paths"]
-    operation = declared["/decks/{deck_id}/cartes/{card_id}/{language_code}"]["delete"]
+    operation = declared[
+        "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}"
+    ]["delete"]
     assert {"404", "409"} <= set(operation["responses"])
 
 
@@ -201,7 +211,12 @@ def test_create_stock_entry_race_is_409(api, world, monkeypatch):
     hide_from_get(monkeypatch, CardCopy)
 
     response = api.post(
-        "/stock", json={"card_id": world.card.id, "language_code": "EN"}
+        "/stock",
+        json={
+            "card_id": world.card.id,
+            "language_code": "EN",
+            "card_set_id": world.printing.card_set_id,
+        },
     )
 
     assert response.status_code == 409
@@ -234,7 +249,8 @@ def test_deposit_bundle_race_on_a_new_entry_is_409(api, world, db, monkeypatch):
 
     assert response.status_code == 409
     monkeypatch.undo()
-    assert api.get(f"/stock/{world.card.id}/EN").json()["quantity_owned"] == 4
+    stock_url = f"/stock/{world.card.id}/EN/{world.bundle.card_set_id}"
+    assert api.get(stock_url).json()["quantity_owned"] == 4
 
 
 # --- Versement d'un produit : requêtes groupées -----------------------------
@@ -259,7 +275,9 @@ def add_to_bundle(db, world, name, category, copies):
 def test_deposit_bundle_mixes_existing_and_new_entries(api, world, db):
     library = add_to_bundle(db, world, "Bibliothèque", CardCategory.LIBRARY, 3)
     crypt = add_to_bundle(db, world, "Ancien", CardCategory.CRYPT, 1)
-    make_copy(db, library, "EN", quantity_owned=5, proxy_allowed=True)
+    # Sous la même extension que le produit : c'est là que le versement range
+    # ses cartes (Lot 4), donc là qu'il faut déjà en posséder pour fusionner.
+    make_copy(db, library, "EN", quantity_owned=5, card_set_id=world.card_set.id)
     db.commit()
 
     response = api.post(
@@ -275,8 +293,6 @@ def test_deposit_bundle_mixes_existing_and_new_entries(api, world, db):
         ("Bibliothèque", 5 + 3 * 2),
     ]
     by_id = {r["card_id"]: r for r in rows}
-    assert by_id[library.id]["proxy_allowed"] is True  # entrée existante intacte
-    assert by_id[crypt.id]["proxy_allowed"] is False  # entrée créée
     assert by_id[crypt.id]["notes"] is None
 
 

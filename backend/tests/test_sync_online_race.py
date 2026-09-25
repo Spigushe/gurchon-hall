@@ -56,11 +56,12 @@ def test_the_stock_accounting_race_between_a_route_and_a_batch_is_open(api, db):
     """
     add_languages(db, "EN", "FR")
     card = make_card(db, "Rare Copy", CardCategory.LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=3)
+    copy = make_copy(db, card, "EN", quantity_owned=3)
     online_deck = make_deck(db, "Saisie en ligne")
     queued_deck = make_deck(db, "Saisie en file")
     db.commit()
     card_id, online_id, queued_id = card.id, online_deck.id, queued_deck.id
+    card_set_id = copy.card_set_id
 
     checked = threading.Event()
     batch_done = threading.Event()
@@ -82,7 +83,12 @@ def test_the_stock_accounting_race_between_a_route_and_a_batch_is_open(api, db):
             online_response.append(
                 api.post(
                     f"/decks/{online_id}/cartes",
-                    json={"card_id": card_id, "language_code": "EN", "quantity": 3},
+                    json={
+                        "card_id": card_id,
+                        "language_code": "EN",
+                        "card_set_id": card_set_id,
+                        "quantity": 3,
+                    },
                 )
             )
 
@@ -95,7 +101,12 @@ def test_the_stock_accounting_race_between_a_route_and_a_batch_is_open(api, db):
             op(
                 "deck_card.upsert",
                 deck={"deck_id": queued_id},
-                data={"card_id": card_id, "language_code": "EN", "quantity": 3},
+                data={
+                    "card_id": card_id,
+                    "language_code": "EN",
+                    "card_set_id": card_set_id,
+                    "quantity": 3,
+                },
             ),
         )["results"][0]
         batch_done.set()
@@ -104,7 +115,7 @@ def test_the_stock_accounting_race_between_a_route_and_a_batch_is_open(api, db):
     assert result["outcome"] == "applied"
     db.expire_all()
     # L'invariant voulu : jamais plus d'exemplaires alloués que possédés.
-    assert stock.allocated_real(db, card_id, "EN") <= 3
+    assert stock.allocated_real(db, card_id, "EN", card_set_id) <= 3
 
 
 def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, db):
@@ -115,9 +126,11 @@ def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, d
     """
     add_languages(db, "EN", "FR")
     card = make_card(db, "Rare Copy", CardCategory.LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=3)
+    copy = make_copy(db, card, "EN", quantity_owned=3)
     db.commit()
     card_id = card.id
+    card_set_id = copy.card_set_id
+    url = f"/stock/{card_id}/EN/{card_set_id}"
     impatient = create_engine(db_engine.url, connect_args={"timeout": 0.2})
 
     def session_on_impatient():
@@ -130,19 +143,12 @@ def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, d
             with serialized_writes(db_engine):  # un lot est en cours
                 started = time.perf_counter()
                 with pytest.raises(OperationalError, match="database is locked"):
-                    client.patch(
-                        f"/stock/{card_id}/EN", json={"quantity_owned": 9}
-                    )
+                    client.patch(url, json={"quantity_owned": 9})
                 waited = time.perf_counter() - started
             # Le verrou est rendu : la même écriture passe, rien n'avait été écrit.
             db.expire_all()
-            assert stock.get_copy(db, card_id, "EN").quantity_owned == 3
-            assert (
-                client.patch(
-                    f"/stock/{card_id}/EN", json={"quantity_owned": 9}
-                ).status_code
-                == 200
-            )
+            assert stock.get_copy(db, card_id, "EN", card_set_id).quantity_owned == 3
+            assert client.patch(url, json={"quantity_owned": 9}).status_code == 200
         assert waited >= 0.1  # il a attendu le délai du pilote avant d'échouer
     finally:
         app.dependency_overrides.clear()

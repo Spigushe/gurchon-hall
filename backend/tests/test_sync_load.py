@@ -74,14 +74,18 @@ def report(capsys, label: str, **values: float | int) -> None:
 
 @pytest.fixture
 def library_cards(db):
-    """Deux cents cartes de library possédées en 100 exemplaires EN chacune."""
+    """Deux cents cartes de library possédées en 100 exemplaires EN chacune.
+
+    `card_set_id` posé comme attribut dynamique sur chaque carte (Lot 4) : un
+    raccourci pour ce fichier, qui n'a besoin que d'une impression par carte.
+    """
     add_languages(db, "EN", "FR")
     cards = [
         make_card(db, f"Carte de charge {index:03d}", CardCategory.LIBRARY)
         for index in range(MAX_SYNC_OPERATIONS)
     ]
     for card in cards:
-        make_copy(db, card, "EN", quantity_owned=100)
+        card.card_set_id = make_copy(db, card, "EN", quantity_owned=100).card_set_id
     db.commit()
     return cards
 
@@ -91,7 +95,12 @@ def stock_batch(cards) -> list[dict]:
     return [
         op(
             "stock.upsert",
-            data={"card_id": card.id, "language_code": "EN", "quantity_owned": 7},
+            data={
+                "card_id": card.id,
+                "language_code": "EN",
+                "card_set_id": card.card_set_id,
+                "quantity_owned": 7,
+            },
         )
         for card in cards
     ]
@@ -114,7 +123,12 @@ def deck_batch(cards) -> list[dict]:
                 op(
                     "deck_card.upsert",
                     deck={"client_ref": ref},
-                    data={"card_id": card.id, "language_code": "EN", "quantity": 2},
+                    data={
+                        "card_id": card.id,
+                        "language_code": "EN",
+                        "card_set_id": card.card_set_id,
+                        "quantity": 2,
+                    },
                 )
             )
     assert len(operations) == MAX_SYNC_OPERATIONS
@@ -171,7 +185,12 @@ def test_two_full_batches_queue_behind_the_lock(
     second_batch = [
         op(
             "stock.upsert",
-            data={"card_id": card.id, "language_code": "EN", "quantity_owned": 9},
+            data={
+                "card_id": card.id,
+                "language_code": "EN",
+                "card_set_id": card.card_set_id,
+                "quantity_owned": 9,
+            },
         )
         for card in library_cards
     ]

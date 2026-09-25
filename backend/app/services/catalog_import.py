@@ -27,21 +27,39 @@ La sect n'est pas fournie par krcg (`Card.sect_id` reste nul).
 La logique est pure vis-à-vis du réseau : `import_catalog` reçoit les données
 déjà parsées (facile à tester contre un fixture) ; `fetch_krcg_sources` fait le
 téléchargement, appelé par `scripts/import_catalog.py`.
+
+**Identifiants stables au rejeu** (Lot 4, D2/D2a) : `card_set` et
+`card_printing` sont désormais référencés par le stock (`CardCopy.card_set_id`,
+FK composite vers `card_printing`). `_sync_card_sets` et `_sync_printings`
+réutilisent donc toujours l'instance existante (clé `abbrev` pour l'extension,
+`card_set_id` pour l'impression) plutôt que d'en recréer une : un rejeu ne
+change ni l'un ni l'autre.
+
+**Extension tampon** (D2b, D2c) : une carte publiée sans aucune impression
+reçoit une impression sous une extension tampon (`card_set.is_placeholder`),
+créée une seule fois pour tout le catalogue. `ImportReport.placeholder_cards`
+liste ces cartes ; `scripts/import_catalog.py` les affiche en avertissement,
+sans faire échouer l'import. Au rejeu, une fois l'impression réelle publiée
+par la source, l'impression tampon est retirée si le stock ne la référence
+pas, et gardée sinon — la carte apparaît alors dans
+`ImportReport.reassign_cards` (« à réattribuer »). C'est la seule suppression
+que l'import s'autorise, limitée à ce qu'il a lui-même fabriqué.
 """
 
 import json
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import (
     Bundle,
     Card,
     CardCategory,
+    CardCopy,
     CardDisciplineLink,
     CardPrinting,
     CardPrintingOccurrence,
@@ -107,6 +125,19 @@ DISCIPLINE_NAMES: dict[str, str] = {
     "viz": "Visions",
 }
 
+# Extension tampon (Lot 4, décision D2b) : abréviation réservée, improbable
+# côté krcg (les codes réels font deux à six caractères sans souligné).
+PLACEHOLDER_CARD_SET_ABBREV = "_placeholder_"
+PLACEHOLDER_CARD_SET_NAME = "Extension tampon (carte sans impression connue)"
+
+
+@dataclass(frozen=True, slots=True)
+class PlaceholderCard:
+    """Une carte signalée par l'import (D2c) : identifiant VEKN et nom."""
+
+    vekn_id: int
+    name: str
+
 
 @dataclass
 class ImportReport:
@@ -117,6 +148,12 @@ class ImportReport:
     card_sets: int = 0
     bundles: int = 0
     translations: int = 0
+    # D2c : cartes rangées sous l'extension tampon faute d'impression connue
+    # dans la source, et cartes qui en gardent une bien qu'une impression
+    # réelle soit désormais connue (le stock l'utilise encore : « à
+    # réattribuer » côté utilisateur).
+    placeholder_cards: list[PlaceholderCard] = field(default_factory=list)
+    reassign_cards: list[PlaceholderCard] = field(default_factory=list)
 
     @property
     def cards(self) -> int:
@@ -351,12 +388,34 @@ def _occurrences(
     return result
 
 
+def _placeholder_card_set(db: Session, card_sets: dict[str, CardSet]) -> CardSet:
+    """L'extension tampon (D2b), créée au besoin — une seule pour tout le
+    catalogue, retrouvée par son marqueur plutôt que recréée à chaque import."""
+    card_set = card_sets.get(PLACEHOLDER_CARD_SET_ABBREV)
+    if card_set is not None:
+        return card_set
+    card_set = db.scalars(
+        select(CardSet).where(CardSet.is_placeholder.is_(True))
+    ).one_or_none()
+    if card_set is None:
+        card_set = CardSet(
+            abbrev=PLACEHOLDER_CARD_SET_ABBREV,
+            full_name=PLACEHOLDER_CARD_SET_NAME,
+            is_placeholder=True,
+        )
+        db.add(card_set)
+        db.flush()
+    card_sets[PLACEHOLDER_CARD_SET_ABBREV] = card_set
+    return card_set
+
+
 def _sync_printings(
+    db: Session,
     card: Card,
     raw: dict,
     card_sets: dict[str, CardSet],
     bundles: dict[tuple[int, str], Bundle],
-    db: Session,
+    report: ImportReport,
 ) -> None:
     existing = {p.card_set_id: p for p in card.printings}
     kept = []
@@ -366,6 +425,46 @@ def _sync_printings(
         printing.image_url = _text_or_none(raw_print.get("url"))
         printing.occurrences = _occurrences(raw_print, card_set, bundles, db)
         kept.append(printing)
+
+    if kept:
+        # Des impressions réelles existent. Une éventuelle impression tampon
+        # posée par un import précédent (D2b) n'a alors plus lieu d'être — la
+        # seule suppression que l'import s'autorise (§11), limitée à ce qu'il
+        # a lui-même fabriqué — sauf si le stock la référence encore : dans ce
+        # cas on la garde et on signale la carte « à réattribuer » (D2c).
+        placeholder = next(
+            (p for p in card.printings if p.card_set.is_placeholder and p not in kept),
+            None,
+        )
+        if placeholder is not None:
+            still_used = db.scalar(
+                select(func.count())
+                .select_from(CardCopy)
+                .where(
+                    CardCopy.card_id == card.id,
+                    CardCopy.card_set_id == placeholder.card_set_id,
+                )
+            )
+            if still_used:
+                kept.append(placeholder)
+                report.reassign_cards.append(
+                    PlaceholderCard(vekn_id=card.vekn_id, name=card.name)
+                )
+            # sinon : ne pas la rajouter à `kept` suffit à la faire disparaître
+            # à l'affectation `card.printings = kept` ci-dessous (delete-orphan).
+    else:
+        # Aucune impression connue de la source (D2b) : extension tampon,
+        # créée au besoin, avec une impression tampon pour cette carte.
+        placeholder_set = _placeholder_card_set(db, card_sets)
+        placeholder = existing.get(placeholder_set.id) or CardPrinting(
+            card_set=placeholder_set
+        )
+        placeholder.occurrences = []
+        kept.append(placeholder)
+        report.placeholder_cards.append(
+            PlaceholderCard(vekn_id=card.vekn_id, name=card.name)
+        )
+
     card.printings = kept
 
 
@@ -429,7 +528,7 @@ def import_catalog(
             else:
                 report.cards_updated += 1
             _sync_links(card, raw, refs)
-            _sync_printings(card, raw, card_sets, bundles, db)
+            _sync_printings(db, card, raw, card_sets, bundles, report)
             _sync_translations(card, raw, refs, report)
         db.commit()
     except Exception:

@@ -1,13 +1,19 @@
 """Schémas de la collection et des decks.
 
 Le vocabulaire du contrat suit celui du modèle : une *copie* (`CardCopy`) est
-l'ensemble des exemplaires d'une carte dans une langue — c'est ce que la
-ressource `/stock` du §7 manipule. Une ligne de deck (`DeckCard`) est une
-*allocation* prise sur ces exemplaires.
+l'ensemble des exemplaires d'une carte dans une langue, pour une impression
+(extension) donnée — c'est ce que la ressource `/stock` du §7 manipule. Une
+ligne de deck (`DeckCard`) est une *allocation* prise sur ces exemplaires.
+
+Lot 4 : l'extension (`card_set_id`) complète la clé partout où figure la
+langue, en lecture comme en écriture, et elle est **obligatoire** (décisions
+D1 et D4 de `docs/lot4-plan-inventaire.md`). Le couple (carte, extension) doit
+être une impression du catalogue (`CardRead.card_set_ids`) ; sinon 404.
 """
 
 from datetime import date, datetime
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import Field, model_validator
 
@@ -20,6 +26,20 @@ from app.schemas.base import (
     WriteModel,
 )
 from app.schemas.catalog import CardSummary
+
+CardSetId = Annotated[
+    int,
+    Field(
+        ge=1,
+        le=MAX_DB_INT,
+        description=(
+            "Extension de l'impression (`GET /extensions`). Le couple carte × "
+            "extension doit être une impression du catalogue "
+            "(`CardRead.card_set_ids`), sinon 404."
+        ),
+    ),
+]
+"""Extension d'une entrée de collection ou d'une ligne de deck, en écriture."""
 
 
 class DeckListState(StrEnum):
@@ -35,16 +55,17 @@ class DeckListState(StrEnum):
 
 
 class CardCopyRead(ReadModel):
-    """Exemplaires possédés d'une carte dans une langue."""
+    """Exemplaires possédés d'une carte, dans une langue, pour une impression."""
 
     card_id: int
     language_code: str
-    quantity_owned: int = Field(description="Nombre d'exemplaires réellement possédés.")
-    proxy_allowed: bool = Field(
+    card_set_id: int = Field(
+        description="Extension de l'impression possédée (`GET /extensions`)."
+    )
+    quantity_owned: int = Field(
         description=(
-            "Autorise à jouer cette carte en proxy dans cette langue, sans la "
-            "posséder. Une entrée avec 0 exemplaire possédé et le proxy autorisé "
-            "est le cas normal d'une carte jouée en proxy."
+            "Nombre d'exemplaires réellement possédés. Une entrée à 0 est valide : "
+            "c'est ainsi qu'une carte jouée uniquement en proxy entre en collection."
         )
     )
     notes: str | None = None
@@ -60,22 +81,21 @@ class CardCopyCreate(WriteModel):
     # ressortait en 404 « langue inconnue », là où la saisie est simplement
     # vide — donc 422. La normalisation en majuscules reste au service.
     language_code: RequiredText = Field(max_length=8)
+    card_set_id: CardSetId
     quantity_owned: int = Field(default=0, ge=0, le=MAX_DB_INT)
-    proxy_allowed: bool = False
     notes: str | None = None
 
 
 class CardCopyUpdate(WriteModel):
     """Modification d'une entrée de collection.
 
-    La carte et la langue forment la clé : elles ne se modifient pas, on crée
-    une autre entrée. `quantity_owned` et `proxy_allowed` sont facultatifs mais
-    non nullables (colonnes NOT NULL) ; `notes`, lui, accepte `null` pour
-    effacer la note.
+    La carte, la langue et l'extension forment la clé : elles ne se modifient
+    pas, on crée une autre entrée. `quantity_owned` est facultatif mais non nullable
+    (colonne NOT NULL) ; `notes`, lui, accepte `null` pour effacer la note.
+    L'autorisation de proxy n'est plus ici : elle appartient au deck.
     """
 
     quantity_owned: int = Field(default=UNSET, ge=0, le=MAX_DB_INT)
-    proxy_allowed: bool = UNSET
     notes: str | None = None
 
 
@@ -84,6 +104,9 @@ class BundleDeposit(WriteModel):
 
     Le produit fixe les cartes et leurs exemplaires ; il ne manque que la
     langue de ce qui a été acheté, et le nombre de produits identiques.
+    L'extension n'y figure pas (Lot 4) : chaque carte est rangée sous
+    l'extension du produit (`BundleRead.card_set_id`), dont elle est toujours
+    une impression.
     """
 
     language_code: RequiredText = Field(max_length=8)
@@ -100,6 +123,9 @@ class DeckCardRead(ReadModel):
 
     card_id: int
     language_code: str
+    card_set_id: int = Field(
+        description="Extension de l'entrée de collection allouée."
+    )
     quantity: int
     proxy_quantity: int = Field(
         description="Part des exemplaires ci-dessus jouée en proxy."
@@ -126,13 +152,15 @@ class DeckCardWrite(WriteModel):
 class DeckCardCreate(DeckCardWrite):
     """Ajout d'une carte à un deck.
 
-    La carte doit déjà exister dans la collection pour la langue demandée
-    (CLAUDE.md §11 point 2) ; la vérification de disponibilité relève du
-    service, la base garantissant déjà l'existence de l'entrée de collection.
+    La carte doit déjà exister dans la collection pour la langue et
+    l'extension demandées (CLAUDE.md §11 point 2) ; la vérification de
+    disponibilité relève du service, la base garantissant déjà l'existence de
+    l'entrée de collection.
     """
 
     card_id: int = Field(ge=1, le=MAX_DB_INT)
     language_code: RequiredText = Field(max_length=8)
+    card_set_id: CardSetId
 
 
 class DeckCardUpdate(WriteModel):
@@ -176,6 +204,13 @@ class DeckRead(ReadModel):
     status: DeckStatus
     archetype: str | None = None
     notes: str | None = None
+    proxy_allowed: bool = Field(
+        description=(
+            "Autorise à jouer des proxies dans ce deck, selon le tournoi visé "
+            "(certains les refusent, d'autres les acceptent). Le nombre de "
+            "proxies est porté par chaque ligne (`proxy_quantity`)."
+        )
+    )
     archived_at: datetime | None = Field(
         default=None,
         description=(
@@ -214,12 +249,22 @@ class DeckCreate(WriteModel):
     status: DeckStatus = DeckStatus.DRAFT
     archetype: str | None = Field(default=None, max_length=120)
     notes: str | None = None
+    proxy_allowed: bool = Field(
+        default=False,
+        description=(
+            "Autorise à jouer des proxies dans ce deck, selon le tournoi visé "
+            "(certains les refusent, d'autres les acceptent). Le nombre de "
+            "proxies est porté par chaque ligne (`proxy_quantity`)."
+            " Interdit par défaut."
+        ),
+    )
 
 
 class DeckUpdate(WriteModel):
     """Modification partielle d'un deck.
 
-    `name`, `status` et `archived` sont facultatifs mais non nullables ;
+    `name`, `status`, `proxy_allowed` et `archived` sont facultatifs mais non
+    nullables ;
     `created_on`, `archetype` et `notes` acceptent `null` pour effacer la
     valeur. Le discriminant ne se modifie pas : renommer un deck ne change pas
     son identité (le serveur n'en retire un autre que si le nouveau couple est
@@ -231,6 +276,13 @@ class DeckUpdate(WriteModel):
     status: DeckStatus = UNSET
     archetype: str | None = Field(default=None, max_length=120)
     notes: str | None = None
+    proxy_allowed: bool = Field(
+        default=UNSET,
+        description=(
+            "Autorise (`true`) ou interdit (`false`) les proxies dans ce deck. "
+            "Interdire est refusé tant qu'une ligne du deck en joue."
+        ),
+    )
     archived: bool = Field(
         default=UNSET,
         description=(

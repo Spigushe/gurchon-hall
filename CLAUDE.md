@@ -43,9 +43,9 @@ de `uv run python scripts/import_catalog.py`.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
 `/sync` — 23 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
-`/parties`, `/participations` : elles viennent au Lot 6. Une UI métier de consultation
+`/parties`, `/participations` : elles viennent au Lot 7. Une UI métier de consultation
 et de saisie existe pour la collection et les decks (`frontend/src/features/`,
-routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 6.
+routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 7.
 
 ---
 
@@ -123,7 +123,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff-mobile/, Lot 9)
+│                               design (ex. design-handoff-mobile/, Lot 5)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -706,7 +706,16 @@ Tranchées pendant le Lot 3 :
   préserver l'association carte × extension × occurrence. L'UI collection et decks,
   le miroir IndexedDB, les clés de recherche locale, les conflits/idempotences et les
   tests devront distinguer deux impressions de la même carte dans la même langue.
-6. **Lot 5 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
+6. **Lot 5 — Passe design** : reprendre l'UI React sur un design produit avec Claude
+   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
+   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
+  préciser. À prendre de préférence avant le Lot 7, pour que la saisie des parties
+   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
+   disponible, lot non commencé : un handoff de design (direction « 1b », design system
+   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
+   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
+   routes, mêmes données, même sémantique offline).
+7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
   introduisant un compte et l'isolation des données par utilisateur. Prévoir les
   parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,
   le hachage des secrets, les routes d'authentification, la protection de toutes les
@@ -715,27 +724,18 @@ Tranchées pendant le Lot 3 :
   compte et la déconnexion devront empêcher toute fuite de données entre utilisateurs;
   les tests devront couvrir autorisation, expiration de session, séparation des
   inventaires et synchronisation après reconnexion.
-7. **Lot 6 — Parties & tournois** : saisie, mono/multi-deck, participations.
-8. **Lot 7 — Analyse** : perf par deck, historique par lieu/date.
-9. **Lot 8 — Portage** : packager le socle offline pour barrins-project, côté code —
-  le déploiement de gurchon-hall lui-même est traité au Lot 11.
-10. **Lot 9 — Passe design** : reprendre l'UI React sur un design produit avec Claude
-   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
-   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
-  préciser. À prendre de préférence avant le Lot 6, pour que la saisie des parties
-   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
-   disponible, lot non commencé : un handoff de design (direction « 1b », design system
-   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
-   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
-   routes, mêmes données, même sémantique offline).
-11. **Lot 10 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
+9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
+10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
    collection, un deck ne s'alimentant que du stock possédé (§11.2).
+11. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
+  le déploiement de gurchon-hall lui-même est traité au Lot 11.
 12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
-    Dépend du Lot 8 : le portage prépare le terrain côté code, ce lot met gurchon-hall
+    Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).

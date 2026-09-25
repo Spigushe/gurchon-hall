@@ -4,8 +4,9 @@ Une carte n'entre dans un deck que si elle est **en collection dans cette
 langue** (CLAUDE.md §11, décision 2 — la base l'impose déjà par la clé étrangère
 composite `deck_card` → `card_copy`, le service en fait une réponse lisible).
 Les ajouts respectent en plus la comptabilité du stock (cf. `app.services.stock`) :
-un deck ne consomme que des exemplaires disponibles, et ne joue en proxy que
-les cartes dont le proxy est autorisé.
+un deck ne consomme que des exemplaires disponibles, et ne joue des proxies que
+si `deck.proxy_allowed` l'autorise (Lot 4 : propriété du deck, pas de l'entrée
+de collection).
 
 Légalité (cf. `app.services.vtes_rules`) : calculée à la demande, jamais
 bloquante pendant la construction — un brouillon est incomplet par nature. Elle
@@ -30,7 +31,7 @@ import random
 from collections.abc import Callable, Collection
 from datetime import UTC, date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -335,6 +336,18 @@ def update_deck(
     if activating:
         _ensure_can_activate(db, deck)
 
+    if changes.get("proxy_allowed") is False and deck.proxy_allowed:
+        proxies = db.scalar(
+            select(func.count())
+            .select_from(DeckCard)
+            .where(DeckCard.deck_id == deck_id, DeckCard.proxy_quantity > 0)
+        )
+        if proxies:
+            raise ConflictError(
+                f"{proxies} ligne(s) du deck {deck_id} jouent un proxy : les "
+                "retirer avant d'interdire les proxies."
+            )
+
     def apply() -> None:
         for field, value in changes.items():
             setattr(deck, field, value)
@@ -387,6 +400,7 @@ def delete_deck(db: Session, deck_id: int) -> None:
                 deck_id=deck_id,
                 card_id=line.card_id,
                 language_code=line.language_code,
+                card_set_id=line.card_set_id,
                 quantity=line.quantity,
                 proxy_quantity=line.proxy_quantity,
             )
@@ -396,35 +410,48 @@ def delete_deck(db: Session, deck_id: int) -> None:
     db.commit()
 
 
-def _load_line(db: Session, deck_id: int, card_id: int, language_code: str) -> DeckCard:
+def _load_line(
+    db: Session, deck_id: int, card_id: int, language_code: str, card_set_id: int
+) -> DeckCard:
     line = db.scalars(
         select(DeckCard)
         .where(
             DeckCard.deck_id == deck_id,
             DeckCard.card_id == card_id,
             DeckCard.language_code == language_code,
+            DeckCard.card_set_id == card_set_id,
         )
         .options(joinedload(DeckCard.card).joinedload(Card.clan))
     ).one_or_none()
     if line is None:
         raise NotFoundError(
-            f"La carte {card_id} en {language_code} n'est pas dans le deck {deck_id}."
+            f"La carte {card_id} en {language_code} (extension {card_set_id}) "
+            f"n'est pas dans le deck {deck_id}."
         )
     return line
 
 
 def _check_allocation(
-    db: Session, deck_id: int, copy: CardCopy, quantity: int, proxy_quantity: int
+    db: Session,
+    deck_id: int,
+    deck: Deck,
+    copy: CardCopy,
+    quantity: int,
+    proxy_quantity: int,
 ) -> None:
-    """La ligne demandée tient-elle dans le stock ?"""
-    if proxy_quantity and not copy.proxy_allowed:
+    """La ligne demandée tient-elle dans le stock, et le deck joue-t-il les proxies ?"""
+    if proxy_quantity and not deck.proxy_allowed:
         raise ConflictError(
-            "Le proxy n'est pas autorisé pour cette carte dans cette langue : "
-            "l'autoriser dans la collection d'abord."
+            f"Le deck {deck_id} n'autorise pas les proxies : l'autoriser "
+            "(`proxy_allowed`) avant d'en jouer."
         )
     real = quantity - proxy_quantity
     available = copy.quantity_owned - stock.allocated_real(
-        db, copy.card_id, copy.language_code, excluding_deck_id=deck_id
+        db,
+        copy.card_id,
+        copy.language_code,
+        copy.card_set_id,
+        excluding_deck_id=deck_id,
     )
     if real > available:
         raise ConflictError(
@@ -447,39 +474,46 @@ def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
     code = catalog.normalize_language_code(payload.language_code)
     if db.get(Card, payload.card_id) is None:
         raise NotFoundError(f"Carte {payload.card_id} introuvable.")
-    copy = db.get(CardCopy, (payload.card_id, code))
+    catalog.get_printing(db, payload.card_id, payload.card_set_id)
+    copy = db.get(CardCopy, (payload.card_id, code, payload.card_set_id))
     if copy is None:
         raise ConflictError(
             f"La carte {payload.card_id} n'est pas en collection en {code} : "
             "l'ajouter au stock avant de l'utiliser dans un deck."
         )
-    if db.get(DeckCard, (deck_id, payload.card_id, code)) is not None:
+    if db.get(DeckCard, (deck_id, payload.card_id, code, payload.card_set_id)):
         raise ConflictError(
             f"La carte {payload.card_id} en {code} est déjà dans le deck : "
             "modifier sa ligne."
         )
-    _check_allocation(db, deck_id, copy, payload.quantity, payload.proxy_quantity)
+    _check_allocation(db, deck_id, deck, copy, payload.quantity, payload.proxy_quantity)
 
     db.add(
         DeckCard(
             deck_id=deck_id,
             card_id=payload.card_id,
             language_code=code,
+            card_set_id=payload.card_set_id,
             quantity=payload.quantity,
             proxy_quantity=payload.proxy_quantity,
         )
     )
     deck.updated_at = utcnow()
     _commit(db)
-    return _load_line(db, deck_id, payload.card_id, code)
+    return _load_line(db, deck_id, payload.card_id, code, payload.card_set_id)
 
 
 def update_card(
-    db: Session, deck_id: int, card_id: int, language_code: str, payload: DeckCardUpdate
+    db: Session,
+    deck_id: int,
+    card_id: int,
+    language_code: str,
+    card_set_id: int,
+    payload: DeckCardUpdate,
 ) -> DeckCard:
     deck = _get_editable_deck(db, deck_id)
     code = catalog.normalize_language_code(language_code)
-    line = _load_line(db, deck_id, card_id, code)
+    line = _load_line(db, deck_id, card_id, code, card_set_id)
     changes = payload.model_dump(exclude_unset=True)
     quantity = changes.get("quantity", line.quantity)
     proxy_quantity = changes.get("proxy_quantity", line.proxy_quantity)
@@ -492,8 +526,8 @@ def update_card(
             "de proxies que d'exemplaires dans le deck.",
             loc=("body", "proxy_quantity"),
         )
-    copy = db.get(CardCopy, (card_id, code))
-    _check_allocation(db, deck_id, copy, quantity, proxy_quantity)
+    copy = db.get(CardCopy, (card_id, code, card_set_id))
+    _check_allocation(db, deck_id, deck, copy, quantity, proxy_quantity)
 
     line.quantity = quantity
     line.proxy_quantity = proxy_quantity
@@ -502,10 +536,16 @@ def update_card(
     return line
 
 
-def remove_card(db: Session, deck_id: int, card_id: int, language_code: str) -> None:
+def remove_card(
+    db: Session, deck_id: int, card_id: int, language_code: str, card_set_id: int
+) -> None:
     deck = _get_editable_deck(db, deck_id)
     line = _load_line(
-        db, deck_id, card_id, catalog.normalize_language_code(language_code)
+        db,
+        deck_id,
+        card_id,
+        catalog.normalize_language_code(language_code),
+        card_set_id,
     )
     db.delete(line)
     deck.updated_at = utcnow()

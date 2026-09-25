@@ -81,11 +81,12 @@ EXPECTED_OPERATIONS = {
     ("post", "/bundles/{bundle_id}/stock"): "depositBundle",
     ("get", "/langues"): "listLanguages",
     ("post", "/langues"): "createLanguage",
+    ("get", "/extensions"): "listCardSets",
     ("get", "/stock"): "listStock",
     ("post", "/stock"): "createStockEntry",
-    ("get", "/stock/{card_id}/{language_code}"): "getStockEntry",
-    ("patch", "/stock/{card_id}/{language_code}"): "updateStockEntry",
-    ("delete", "/stock/{card_id}/{language_code}"): "deleteStockEntry",
+    ("get", "/stock/{card_id}/{language_code}/{card_set_id}"): "getStockEntry",
+    ("patch", "/stock/{card_id}/{language_code}/{card_set_id}"): "updateStockEntry",
+    ("delete", "/stock/{card_id}/{language_code}/{card_set_id}"): "deleteStockEntry",
     ("get", "/decks"): "listDecks",
     ("post", "/decks"): "createDeck",
     ("get", "/decks/{deck_id}"): "getDeck",
@@ -93,8 +94,14 @@ EXPECTED_OPERATIONS = {
     ("delete", "/decks/{deck_id}"): "deleteDeck",
     ("get", "/decks/{deck_id}/legalite"): "getDeckLegality",
     ("post", "/decks/{deck_id}/cartes"): "addDeckCard",
-    ("patch", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "updateDeckCard",
-    ("delete", "/decks/{deck_id}/cartes/{card_id}/{language_code}"): "removeDeckCard",
+    (
+        "patch",
+        "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
+    ): "updateDeckCard",
+    (
+        "delete",
+        "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
+    ): "removeDeckCard",
     ("post", "/sync"): "syncOperations",
 }
 
@@ -129,7 +136,7 @@ def test_business_errors_are_declared_with_the_error_schema():
 def test_deletions_answer_204_without_body():
     paths = app.openapi()["paths"]
 
-    for path in ("/stock/{card_id}/{language_code}", "/decks/{deck_id}"):
+    for path in ("/stock/{card_id}/{language_code}/{card_set_id}", "/decks/{deck_id}"):
         responses = paths[path]["delete"]["responses"]
         assert "204" in responses
         assert "content" not in responses["204"]

@@ -16,19 +16,22 @@ from app.models import (
     CardPrintingOccurrence,
     PrintOccurrence,
 )
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
 
 MAX_INT = 2**31 - 1
 HUGE = 99999999999999999999
 STATES = ("live", "archived", "deleted", "unknown")
 
 
-def add_line(api, deck_id, card_id, language="EN", quantity=1, proxy=0):
+def add_line(
+    api, deck_id, card_id, language="EN", quantity=1, proxy=0, *, card_set_id
+):
     return api.post(
         f"/decks/{deck_id}/cartes",
         json={
             "card_id": card_id,
             "language_code": language,
+            "card_set_id": card_set_id,
             "quantity": quantity,
             "proxy_quantity": proxy,
         },
@@ -37,26 +40,32 @@ def add_line(api, deck_id, card_id, language="EN", quantity=1, proxy=0):
 
 @pytest.fixture
 def by_state(api, db):
-    """Un deck vivant, un archivé, un supprimé (chacun avec une ligne EN)."""
+    """Un deck vivant, un archivé, un supprimé (chacun avec une ligne EN).
+
+    Une seule impression pour la carte (Lot 4) : la ligne FR ajoutée par
+    certains tests réutilise le même `card_set_id` que la ligne EN.
+    """
     add_languages(db, "EN", "FR")
     card = make_card(db, "Matrice")
-    make_copy(db, card, "EN", quantity_owned=30)
-    make_copy(db, card, "FR", quantity_owned=30)
+    copy = make_copy(db, card, "EN", quantity_owned=30)
+    make_copy(db, card, "FR", quantity_owned=30, card_set_id=copy.card_set_id)
     decks = {state: make_deck(db, f"Deck {state}") for state in STATES[:3]}
     db.commit()
     for deck in decks.values():
-        assert add_line(api, deck.id, card.id).status_code == 201
+        added = add_line(api, deck.id, card.id, card_set_id=copy.card_set_id)
+        assert added.status_code == 201
     assert api.patch(f"/decks/{decks['archived'].id}", json={"archived": True})
     assert api.patch(f"/decks/{decks['deleted'].id}", json={"archived": True})
     assert api.delete(f"/decks/{decks['deleted'].id}").status_code == 204
     ids = {state: deck.id for state, deck in decks.items()} | {"unknown": 9999}
-    return SimpleNamespace(ids=ids, card=card)
+    return SimpleNamespace(ids=ids, card=card, card_set_id=copy.card_set_id)
 
 
 def line_body(language="FR", card_id=None):
-    return lambda card: {
+    return lambda card, card_set_id: {
         "card_id": card_id or card.id,
         "language_code": language,
+        "card_set_id": card_set_id,
         "quantity": 1,
     }
 
@@ -76,10 +85,10 @@ CASES = [
     ("post", "/decks/{d}/cartes", line_body("FR"), (201, 409, 409, 404)),
     ("post", "/decks/{d}/cartes", line_body("EN"), (409, 409, 409, 404)),
     ("post", "/decks/{d}/cartes", line_body("FR", 9999), (404, 409, 409, 404)),
-    ("patch", "/decks/{d}/cartes/{c}/EN", {"quantity": 2}, (200, 409, 409, 404)),
-    ("patch", "/decks/{d}/cartes/{c}/ES", {"quantity": 2}, (404, 409, 409, 404)),
-    ("delete", "/decks/{d}/cartes/{c}/EN", None, (204, 409, 409, 404)),
-    ("delete", "/decks/{d}/cartes/{c}/ES", None, (404, 409, 409, 404)),
+    ("patch", "/decks/{d}/cartes/{c}/EN/{s}", {"quantity": 2}, (200, 409, 409, 404)),
+    ("patch", "/decks/{d}/cartes/{c}/ES/{s}", {"quantity": 2}, (404, 409, 409, 404)),
+    ("delete", "/decks/{d}/cartes/{c}/EN/{s}", None, (204, 409, 409, 404)),
+    ("delete", "/decks/{d}/cartes/{c}/ES/{s}", None, (404, 409, 409, 404)),
 ]
 
 
@@ -92,8 +101,10 @@ def test_every_deck_route_answers_by_deck_state(
     api, by_state, method, path, body, expected
 ):
     for state, status in zip(STATES, expected, strict=True):
-        url = path.format(d=by_state.ids[state], c=by_state.card.id)
-        payload = body(by_state.card) if callable(body) else body
+        url = path.format(
+            d=by_state.ids[state], c=by_state.card.id, s=by_state.card_set_id
+        )
+        payload = body(by_state.card, by_state.card_set_id) if callable(body) else body
         kwargs = {} if payload is None else {"json": payload}
 
         response = getattr(api, method)(url, **kwargs)
@@ -114,8 +125,8 @@ def test_a_refused_write_on_a_deleted_deck_changes_nothing(api, by_state):
     before = api.get(f"/decks/{deleted}").json()
 
     api.patch(f"/decks/{deleted}", json={"notes": "x", "archived": False})
-    add_line(api, deleted, by_state.card.id, "FR")
-    api.delete(f"/decks/{deleted}/cartes/{by_state.card.id}/EN")
+    add_line(api, deleted, by_state.card.id, "FR", card_set_id=by_state.card_set_id)
+    api.delete(f"/decks/{deleted}/cartes/{by_state.card.id}/EN/{by_state.card_set_id}")
     api.delete(f"/decks/{deleted}")
 
     assert api.get(f"/decks/{deleted}").json() == before
@@ -272,28 +283,44 @@ def test_a_blank_deck_name_is_refused(api):
 def test_oversized_quantities_are_422_on_every_route(api, db, bad):
     add_languages(db, "EN")
     card = make_card(db)
-    make_copy(db, card, quantity_owned=5, proxy_allowed=True)
+    copy = make_copy(db, card, quantity_owned=5)
     other = make_card(db, "Autre")
     deck = make_deck(db)
     db.commit()
-    assert add_line(api, deck.id, card.id).status_code == 201
+    added = add_line(api, deck.id, card.id, card_set_id=copy.card_set_id)
+    assert added.status_code == 201
 
     responses = {
         "stock create": api.post(
             "/stock",
-            json={"card_id": other.id, "language_code": "EN", "quantity_owned": bad},
+            json={
+                "card_id": other.id,
+                "language_code": "EN",
+                "card_set_id": copy.card_set_id,
+                "quantity_owned": bad,
+            },
         ),
-        "stock patch": api.patch(f"/stock/{card.id}/EN", json={"quantity_owned": bad}),
+        "stock patch": api.patch(
+            f"/stock/{card.id}/EN/{copy.card_set_id}", json={"quantity_owned": bad}
+        ),
         "bundle count": api.post(
             "/bundles/1/stock", json={"language_code": "EN", "count": bad}
         ),
-        "line quantity": add_line(api, deck.id, other.id, quantity=bad),
-        "line proxy": add_line(api, deck.id, other.id, quantity=bad, proxy=bad),
+        # `card_set_id` arbitraire (1) : la borne de quantité rejette avant
+        # même que l'extension ne soit vérifiée.
+        "line quantity": add_line(
+            api, deck.id, other.id, quantity=bad, card_set_id=1
+        ),
+        "line proxy": add_line(
+            api, deck.id, other.id, quantity=bad, proxy=bad, card_set_id=1
+        ),
         "line patch quantity": api.patch(
-            f"/decks/{deck.id}/cartes/{card.id}/EN", json={"quantity": bad}
+            f"/decks/{deck.id}/cartes/{card.id}/EN/{copy.card_set_id}",
+            json={"quantity": bad},
         ),
         "line patch proxy": api.patch(
-            f"/decks/{deck.id}/cartes/{card.id}/EN", json={"proxy_quantity": bad}
+            f"/decks/{deck.id}/cartes/{card.id}/EN/{copy.card_set_id}",
+            json={"proxy_quantity": bad},
         ),
     }
 
@@ -307,8 +334,10 @@ def test_out_of_range_card_ids_in_a_body_are_422(api, db, bad):
     deck = make_deck(db)
     db.commit()
 
-    line = add_line(api, deck.id, bad)
-    stock = api.post("/stock", json={"card_id": bad, "language_code": "EN"})
+    line = add_line(api, deck.id, bad, card_set_id=1)
+    stock = api.post(
+        "/stock", json={"card_id": bad, "language_code": "EN", "card_set_id": 1}
+    )
 
     assert line.status_code == 422
     assert stock.status_code == 422
@@ -318,46 +347,76 @@ def test_out_of_range_card_ids_in_a_body_are_422(api, db, bad):
 def test_non_positive_line_quantities_are_422(api, db, bad):
     add_languages(db, "EN")
     card = make_card(db)
-    make_copy(db, card, quantity_owned=3)
+    copy = make_copy(db, card, quantity_owned=3)
     deck = make_deck(db)
     db.commit()
-    assert add_line(api, deck.id, card.id).status_code == 201
+    added = add_line(api, deck.id, card.id, card_set_id=copy.card_set_id)
+    assert added.status_code == 201
 
-    assert add_line(api, deck.id, card.id, "EN", bad).status_code == 422
-    patched = api.patch(f"/decks/{deck.id}/cartes/{card.id}/EN", json={"quantity": bad})
+    invalid = add_line(
+        api, deck.id, card.id, "EN", bad, card_set_id=copy.card_set_id
+    )
+    assert invalid.status_code == 422
+    patched = api.patch(
+        f"/decks/{deck.id}/cartes/{card.id}/EN/{copy.card_set_id}",
+        json={"quantity": bad},
+    )
     assert patched.status_code == 422
 
 
 def test_a_negative_proxy_quantity_is_422(api, db):
     add_languages(db, "EN")
     card = make_card(db)
-    make_copy(db, card, quantity_owned=3, proxy_allowed=True)
+    copy = make_copy(db, card, quantity_owned=3)
     deck = make_deck(db)
     db.commit()
 
-    assert add_line(api, deck.id, card.id, quantity=1, proxy=-1).status_code == 422
+    invalid = add_line(
+        api, deck.id, card.id, quantity=1, proxy=-1, card_set_id=copy.card_set_id
+    )
+    assert invalid.status_code == 422
 
 
 def test_a_stock_entry_accepts_zero_and_the_upper_bound(api, db):
     add_languages(db, "EN", "FR")
     first = make_card(db)
+    first_printing = make_printing(db, first)
     second = make_card(db, "Autre")
+    second_printing = make_printing(db, second)
     db.commit()
 
-    zero = api.post("/stock", json={"card_id": first.id, "language_code": "EN"})
+    zero = api.post(
+        "/stock",
+        json={
+            "card_id": first.id,
+            "language_code": "EN",
+            "card_set_id": first_printing.card_set_id,
+        },
+    )
     top = api.post(
         "/stock",
-        json={"card_id": second.id, "language_code": "EN", "quantity_owned": MAX_INT},
+        json={
+            "card_id": second.id,
+            "language_code": "EN",
+            "card_set_id": second_printing.card_set_id,
+            "quantity_owned": MAX_INT,
+        },
     )
 
     assert zero.status_code == 201 and zero.json()["quantity_owned"] == 0
     assert top.status_code == 201 and top.json()["quantity_owned"] == MAX_INT
-    lowered = api.patch(f"/stock/{second.id}/EN", json={"quantity_owned": 0})
+    lowered = api.patch(
+        f"/stock/{second.id}/EN/{second_printing.card_set_id}",
+        json={"quantity_owned": 0},
+    )
     assert lowered.status_code == 200
 
 
 def test_a_bundle_deposit_cannot_push_the_stock_past_the_bound(api, world):
-    before = api.get(f"/stock/{world.card.id}/EN").json()["quantity_owned"]
+    card_set_id = world.printing.card_set_id
+    before = api.get(f"/stock/{world.card.id}/EN/{card_set_id}").json()[
+        "quantity_owned"
+    ]
 
     response = api.post(
         f"/bundles/{world.bundle.id}/stock",
@@ -366,11 +425,14 @@ def test_a_bundle_deposit_cannot_push_the_stock_past_the_bound(api, world):
 
     assert response.status_code == 409
     # Transaction annulée : l'entrée existante n'a pas bougé.
-    after = api.get(f"/stock/{world.card.id}/EN").json()["quantity_owned"]
+    after = api.get(f"/stock/{world.card.id}/EN/{card_set_id}").json()[
+        "quantity_owned"
+    ]
     assert after == before
 
 
 def test_a_refused_bundle_deposit_creates_and_changes_nothing(api, db, world):
+    card_set_id = world.printing.card_set_id
     # Second contenu du produit, absent du stock : sa ligne serait créée.
     other = make_card(db, "Autre du produit")
     printing = CardPrinting(card_id=other.id, card_set_id=world.card_set.id)
@@ -394,14 +456,18 @@ def test_a_refused_bundle_deposit_creates_and_changes_nothing(api, db, world):
     )
 
     assert response.status_code == 409
-    assert api.get(f"/stock/{world.card.id}/EN").json()["quantity_owned"] == 4
-    assert api.get(f"/stock/{other.id}/EN").status_code == 404
+    assert (
+        api.get(f"/stock/{world.card.id}/EN/{card_set_id}").json()["quantity_owned"]
+        == 4
+    )
+    assert api.get(f"/stock/{other.id}/EN/{card_set_id}").status_code == 404
 
 
 def test_a_bundle_deposit_reaching_exactly_the_bound_is_accepted(api, world):
+    card_set_id = world.printing.card_set_id
     # Le précon compte 2 exemplaires : de 1 possédé, (MAX - 1) / 2 produits
     # amènent l'entrée exactement à MAX.
-    api.patch(f"/stock/{world.card.id}/FR", json={"quantity_owned": 1})
+    api.patch(f"/stock/{world.card.id}/FR/{card_set_id}", json={"quantity_owned": 1})
 
     response = api.post(
         f"/bundles/{world.bundle.id}/stock",
@@ -416,7 +482,10 @@ def test_a_bundle_deposit_reaching_exactly_the_bound_is_accepted(api, world):
         json={"language_code": "FR", "count": 1},
     )
     assert again.status_code == 409
-    assert api.get(f"/stock/{world.card.id}/FR").json()["quantity_owned"] == MAX_INT
+    assert (
+        api.get(f"/stock/{world.card.id}/FR/{card_set_id}").json()["quantity_owned"]
+        == MAX_INT
+    )
 
 
 # --- Langues : casse et espaces ---------------------------------------------
@@ -425,22 +494,29 @@ def test_a_bundle_deposit_reaching_exactly_the_bound_is_accepted(api, world):
 def test_language_codes_are_normalised_in_paths_and_bodies(api, db):
     add_languages(db, "EN", "FR")
     card = make_card(db)
-    make_copy(db, card, "EN", quantity_owned=2)
-    make_copy(db, card, "FR", quantity_owned=2, proxy_allowed=True)
-    deck = make_deck(db)
+    copy = make_copy(db, card, "EN", quantity_owned=2)
+    make_copy(db, card, "FR", quantity_owned=2, card_set_id=copy.card_set_id)
+    deck = make_deck(db, proxy_allowed=True)
     db.commit()
 
-    padded = add_line(api, deck.id, card.id, " fr ", quantity=2, proxy=1)
+    padded = add_line(
+        api, deck.id, card.id, " fr ", quantity=2, proxy=1,
+        card_set_id=copy.card_set_id,
+    )
     assert padded.status_code == 201
     assert padded.json()["language_code"] == "FR"
-    assert add_line(api, deck.id, card.id, "en").json()["language_code"] == "EN"
+    added_en = add_line(api, deck.id, card.id, "en", card_set_id=copy.card_set_id)
+    assert added_en.json()["language_code"] == "EN"
     # Le même code en autre casse est la même ligne, pas une seconde.
-    assert add_line(api, deck.id, card.id, "Fr").status_code == 409
+    same = add_line(api, deck.id, card.id, "Fr", card_set_id=copy.card_set_id)
+    assert same.status_code == 409
 
-    patched = api.patch(f"/decks/{deck.id}/cartes/{card.id}/fr", json={"quantity": 1})
+    line = f"/decks/{deck.id}/cartes/{card.id}/fr/{copy.card_set_id}"
+    patched = api.patch(line, json={"quantity": 1})
     assert patched.status_code == 200
     assert patched.json()["language_code"] == "FR"
-    assert api.delete(f"/decks/{deck.id}/cartes/{card.id}/en").status_code == 204
+    en_line = f"/decks/{deck.id}/cartes/{card.id}/en/{copy.card_set_id}"
+    assert api.delete(en_line).status_code == 204
     cards = api.get(f"/decks/{deck.id}").json()["cards"]
     assert [(c["language_code"], c["quantity"]) for c in cards] == [("FR", 1)]
 
@@ -448,25 +524,27 @@ def test_language_codes_are_normalised_in_paths_and_bodies(api, db):
 def test_lowercase_language_in_a_stock_path_reaches_the_same_entry(api, db):
     add_languages(db, "EN", "FR")
     card = make_card(db)
-    make_copy(db, card, "FR", quantity_owned=2)
+    copy = make_copy(db, card, "FR", quantity_owned=2)
     db.commit()
 
-    assert api.get(f"/stock/{card.id}/fr").json()["language_code"] == "FR"
-    patched = api.patch(f"/stock/{card.id}/fr", json={"quantity_owned": 3})
+    path = f"/stock/{card.id}/fr/{copy.card_set_id}"
+    assert api.get(path).json()["language_code"] == "FR"
+    patched = api.patch(path, json={"quantity_owned": 3})
     assert patched.json()["quantity_owned"] == 3
-    assert api.delete(f"/stock/{card.id}/fr").status_code == 204
+    assert api.delete(path).status_code == 204
 
 
 @pytest.mark.parametrize("code", ["ZZ", "ABCDEFGHIJKLMNOP", "e n"])
 def test_an_unknown_language_in_a_line_path_is_a_404_not_a_500(api, db, code):
     add_languages(db, "EN")
     card = make_card(db)
-    make_copy(db, card, quantity_owned=2)
+    copy = make_copy(db, card, quantity_owned=2)
     deck = make_deck(db)
     db.commit()
-    assert add_line(api, deck.id, card.id).status_code == 201
+    added = add_line(api, deck.id, card.id, card_set_id=copy.card_set_id)
+    assert added.status_code == 201
 
-    line = f"/decks/{deck.id}/cartes/{card.id}/{code}"
+    line = f"/decks/{deck.id}/cartes/{card.id}/{code}/{copy.card_set_id}"
     patched = api.patch(line, json={"quantity": 1})
     removed = api.delete(line)
 
@@ -476,11 +554,11 @@ def test_an_unknown_language_in_a_line_path_is_a_404_not_a_500(api, db, code):
 def test_an_unknown_language_in_a_body_is_a_409_not_a_500(api, db):
     add_languages(db, "EN")
     card = make_card(db)
-    make_copy(db, card, quantity_owned=2)
+    copy = make_copy(db, card, quantity_owned=2)
     deck = make_deck(db)
     db.commit()
 
-    response = add_line(api, deck.id, card.id, "ZZ")
+    response = add_line(api, deck.id, card.id, "ZZ", card_set_id=copy.card_set_id)
 
     assert response.status_code == 409
 
@@ -493,12 +571,17 @@ def test_two_same_name_cards_are_two_lines_and_read_the_same_live_or_deleted(api
     first = make_card(db, "Theo Bell", group_code="G6")
     second = make_card(db, "Theo Bell", group_code="G2")
     library = make_card(db, "Bibliothèque", category=CardCategory.LIBRARY)
-    for card in (first, second, library):
-        make_copy(db, card, quantity_owned=2)
+    copies = {
+        card: make_copy(db, card, quantity_owned=2)
+        for card in (first, second, library)
+    }
     deck = make_deck(db)
     db.commit()
     for card in (second, first, library):
-        assert add_line(api, deck.id, card.id, quantity=2).status_code == 201
+        added = add_line(
+            api, deck.id, card.id, quantity=2, card_set_id=copies[card].card_set_id
+        )
+        assert added.status_code == 201
     live = api.get(f"/decks/{deck.id}").json()["cards"]
 
     assert api.patch(f"/decks/{deck.id}", json={"archived": True}).status_code == 200

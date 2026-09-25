@@ -30,7 +30,7 @@ from app.main import app
 from app.models import CardCategory, CardCopy, DeckCard
 from app.schemas.collection import CardCopyCreate
 from app.services import decks, stock
-from tests.helpers import make_card, make_copy, make_deck
+from tests.helpers import make_card, make_copy, make_deck, make_printing
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
 RACE_WINDOW = 0.05  # secondes entre le contrôle et l'écriture
@@ -77,12 +77,13 @@ def test_concurrent_batches_cannot_oversubscribe_a_stock_entry(
 ):
     """Trois exemplaires, six decks qui en veulent un chacun, au même instant."""
     card = make_card(db, "Rare Copy", CardCategory.LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=3)
+    copy = make_copy(db, card, "EN", quantity_owned=3)
     deck_ids = [make_deck(db, f"Course {n}").id for n in range(6)]
     db.commit()
     # Les identifiants sont lus ici : les fils ne doivent pas rafraîchir, en
     # même temps, des objets de la session du test (elle n'est pas partagée).
     card_id = card.id
+    card_set_id = copy.card_set_id
     widen_the_race(monkeypatch)
 
     def send(deck_id):
@@ -96,6 +97,7 @@ def test_concurrent_batches_cannot_oversubscribe_a_stock_entry(
                         data={
                             "card_id": card_id,
                             "language_code": "EN",
+                            "card_set_id": card_set_id,
                             "quantity": 1,
                         },
                     )
@@ -115,7 +117,7 @@ def test_concurrent_batches_cannot_oversubscribe_a_stock_entry(
     assert all("insuffisants" in r["error"]["message"] for r in refused)
 
     db.expire_all()
-    assert stock.allocated_real(db, card_id, "EN") == 3  # jamais 4, 5 ou 6
+    assert stock.allocated_real(db, card_id, "EN", card_set_id) == 3  # jamais 4-6
     assert db.scalar(select(func.count()).select_from(DeckCard)) == 3 + 1  # + `world`
 
 
@@ -150,7 +152,8 @@ def test_concurrent_lowering_of_the_stock_cannot_undercut_an_allocation(
 ):
     """L'autre sens de la course : baisser le stock pendant qu'on l'alloue."""
     card = make_card(db, "Contested", CardCategory.LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=3)
+    copy = make_copy(db, card, "EN", quantity_owned=3)
+    card_set_id = copy.card_set_id
     deck = make_deck(db, "Preneur")
     db.commit()
     widen_the_race(monkeypatch)
@@ -158,11 +161,21 @@ def test_concurrent_lowering_of_the_stock_cannot_undercut_an_allocation(
     take = op(
         "deck_card.upsert",
         deck={"deck_id": deck.id},
-        data={"card_id": card.id, "language_code": "EN", "quantity": 3},
+        data={
+            "card_id": card.id,
+            "language_code": "EN",
+            "card_set_id": card_set_id,
+            "quantity": 3,
+        },
     )
     lower = op(
         "stock.upsert",
-        data={"card_id": card.id, "language_code": "EN", "quantity_owned": 1},
+        data={
+            "card_id": card.id,
+            "language_code": "EN",
+            "card_set_id": card_set_id,
+            "quantity_owned": 1,
+        },
     )
     responses = run_concurrently(
         [
@@ -180,7 +193,7 @@ def test_concurrent_lowering_of_the_stock_cannot_undercut_an_allocation(
         select(CardCopy.quantity_owned).where(CardCopy.card_id == card.id)
     )
     # Selon l'ordre d'arrivée, l'un des deux est refusé : jamais les deux appliqués.
-    assert stock.allocated_real(db, card.id, "EN") <= owned
+    assert stock.allocated_real(db, card.id, "EN", card_set_id) <= owned
 
 
 # --------------------------------------------------------------------------
@@ -195,13 +208,19 @@ def test_the_lock_survives_the_commits_of_the_services(db_engine, db, world):
     empêcherait de tenir un lot d'un bout à l'autre.
     """
     card = make_card(db, "Locked", CardCategory.LIBRARY)
+    printing = make_printing(db, card)
     db.commit()
     impatient = create_engine(db_engine.url, connect_args={"timeout": 0.2})
 
     with serialized_writes(db_engine) as session:
         stock.create_copy(
             session,
-            CardCopyCreate(card_id=card.id, language_code="EN", quantity_owned=1),
+            CardCopyCreate(
+                card_id=card.id,
+                language_code="EN",
+                card_set_id=printing.card_set_id,
+                quantity_owned=1,
+            ),
         )  # commit() du service, à l'intérieur du bloc
         with pytest.raises(WriteLockTimeout):
             with serialized_writes(impatient):
@@ -224,13 +243,19 @@ def test_an_exception_in_the_block_undoes_everything_and_releases_the_lock(
     db_engine, db, world
 ):
     card = make_card(db, "Undone", CardCategory.LIBRARY)
+    printing = make_printing(db, card)
     db.commit()
 
     with pytest.raises(RuntimeError):
         with serialized_writes(db_engine) as session:
             stock.create_copy(
                 session,
-                CardCopyCreate(card_id=card.id, language_code="EN", quantity_owned=1),
+                CardCopyCreate(
+                    card_id=card.id,
+                    language_code="EN",
+                    card_set_id=printing.card_set_id,
+                    quantity_owned=1,
+                ),
             )
             raise RuntimeError("boum")
 
@@ -249,13 +274,26 @@ def test_an_exception_in_the_block_undoes_everything_and_releases_the_lock(
 def test_a_service_rollback_only_undoes_its_own_operation(db_engine, db, world):
     """Le `rollback()` d'un service revient à son point de sauvegarde, pas plus loin."""
     kept = make_card(db, "Kept", CardCategory.LIBRARY)
+    printing = make_printing(db, kept)
     db.commit()
 
     with serialized_writes(db_engine) as session:
         stock.create_copy(
-            session, CardCopyCreate(card_id=kept.id, language_code="EN")
+            session,
+            CardCopyCreate(
+                card_id=kept.id,
+                language_code="EN",
+                card_set_id=printing.card_set_id,
+            ),
         )
-        session.add(CardCopy(card_id=kept.id, language_code="FR", quantity_owned=1))
+        session.add(
+            CardCopy(
+                card_id=kept.id,
+                language_code="FR",
+                card_set_id=printing.card_set_id,
+                quantity_owned=1,
+            )
+        )
         session.rollback()  # ce que fait un service qui refuse
 
     languages = list(
@@ -296,6 +334,7 @@ def test_a_batch_that_cannot_get_the_lock_answers_503_and_writes_nothing(
                 data={
                     "card_id": world.card.id,
                     "language_code": "EN",
+                    "card_set_id": world.printing.card_set_id,
                     "quantity_owned": 9,
                 },
             )

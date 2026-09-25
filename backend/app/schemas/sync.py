@@ -57,7 +57,7 @@ mono-utilisateur, et le serveur ne bouge que sous l'action de ce client :
 3. **Un invariant refuse, et lui seul.** Une opération n'est rejetée que si le
    serveur l'aurait refusée en ligne : ressource introuvable (`not_found`),
    règle métier contredite (`conflict` — exemplaires insuffisants, proxy
-   interdit, deck archivé ou supprimé, activation d'un deck illégal), ou
+   non autorisé par le deck, deck archivé ou supprimé, activation d'un deck illégal), ou
    charge utile invalide après fusion (`invalid`). Les règles restent celles
    des services : `/sync` ne les assouplit ni ne les durcit.
 4. **Un refus n'arrête rien.** Le lot continue, et le client garde la main :
@@ -121,6 +121,7 @@ from app.schemas.base import (
 from app.schemas.collection import (
     BundleDeposit,
     CardCopyCreate,
+    CardSetId,
     DeckCardCreate,
     DeckCreate,
     DeckUpdate,
@@ -210,16 +211,19 @@ class SyncOperationBase(WriteModel):
 
 
 class StockUpsertOperation(SyncOperationBase):
-    """Crée ou remplace une entrée de collection (carte × langue).
+    """Crée ou remplace une entrée de collection (carte × langue × extension).
 
     `data` porte l'**état complet voulu** de l'entrée : les champs omis
-    reprennent leur valeur par défaut (0 exemplaire, proxy interdit, pas de
-    note), ils ne conservent pas ce que le serveur avait. C'est ce qui rend
-    l'opération indifférente à l'ordre du rejeu.
+    reprennent leur valeur par défaut (0 exemplaire, pas de note), ils ne
+    conservent pas ce que le serveur avait. C'est ce qui rend l'opération
+    indifférente à l'ordre du rejeu.
 
     Les règles de stock restent celles du serveur : descendre
-    `quantity_owned` sous ce que les decks ont déjà alloué, ou retirer le droit
-    de proxy alors qu'un deck en joue, est refusé (`conflict`).
+    `quantity_owned` sous ce que les decks ont déjà alloué est refusé
+    (`conflict`), et une extension où la carte n'a pas été imprimée est
+    refusée (`not_found`), comme une carte ou une langue inconnue.
+    L'autorisation de proxy n'est plus une propriété de l'entrée de collection
+    (Lot 4) : elle voyage avec le deck (`deck.create`, `deck.update`).
     """
 
     type: Literal["stock.upsert"]
@@ -230,12 +234,13 @@ class StockDeleteOperation(SyncOperationBase):
     """Retire une entrée de collection.
 
     Refusée (`conflict`) tant qu'un deck vivant l'utilise, comme
-    `DELETE /stock/{card_id}/{language_code}`.
+    `DELETE /stock/{card_id}/{language_code}/{card_set_id}`.
     """
 
     type: Literal["stock.delete"]
     card_id: int = Field(ge=1, le=MAX_DB_INT)
     language_code: RequiredText = Field(max_length=8)
+    card_set_id: CardSetId
 
 
 class DeckCreateOperation(SyncOperationBase):
@@ -245,7 +250,8 @@ class DeckCreateOperation(SyncOperationBase):
     suivantes de la file ne pourrait désigner le deck, puisque son identifiant
     n'existe pas encore. Le discriminant, lui, reste tiré par le serveur
     (CLAUDE.md §11) — un client ne le fournit jamais, hors ligne pas plus
-    qu'en ligne.
+    qu'en ligne. `data.proxy_allowed` fixe l'autorisation de proxy du deck
+    (interdite si omise).
     """
 
     type: Literal["deck.create"]
@@ -264,7 +270,8 @@ class DeckUpdateOperation(SyncOperationBase):
 
     `data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis
     sont appliqués, et `archived` range ou sort de l'archive. Passer le deck à
-    `active` exige qu'il soit légal, comme en ligne.
+    `active` exige qu'il soit légal, comme en ligne ; passer `proxy_allowed` à
+    `false` est refusé (`conflict`) tant qu'une ligne du deck joue un proxy.
     """
 
     type: Literal["deck.update"]
@@ -284,8 +291,10 @@ class DeckCardUpsertOperation(SyncOperationBase):
 
     `data` porte l'état complet voulu de la ligne (`quantity`,
     `proxy_quantity`). La carte doit être en collection dans cette langue et
-    les exemplaires disponibles doivent suffire : sinon `conflict`, comme en
-    ligne.
+    cette extension, les exemplaires disponibles doivent suffire, et un
+    `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
+    `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
+    est refusée (`not_found`).
     """
 
     type: Literal["deck_card.upsert"]
@@ -300,6 +309,7 @@ class DeckCardDeleteOperation(SyncOperationBase):
     deck: DeckRef
     card_id: int = Field(ge=1, le=MAX_DB_INT)
     language_code: RequiredText = Field(max_length=8)
+    card_set_id: CardSetId
 
 
 class BundleDepositOperation(SyncOperationBase):
@@ -406,6 +416,14 @@ class SyncResourceRef(ReadModel):
     deck_id: int | None = None
     card_id: int | None = None
     language_code: str | None = None
+    card_set_id: int | None = Field(
+        default=None,
+        description=(
+            "Extension de l'entrée touchée (`stock.*`, `deck_card.*`). Nulle "
+            "pour un deck, un versement de produit, ou une opération "
+            "journalisée avant le Lot 4."
+        ),
+    )
     bundle_id: int | None = None
 
 

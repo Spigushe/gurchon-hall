@@ -2,19 +2,23 @@
 
 Trois idées, dans l'ordre où elles s'empilent :
 
-1. `CardCopy` — les exemplaires d'une **carte donnée dans une langue donnée**
-   que je possède. C'est le `Stock` du §6 (PK composite carte + langue), enrichi
-   du statut proxy de CLAUDE.md §11 point 2 : `quantity_owned` compte ce que je
-   possède réellement, `proxy_allowed` autorise à jouer cette carte en proxy
-   sans la posséder. Une entrée `quantity_owned = 0, proxy_allowed = True` est
-   parfaitement valide : c'est exactement le cas « je joue cette carte en
-   proxy ».
-2. `Deck` — un deck que je joue.
+1. `CardCopy` — les exemplaires d'une **carte donnée, dans une langue donnée,
+   issus d'une extension donnée** que je possède. C'est le `Stock` du §6 (PK
+   composite carte + langue + extension depuis le Lot 4, décision D1) :
+   `quantity_owned` compte ce que je possède réellement. Une entrée à 0
+   exemplaire est parfaitement valide : c'est ainsi qu'une carte jouée
+   uniquement en proxy entre en collection (CLAUDE.md §11 point 2). Le couple
+   (carte, extension) doit être une impression réelle du catalogue : une clé
+   étrangère composite vers `card_printing` l'impose (décision D2).
+2. `Deck` — un deck que je joue. Il porte `proxy_allowed` (Lot 4) :
+   l'autorisation de jouer des proxies dépend du tournoi visé, pas de la carte
+   ni de l'entrée de collection.
 3. `DeckCard` — l'**allocation** d'exemplaires vers un deck. Sa clé étrangère
    composite pointe `card_copy`, pas `card` : au niveau du schéma, on ne peut
    donc pas mettre dans un deck une carte absente de la collection (§11 point
-   2). La langue fait partie de la clé, donc un même deck peut contenir la
-   même carte en plusieurs langues (§11 point 4).
+   2). La langue et l'extension font partie de la clé, donc un même deck peut
+   contenir la même carte en plusieurs langues (§11 point 4) et en plusieurs
+   impressions (Lot 4).
 4. `DeletedDeckCard` — la decklist **figée** d'un deck supprimé. Mêmes colonnes
    que `DeckCard`, mais sans lien vers la collection : un deck supprimé ne
    réserve plus rien, et l'entrée de stock qu'il utilisait redevient
@@ -36,21 +40,40 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
-from app.models.catalog import Card
+from app.models.catalog import Card, CardPrinting
 from app.models.enums import DeckStatus, enum_column
-from app.models.reference import Language
+from app.models.reference import CardSet, Language
 from app.models.types import UtcDateTime
 
 
 class CardCopy(Base):
-    """Exemplaires possédés d'une carte dans une langue (le stock du §6)."""
+    """Exemplaires possédés d'une carte, dans une langue, pour une impression.
+
+    Clé : (carte, langue, extension) — décision D1 du Lot 4. Pas de clé
+    technique : le client hors ligne désigne une entrée par des valeurs qu'il
+    connaît déjà, et les chemins restent lisibles
+    (`/stock/{card_id}/{language_code}/{card_set_id}`).
+
+    La clé étrangère composite vers `card_printing` (`card_id`, `card_set_id`),
+    adossée à l'unicité `uq_card_printing_card_id_card_set_id`, fait refuser
+    par la base un exemplaire rangé dans une extension où la carte n'a pas été
+    imprimée (décision D2). C'est un dernier filet : le service vérifie
+    l'impression avant d'écrire et rend un 404 lisible. Sans `ondelete` : une
+    impression utilisée par le stock ne se supprime pas (l'import ne supprime
+    rien, sauf l'impression tampon inutilisée, décision D2c).
+    """
 
     __tablename__ = "card_copy"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["card_id", "card_set_id"],
+            ["card_printing.card_id", "card_printing.card_set_id"],
+        ),
         CheckConstraint("quantity_owned >= 0", name="quantity_owned_positive"),
     )
 
@@ -59,12 +82,28 @@ class CardCopy(Base):
         ForeignKey("language.code"),
         primary_key=True,
     )
+    card_set_id: Mapped[int] = mapped_column(primary_key=True)
     quantity_owned: Mapped[int] = mapped_column(default=0)
-    proxy_allowed: Mapped[bool] = mapped_column(default=False)
     notes: Mapped[str | None] = mapped_column(Text())
 
     card: Mapped[Card] = relationship()
     language: Mapped[Language] = relationship()
+    # Raccourcis de lecture : l'impression et son extension. `viewonly`, car
+    # `card_id` est déjà écrit par la relation `card` ; les services posent
+    # `card_set_id` directement.
+    printing: Mapped[CardPrinting] = relationship(
+        primaryjoin=(
+            "and_(CardCopy.card_id == CardPrinting.card_id, "
+            "CardCopy.card_set_id == CardPrinting.card_set_id)"
+        ),
+        foreign_keys="[CardCopy.card_id, CardCopy.card_set_id]",
+        viewonly=True,
+    )
+    card_set: Mapped[CardSet] = relationship(
+        primaryjoin="CardCopy.card_set_id == CardSet.id",
+        foreign_keys="CardCopy.card_set_id",
+        viewonly=True,
+    )
     # `passive_deletes="all"` : supprimer une entrée de collection encore
     # allouée à un deck doit être refusé par la base. Sans cette option, l'ORM
     # essaie de passer la clé étrangère de `deck_card` à NULL avant le DELETE
@@ -123,6 +162,15 @@ class Deck(Base, TimestampMixin):
     )
     archetype: Mapped[str | None] = mapped_column(String(120))
     notes: Mapped[str | None] = mapped_column(Text())
+    # Autorisation de jouer des proxies dans ce deck, choisie selon le tournoi
+    # visé (certains les refusent, d'autres les acceptent). Le nombre de
+    # proxies reste porté par chaque ligne (`DeckCard.proxy_quantity`).
+    # `server_default` en plus du défaut Python : une ligne insérée hors ORM
+    # (migration, SQL à la main) reçoit la même valeur prudente.
+    proxy_allowed: Mapped[bool] = mapped_column(
+        default=False,
+        server_default=false(),
+    )
     archived_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
@@ -139,16 +187,21 @@ class Deck(Base, TimestampMixin):
 class DeckCard(Base):
     """Allocation d'exemplaires de la collection vers un deck.
 
-    `quantity` compte le total d'exemplaires de cette carte dans cette langue
-    présents dans le deck ; `proxy_quantity` dit combien, parmi eux, sont des
-    proxies (donc non adossés à un exemplaire réellement possédé).
+    `quantity` compte le total d'exemplaires de cette carte, dans cette langue
+    et cette impression, présents dans le deck ; `proxy_quantity` dit combien,
+    parmi eux, sont des proxies (donc non adossés à un exemplaire réellement
+    possédé).
     """
 
     __tablename__ = "deck_card"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["card_id", "language_code"],
-            ["card_copy.card_id", "card_copy.language_code"],
+            ["card_id", "language_code", "card_set_id"],
+            [
+                "card_copy.card_id",
+                "card_copy.language_code",
+                "card_copy.card_set_id",
+            ],
         ),
         CheckConstraint("quantity >= 1", name="quantity_positive"),
         CheckConstraint(
@@ -157,8 +210,14 @@ class DeckCard(Base):
         ),
         # « Quels decks consomment cet exemplaire ? » est la requête centrale
         # de la réconciliation stock ↔ decks : la PK commence par `deck_id` et
-        # ne la sert pas.
-        Index("ix_deck_card_card_id_language_code", "card_id", "language_code"),
+        # ne la sert pas. Étendu à l'extension au Lot 4 : l'index couvre la clé
+        # entière de `card_copy`, dans l'ordre de sa clé primaire.
+        Index(
+            "ix_deck_card_card_id_language_code_card_set_id",
+            "card_id",
+            "language_code",
+            "card_set_id",
+        ),
     )
 
     deck_id: Mapped[int] = mapped_column(
@@ -167,6 +226,7 @@ class DeckCard(Base):
     )
     card_id: Mapped[int] = mapped_column(primary_key=True)
     language_code: Mapped[str] = mapped_column(String(8), primary_key=True)
+    card_set_id: Mapped[int] = mapped_column(primary_key=True)
     quantity: Mapped[int] = mapped_column(default=1)
     proxy_quantity: Mapped[int] = mapped_column(default=0)
 
@@ -190,8 +250,15 @@ class DeletedDeckCard(Base):
     * le deck supprimé garde la trace de ce qu'il contenait — utile pour un
       deck qui a servi en tournoi ;
     * il ne référence plus `card_copy`, donc plus aucune entrée de collection
-      n'est retenue par un deck que l'API ne montre plus. La clé étrangère va
-      vers `card` et `language`, qui ne s'effacent pas.
+      n'est retenue par un deck que l'API ne montre plus. Les clés étrangères
+      vont vers `card`, `language` et `card_set`, qui ne s'effacent pas.
+
+    L'extension (Lot 4) est recopiée de la ligne vivante et fait partie de la
+    clé, comme dans `deck_card` : une decklist figée distingue encore deux
+    impressions de la même carte dans la même langue. Elle pointe `card_set`
+    et non `card_printing` : une decklist figée ne réserve rien, et la seule
+    suppression d'impression que l'import s'autorise (l'impression tampon,
+    D2c) ne doit pas buter sur un deck supprimé.
 
     Les colonnes et les `CHECK` reprennent ceux de `deck_card` : une decklist
     figée reste une decklist lisible, pas un cimetière de valeurs douteuses.
@@ -213,6 +280,10 @@ class DeletedDeckCard(Base):
     card_id: Mapped[int] = mapped_column(ForeignKey("card.id"), primary_key=True)
     language_code: Mapped[str] = mapped_column(
         ForeignKey("language.code"),
+        primary_key=True,
+    )
+    card_set_id: Mapped[int] = mapped_column(
+        ForeignKey("card_set.id"),
         primary_key=True,
     )
     quantity: Mapped[int] = mapped_column(default=1)

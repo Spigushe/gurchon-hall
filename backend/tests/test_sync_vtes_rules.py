@@ -199,7 +199,7 @@ def test_a_ban_that_starts_after_the_evaluation_day_is_not_a_ban_yet(
 def test_building_an_illegal_deck_is_never_blocked_through_the_queue(api, db, world):
     """Un brouillon est incomplet par nature : la composition n'est pas gardée."""
     card = make_card(db, "Carte seule", LIBRARY)
-    make_copy(db, card, "EN", quantity_owned=1)
+    copy = make_copy(db, card, "EN", quantity_owned=1)
     db.commit()
     deck_id = sync_batch(
         api, op("deck.create", client_ref="brouillon", data={"name": "Incomplet"})
@@ -210,7 +210,12 @@ def test_building_an_illegal_deck_is_never_blocked_through_the_queue(api, db, wo
         op(
             "deck_card.upsert",
             deck={"deck_id": deck_id},
-            data={"card_id": card.id, "language_code": "EN", "quantity": 1},
+            data={
+                "card_id": card.id,
+                "language_code": "EN",
+                "card_set_id": copy.card_set_id,
+                "quantity": 1,
+            },
         ),
     )["results"][0]
 
@@ -225,7 +230,8 @@ def test_an_active_deck_that_turns_illegal_stays_editable_through_the_queue(
     """Déjà actif, le deck n'est plus re-jugé : c'est à l'UI de l'afficher."""
     deck = build(api, db, crypt(quantity=12), library(quantity=60))
     assert activate(api, deck.id)["outcome"] == "applied"
-    card_id = api.get(f"/decks/{deck.id}").json()["cards"][0]["card_id"]
+    line = api.get(f"/decks/{deck.id}").json()["cards"][0]
+    card_id, card_set_id = line["card_id"], line["card_set_id"]
 
     result = sync_batch(
         api,
@@ -234,6 +240,7 @@ def test_an_active_deck_that_turns_illegal_stays_editable_through_the_queue(
             deck={"deck_id": deck.id},
             card_id=card_id,
             language_code="EN",
+            card_set_id=card_set_id,
         ),
         op(
             "deck.update",
@@ -252,7 +259,7 @@ def test_proxies_count_in_the_deck_sizes_through_the_queue(api, db, frozen_today
     deck = build(api, db, crypt(quantity=12), library(quantity=60))
     lines = api.get(f"/decks/{deck.id}").json()["cards"]
     crypt_line = next(line for line in lines if line["quantity"] == 12)
-    card_id = crypt_line["card_id"]
+    card_id, card_set_id = crypt_line["card_id"], crypt_line["card_set_id"]
 
     def own(quantity: int) -> dict:
         return op(
@@ -260,30 +267,37 @@ def test_proxies_count_in_the_deck_sizes_through_the_queue(api, db, frozen_today
             data={
                 "card_id": card_id,
                 "language_code": "EN",
+                "card_set_id": card_set_id,
                 "quantity_owned": quantity,
-                "proxy_allowed": True,
             },
         )
 
     # Douze exemplaires alloués : on ne peut pas en posséder six...
     assert sync_batch(api, own(6))["results"][0]["error"]["code"] == "conflict"
-    # ... sauf à en mettre six en proxy dans le deck, d'abord.
+    # ... sauf à en mettre six en proxy dans le deck, d'abord (le deck doit
+    # d'abord autoriser les proxies — Lot 4 : propriété du deck).
     body = sync_batch(
         api,
         own(12),  # le proxy doit être autorisé avant d'être utilisé
+        op(
+            "deck.update",
+            deck={"deck_id": deck.id},
+            data={"proxy_allowed": True},
+        ),
         op(
             "deck_card.upsert",
             deck={"deck_id": deck.id},
             data={
                 "card_id": card_id,
                 "language_code": "EN",
+                "card_set_id": card_set_id,
                 "quantity": 12,
                 "proxy_quantity": 6,
             },
         ),
         own(6),
     )
-    assert [r["outcome"] for r in body["results"]] == ["applied"] * 3
+    assert [r["outcome"] for r in body["results"]] == ["applied"] * 4
     assert activate(api, deck.id)["outcome"] == "applied"
     legality = api.get(f"/decks/{deck.id}/legalite").json()
     assert legality["crypt_count"] == 12
@@ -297,7 +311,9 @@ def test_proxies_count_in_the_deck_sizes_through_the_queue(api, db, frozen_today
 def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
     """4 possédés : une ligne de 6 dont 2 proxies consomme 4 réels, pas 6."""
     card = world.card
-    # `world.deck` alloue déjà les 4 exemplaires EN : on le vide pour repartir.
+    card_set_id = world.printing.card_set_id
+    # `world.deck` alloue déjà les 4 exemplaires EN : on le vide pour repartir,
+    # et on autorise les proxies sur le deck (Lot 4).
     sync_batch(
         api,
         op(
@@ -305,18 +321,24 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
             deck={"deck_id": world.deck.id},
             card_id=card.id,
             language_code="EN",
+            card_set_id=card_set_id,
         ),
         op(
             "stock.upsert",
             data={
                 "card_id": card.id,
                 "language_code": "EN",
+                "card_set_id": card_set_id,
                 "quantity_owned": 4,
-                "proxy_allowed": True,
             },
         ),
+        op(
+            "deck.update",
+            deck={"deck_id": world.deck.id},
+            data={"proxy_allowed": True},
+        ),
     )
-    assert stock.allocated_real(db, card.id, "EN") == 0
+    assert stock.allocated_real(db, card.id, "EN", card_set_id) == 0
 
     result = sync_batch(
         api,
@@ -326,6 +348,7 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
             data={
                 "card_id": card.id,
                 "language_code": "EN",
+                "card_set_id": card_set_id,
                 "quantity": 6,
                 "proxy_quantity": 2,
             },
@@ -336,6 +359,7 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
             data={
                 "card_id": card.id,
                 "language_code": "EN",
+                "card_set_id": card_set_id,
                 "quantity": 7,
                 "proxy_quantity": 2,
             },
@@ -345,16 +369,23 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
     assert [r["outcome"] for r in result["results"]] == ["applied", "rejected"]
     assert "insuffisants" in result["results"][1]["error"]["message"]
     db.expire_all()
-    assert stock.allocated_real(db, card.id, "EN") == 4
+    assert stock.allocated_real(db, card.id, "EN", card_set_id) == 4
 
 
 def test_a_stock_entry_used_by_a_deck_cannot_be_removed_through_the_queue(
     api, db, world
 ):
     card = world.card
+    card_set_id = world.printing.card_set_id
 
     refused = sync_batch(
-        api, op("stock.delete", card_id=card.id, language_code="EN")
+        api,
+        op(
+            "stock.delete",
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=card_set_id,
+        ),
     )["results"][0]
     assert refused["error"]["code"] == "conflict"
 
@@ -366,61 +397,88 @@ def test_a_stock_entry_used_by_a_deck_cannot_be_removed_through_the_queue(
             deck={"deck_id": world.deck.id},
             card_id=card.id,
             language_code="EN",
+            card_set_id=card_set_id,
         ),
-        op("stock.delete", card_id=card.id, language_code="EN"),
+        op(
+            "stock.delete",
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=card_set_id,
+        ),
     )
     assert [r["outcome"] for r in released["results"]] == ["applied", "applied"]
     assert api.get("/stock", params={"language_code": "EN"}).json() == []
 
 
-def test_proxy_cannot_be_forbidden_while_a_deck_uses_proxies(api, db, world):
+def test_the_proxy_authorization_lives_on_the_deck_not_the_stock_entry(api, db, world):
+    """Lot 4 : `stock.upsert` ne porte plus l'autorisation de proxy ; c'est
+    `deck.update` qui la refuse tant qu'une ligne du deck en joue (le refus
+    lui-même est couvert par `test_sync_service.py::
+    test_disabling_proxy_on_a_deck_that_plays_one_is_refused`)."""
     card = world.card
-    # FR : 0 exemplaire possédé, proxy autorisé, et un deck qui l'emploie en proxy.
+    card_set_id = world.printing.card_set_id
+    # FR : 0 exemplaire possédé, et un deck qui l'emploie en proxy.
     sync_batch(
         api,
+        op(
+            "deck.update",
+            deck={"deck_id": world.deck.id},
+            data={"proxy_allowed": True},
+        ),
         op(
             "deck_card.upsert",
             deck={"deck_id": world.deck.id},
             data={
                 "card_id": card.id,
                 "language_code": "FR",
+                "card_set_id": card_set_id,
                 "quantity": 2,
                 "proxy_quantity": 2,
             },
         ),
     )
 
-    refused = sync_batch(
+    # L'entrée de stock elle-même ne retient plus rien du proxy.
+    accepted = sync_batch(
         api,
         op(
             "stock.upsert",
             data={
                 "card_id": card.id,
                 "language_code": "FR",
+                "card_set_id": card_set_id,
                 "quantity_owned": 0,
-                "proxy_allowed": False,
             },
         ),
     )["results"][0]
+    assert accepted["outcome"] == "applied"
 
+    refused = sync_batch(
+        api,
+        op(
+            "deck.update",
+            deck={"deck_id": world.deck.id},
+            data={"proxy_allowed": False},
+        ),
+    )["results"][0]
     assert refused["error"]["code"] == "conflict"
     assert "proxy" in refused["error"]["message"]
-    fr = next(
-        entry
-        for entry in api.get("/stock").json()
-        if entry["language_code"] == "FR"
-    )
-    assert fr["proxy_allowed"] is True
 
 
 def test_an_archived_deck_keeps_its_copies_and_a_deleted_one_gives_them_back(
     api, db, world
 ):
     card = world.card
+    card_set_id = world.printing.card_set_id
     deck = {"deck_id": world.deck.id}
     lower = op(
         "stock.upsert",
-        data={"card_id": card.id, "language_code": "EN", "quantity_owned": 1},
+        data={
+            "card_id": card.id,
+            "language_code": "EN",
+            "card_set_id": card_set_id,
+            "quantity_owned": 1,
+        },
     )
 
     # Archivé : les 4 exemplaires restent réservés, on ne descend pas à 1.
@@ -433,7 +491,12 @@ def test_an_archived_deck_keeps_its_copies_and_a_deleted_one_gives_them_back(
     sync_batch(api, op("deck.delete", deck=deck))
     lower_again = op(
         "stock.upsert",
-        data={"card_id": card.id, "language_code": "EN", "quantity_owned": 1},
+        data={
+            "card_id": card.id,
+            "language_code": "EN",
+            "card_set_id": card_set_id,
+            "quantity_owned": 1,
+        },
     )
     given_back = sync_batch(api, lower_again)["results"][0]
     assert given_back["outcome"] == "applied"
@@ -442,11 +505,17 @@ def test_an_archived_deck_keeps_its_copies_and_a_deleted_one_gives_them_back(
 def test_languages_are_counted_separately_through_the_queue(api, db, world):
     """4 EN alloués au deck : 3 FR de plus forment un stock à part."""
     card = world.card
+    card_set_id = world.printing.card_set_id
     sync_batch(
         api,
         op(
             "stock.upsert",
-            data={"card_id": card.id, "language_code": "FR", "quantity_owned": 3},
+            data={
+                "card_id": card.id,
+                "language_code": "FR",
+                "card_set_id": card_set_id,
+                "quantity_owned": 3,
+            },
         ),
     )
 
@@ -455,7 +524,12 @@ def test_languages_are_counted_separately_through_the_queue(api, db, world):
         op(
             "deck_card.upsert",
             deck={"deck_id": world.deck.id},
-            data={"card_id": card.id, "language_code": "EN", "quantity": 5},
+            data={
+                "card_id": card.id,
+                "language_code": "EN",
+                "card_set_id": card_set_id,
+                "quantity": 5,
+            },
         ),
     )["results"][0]
     fr_line = sync_batch(
@@ -463,7 +537,12 @@ def test_languages_are_counted_separately_through_the_queue(api, db, world):
         op(
             "deck_card.upsert",
             deck={"deck_id": world.deck.id},
-            data={"card_id": card.id, "language_code": "FR", "quantity": 3},
+            data={
+                "card_id": card.id,
+                "language_code": "FR",
+                "card_set_id": card_set_id,
+                "quantity": 3,
+            },
         ),
     )["results"][0]
 

@@ -92,6 +92,7 @@ class Touched:
     deck_id: int | None = None
     card_id: int | None = None
     language_code: str | None = None
+    card_set_id: int | None = None
     bundle_id: int | None = None
 
 
@@ -139,7 +140,7 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
     match operation:
         case StockUpsertOperation(data=data):
             code = catalog.normalize_language_code(data.language_code)
-            if db.get(CardCopy, (data.card_id, code)) is None:
+            if db.get(CardCopy, (data.card_id, code, data.card_set_id)) is None:
                 stock.create_copy(db, data)
             else:
                 # L'état complet voulu : les champs omis valent leur défaut, ils
@@ -148,21 +149,29 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
                     db,
                     data.card_id,
                     code,
+                    data.card_set_id,
                     CardCopyUpdate(
                         quantity_owned=data.quantity_owned,
-                        proxy_allowed=data.proxy_allowed,
                         notes=data.notes,
                     ),
                 )
             return Touched(
-                SyncResourceKind.CARD_COPY, card_id=data.card_id, language_code=code
+                SyncResourceKind.CARD_COPY,
+                card_id=data.card_id,
+                language_code=code,
+                card_set_id=data.card_set_id,
             )
 
-        case StockDeleteOperation(card_id=card_id, language_code=language_code):
+        case StockDeleteOperation(
+            card_id=card_id, language_code=language_code, card_set_id=card_set_id
+        ):
             code = catalog.normalize_language_code(language_code)
-            stock.delete_copy(db, card_id, code)
+            stock.delete_copy(db, card_id, code, card_set_id)
             return Touched(
-                SyncResourceKind.CARD_COPY, card_id=card_id, language_code=code
+                SyncResourceKind.CARD_COPY,
+                card_id=card_id,
+                language_code=code,
+                card_set_id=card_set_id,
             )
 
         case DeckCreateOperation(client_ref=client_ref, data=data):
@@ -192,7 +201,8 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
         case DeckCardUpsertOperation(deck=ref, data=data):
             deck_id = _resolve_deck(db, ref)
             code = catalog.normalize_language_code(data.language_code)
-            if db.get(DeckCard, (deck_id, data.card_id, code)) is None:
+            key = (deck_id, data.card_id, code, data.card_set_id)
+            if db.get(DeckCard, key) is None:
                 decks.add_card(db, deck_id, data)
             else:
                 decks.update_card(
@@ -200,6 +210,7 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
                     deck_id,
                     data.card_id,
                     code,
+                    data.card_set_id,
                     DeckCardUpdate(
                         quantity=data.quantity, proxy_quantity=data.proxy_quantity
                     ),
@@ -209,19 +220,24 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
                 deck_id=deck_id,
                 card_id=data.card_id,
                 language_code=code,
+                card_set_id=data.card_set_id,
             )
 
         case DeckCardDeleteOperation(
-            deck=ref, card_id=card_id, language_code=language_code
+            deck=ref,
+            card_id=card_id,
+            language_code=language_code,
+            card_set_id=card_set_id,
         ):
             deck_id = _resolve_deck(db, ref)
             code = catalog.normalize_language_code(language_code)
-            decks.remove_card(db, deck_id, card_id, code)
+            decks.remove_card(db, deck_id, card_id, code, card_set_id)
             return Touched(
                 SyncResourceKind.DECK_CARD,
                 deck_id=deck_id,
                 card_id=card_id,
                 language_code=code,
+                card_set_id=card_set_id,
             )
 
         case BundleDepositOperation(bundle_id=bundle_id, data=data):
@@ -264,6 +280,7 @@ def _result(entry: SyncOperation, outcome: SyncOutcome) -> SyncOperationResult:
             deck_id=entry.deck_id,
             card_id=entry.card_id,
             language_code=entry.language_code,
+            card_set_id=entry.card_set_id,
             bundle_id=entry.bundle_id,
         )
     error = None
@@ -339,6 +356,7 @@ def _process(
         entry.deck_id = touched.deck_id
         entry.card_id = touched.card_id
         entry.language_code = touched.language_code
+        entry.card_set_id = touched.card_set_id
         entry.bundle_id = touched.bundle_id
         outcome = SyncOutcome.APPLIED
 

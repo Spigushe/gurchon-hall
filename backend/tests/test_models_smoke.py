@@ -134,15 +134,17 @@ def seeded(session):
             CardCopy(
                 card_id=card.id,
                 language_code="EN",
+                card_set_id=card_set.id,
                 quantity_owned=4,
-                proxy_allowed=False,
             ),
-            # Cas proxy : rien en stock, mais le proxy est autorisé.
+            # Cas proxy : rien en stock, ainsi qu'une carte n'entre en
+            # collection que pour être jouée en proxy (l'autorisation vit sur
+            # le deck, Lot 4, pas ici).
             CardCopy(
                 card_id=card.id,
                 language_code="FR",
+                card_set_id=card_set.id,
                 quantity_owned=0,
-                proxy_allowed=True,
             ),
         ]
     )
@@ -181,6 +183,7 @@ def seeded(session):
                 deck_id=deck.id,
                 card_id=card.id,
                 language_code="EN",
+                card_set_id=card_set.id,
                 quantity=4,
                 proxy_quantity=0,
             ),
@@ -188,6 +191,7 @@ def seeded(session):
                 deck_id=gone.id,
                 card_id=card.id,
                 language_code="EN",
+                card_set_id=card_set.id,
                 quantity=4,
                 proxy_quantity=0,
             ),
@@ -233,7 +237,13 @@ def seeded(session):
         )
     )
     session.commit()
-    return {"card": card, "deck": deck, "game": game, "player": player}
+    return {
+        "card": card,
+        "deck": deck,
+        "game": game,
+        "player": player,
+        "card_set_id": card_set.id,
+    }
 
 
 def test_every_table_accepts_a_row(session, seeded):
@@ -268,6 +278,7 @@ def test_deck_card_requires_a_collection_entry(session, seeded):
             deck_id=seeded["deck"].id,
             card_id=seeded["card"].id,
             language_code="ES",
+            card_set_id=seeded["card_set_id"],
             quantity=1,
         )
     )
@@ -283,6 +294,7 @@ def test_deck_mixes_languages_for_the_same_card(session, seeded):
             deck_id=seeded["deck"].id,
             card_id=seeded["card"].id,
             language_code="FR",
+            card_set_id=seeded["card_set_id"],
             quantity=2,
             proxy_quantity=2,
         )
