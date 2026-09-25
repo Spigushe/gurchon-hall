@@ -1,7 +1,7 @@
 import { useDeferredValue, useId, useState, type FormEvent } from "react";
 import { Link } from "../../app/Link";
 import { useGuardedAction } from "../../components/useGuardedAction";
-import { stockEntryLabel } from "../../labels";
+import { cardSetLabelById, stockEntryLabel } from "../../labels";
 import {
   useLocalStock,
   useVtesOffline,
@@ -9,6 +9,7 @@ import {
   type LocalDeckCard,
   type LocalStockEntry,
 } from "../../offline/vtes";
+import { useCardSetOptions } from "../stock/useCardSetOptions";
 
 const MAX_INT = 2_147_483_647;
 
@@ -27,6 +28,7 @@ export function AddDeckCardForm({
   lines: LocalDeckCard[];
 }) {
   const { actions } = useVtesOffline();
+  const cardSets = useCardSetOptions();
   const action = useGuardedAction();
   const formId = useId();
   const [term, setTerm] = useState("");
@@ -38,13 +40,23 @@ export function AddDeckCardForm({
   const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
+  // Une entrée précise : carte × langue × extension (Lot 4). Deux impressions de
+  // la même carte et langue sont deux entrées distinctes, choisies séparément.
   const existing = chosen
-    ? lines.find((line) => line.cardId === chosen.cardId && line.languageCode === chosen.languageCode)
+    ? lines.find(
+        (line) =>
+          line.cardId === chosen.cardId &&
+          line.languageCode === chosen.languageCode &&
+          line.cardSetId === chosen.cardSetId,
+      )
     : undefined;
 
   const choose = (entry: LocalStockEntry) => {
     const current = lines.find(
-      (line) => line.cardId === entry.cardId && line.languageCode === entry.languageCode,
+      (line) =>
+        line.cardId === entry.cardId &&
+        line.languageCode === entry.languageCode &&
+        line.cardSetId === entry.cardSetId,
     );
     setChosen(entry);
     setQuantity(String(current?.quantity ?? 1));
@@ -68,6 +80,7 @@ export function AddDeckCardForm({
       actions.saveDeckCard(deckKey, {
         cardId: chosen.cardId,
         languageCode: chosen.languageCode,
+        cardSetId: chosen.cardSetId,
         quantity: total,
         proxyQuantity: proxies,
       }),
@@ -90,9 +103,9 @@ export function AddDeckCardForm({
       <h2 className="panel__title panel__title--small">Ajouter une carte</h2>
       {chosen ? (
         <p className="chosen" data-testid="deck-card-form-chosen">
-          Carte : <strong>{stockEntryLabel(chosen)}</strong> ({chosen.languageCode}), possédée en{" "}
-          {chosen.quantityOwned} exemplaire{chosen.quantityOwned > 1 ? "s" : ""}
-          {chosen.proxyAllowed ? ", proxy autorisé" : ""}
+          Carte : <strong>{stockEntryLabel(chosen)}</strong> ({chosen.languageCode},{" "}
+          {cardSetLabelById(chosen.cardSetId, cardSets.byId)}), possédée en {chosen.quantityOwned}{" "}
+          exemplaire{chosen.quantityOwned > 1 ? "s" : ""}
           <button type="button" className="button--link" onClick={() => setChosen(null)}>
             Changer
           </button>
@@ -120,22 +133,21 @@ export function AddDeckCardForm({
           {found !== undefined && found.length > 0 && (
             <ul className="picker__results" data-testid="deck-card-results">
               {found.slice(0, 20).map((entry) => (
-                <li key={`${entry.cardId}|${entry.languageCode}`}>
+                <li key={`${entry.cardId}|${entry.languageCode}|${entry.cardSetId}`}>
                   <button
                     type="button"
                     className="picker__option"
                     data-testid="deck-card-option"
                     data-card-id={entry.cardId}
                     data-language={entry.languageCode}
+                    data-card-set-id={entry.cardSetId}
                     onClick={() => choose(entry)}
                   >
                     <span>
-                      {stockEntryLabel(entry)} ({entry.languageCode})
+                      {stockEntryLabel(entry)} ({entry.languageCode},{" "}
+                      {cardSetLabelById(entry.cardSetId, cardSets.byId)})
                     </span>
-                    <small>
-                      possédé : {entry.quantityOwned}
-                      {entry.proxyAllowed ? " · proxy autorisé" : ""}
-                    </small>
+                    <small>possédé : {entry.quantityOwned}</small>
                   </button>
                 </li>
               ))}

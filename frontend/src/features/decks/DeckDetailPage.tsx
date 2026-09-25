@@ -21,6 +21,7 @@ function DeckEditForm({ deck, onDone }: { deck: LocalDeck; onDone: () => void })
   const [name, setName] = useState(deck.name);
   const [archetype, setArchetype] = useState(deck.archetype ?? "");
   const [notes, setNotes] = useState(deck.notes ?? "");
+  const [proxyAllowed, setProxyAllowed] = useState(deck.proxyAllowed);
   const [invalid, setInvalid] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
@@ -33,6 +34,7 @@ function DeckEditForm({ deck, onDone }: { deck: LocalDeck; onDone: () => void })
     if (trimmed !== deck.name) patch.name = trimmed;
     if (archetype.trim() !== (deck.archetype ?? "")) patch.archetype = archetype.trim() || null;
     if (notes.trim() !== (deck.notes ?? "")) patch.notes = notes.trim() || null;
+    if (proxyAllowed !== deck.proxyAllowed) patch.proxyAllowed = proxyAllowed;
     if (Object.keys(patch).length === 0) return onDone();
     const done = await action.run(() => actions.updateDeck(deck.key, patch));
     if (done) onDone();
@@ -58,6 +60,18 @@ function DeckEditForm({ deck, onDone }: { deck: LocalDeck; onDone: () => void })
       <div className="field">
         <label htmlFor={`${formId}-notes`}>Notes</label>
         <input id={`${formId}-notes`} value={notes} onChange={(event) => setNotes(event.target.value)} />
+      </div>
+      <div className="field field--check">
+        <input
+          id={`${formId}-proxy-allowed`}
+          type="checkbox"
+          checked={proxyAllowed}
+          onChange={(event) => setProxyAllowed(event.target.checked)}
+          data-testid="deck-edit-proxy-allowed"
+        />
+        <label htmlFor={`${formId}-proxy-allowed`}>
+          Proxies autorisés (deck compatible avec un tournoi qui les accepte)
+        </label>
       </div>
       {invalid && (
         <p className="error" role="alert">
@@ -110,6 +124,11 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             {DECK_STATUS_LABELS[deck.status]}
           </span>
           {archived && <span className="badge">Archivé</span>}
+          {deck.proxyAllowed && (
+            <span className="badge badge--info" data-testid="deck-proxy-allowed">
+              Proxies autorisés
+            </span>
+          )}
           {deck.pending && (
             <span className="badge badge--pending" data-testid="pending-badge">
               En attente de synchronisation

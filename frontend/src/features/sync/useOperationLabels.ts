@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from "react";
-import { plural } from "../../labels";
+import { cardSetLabelById, plural } from "../../labels";
 import { useLiveQuery } from "../../offline/react";
 import { type OutboxEntry } from "../../offline/core";
 import { useLocalDecks, useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import { useCardSetOptions } from "../stock/useCardSetOptions";
 
 type Entry = OutboxEntry<VtesOperation>;
 
@@ -16,6 +17,7 @@ const quote = (name: string) => `« ${name} »`;
 export function useOperationDescriber(entries: readonly Entry[]) {
   const { db } = useVtesOffline();
   const decks = useLocalDecks({ state: "all" });
+  const cardSets = useCardSetOptions();
 
   const cardIds = useMemo(() => {
     const ids = new Set<number>();
@@ -58,16 +60,16 @@ export function useOperationDescriber(entries: readonly Entry[]) {
         }
         return ref.deck_id != null ? `deck n° ${ref.deck_id}` : "deck inconnu";
       };
+      const set = (id: number) => cardSetLabelById(id, cardSets.byId);
       switch (operation.type) {
         case "stock.upsert": {
-          const { card_id, language_code, quantity_owned = 0, proxy_allowed = false } =
-            operation.data;
-          return `Collection : ${card(card_id)} (${language_code}), ${plural(quantity_owned, "exemplaire")}${proxy_allowed ? ", proxy autorisé" : ""}`;
+          const { card_id, language_code, card_set_id, quantity_owned = 0 } = operation.data;
+          return `Collection : ${card(card_id)} (${language_code}, ${set(card_set_id)}), ${plural(quantity_owned, "exemplaire")}`;
         }
         case "stock.delete":
-          return `Collection : retrait de ${card(operation.card_id)} (${operation.language_code})`;
+          return `Collection : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
         case "deck.create":
-          return `Création du deck ${quote(operation.data.name)}`;
+          return `Création du deck ${quote(operation.data.name)}${operation.data.proxy_allowed ? " (proxies autorisés)" : ""}`;
         case "deck.update": {
           const changes: string[] = [];
           const { data } = operation;
@@ -76,21 +78,23 @@ export function useOperationDescriber(entries: readonly Entry[]) {
           if (data.status === "active") changes.push("passage en actif");
           if (data.status === "draft") changes.push("retour en brouillon");
           if (data.name !== undefined) changes.push(`renommage en ${quote(data.name)}`);
+          if (data.proxy_allowed === true) changes.push("autorisation des proxies");
+          if (data.proxy_allowed === false) changes.push("interdiction des proxies");
           if (data.archetype !== undefined || data.notes !== undefined) changes.push("informations");
           return `Deck ${deck(operation.deck)} : ${changes.join(", ") || "modification"}`;
         }
         case "deck.delete":
           return `Suppression du deck ${deck(operation.deck)}`;
         case "deck_card.upsert": {
-          const { card_id, language_code, quantity, proxy_quantity = 0 } = operation.data;
-          return `Deck ${deck(operation.deck)} : ${quantity} × ${card(card_id)} (${language_code})${proxy_quantity > 0 ? `, dont ${proxy_quantity} en proxy` : ""}`;
+          const { card_id, language_code, card_set_id, quantity, proxy_quantity = 0 } = operation.data;
+          return `Deck ${deck(operation.deck)} : ${quantity} × ${card(card_id)} (${language_code}, ${set(card_set_id)})${proxy_quantity > 0 ? `, dont ${proxy_quantity} en proxy` : ""}`;
         }
         case "deck_card.delete":
-          return `Deck ${deck(operation.deck)} : retrait de ${card(operation.card_id)} (${operation.language_code})`;
+          return `Deck ${deck(operation.deck)} : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
         case "bundle.deposit":
           return `Versement du produit n° ${operation.bundle_id} (${operation.data.language_code}, ${plural(operation.data.count ?? 1, "exemplaire")})`;
       }
     },
-    [cardNames, decks, entries],
+    [cardNames, cardSets.byId, decks, entries],
   );
 }

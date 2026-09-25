@@ -23,6 +23,7 @@ import {
   type StockInput,
 } from "./operations";
 import {
+  refreshCardSets,
   refreshCatalog,
   refreshDecks,
   refreshLanguages,
@@ -42,14 +43,19 @@ type Entry = OutboxEntry<VtesOperation>;
  */
 export interface VtesActions {
   saveStock(input: StockInput): Promise<Entry>;
-  removeStock(cardId: number, languageCode: string): Promise<Entry>;
+  removeStock(cardId: number, languageCode: string, cardSetId: number): Promise<Entry>;
   /** Le deck n'a pas d'identifiant serveur : la référence rendue le désigne d'ici là. */
   createDeck(input: DeckInput): Promise<{ clientRef: string; key: DeckKey; entry: Entry }>;
   updateDeck(deck: DeckTarget, patch: DeckPatch): Promise<Entry>;
   archiveDeck(deck: DeckTarget, archived?: boolean): Promise<Entry>;
   deleteDeck(deck: DeckTarget): Promise<Entry>;
   saveDeckCard(deck: DeckTarget, input: DeckCardInput): Promise<Entry>;
-  removeDeckCard(deck: DeckTarget, cardId: number, languageCode: string): Promise<Entry>;
+  removeDeckCard(
+    deck: DeckTarget,
+    cardId: number,
+    languageCode: string,
+    cardSetId: number,
+  ): Promise<Entry>;
   depositBundle(bundleId: number, languageCode: string, count?: number): Promise<Entry>;
 }
 
@@ -120,6 +126,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
 
     const steps: Array<[string, () => Promise<number>]> = [
       ["languages", () => refreshLanguages(client, db)],
+      ["cardSets", () => refreshCardSets(client, db)],
       ["stock", () => refreshStock(client, db)],
       ["decks", () => refreshDecks(client, db)],
     ];
@@ -237,8 +244,8 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
         stockUpsert(clock, { ...input, languageCode: await language(input.languageCode) }),
       );
     },
-    async removeStock(cardId, languageCode) {
-      return enqueue(stockDelete(clock, cardId, await language(languageCode)));
+    async removeStock(cardId, languageCode, cardSetId) {
+      return enqueue(stockDelete(clock, cardId, await language(languageCode), cardSetId));
     },
     async createDeck(input) {
       const clientRef = newUuid();
@@ -259,8 +266,8 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
         deckCardUpsert(clock, deck, { ...input, languageCode: await language(input.languageCode) }),
       );
     },
-    async removeDeckCard(deck, cardId, languageCode) {
-      return enqueue(deckCardDelete(clock, deck, cardId, await language(languageCode)));
+    async removeDeckCard(deck, cardId, languageCode, cardSetId) {
+      return enqueue(deckCardDelete(clock, deck, cardId, await language(languageCode), cardSetId));
     },
     async depositBundle(bundleId, languageCode, count) {
       return enqueue(bundleDeposit(clock, bundleId, await language(languageCode), count));

@@ -15,7 +15,7 @@ const execFileAsync = promisify(execFile);
  *   explicitement, sur un fichier d'un dossier temporaire créé ici ; un garde
  *   refuse tout chemin hors de ce dossier.
  * - Une base « modèle » est construite **une fois par worker** (`alembic upgrade
- *   head`, puis l'import du catalogue depuis l'échantillon figé de neuf cartes
+ *   head`, puis l'import du catalogue depuis l'échantillon figé de dix cartes
  *   de `backend/tests/fixtures`). Chaque test en reçoit une **copie** et un
  *   uvicorn neuf : les scénarios ne se voient jamais.
  * - Démarrage et arrêt sont portables : le python du venv du back est lancé

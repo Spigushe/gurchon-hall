@@ -47,25 +47,25 @@ describe("identifiants et horodatage", () => {
 
 describe("constructeurs d'opérations (charge utile du contrat)", () => {
   it("stock.upsert : clé et instant fixés à la saisie, champs omis absents", () => {
-    const op = ops.stockUpsert(clock, { cardId: 5, languageCode: "FR", quantityOwned: 2 });
+    const op = ops.stockUpsert(clock, { cardId: 5, languageCode: "FR", cardSetId: 9, quantityOwned: 2 });
     expect(op).toEqual({
       type: "stock.upsert",
       operation_id: clock.newId(),
       recorded_at: "2026-09-20T14:03:11.123+02:00",
-      data: { card_id: 5, language_code: "FR", quantity_owned: 2 },
+      data: { card_id: 5, language_code: "FR", card_set_id: 9, quantity_owned: 2 },
     });
     // Aucune clé `undefined` : la représentation JSON est celle qui est empreintée.
-    expect(Object.keys(op.data)).toEqual(["card_id", "language_code", "quantity_owned"]);
+    expect(Object.keys(op.data)).toEqual(["card_id", "language_code", "card_set_id", "quantity_owned"]);
   });
 
   it("distingue effacer une note (null explicite) de ne pas y toucher", () => {
-    const erased = ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", notes: null });
-    const untouched = ops.stockUpsert(clock, { cardId: 1, languageCode: "EN" });
+    const erased = ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9, notes: null });
+    const untouched = ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9 });
     expect(erased.data).toHaveProperty("notes", null);
     expect(untouched.data).not.toHaveProperty("notes");
   });
 
-  it("deck.create porte la référence client, sans discriminant", () => {
+  it("deck.create porte la référence client, sans discriminant, proxy_allowed facultatif", () => {
     const op = ops.deckCreate(clock, "ref-1", { name: "Malkavien", status: "draft" });
     expect(op).toMatchObject({
       type: "deck.create",
@@ -73,6 +73,10 @@ describe("constructeurs d'opérations (charge utile du contrat)", () => {
       data: { name: "Malkavien", status: "draft" },
     });
     expect(op.data).not.toHaveProperty("discriminator");
+    expect(op.data).not.toHaveProperty("proxy_allowed");
+
+    const withProxy = ops.deckCreate(clock, "ref-2", { name: "Gangrel", proxyAllowed: true });
+    expect(withProxy.data).toMatchObject({ proxy_allowed: true });
   });
 
   it("désigne un deck par id ou par référence client, jamais les deux", () => {
@@ -89,15 +93,21 @@ describe("constructeurs d'opérations (charge utile du contrat)", () => {
     expect(op).toMatchObject({ type: "deck.update", deck: { deck_id: 4 }, data: { archived: true } });
   });
 
+  it("deck.update : proxy_allowed voyage comme les autres champs facultatifs", () => {
+    const op = ops.deckUpdate(clock, "id:4", { proxyAllowed: false });
+    expect(op).toMatchObject({ data: { proxy_allowed: false } });
+    expect(ops.deckUpdate(clock, "id:4", { name: "x" }).data).not.toHaveProperty("proxy_allowed");
+  });
+
   it("couvre les huit types d'opérations du contrat", () => {
     const all = [
-      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN" }),
-      ops.stockDelete(clock, 1, "EN"),
+      ops.stockUpsert(clock, { cardId: 1, languageCode: "EN", cardSetId: 9 }),
+      ops.stockDelete(clock, 1, "EN", 9),
       ops.deckCreate(clock, "r", { name: "d" }),
       ops.deckUpdate(clock, "ref:r", { name: "e" }),
       ops.deckDelete(clock, "ref:r"),
-      ops.deckCardUpsert(clock, "ref:r", { cardId: 1, languageCode: "EN", quantity: 2 }),
-      ops.deckCardDelete(clock, "ref:r", 1, "EN"),
+      ops.deckCardUpsert(clock, "ref:r", { cardId: 1, languageCode: "EN", cardSetId: 9, quantity: 2 }),
+      ops.deckCardDelete(clock, "ref:r", 1, "EN", 9),
       ops.bundleDeposit(clock, 9, "EN", 2),
     ];
     expect(all.map((op) => op.type)).toEqual([
@@ -147,8 +157,8 @@ describe("langue inconnue : repli sur XX", () => {
       await db.stock.put({
         cardId: 1,
         languageCode: "PT",
+        cardSetId: 9,
         quantityOwned: 1,
-        proxyAllowed: false,
         notes: null,
         cardName: null,
         foldedName: "",

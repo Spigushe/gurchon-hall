@@ -7,8 +7,14 @@ export type {
   VtesOfflineOptions,
   VtesOfflineRuntime,
 } from "./runtime";
-export { DEFAULT_DB_NAME, VtesOfflineDb, VTES_STORES_V1 } from "./db";
-export type { CardRow, DeckCardRow, DeckRow, LanguageRow, StockRow } from "./db";
+export {
+  DEFAULT_DB_NAME,
+  VtesOfflineDb,
+  VTES_STORES_V1,
+  VTES_STORES_V2,
+  VTES_STORES_V3,
+} from "./db";
+export type { CardRow, CardSetRow, DeckCardRow, DeckRow, LanguageRow, StockRow } from "./db";
 export {
   FALLBACK_LANGUAGE,
   SEEDED_LANGUAGES,
@@ -21,6 +27,7 @@ export type { DeckCardInput, DeckInput, DeckPatch, OperationClock, StockInput } 
 export { project } from "./overlay";
 export type { LocalDeck, LocalDeckCard, LocalStockEntry, Projection, Snapshot } from "./overlay";
 export {
+  readCardSets,
   readDeck,
   readDeckCards,
   readDecks,
@@ -29,7 +36,13 @@ export {
   searchCards,
 } from "./reads";
 export type { CardQuery, DeckListState, DeckQuery, StockQuery } from "./reads";
-export { refreshCatalog, refreshDecks, refreshLanguages, refreshStock } from "./refresh";
+export {
+  refreshCardSets,
+  refreshCatalog,
+  refreshDecks,
+  refreshLanguages,
+  refreshStock,
+} from "./refresh";
 export { createVtesSyncTransport, describeErrorBody, toVerdict } from "./transport";
 export { deckKeyOf, parseDeckKey, toDeckRef } from "./types";
 export type {
@@ -44,6 +57,7 @@ export { VtesOfflineContext, useVtesOffline } from "./context";
 export { VtesOfflineProvider } from "./VtesOfflineProvider";
 export {
   useLocalCardSearch,
+  useLocalCardSets,
   useLocalDeck,
   useLocalDeckCards,
   useLocalDecks,

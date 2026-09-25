@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useGuardedAction } from "../../components/useGuardedAction";
-import { CATEGORY_LABELS, stockEntryLabel } from "../../labels";
+import { CATEGORY_LABELS, cardSetLabelById, stockEntryLabel } from "../../labels";
 import { useVtesOffline, type LocalStockEntry } from "../../offline/vtes";
+import { useCardSetOptions } from "./useCardSetOptions";
 
 function StockRow({
   entry,
@@ -11,19 +12,21 @@ function StockRow({
   onEdit: (entry: LocalStockEntry) => void;
 }) {
   const { actions } = useVtesOffline();
+  const cardSets = useCardSetOptions();
   const action = useGuardedAction();
   const [confirming, setConfirming] = useState(false);
   const name = stockEntryLabel(entry);
   const who = `${name} (${entry.languageCode})`;
 
-  // Un upsert porte l'état complet : quantité, proxy et notes partent ensemble.
+  // Un upsert porte l'état complet : quantité et notes partent ensemble.
+  // L'extension fait partie de l'identité de la ligne (Lot 4) : elle ne change pas ici.
   const setQuantity = (quantityOwned: number) =>
     action.run(() =>
       actions.saveStock({
         cardId: entry.cardId,
         languageCode: entry.languageCode,
+        cardSetId: entry.cardSetId,
         quantityOwned,
-        proxyAllowed: entry.proxyAllowed,
         notes: entry.notes,
       }),
     );
@@ -40,8 +43,10 @@ function StockRow({
       <div className="row__main">
         <strong data-testid="stock-entry-name">{name}</strong>
         <span className="badge">{entry.languageCode}</span>
+        <span className="badge" data-testid="stock-entry-card-set">
+          {cardSetLabelById(entry.cardSetId, cardSets.byId)}
+        </span>
         {entry.category && <span className="hint">{CATEGORY_LABELS[entry.category]}</span>}
-        {entry.proxyAllowed && <span className="badge badge--info">Proxy autorisé</span>}
         {entry.pending && (
           <span className="badge badge--pending" data-testid="pending-badge">
             En attente de synchronisation
@@ -89,7 +94,7 @@ function StockRow({
               data-testid="stock-entry-delete-confirm"
               onClick={() =>
                 void action
-                  .run(() => actions.removeStock(entry.cardId, entry.languageCode))
+                  .run(() => actions.removeStock(entry.cardId, entry.languageCode, entry.cardSetId))
                   .then((done) => done && setConfirming(false))
               }
             >
@@ -145,7 +150,7 @@ export function StockList({
     <ul className="list" data-testid="stock-list">
       {entries.map((entry) => (
         <StockRow
-          key={`${entry.cardId}|${entry.languageCode}`}
+          key={`${entry.cardId}|${entry.languageCode}|${entry.cardSetId}`}
           entry={entry}
           onEdit={onEdit}
         />

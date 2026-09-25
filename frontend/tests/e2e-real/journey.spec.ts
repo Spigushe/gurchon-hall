@@ -50,7 +50,7 @@ test("saisie hors ligne, rechargement hors ligne, rejeu au retour du réseau", a
 
   await goToStock(page);
   await addStock(page, { search: "aura", card: CARDS.aura, quantity: 3, language: "FR" });
-  await addStock(page, { search: "awe", card: CARDS.awe, quantity: 2, language: "EN", proxyAllowed: true });
+  await addStock(page, { search: "awe", card: CARDS.awe, quantity: 2, language: "EN" });
   await expect(stockEntry(page, aura, "FR")).toHaveAttribute("data-quantity", "3");
   await expect(stockEntry(page, aura, "FR")).toHaveAttribute("data-pending", "true");
   await expect(stockEntry(page, awe, "EN")).toHaveAttribute("data-quantity", "2");
@@ -105,12 +105,10 @@ test("saisie hors ligne, rechargement hors ligne, rejeu au retour du réseau", a
   expect(stock.find((line) => line.card_id === aura)).toMatchObject({
     language_code: "FR",
     quantity_owned: 3,
-    proxy_allowed: false,
   });
   expect(stock.find((line) => line.card_id === awe)).toMatchObject({
     language_code: "EN",
     quantity_owned: 2,
-    proxy_allowed: true,
   });
   const decks = await api.get<Array<{ id: number }>>("/decks");
   expect(decks).toHaveLength(1);

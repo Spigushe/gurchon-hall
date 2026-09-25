@@ -27,6 +27,7 @@
 export const API_ROUTE_PREFIXES: readonly string[] = [
   "/health",
   "/cartes",
+  "/extensions",
   "/bundles",
   "/langues",
   "/stock",

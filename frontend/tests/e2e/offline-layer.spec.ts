@@ -108,7 +108,8 @@ test.describe("couche offline dans le navigateur", () => {
                   ),
                 };
               }
-              // Dexie multiplie la version par 10 : la version 2 du schéma est 20 côté IndexedDB.
+              // Dexie multiplie la version par 10 : la version 4 du schéma (Lot 4, extension
+              // dans la clé de `stock` et `deckCards`, cf. `offline/vtes/db.ts`) est 40 côté IndexedDB.
               const version = db.version;
               db.close();
               resolve({ version, stores });
@@ -118,15 +119,22 @@ test.describe("couche offline dans le navigateur", () => {
         }),
     );
 
-    expect(schema.version).toBe(20);
+    expect(schema.version).toBe(40);
     expect(Object.keys(schema.stores).sort()).toEqual(
-      ["cards", "deckCards", "decks", "languages", "meta", "outbox", "refs", "settled", "stock"].sort(),
+      ["cardSets", "cards", "deckCards", "decks", "languages", "meta", "outbox", "refs", "settled", "stock"].sort(),
     );
     expect(schema.stores.outbox.keyPath).toBe("operationId");
     expect(schema.stores.outbox.indexes.rank).toBe(true); // rang unique : l'ordre de la file
     expect(schema.stores.refs.keyPath).toBe("ref");
     expect(schema.stores.settled.keyPath).toBe("seq"); // opérations tranchées, clé auto-incrémentée
-    expect(schema.stores.stock.keyPath).toEqual(["cardId", "languageCode"]);
+    // Identité carte × langue × extension (Lot 4) : l'extension entre dans la clé.
+    expect(schema.stores.stock.keyPath).toEqual(["cardId", "languageCode", "cardSetId"]);
+    expect(schema.stores.deckCards.keyPath).toEqual([
+      "deckId",
+      "cardId",
+      "languageCode",
+      "cardSetId",
+    ]);
 
     await context.setOffline(false);
   });

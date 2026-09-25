@@ -34,9 +34,11 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
   const [proxyQuantity, setProxyQuantity] = useState(() =>
     operation.type === "deck_card.upsert" ? String(operation.data.proxy_quantity ?? 0) : "",
   );
-  const [proxyAllowed, setProxyAllowed] = useState(
-    operation.type === "stock.upsert" ? (operation.data.proxy_allowed ?? false) : false,
-  );
+  const [proxyAllowed, setProxyAllowed] = useState(() => {
+    if (operation.type === "deck.create") return operation.data.proxy_allowed ?? false;
+    if (operation.type === "deck.update") return operation.data.proxy_allowed ?? false;
+    return false;
+  });
   const [name, setName] = useState(() => {
     if (operation.type === "deck.create") return operation.data.name;
     if (operation.type === "deck.update") return operation.data.name ?? "";
@@ -55,9 +57,7 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
         const owned = toInt(quantity);
         if (owned === null) return setInvalid("Indiquez un nombre d'exemplaires entier, 0 ou plus.");
         transform = (op) =>
-          op.type === "stock.upsert"
-            ? { ...op, data: { ...op.data, quantity_owned: owned, proxy_allowed: proxyAllowed } }
-            : op;
+          op.type === "stock.upsert" ? { ...op, data: { ...op.data, quantity_owned: owned } } : op;
         break;
       }
       case "deck_card.upsert": {
@@ -84,7 +84,9 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
         const trimmed = name.trim();
         if (!trimmed) return setInvalid("Le nom du deck est obligatoire.");
         transform = (op) =>
-          op.type === "deck.create" ? { ...op, data: { ...op.data, name: trimmed } } : op;
+          op.type === "deck.create"
+            ? { ...op, data: { ...op.data, name: trimmed, proxy_allowed: proxyAllowed } }
+            : op;
         break;
       }
       case "deck.update": {
@@ -100,6 +102,7 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
                   ...op.data,
                   ...(op.data.name !== undefined ? { name: trimmed } : {}),
                   ...(op.data.status !== undefined ? { status } : {}),
+                  ...(op.data.proxy_allowed !== undefined ? { proxy_allowed: proxyAllowed } : {}),
                 },
               }
             : op;
@@ -157,7 +160,8 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
           />
         </div>
       )}
-      {operation.type === "stock.upsert" && (
+      {(operation.type === "deck.create" ||
+        (operation.type === "deck.update" && operation.data.proxy_allowed !== undefined)) && (
         <div className="field field--check">
           <input
             id={`${formId}-proxy-allowed`}
@@ -165,7 +169,7 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
             checked={proxyAllowed}
             onChange={(event) => setProxyAllowed(event.target.checked)}
           />
-          <label htmlFor={`${formId}-proxy-allowed`}>Proxy autorisé</label>
+          <label htmlFor={`${formId}-proxy-allowed`}>Proxies autorisés</label>
         </div>
       )}
       {(operation.type === "deck.create" ||

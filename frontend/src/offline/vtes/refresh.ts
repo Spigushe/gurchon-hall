@@ -1,7 +1,15 @@
 import { foldText } from "../core/foldText";
 import { lastSettledSeq, pruneSettled } from "../core/settled";
 import type { components } from "../../api-client/schema.d.ts";
-import type { CardRow, DeckCardRow, DeckRow, LanguageRow, StockRow, VtesOfflineDb } from "./db";
+import type {
+  CardRow,
+  CardSetRow,
+  DeckCardRow,
+  DeckRow,
+  LanguageRow,
+  StockRow,
+  VtesOfflineDb,
+} from "./db";
 import type { ApiClient } from "./types";
 
 type Schemas = components["schemas"];
@@ -63,6 +71,24 @@ export async function refreshLanguages(client: ApiClient, db: VtesOfflineDb): Pr
   return rows.length;
 }
 
+/** Extensions du catalogue (miroir de `GET /extensions`, Lot 4). */
+export async function refreshCardSets(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const cardSets = unwrap(await client.GET("/extensions"), "GET /extensions");
+  const rows: CardSetRow[] = cardSets.map((cardSet) => ({
+    id: cardSet.id,
+    abbrev: cardSet.abbrev,
+    fullName: cardSet.full_name,
+    releaseDate: cardSet.release_date,
+    company: cardSet.company,
+    isPlaceholder: cardSet.is_placeholder,
+  }));
+  await db.transaction("rw", db.cardSets, async () => {
+    await db.cardSets.clear();
+    await db.cardSets.bulkPut(rows);
+  });
+  return rows.length;
+}
+
 export async function refreshStock(client: ApiClient, db: VtesOfflineDb): Promise<number> {
   const settledUpTo = await lastSettledSeq(db);
   const entries = await pages(async (offset) =>
@@ -74,8 +100,8 @@ export async function refreshStock(client: ApiClient, db: VtesOfflineDb): Promis
   const rows: StockRow[] = entries.map((entry) => ({
     cardId: entry.card_id,
     languageCode: entry.language_code,
+    cardSetId: entry.card_set_id,
     quantityOwned: entry.quantity_owned,
-    proxyAllowed: entry.proxy_allowed,
     notes: entry.notes,
     cardName: entry.card?.name ?? null,
     foldedName: foldText(entry.card?.name ?? ""),
@@ -114,6 +140,7 @@ export async function refreshDecks(client: ApiClient, db: VtesOfflineDb): Promis
     status: deck.status,
     archetype: deck.archetype,
     notes: deck.notes,
+    proxyAllowed: deck.proxy_allowed,
     archivedAt: deck.archived_at,
   }));
   const deckCards: DeckCardRow[] = details.flatMap((deck) =>
@@ -121,6 +148,7 @@ export async function refreshDecks(client: ApiClient, db: VtesOfflineDb): Promis
       deckId: deck.id,
       cardId: line.card_id,
       languageCode: line.language_code,
+      cardSetId: line.card_set_id,
       quantity: line.quantity,
       proxyQuantity: line.proxy_quantity,
       cardName: line.card?.name ?? null,
@@ -155,6 +183,8 @@ export async function refreshCatalog(client: ApiClient, db: VtesOfflineDb): Prom
     groupCode: card.group_code,
     advanced: card.advanced,
     imageUrl: card.image_url,
+    cardSetIds: card.card_set_ids,
+    latestCardSetId: card.latest_card_set_id,
   }));
   await db.transaction("rw", db.cards, async () => {
     await db.cards.clear();

@@ -41,8 +41,13 @@ function defined<T extends object>(fields: T): T {
 export interface StockInput {
   cardId: number;
   languageCode: string;
+  /**
+   * Extension de l'impression (`GET /extensions`), obligatoire depuis le
+   * Lot 4 : le couple carte × extension doit être une impression du
+   * catalogue, sinon 404 (`not_found` par `/sync`).
+   */
+  cardSetId: number;
   quantityOwned?: number;
-  proxyAllowed?: boolean;
   notes?: string | null;
 }
 
@@ -57,8 +62,8 @@ export function stockUpsert(
     data: defined({
       card_id: input.cardId,
       language_code: input.languageCode,
+      card_set_id: input.cardSetId,
       quantity_owned: input.quantityOwned,
-      proxy_allowed: input.proxyAllowed,
       notes: input.notes,
     }),
   };
@@ -68,6 +73,7 @@ export function stockDelete(
   clock: OperationClock,
   cardId: number,
   languageCode: string,
+  cardSetId: number,
 ): OperationOf<"stock.delete"> {
   return {
     type: "stock.delete",
@@ -75,6 +81,7 @@ export function stockDelete(
     recorded_at: clock.now(),
     card_id: cardId,
     language_code: languageCode,
+    card_set_id: cardSetId,
   };
 }
 
@@ -84,6 +91,11 @@ export interface DeckInput {
   status?: Schemas["DeckStatus"];
   archetype?: string | null;
   notes?: string | null;
+  /**
+   * Autorise les proxies dans ce deck (Lot 4) : ce n'est plus une propriété
+   * de l'entrée de collection. Interdit par défaut si omis.
+   */
+  proxyAllowed?: boolean;
 }
 
 export function deckCreate(
@@ -102,6 +114,7 @@ export function deckCreate(
       status: input.status,
       archetype: input.archetype,
       notes: input.notes,
+      proxy_allowed: input.proxyAllowed,
     }),
   };
 }
@@ -112,6 +125,8 @@ export interface DeckPatch {
   status?: Schemas["DeckStatus"];
   archetype?: string | null;
   notes?: string | null;
+  /** Autorise (`true`) ou interdit (`false`) les proxies dans ce deck (Lot 4). */
+  proxyAllowed?: boolean;
   /** `true` range le deck, `false` le sort de l'archive. */
   archived?: boolean;
 }
@@ -132,6 +147,7 @@ export function deckUpdate(
       status: patch.status,
       archetype: patch.archetype,
       notes: patch.notes,
+      proxy_allowed: patch.proxyAllowed,
       archived: patch.archived,
     }),
   };
@@ -149,6 +165,12 @@ export function deckDelete(clock: OperationClock, deck: DeckTarget): OperationOf
 export interface DeckCardInput {
   cardId: number;
   languageCode: string;
+  /**
+   * Extension de l'impression allouée (`GET /extensions`), obligatoire depuis
+   * le Lot 4 : le couple carte × extension doit être une impression du
+   * catalogue, sinon 404 (`not_found` par `/sync`).
+   */
+  cardSetId: number;
   quantity: number;
   proxyQuantity?: number;
 }
@@ -166,6 +188,7 @@ export function deckCardUpsert(
     data: defined({
       card_id: input.cardId,
       language_code: input.languageCode,
+      card_set_id: input.cardSetId,
       quantity: input.quantity,
       proxy_quantity: input.proxyQuantity,
     }),
@@ -177,6 +200,7 @@ export function deckCardDelete(
   deck: DeckTarget,
   cardId: number,
   languageCode: string,
+  cardSetId: number,
 ): OperationOf<"deck_card.delete"> {
   return {
     type: "deck_card.delete",
@@ -185,6 +209,7 @@ export function deckCardDelete(
     deck: toDeckRef(deck),
     card_id: cardId,
     language_code: languageCode,
+    card_set_id: cardSetId,
   };
 }
 

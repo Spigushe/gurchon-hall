@@ -9,7 +9,11 @@ export function isCorrectable(operation: VtesOperation): boolean {
     case "bundle.deposit":
       return true;
     case "deck.update":
-      return operation.data.name !== undefined || operation.data.status !== undefined;
+      return (
+        operation.data.name !== undefined ||
+        operation.data.status !== undefined ||
+        operation.data.proxy_allowed !== undefined
+      );
     default:
       return false;
   }

@@ -6,8 +6,9 @@ import type { CardCategory, DeckKey, DeckStatus, VtesOperation } from "./types";
 export interface LocalStockEntry {
   cardId: number;
   languageCode: string;
+  /** Extension de l'impression possédée (Lot 4). */
+  cardSetId: number;
   quantityOwned: number;
-  proxyAllowed: boolean;
   notes: string | null;
   cardName: string | null;
   category: CardCategory | null;
@@ -29,6 +30,8 @@ export interface LocalDeck {
   status: DeckStatus;
   archetype: string | null;
   notes: string | null;
+  /** Autorisation de proxy du deck (Lot 4) : plus une propriété de l'entrée de collection. */
+  proxyAllowed: boolean;
   archivedAt: string | null;
   pending: boolean;
 }
@@ -36,6 +39,8 @@ export interface LocalDeck {
 export interface LocalDeckCard {
   cardId: number;
   languageCode: string;
+  /** Extension de l'entrée de collection allouée (Lot 4). */
+  cardSetId: number;
   quantity: number;
   proxyQuantity: number;
   cardName: string | null;
@@ -57,7 +62,9 @@ export interface Projection {
   deckCards: Map<DeckKey, LocalDeckCard[]>;
 }
 
-const pairKey = (cardId: number, languageCode: string) => `${cardId}|${languageCode}`;
+/** Clé d'une entrée carte × langue × extension (Lot 4). */
+const pairKey = (cardId: number, languageCode: string, cardSetId: number) =>
+  `${cardId}|${languageCode}|${cardSetId}`;
 
 /**
  * Lecture locale = instantané du serveur **plus** opérations tranchées dont le
@@ -91,11 +98,11 @@ export function project(
   // --- Instantané ---
   const stock = new Map<string, LocalStockEntry>();
   for (const row of snapshot.stock) {
-    stock.set(pairKey(row.cardId, row.languageCode), {
+    stock.set(pairKey(row.cardId, row.languageCode, row.cardSetId), {
       cardId: row.cardId,
       languageCode: row.languageCode,
+      cardSetId: row.cardSetId,
       quantityOwned: row.quantityOwned,
-      proxyAllowed: row.proxyAllowed,
       notes: row.notes,
       cardName: row.cardName ?? cardsById.get(row.cardId)?.name ?? null,
       category: row.category ?? cardsById.get(row.cardId)?.category ?? null,
@@ -119,6 +126,7 @@ export function project(
       status: row.status,
       archetype: row.archetype,
       notes: row.notes,
+      proxyAllowed: row.proxyAllowed,
       archivedAt: row.archivedAt,
       pending: false,
     });
@@ -131,9 +139,10 @@ export function project(
     const key = keyByDeckId.get(row.deckId);
     if (!key) continue;
     const cards = deckCards.get(key) ?? new Map<string, LocalDeckCard>();
-    cards.set(pairKey(row.cardId, row.languageCode), {
+    cards.set(pairKey(row.cardId, row.languageCode, row.cardSetId), {
       cardId: row.cardId,
       languageCode: row.languageCode,
+      cardSetId: row.cardSetId,
       quantity: row.quantity,
       proxyQuantity: row.proxyQuantity,
       cardName: row.cardName ?? cardsById.get(row.cardId)?.name ?? null,
@@ -158,23 +167,29 @@ export function project(
   const apply = (operation: VtesOperation, pending: boolean) => {
     switch (operation.type) {
       case "stock.upsert": {
-        const { card_id: cardId, language_code: languageCode, ...rest } = operation.data;
+        const {
+          card_id: cardId,
+          language_code: languageCode,
+          card_set_id: cardSetId,
+          ...rest
+        } = operation.data;
         const card = cardsById.get(cardId);
-        stock.set(pairKey(cardId, languageCode), {
+        const key = pairKey(cardId, languageCode, cardSetId);
+        stock.set(key, {
           cardId,
           languageCode,
+          cardSetId,
           // État complet voulu : ce qui n'est pas fourni prend la valeur par défaut.
           quantityOwned: rest.quantity_owned ?? 0,
-          proxyAllowed: rest.proxy_allowed ?? false,
           notes: rest.notes ?? null,
-          cardName: card?.name ?? stock.get(pairKey(cardId, languageCode))?.cardName ?? null,
-          category: card?.category ?? stock.get(pairKey(cardId, languageCode))?.category ?? null,
+          cardName: card?.name ?? stock.get(key)?.cardName ?? null,
+          category: card?.category ?? stock.get(key)?.category ?? null,
           pending,
         });
         break;
       }
       case "stock.delete":
-        stock.delete(pairKey(operation.card_id, operation.language_code));
+        stock.delete(pairKey(operation.card_id, operation.language_code, operation.card_set_id));
         break;
       case "deck.create": {
         const key: DeckKey = `ref:${operation.client_ref}`;
@@ -194,6 +209,7 @@ export function project(
           status: data.status ?? "draft",
           archetype: data.archetype ?? null,
           notes: data.notes ?? null,
+          proxyAllowed: data.proxy_allowed ?? false,
           archivedAt: null,
           pending,
         });
@@ -214,6 +230,7 @@ export function project(
           status: data.status ?? deck.status,
           archetype: data.archetype !== undefined ? data.archetype : deck.archetype,
           notes: data.notes !== undefined ? data.notes : deck.notes,
+          proxyAllowed: data.proxy_allowed ?? deck.proxyAllowed,
           archivedAt:
             data.archived === undefined
               ? deck.archivedAt
@@ -235,16 +252,22 @@ export function project(
         const key = resolveDeck(operation.deck);
         const deck = key && decks.get(key);
         if (!key || !deck) break;
-        const { card_id: cardId, language_code: languageCode, quantity, proxy_quantity } =
-          operation.data;
+        const {
+          card_id: cardId,
+          language_code: languageCode,
+          card_set_id: cardSetId,
+          quantity,
+          proxy_quantity,
+        } = operation.data;
         const cards = deckCards.get(key) ?? new Map<string, LocalDeckCard>();
-        cards.set(pairKey(cardId, languageCode), {
+        const lineKey = pairKey(cardId, languageCode, cardSetId);
+        cards.set(lineKey, {
           cardId,
           languageCode,
+          cardSetId,
           quantity,
           proxyQuantity: proxy_quantity ?? 0,
-          cardName:
-            cardsById.get(cardId)?.name ?? cards.get(pairKey(cardId, languageCode))?.cardName ?? null,
+          cardName: cardsById.get(cardId)?.name ?? cards.get(lineKey)?.cardName ?? null,
           pending,
         });
         deckCards.set(key, cards);
@@ -255,7 +278,9 @@ export function project(
         const key = resolveDeck(operation.deck);
         const deck = key && decks.get(key);
         if (!key || !deck) break;
-        deckCards.get(key)?.delete(pairKey(operation.card_id, operation.language_code));
+        deckCards
+          .get(key)
+          ?.delete(pairKey(operation.card_id, operation.language_code, operation.card_set_id));
         decks.set(key, { ...deck, pending: deck.pending || pending });
         break;
       }

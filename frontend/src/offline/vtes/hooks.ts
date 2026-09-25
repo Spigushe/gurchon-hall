@@ -1,9 +1,10 @@
 import { useCallback } from "react";
 import { useLiveQuery } from "../react/useLiveQuery";
 import { useVtesOffline } from "./context";
-import type { CardRow } from "./db";
+import type { CardRow, CardSetRow } from "./db";
 import type { LocalDeck, LocalDeckCard, LocalStockEntry } from "./overlay";
 import {
+  readCardSets,
   readDeck,
   readDeckCards,
   readDecks,
@@ -22,10 +23,10 @@ import type { DeckKey } from "./types";
 
 export function useLocalStock(query: StockQuery = {}): LocalStockEntry[] | undefined {
   const { db } = useVtesOffline();
-  const { q, languageCode, category } = query;
+  const { q, languageCode, cardSetId, category } = query;
   const querier = useCallback(
-    () => readStock(db, { q, languageCode, category }),
-    [db, q, languageCode, category],
+    () => readStock(db, { q, languageCode, cardSetId, category }),
+    [db, q, languageCode, cardSetId, category],
   );
   return useLiveQuery(querier);
 }
@@ -67,5 +68,12 @@ export function useLocalCardSearch(query: CardQuery = {}): CardRow[] | undefined
   const { db } = useVtesOffline();
   const { q, category, limit } = query;
   const querier = useCallback(() => searchCards(db, { q, category, limit }), [db, q, category, limit]);
+  return useLiveQuery(querier);
+}
+
+/** Extensions du catalogue (miroir de `GET /extensions`, Lot 4), pour choisir une impression. */
+export function useLocalCardSets(): CardSetRow[] | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readCardSets(db), [db]);
   return useLiveQuery(querier);
 }

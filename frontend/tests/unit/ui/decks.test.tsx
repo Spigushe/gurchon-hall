@@ -76,6 +76,39 @@ describe("decks : liste et création", () => {
     expect(window.location.hash).toMatch(/^#\/decks\/ref%3A/);
   });
 
+  it("autorise les proxies à la création, et peut désactiver l'autorisation à l'édition (Lot 4)", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await screen.findByTestId("decks-page");
+
+    const form = screen.getByTestId("deck-form");
+    fireEvent.change(within(form).getByLabelText("Nom du deck"), { target: { value: "Gangrel" } });
+    fireEvent.click(within(form).getByTestId("deck-form-proxy-allowed"));
+    fireEvent.click(within(form).getByTestId("deck-form-submit"));
+
+    await screen.findByTestId("deck-page");
+    expect(screen.getByTestId("deck-proxy-allowed")).toBeInTheDocument();
+    const created = await runtime.outbox.list();
+    expect(created[0].operation).toMatchObject({
+      type: "deck.create",
+      data: { name: "Gangrel", proxy_allowed: true },
+    });
+
+    fireEvent.click(screen.getByTestId("deck-edit"));
+    const editForm = await screen.findByTestId("deck-edit-form");
+    expect(within(editForm).getByTestId("deck-edit-proxy-allowed")).toBeChecked();
+    fireEvent.click(within(editForm).getByTestId("deck-edit-proxy-allowed"));
+    fireEvent.click(within(editForm).getByTestId("deck-edit-submit"));
+
+    await waitFor(() => expect(screen.queryByTestId("deck-proxy-allowed")).not.toBeInTheDocument());
+    const ops = (await runtime.outbox.list()).map((entry) => entry.operation);
+    expect(ops[ops.length - 1]).toMatchObject({
+      type: "deck.update",
+      data: { proxy_allowed: false },
+    });
+    // Un renommage ou une note inchangés ne partent pas : seul le champ modifié.
+    expect(ops[ops.length - 1]).not.toHaveProperty("data.name");
+  });
+
   it("ne crée qu'un deck quand on valide deux fois de suite, et refuse un nom vide", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/decks" });
     const form = await screen.findByTestId("deck-form");
@@ -180,7 +213,7 @@ describe("decks : liste et création", () => {
 describe("decks : composition", () => {
   it("ajoute une carte de la collection au deck, hors ligne, par la file", async () => {
     const { runtime, server, key } = await withDeck();
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 3, proxyAllowed: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
     server.state.requests.length = 0;
 
     const form = screen.getByTestId("deck-card-form");
@@ -201,9 +234,49 @@ describe("decks : composition", () => {
     expect(last).toMatchObject({
       type: "deck_card.upsert",
       deck: { client_ref: key.slice(4) },
-      data: { card_id: 1, language_code: "FR", quantity: 2, proxy_quantity: 1 },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity: 2, proxy_quantity: 1 },
     });
     expect(server.state.requests).toEqual([]);
+  });
+
+  it("distingue deux impressions de la même carte et langue, et laisse choisir l'entrée précise", async () => {
+    const { runtime, key } = await withDeck();
+    await runtime.db.cardSets.put({
+      id: 21,
+      abbrev: "NEW",
+      fullName: "Extension récente",
+      releaseDate: "2022-01-01",
+      company: null,
+      isPlaceholder: false,
+    });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 21, quantityOwned: 5 });
+
+    const form = screen.getByTestId("deck-card-form");
+    fireEvent.change(within(form).getByTestId("deck-card-search"), { target: { value: "ELAN" } });
+    await waitFor(() =>
+      expect(within(form).getAllByTestId("deck-card-option")).toHaveLength(2),
+    );
+    const options = within(form).getAllByTestId("deck-card-option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      expect.stringContaining("TEST — Extension de test"),
+      expect.stringContaining("NEW — Extension récente"),
+    ]);
+
+    fireEvent.click(options[1]); // la seconde impression, celle à 5 exemplaires
+    expect(within(form).getByTestId("deck-card-form-chosen")).toHaveTextContent(
+      "possédée en 5 exemplaires",
+    );
+    fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
+
+    const line = await screen.findByTestId("deck-card");
+    await waitFor(() => expect(within(line).getByTestId("deck-card-set")).toHaveTextContent("NEW"));
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      deck: { client_ref: key.slice(4) },
+      data: { card_id: 1, language_code: "FR", card_set_id: 21 },
+    });
   });
 
   it("propose d'ajouter d'abord la carte à la collection quand elle n'y est pas", async () => {
@@ -222,8 +295,14 @@ describe("decks : composition", () => {
   it("modifie la quantité d'une ligne sans perdre ses proxies, et retire la ligne", async () => {
     const { runtime } = await withDeck();
     const key = screen.getByTestId("deck-page").getAttribute("data-deck-key") as DeckKey;
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 4, proxyAllowed: true });
-    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", quantity: 2, proxyQuantity: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 4 });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 1,
+    });
     const line = await screen.findByTestId("deck-card");
 
     fireEvent.click(within(line).getByRole("button", { name: /Ajouter un exemplaire de Élan vital/ }));
@@ -244,8 +323,8 @@ describe("decks : composition", () => {
 describe("decks : cycle de vie", () => {
   it("archive (composition verrouillée), désarchive, puis supprime un deck archivé après confirmation", async () => {
     const { runtime, key } = await withDeck();
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 2 });
-    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", quantity: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 2 });
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: 9, quantity: 1 });
     await screen.findByTestId("deck-card");
     expect(screen.queryByTestId("deck-delete")).not.toBeInTheDocument(); // pas de suppression d'un deck vivant
 
