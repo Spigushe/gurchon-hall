@@ -31,7 +31,7 @@ jobs:
       # `uv sync` installe la version 3.14 requise par backend/pyproject.toml
       # (requires-python) si le runner ne l'a pas déjà.
       - name: Setup uv
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           working-directory: backend
           enable-cache: true
@@ -82,7 +82,7 @@ jobs:
       # service à démarrer à part : le harnais lance et arrête le back lui-même,
       # test par test, sur le port de frontend/.env.e2e (8765).
       - name: Setup uv (back de test des e2e real-backend)
-        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           working-directory: backend
           enable-cache: true
