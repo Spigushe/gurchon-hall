@@ -133,11 +133,26 @@ class DeckCardRead(ReadModel):
     card: CardSummary | None = None
 
 
+ACQUIRED_QUANTITY_DESCRIPTION = (
+    "Exemplaires physiques que cette écriture **ajoute à la collection** "
+    "(entrée carte × langue × extension, créée si elle manque), et que la ligne "
+    "consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à "
+    "déclarer qu'un proxy est remplacé par une vraie carte (baisser "
+    "`proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que "
+    "l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la "
+    "ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être "
+    "déjà en collection."
+)
+
+
 class DeckCardWrite(WriteModel):
     """Base commune aux écritures de ligne de decklist."""
 
     quantity: int = Field(ge=1, le=MAX_DB_INT)
     proxy_quantity: int = Field(default=0, ge=0, le=MAX_DB_INT)
+    acquired_quantity: int = Field(
+        default=0, ge=0, le=MAX_DB_INT, description=ACQUIRED_QUANTITY_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def _proxy_within_quantity(self) -> DeckCardWrite:
@@ -146,16 +161,25 @@ class DeckCardWrite(WriteModel):
                 "proxy_quantity ne peut pas dépasser quantity : on ne joue pas "
                 "plus de proxies que d'exemplaires dans le deck."
             )
+        # Borne d'une ligne neuve (elle ne consommait rien) ; sur une ligne
+        # existante (`deck_card.upsert` qui remplace), le service resserre la
+        # borne à ce que l'écriture ajoute réellement.
+        if self.acquired_quantity > self.quantity - self.proxy_quantity:
+            raise ValueError(
+                "acquired_quantity ne peut pas dépasser quantity - proxy_quantity : "
+                "un exemplaire acquis depuis un deck est consommé par sa ligne."
+            )
         return self
 
 
 class DeckCardCreate(DeckCardWrite):
     """Ajout d'une carte à un deck.
 
-    La carte doit déjà exister dans la collection pour la langue et
-    l'extension demandées (CLAUDE.md §11 point 2) ; la vérification de
-    disponibilité relève du service, la base garantissant déjà l'existence de
-    l'entrée de collection.
+    La carte doit être dans la collection pour la langue et l'extension
+    demandées (CLAUDE.md §11 point 2), **ou y entrer par cette écriture** :
+    `acquired_quantity` crée ou incrémente l'entrée de collection dans la même
+    transaction que la ligne (Lot 4b, `docs/lot4b-acquisition-depuis-deck.md`).
+    La vérification de disponibilité relève du service.
     """
 
     card_id: int = Field(ge=1, le=MAX_DB_INT)
@@ -171,10 +195,19 @@ class DeckCardUpdate(WriteModel):
     seule la base connaît : **le service du Lot 2 doit refaire la vérification**
     après fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`
     reste le dernier filet, mais elle produirait un 500 plutôt qu'un 422).
+
+    `acquired_quantity` n'est pas un état de la ligne mais un effet de bord sur
+    la collection, borné par ce que la modification ajoute d'exemplaires réels
+    à la ligne : c'est au service de le vérifier, lui seul connaît la ligne
+    d'avant. Convertir un proxy en vraie carte s'écrit donc
+    `{"proxy_quantity": p - n, "acquired_quantity": n}`.
     """
 
     quantity: int = Field(default=UNSET, ge=1, le=MAX_DB_INT)
     proxy_quantity: int = Field(default=UNSET, ge=0, le=MAX_DB_INT)
+    acquired_quantity: int = Field(
+        default=0, ge=0, le=MAX_DB_INT, description=ACQUIRED_QUANTITY_DESCRIPTION
+    )
 
     @model_validator(mode="after")
     def _proxy_within_quantity(self) -> DeckCardUpdate:
