@@ -39,6 +39,19 @@ class RefreshError extends Error {}
 const isStockOperation = (type: string) => type.startsWith("stock.") || type.startsWith("bundle.");
 const isDeckOperation = (type: string) => type.startsWith("deck.") || type.startsWith("deck_card.");
 
+/**
+ * Lot 4b : un `deck_card.upsert` qui acquiert des exemplaires touche les deux
+ * miroirs (la ligne et l'entrée de stock) et ne peut sortir de `settled` qu'une
+ * fois les deux à jour. Le miroir de stock, en se remplaçant, retire le champ
+ * `acquired_quantity` de l'opération retenue (l'effet sur le stock est repris
+ * par le miroir) ; le miroir de decks n'efface, lui, que les opérations qui ne
+ * l'ont plus. Sans cela, l'un des deux effacerait l'opération pour l'autre et
+ * la ligne (ou l'entrée de stock) disparaîtrait un instant.
+ */
+const acquires = (entry: { type: string; operation: unknown }) =>
+  entry.type === "deck_card.upsert" &&
+  ((entry.operation as { data?: { acquired_quantity?: number } }).data?.acquired_quantity ?? 0) > 0;
+
 function unwrap<T>(result: { data?: T; error?: unknown; response: Response }, what: string): T {
   if (result.data === undefined) {
     throw new RefreshError(`${what} : HTTP ${result.response.status}`);
@@ -111,6 +124,14 @@ export async function refreshStock(client: ApiClient, db: VtesOfflineDb): Promis
     await db.stock.clear();
     await db.stock.bulkPut(rows);
     await pruneSettled(db, settledUpTo, isStockOperation);
+    await db.settled
+      .where("seq")
+      .belowOrEqual(settledUpTo)
+      .filter(acquires)
+      .modify((entry) => {
+        delete (entry.operation as { data?: { acquired_quantity?: number } }).data
+          ?.acquired_quantity;
+      });
   });
   return rows.length;
 }
@@ -159,7 +180,11 @@ export async function refreshDecks(client: ApiClient, db: VtesOfflineDb): Promis
     await db.deckCards.clear();
     await db.decks.bulkPut(decks);
     await db.deckCards.bulkPut(deckCards);
-    await pruneSettled(db, settledUpTo, isDeckOperation);
+    await pruneSettled(
+      db,
+      settledUpTo,
+      (type, entry) => isDeckOperation(type) && !acquires(entry),
+    );
   });
   return decks.length;
 }

@@ -1,5 +1,5 @@
 // Adaptateur VtES de la couche offline : c'est la seule partie propre au domaine.
-export { createVtesOffline } from "./runtime";
+export { AcquisitionBoundError, createVtesOffline } from "./runtime";
 export type {
   RefreshOptions,
   RefreshReport,
@@ -24,7 +24,7 @@ export {
 } from "./languages";
 export * as operations from "./operations";
 export type { DeckCardInput, DeckInput, DeckPatch, OperationClock, StockInput } from "./operations";
-export { project } from "./overlay";
+export { availableStock, project } from "./overlay";
 export type { LocalDeck, LocalDeckCard, LocalStockEntry, Projection, Snapshot } from "./overlay";
 export {
   readCardSets,

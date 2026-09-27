@@ -258,6 +258,7 @@ export function project(
           card_set_id: cardSetId,
           quantity,
           proxy_quantity,
+          acquired_quantity: acquired,
         } = operation.data;
         const cards = deckCards.get(key) ?? new Map<string, LocalDeckCard>();
         const lineKey = pairKey(cardId, languageCode, cardSetId);
@@ -272,6 +273,23 @@ export function project(
         });
         deckCards.set(key, cards);
         decks.set(key, { ...deck, pending: deck.pending || pending });
+        // Lot 4b : l'acquisition entre en collection avec la ligne, comme le
+        // serveur (entrée absente créée à `acquired`, présente incrémentée).
+        if (acquired !== undefined && acquired > 0) {
+          const stockKey = pairKey(cardId, languageCode, cardSetId);
+          const owned = stock.get(stockKey);
+          const card = cardsById.get(cardId);
+          stock.set(stockKey, {
+            cardId,
+            languageCode,
+            cardSetId,
+            quantityOwned: (owned?.quantityOwned ?? 0) + acquired,
+            notes: owned?.notes ?? null,
+            cardName: card?.name ?? owned?.cardName ?? null,
+            category: card?.category ?? owned?.category ?? null,
+            pending: pending || (owned?.pending ?? false),
+          });
+        }
         break;
       }
       case "deck_card.delete": {
@@ -300,4 +318,43 @@ export function project(
       [...deckCards].map(([key, cards]) => [key, [...cards.values()]] as const),
     ),
   };
+}
+
+/**
+ * Exemplaires réels encore disponibles pour une entrée (carte × langue ×
+ * extension), compte tenu de ce qui est déjà alloué par les decks vivants
+ * (Lot 5, picker fusionné du deck) : même comptabilité que le serveur
+ * (CLAUDE.md §6 — `quantity_owned` moins la somme des `quantity -
+ * proxy_quantity` déjà allouée), lue sur la même projection que l'UI affiche.
+ * `excludeDeckKey` retire l'allocation du deck en cours d'édition, pour ne pas
+ * compter deux fois la ligne qu'on s'apprête à réécrire. Lecture dérivée pure,
+ * indicative : la borne qui compte est celle que `saveDeckCard` fait
+ * respecter (`AcquisitionBoundError`).
+ */
+export function availableStock(
+  projection: Pick<Projection, "stock" | "deckCards">,
+  selector: { cardId: number; languageCode: string; cardSetId: number },
+  excludeDeckKey?: DeckKey,
+): number {
+  const owned =
+    projection.stock.find(
+      (entry) =>
+        entry.cardId === selector.cardId &&
+        entry.languageCode === selector.languageCode &&
+        entry.cardSetId === selector.cardSetId,
+    )?.quantityOwned ?? 0;
+  let allocated = 0;
+  for (const [deckKey, lines] of projection.deckCards) {
+    if (deckKey === excludeDeckKey) continue;
+    for (const line of lines) {
+      if (
+        line.cardId === selector.cardId &&
+        line.languageCode === selector.languageCode &&
+        line.cardSetId === selector.cardSetId
+      ) {
+        allocated += line.quantity - line.proxyQuantity;
+      }
+    }
+  }
+  return Math.max(0, owned - allocated);
 }

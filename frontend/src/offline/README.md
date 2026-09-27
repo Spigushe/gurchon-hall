@@ -91,6 +91,37 @@ const { key } = await actions.createDeck({ name: "Malkavien", proxyAllowed: true
 await actions.saveDeckCard(key, { cardId: 12, languageCode: "FR", cardSetId: 3, quantity: 2 });
 ```
 
+**Acquisition depuis un deck (Lot 4b).** `acquiredQuantity` fait entrer des
+exemplaires physiques dans la collection avec la ligne, sans passer par
+`saveStock` :
+
+```ts
+// Deck déjà monté sur la table : la collection n'a pas encore la carte.
+await actions.saveDeckCard(key, { cardId: 12, languageCode: "FR", cardSetId: 3, quantity: 4, acquiredQuantity: 4 });
+// Un proxy devient une vraie carte : la ligne perd 2 proxies, la collection gagne 2 exemplaires.
+await actions.convertProxies(key, { cardId: 12, languageCode: "FR", cardSetId: 3 }, 2);
+```
+
+- `saveDeckCard(deck, input)` : `input.acquiredQuantity` (entier >= 0, omis de la charge
+  utile s'il vaut 0). `convertProxies(deck, { cardId, languageCode, cardSetId }, count)`
+  est un `saveDeckCard` (même quantité, `proxyQuantity - count`, `acquiredQuantity: count`).
+- **Borne côté client, avant la file** : l'acquisition ne peut pas dépasser les
+  exemplaires réels que l'écriture ajoute à la ligne (`(quantity - proxyQuantity)` après
+  moins avant, l'avant étant lu dans la projection, file comprise ; 0 pour une ligne neuve).
+  Sinon `AcquisitionBoundError` est levée et **rien** n'est mis en file. Cela évite un
+  `invalid` du serveur, qui reste le garde-fou. Cette borne rend aussi impossible de compter
+  deux fois une même saisie sur une ligne déjà écrite.
+- **Sans acquisition**, la carte absente du stock n'est pas refusée localement : la file
+  part et le serveur rend `conflict`, comme avant (l'entrée peut avoir été créée par une
+  opération précédente du même lot, ou par un autre appareil).
+- **Miroir** : la projection crée l'entrée de stock (`quantityOwned = acquis`) ou
+  l'incrémente, avec la marque « en attente », en même temps que la ligne.
+- **`settled`** : une opération qui acquiert touche deux miroirs. Le rafraîchissement du
+  stock retire `acquired_quantity` de l'opération retenue (son effet est repris par le
+  miroir, dans la même transaction) ; celui des decks n'efface que les opérations qui ne
+  l'ont plus. L'opération sort donc de `settled` après les deux, dans n'importe quel
+  ordre, sans double comptage du stock ni ligne qui disparaît.
+
 Lire. Les hooks rendent l'instantané du serveur plus ce qui est encore en file, et
 se remettent à jour tout seuls.
 
@@ -204,7 +235,12 @@ pu passer avant. Un rafraîchissement qui échoue n'efface rien. Chaque miroir n
 sa famille (stock, decks).
 
 Pour Barrin : activer `retainSettled`, déclarer `CORE_STORES_V2` dans la base, et
-appliquer le même protocole dans les fonctions de rafraîchissement.
+appliquer le même protocole dans les fonctions de rafraîchissement. Si une opération
+écrit dans **deux** miroirs (Lot 4b : une ligne de deck qui crée du stock), `pruneSettled`
+accepte un filtre sur l'entrée entière : le premier miroir relu neutralise sa part de
+l'opération retenue (ici, retirer `acquired_quantity`), le second l'efface. Effacer d'un
+côté seulement ferait disparaître l'effet de l'autre, ne rien neutraliser le compterait
+deux fois.
 
 ## Recherche locale
 

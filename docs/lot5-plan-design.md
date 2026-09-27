@@ -226,6 +226,34 @@ CLAUDE.md § 11, non traitée par le Lot 2) : ce lot ne la corrige pas, il ne
 fait que réhabiller les listes qui l'exposent (Collection, Decks). À ne pas
 confondre avec une régression introduite par la refonte.
 
+## Ajout en cours de lot : acquisition depuis un deck (Lot 4b)
+
+Le back a gagné, pendant le lot, le champ `acquired_quantity` sur les écritures de
+ligne de deck (`docs/lot4b-acquisition-depuis-deck.md`). Le handoff ne dessine ni
+l'un ni l'autre des deux écrans concernés : ils sont conçus ici, dans le langage
+Nocturne, à partir de composants existants. Ce n'est pas un changement de
+comportement de la refonte, c'est un comportement nouveau habillé comme le reste.
+
+- **Couche offline** (avant les étapes 9 et 10, agent pwa-offline) : `acquired_quantity`
+  dans les actions et la file, entrée de stock créée ou incrémentée de façon
+  optimiste dans le miroir, même borne côté client, `settled`, faux serveur des tests.
+- **Étape 10, picker et ajout de ligne** : chaque ligne ajoutée porte un nombre de
+  copies et un **compteur « possédés »** (`Stepper`, de 0 au nombre de copies).
+  Les copies non possédées sont des proxies : `proxy_quantity = copies − possédés`.
+  À 0 possédé, toute la ligne est en proxy, ce qui exige `proxy_allowed` sur le
+  deck (sinon le compteur est verrouillé au nombre de copies, et le deck refuse
+  l'ajout comme aujourd'hui). Les exemplaires possédés sont pris d'abord dans le
+  stock disponible ; seul le manque est acquis (`acquired_quantity`), ce qui
+  permet de monter un deck déjà assemblé avant l'application sans compter deux
+  fois un exemplaire déjà en collection. Aucun refus « pas en collection » quand
+  le manque est acquis ou mis en proxy.
+- **Étape 9, détail du deck** : sur une ligne à proxies, une action « Plus un proxy »
+  avec un compteur (de 1 à `proxy_quantity`) : `proxy_quantity` baisse de n et
+  `acquired_quantity` vaut n. Visible seulement si la ligne a des proxies et que le
+  deck n'est ni archivé ni supprimé.
+- **Étape 13** : un e2e contre le vrai back (deck monté hors ligne avec acquisition,
+  puis rejeu), et les tests vitest des deux compteurs, bornes comprises.
+
 ## Critère de fin de lot
 
 Repris du critère du Lot 0 (CLAUDE.md § 3) et adapté à une passe qui ne touche
