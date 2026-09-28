@@ -56,8 +56,8 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        theme_color: "#1a0410",
-        background_color: "#1a0410",
+        theme_color: "#161826",
+        background_color: "#161826",
         icons: [
           {
             src: "pwa-192.png",
@@ -81,9 +81,19 @@ export default defineConfig({
       },
       workbox: {
         // Precache uniquement les fichiers du build (app shell) : HTML, JS,
-        // CSS, manifest, icônes. Aucune route API ne peut apparaître ici par
-        // construction puisque ce glob ne porte que sur le dossier `dist/`.
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest}"],
+        // CSS, manifest, icônes, police. Aucune route API ne peut apparaître
+        // ici par construction puisque ce glob ne porte que sur le dossier
+        // `dist/`. `woff2` couvre la police Inter (Lot 5, système Nocturne) :
+        // self-hébergée plutôt que Google Fonts, pour que l'app shell
+        // s'affiche avec sa typo définitive dès la toute première ouverture
+        // hors ligne, sans dépendre d'un CDN externe au premier chargement.
+        // Seuls les graisses 400 et 500 en sous-ensemble latin sont importées
+        // dans `src/main.tsx` (`@fontsource/inter/latin-400.css` et
+        // `latin-500.css`) : Vite ne référence donc que deux fichiers
+        // `.woff2` d'environ 24 Ko chacun, largement sous la limite par
+        // défaut de Workbox (`maximumFileSizeToCacheInBytes`, 2 Mio), laissée
+        // à sa valeur par défaut.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest,woff2}"],
         // Permet à la SPA de s'ouvrir hors-ligne sur n'importe quelle route
         // cliente (ex. /decks, /parties) en retombant sur l'app shell.
         navigateFallback: "/index.html",

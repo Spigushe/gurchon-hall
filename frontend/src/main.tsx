@@ -1,6 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
 import "./index.css";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
 import { VtesOfflineProvider } from "./offline/vtes/VtesOfflineProvider";
