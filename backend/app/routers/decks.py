@@ -148,8 +148,12 @@ def get_deck_legality(deck_id: PathId, db: DbSession):
     description=(
         "La carte doit être en collection dans la langue et l'extension "
         "demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon "
-        "409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte "
-        "n'a pas été imprimée dans cette extension."
+        "409. `acquired_quantity` fait entrer des exemplaires physiques en "
+        "collection avec la ligne, dans la même transaction : l'entrée est "
+        "créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de "
+        "2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse "
+        "`quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou "
+        "supprimé. 404 si la carte n'a pas été imprimée dans cette extension."
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )
@@ -164,7 +168,13 @@ def add_deck_card(deck_id: PathId, payload: DeckCardCreate, db: DbSession):
     summary="Modifie une ligne du deck",
     description=(
         "Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas "
-        "autorisé ou si les exemplaires disponibles ne suffisent pas."
+        "autorisé ou si les exemplaires disponibles ne suffisent pas. "
+        "`acquired_quantity` ajoute des exemplaires physiques à l'entrée de "
+        "collection de la ligne, dans la même transaction ; il ne peut dépasser "
+        "les exemplaires réels que la modification ajoute à la ligne (422). "
+        "Remplacer `n` proxies par de vraies cartes : "
+        "`{\"proxy_quantity\": p - n, \"acquired_quantity\": n}`. Rejouer ce "
+        "`PATCH` à l'identique rend un 422, jamais un double comptage."
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )

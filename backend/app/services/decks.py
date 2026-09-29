@@ -3,7 +3,15 @@
 Une carte n'entre dans un deck que si elle est **en collection dans cette
 langue** (CLAUDE.md §11, décision 2 — la base l'impose déjà par la clé étrangère
 composite `deck_card` → `card_copy`, le service en fait une réponse lisible).
-Les ajouts respectent en plus la comptabilité du stock (cf. `app.services.stock`) :
+Assouplissement du Lot 4b (`docs/lot4b-acquisition-depuis-deck.md`) : une
+écriture de ligne peut **faire entrer** la carte en collection
+(`acquired_quantity`), pour monter un deck déjà construit à la main ou
+remplacer un proxy par un exemplaire obtenu depuis. L'entrée de collection est
+alors créée ou incrémentée dans la même transaction que la ligne ; la règle
+« pas de ligne sans entrée de collection » tient toujours, c'est l'ordre des
+deux écritures qui change.
+
+Les ajouts respectent en plus la comptabilité du stock (`app.services.stock`) :
 un deck ne consomme que des exemplaires disponibles, et ne joue des proxies que
 si `deck.proxy_allowed` l'autorise (Lot 4 : propriété du deck, pas de l'entrée
 de collection).
@@ -45,6 +53,7 @@ from app.models import (
     DeletedDeckCard,
 )
 from app.models.base import utcnow
+from app.schemas.base import MAX_DB_INT
 from app.schemas.catalog import CardSummary
 from app.schemas.collection import (
     DeckCardCreate,
@@ -431,34 +440,100 @@ def _load_line(
     return line
 
 
+def _check_acquisition(acquired: int, real_before: int, real_after: int) -> None:
+    """Un exemplaire acquis depuis un deck doit être consommé par sa ligne.
+
+    `acquired_quantity` ne peut dépasser ce que l'écriture ajoute d'exemplaires
+    réels à la ligne (`real_after - real_before`, une ligne neuve partant de
+    0). Au-delà, ce serait une écriture de stock déguisée, qui relève de
+    `/stock`. Corollaire voulu : rejouer à l'identique un `PATCH` qui acquiert
+    rend un 422 au lieu de compter deux fois les mêmes cartes.
+    """
+    added = max(real_after - real_before, 0)
+    if acquired > added:
+        raise InvalidRequestError(
+            f"acquired_quantity ({acquired}) dépasse les exemplaires réels que "
+            f"l'écriture ajoute à la ligne ({added}) : un exemplaire acquis "
+            "depuis un deck est consommé par sa ligne ; pour enrichir la "
+            "collection seule, passer par le stock.",
+            loc=("body", "acquired_quantity"),
+        )
+
+
 def _check_allocation(
     db: Session,
     deck_id: int,
     deck: Deck,
-    copy: CardCopy,
+    copy: CardCopy | None,
     quantity: int,
     proxy_quantity: int,
+    acquired: int = 0,
 ) -> None:
-    """La ligne demandée tient-elle dans le stock, et le deck joue-t-il les proxies ?"""
+    """La ligne demandée tient-elle dans le stock, et le deck joue-t-il les proxies ?
+
+    `copy` est nul quand l'entrée de collection n'existe pas encore et que
+    l'écriture la crée (`acquired > 0`) : elle part alors de 0 exemplaire.
+    Les exemplaires acquis comptent dans le possédé avant le contrôle de
+    disponibilité, et le total ne doit pas dépasser `MAX_DB_INT` (409, comme
+    un versement de produit).
+    """
     if proxy_quantity and not deck.proxy_allowed:
         raise ConflictError(
             f"Le deck {deck_id} n'autorise pas les proxies : l'autoriser "
             "(`proxy_allowed`) avant d'en jouer."
         )
+    owned = (copy.quantity_owned if copy is not None else 0) + acquired
+    if owned > MAX_DB_INT:
+        raise ConflictError(
+            f"L'acquisition porterait l'entrée de collection à {owned} "
+            f"exemplaire(s), au-delà du plafond de {MAX_DB_INT}."
+        )
     real = quantity - proxy_quantity
-    available = copy.quantity_owned - stock.allocated_real(
-        db,
-        copy.card_id,
-        copy.language_code,
-        copy.card_set_id,
-        excluding_deck_id=deck_id,
-    )
+    allocated = 0
+    if copy is not None:
+        allocated = stock.allocated_real(
+            db,
+            copy.card_id,
+            copy.language_code,
+            copy.card_set_id,
+            excluding_deck_id=deck_id,
+        )
+    available = owned - allocated
     if real > available:
         raise ConflictError(
             f"Exemplaires insuffisants : {real} réel(s) demandé(s), "
-            f"{max(available, 0)} disponible(s) sur {copy.quantity_owned} possédé(s) "
+            f"{max(available, 0)} disponible(s) sur {owned} possédé(s) "
             "(le reste est alloué à d'autres decks)."
         )
+
+
+def _acquire(
+    db: Session,
+    copy: CardCopy | None,
+    card_id: int,
+    language_code: str,
+    card_set_id: int,
+    acquired: int,
+) -> None:
+    """Ajoute `acquired` exemplaires à la collection, créant l'entrée au besoin.
+
+    Appelé après tous les contrôles, dans la transaction de la ligne : le
+    commit de la ligne valide les deux, un refus de la base annule les deux.
+    """
+    if not acquired:
+        return
+    if copy is None:
+        db.add(
+            CardCopy(
+                card_id=card_id,
+                language_code=language_code,
+                card_set_id=card_set_id,
+                quantity_owned=acquired,
+                notes=None,
+            )
+        )
+    else:
+        copy.quantity_owned += acquired
 
 
 def _commit(db: Session, message: str = _COMPOSITION_CONFLICT) -> None:
@@ -470,24 +545,38 @@ def _commit(db: Session, message: str = _COMPOSITION_CONFLICT) -> None:
 
 
 def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
+    """Ajoute une ligne au deck, et au besoin les exemplaires acquis au stock.
+
+    Sans `acquired_quantity`, l'entrée de collection doit exister (409 sinon,
+    CLAUDE.md §11 point 2). Avec, elle est créée à ce nombre d'exemplaires si
+    elle manque, incrémentée sinon ; la langue doit alors exister (404).
+    """
     deck = _get_editable_deck(db, deck_id)
     code = catalog.normalize_language_code(payload.language_code)
+    acquired = payload.acquired_quantity
     if db.get(Card, payload.card_id) is None:
         raise NotFoundError(f"Carte {payload.card_id} introuvable.")
     catalog.get_printing(db, payload.card_id, payload.card_set_id)
     copy = db.get(CardCopy, (payload.card_id, code, payload.card_set_id))
     if copy is None:
-        raise ConflictError(
-            f"La carte {payload.card_id} n'est pas en collection en {code} : "
-            "l'ajouter au stock avant de l'utiliser dans un deck."
-        )
-    if db.get(DeckCard, (deck_id, payload.card_id, code, payload.card_set_id)):
+        if not acquired:
+            raise ConflictError(
+                f"La carte {payload.card_id} n'est pas en collection en {code} : "
+                "l'ajouter au stock avant de l'utiliser dans un deck, ou déclarer "
+                "les exemplaires acquis avec la ligne (`acquired_quantity`)."
+            )
+        catalog.get_language(db, code)
+    elif db.get(DeckCard, (deck_id, payload.card_id, code, payload.card_set_id)):
         raise ConflictError(
             f"La carte {payload.card_id} en {code} est déjà dans le deck : "
             "modifier sa ligne."
         )
-    _check_allocation(db, deck_id, deck, copy, payload.quantity, payload.proxy_quantity)
+    _check_acquisition(acquired, 0, payload.quantity - payload.proxy_quantity)
+    _check_allocation(
+        db, deck_id, deck, copy, payload.quantity, payload.proxy_quantity, acquired
+    )
 
+    _acquire(db, copy, payload.card_id, code, payload.card_set_id, acquired)
     db.add(
         DeckCard(
             deck_id=deck_id,
@@ -511,10 +600,17 @@ def update_card(
     card_set_id: int,
     payload: DeckCardUpdate,
 ) -> DeckCard:
+    """Modifie une ligne ; `acquired_quantity` ajoute des exemplaires au stock.
+
+    Convertir `n` proxies en vraies cartes : `proxy_quantity` baisse de `n` et
+    `acquired_quantity` vaut `n`. L'entrée de collection existe forcément (la
+    ligne la référence) : elle est incrémentée.
+    """
     deck = _get_editable_deck(db, deck_id)
     code = catalog.normalize_language_code(language_code)
     line = _load_line(db, deck_id, card_id, code, card_set_id)
     changes = payload.model_dump(exclude_unset=True)
+    acquired = changes.pop("acquired_quantity", 0)
     quantity = changes.get("quantity", line.quantity)
     proxy_quantity = changes.get("proxy_quantity", line.proxy_quantity)
 
@@ -526,9 +622,13 @@ def update_card(
             "de proxies que d'exemplaires dans le deck.",
             loc=("body", "proxy_quantity"),
         )
+    _check_acquisition(
+        acquired, line.quantity - line.proxy_quantity, quantity - proxy_quantity
+    )
     copy = db.get(CardCopy, (card_id, code, card_set_id))
-    _check_allocation(db, deck_id, deck, copy, quantity, proxy_quantity)
+    _check_allocation(db, deck_id, deck, copy, quantity, proxy_quantity, acquired)
 
+    _acquire(db, copy, card_id, code, card_set_id, acquired)
     line.quantity = quantity
     line.proxy_quantity = proxy_quantity
     deck.updated_at = utcnow()

@@ -5,6 +5,7 @@ import { SyncEngine, type SyncEngineOptions } from "../core/syncEngine";
 import type { OutboxEntry } from "../core/types";
 import type { OfflineRuntime } from "../react/context";
 import { DEFAULT_DB_NAME, VtesOfflineDb } from "./db";
+import { readProjection } from "./reads";
 import { knownLanguageCodes, resolveLanguageCode } from "./languages";
 import {
   bundleDeposit,
@@ -30,7 +31,7 @@ import {
   refreshStock,
 } from "./refresh";
 import { createVtesSyncTransport } from "./transport";
-import type { ApiClient, DeckKey, DeckSelector, VtesOperation } from "./types";
+import { deckKeyOf, type ApiClient, type DeckKey, type DeckSelector, type VtesOperation } from "./types";
 
 type DeckTarget = DeckSelector | DeckKey;
 type Entry = OutboxEntry<VtesOperation>;
@@ -49,7 +50,26 @@ export interface VtesActions {
   updateDeck(deck: DeckTarget, patch: DeckPatch): Promise<Entry>;
   archiveDeck(deck: DeckTarget, archived?: boolean): Promise<Entry>;
   deleteDeck(deck: DeckTarget): Promise<Entry>;
+  /**
+   * Ajoute ou remplace une ligne de deck (état complet voulu). Avec
+   * `acquiredQuantity` > 0 (Lot 4b), l'entrée de collection carte × langue ×
+   * extension est créée ou incrémentée en même temps ; lève
+   * `AcquisitionBoundError`, sans rien mettre en file, si l'acquisition dépasse
+   * les exemplaires réels que l'écriture ajoute à la ligne. Sans acquisition,
+   * une carte absente du stock est refusée par le serveur (verdict `conflict`).
+   */
   saveDeckCard(deck: DeckTarget, input: DeckCardInput): Promise<Entry>;
+  /**
+   * Un proxy devient une vraie carte : `count` proxies de la ligne deviennent
+   * des exemplaires acquis (`proxy_quantity` diminue de `count`, la collection
+   * gagne `count`). Lève `AcquisitionBoundError` si la ligne n'existe pas ou
+   * n'a pas `count` proxies.
+   */
+  convertProxies(
+    deck: DeckTarget,
+    line: { cardId: number; languageCode: string; cardSetId: number },
+    count: number,
+  ): Promise<Entry>;
   removeDeckCard(
     deck: DeckTarget,
     cardId: number,
@@ -98,6 +118,14 @@ export interface VtesOfflineOptions {
 }
 
 const DEFAULT_REFRESH_TIMEOUT_MS = 60_000;
+
+/** Acquisition incohérente avec la ligne écrite (Lot 4b) : rien n'a été mis en file. */
+export class AcquisitionBoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AcquisitionBoundError";
+  }
+}
 
 const describe = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -262,9 +290,59 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       return enqueue(deckDelete(clock, deck));
     },
     async saveDeckCard(deck, input) {
-      return enqueue(
-        deckCardUpsert(clock, deck, { ...input, languageCode: await language(input.languageCode) }),
+      const languageCode = await language(input.languageCode);
+      const acquired = input.acquiredQuantity;
+      if (acquired !== undefined) {
+        if (!Number.isInteger(acquired) || acquired < 0) {
+          throw new AcquisitionBoundError("Le nombre d'exemplaires acquis est un entier positif ou nul.");
+        }
+        if (acquired > 0) {
+          // Même borne que le serveur : l'acquisition ne peut pas dépasser les
+          // exemplaires réels que l'écriture ajoute à la ligne (état d'avant lu
+          // dans la projection, file comprise).
+          const key = typeof deck === "string" ? deck : deckKeyOf(deck);
+          const { deckCards } = await readProjection(db);
+          const before = (deckCards.get(key) ?? []).find(
+            (line) =>
+              line.cardId === input.cardId &&
+              line.languageCode === languageCode &&
+              line.cardSetId === input.cardSetId,
+          );
+          const realBefore = before ? before.quantity - before.proxyQuantity : 0;
+          const added = input.quantity - (input.proxyQuantity ?? 0) - realBefore;
+          if (acquired > added) {
+            throw new AcquisitionBoundError(
+              `Acquisition de ${acquired} exemplaire(s) au-delà des ${Math.max(added, 0)} ajouté(s) réellement à la ligne.`,
+            );
+          }
+        }
+      }
+      return enqueue(deckCardUpsert(clock, deck, { ...input, languageCode }));
+    },
+    async convertProxies(deck, line, count) {
+      const languageCode = await language(line.languageCode);
+      const key = typeof deck === "string" ? deck : deckKeyOf(deck);
+      const { deckCards } = await readProjection(db);
+      const current = (deckCards.get(key) ?? []).find(
+        (item) =>
+          item.cardId === line.cardId &&
+          item.languageCode === languageCode &&
+          item.cardSetId === line.cardSetId,
       );
+      if (!current) throw new AcquisitionBoundError("Cette carte n'est pas dans le deck.");
+      if (!Number.isInteger(count) || count < 1 || count > current.proxyQuantity) {
+        throw new AcquisitionBoundError(
+          `Impossible de convertir ${count} proxy(s) : la ligne en compte ${current.proxyQuantity}.`,
+        );
+      }
+      return actions.saveDeckCard(deck, {
+        cardId: line.cardId,
+        languageCode,
+        cardSetId: line.cardSetId,
+        quantity: current.quantity,
+        proxyQuantity: current.proxyQuantity - count,
+        acquiredQuantity: count,
+      });
     },
     async removeDeckCard(deck, cardId, languageCode, cardSetId) {
       return enqueue(deckCardDelete(clock, deck, cardId, await language(languageCode), cardSetId));

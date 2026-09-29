@@ -1,5 +1,4 @@
-import { useFlush, useSyncStatus } from "../../offline/react";
-import { useGuardedAction } from "../../components/useGuardedAction";
+import { useSyncStatus } from "../../offline/react";
 import { formatTime, plural } from "../../labels";
 
 export type SyncState = "offline" | "syncing" | "pending" | "synced";
@@ -8,11 +7,13 @@ export type SyncState = "offline" | "syncing" | "pending" | "synced";
  * Hors ligne, en cours d'envoi, en attente d'un nouvel essai, ou tout à jour.
  * Les refusées sont comptées à part : elles n'empêchent pas la file de passer,
  * mais elles ne doivent jamais passer inaperçues.
+ *
+ * Monté en permanence dans la coquille (visuellement masqué depuis le Lot 5,
+ * `App.tsx`) : le détail visible et l'action de synchronisation manuelle
+ * vivent sur la page `#/synchronisation` (`SyncPage`).
  */
 export function SyncStatusBar() {
   const status = useSyncStatus();
-  const flush = useFlush();
-  const action = useGuardedAction();
 
   const state: SyncState = !status.online
     ? "offline"
@@ -44,20 +45,7 @@ export function SyncStatusBar() {
     >
       <span data-testid="sync-label">{label}</span>
       {status.rejected > 0 && (
-        <strong className="sync-bar__rejected" data-testid="sync-rejected-count">
-          {plural(status.rejected, "refusée")}
-        </strong>
-      )}
-      {status.online && status.pending > 0 && (
-        <button
-          type="button"
-          className="button--small"
-          data-testid="sync-flush"
-          disabled={action.pending || status.running}
-          onClick={() => void action.run(flush)}
-        >
-          Synchroniser maintenant
-        </button>
+        <strong data-testid="sync-rejected-count">{plural(status.rejected, "refusée")}</strong>
       )}
     </section>
   );

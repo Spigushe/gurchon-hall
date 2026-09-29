@@ -1,30 +1,46 @@
-import { useDeferredValue, useId, useState } from "react";
+import { useDeferredValue, useId, useMemo, useState } from "react";
 import { CATEGORY_LABELS, cardLabel } from "../../labels";
-import { useLocalCardSearch, type CardRow } from "../../offline/vtes";
+import { useLocalCardSearch, useLocalStock, type CardRow } from "../../offline/vtes";
 import { useCatalog } from "./catalogContext";
 
 const MIN_TERM = 2;
 
-function details(card: CardRow): string {
-  if (card.category === "library") return CATEGORY_LABELS.library;
-  const parts: string[] = [CATEGORY_LABELS.crypt];
-  if (card.clanName) parts.push(card.clanName);
-  if (card.capacity !== null) parts.push(`capacité ${card.capacity}`);
+function details(card: CardRow, owned: number | undefined): string {
+  const parts: string[] =
+    card.category === "library"
+      ? [CATEGORY_LABELS.library]
+      : [
+          CATEGORY_LABELS.crypt,
+          ...(card.clanName ? [card.clanName] : []),
+          ...(card.capacity !== null ? [`capacité ${card.capacity}`] : []),
+        ];
+  parts.push(owned ? `en collection : ${owned}` : "absente");
   return parts.join(" · ");
 }
 
 /**
  * Recherche dans le miroir local du catalogue (casse et accents ignorés, comme
  * le serveur). Aucun appel réseau : marche hors ligne dès que le catalogue est
- * téléchargé.
+ * téléchargé. La possession affichée (« en collection : N » / « absente »)
+ * cumule tous les exemplaires de la carte, langues et extensions confondues
+ * (Lot 5, picker fusionné du deck) : elle situe le choix, la ligne précise
+ * (langue, extension) se choisit ensuite.
  */
 export function CardPicker({ onSelect }: { onSelect: (card: CardRow) => void }) {
   const inputId = useId();
   const catalog = useCatalog();
+  const stock = useLocalStock();
   const [term, setTerm] = useState("");
   const deferred = useDeferredValue(term.trim());
   const searching = deferred.length >= MIN_TERM;
   const results = useLocalCardSearch({ q: searching ? deferred : "", limit: 20 });
+  const ownedByCard = useMemo(() => {
+    const totals = new Map<number, number>();
+    for (const entry of stock ?? []) {
+      totals.set(entry.cardId, (totals.get(entry.cardId) ?? 0) + entry.quantityOwned);
+    }
+    return totals;
+  }, [stock]);
 
   return (
     <div className="picker" data-testid="card-picker">
@@ -67,7 +83,7 @@ export function CardPicker({ onSelect }: { onSelect: (card: CardRow) => void }) 
                 }}
               >
                 <span>{cardLabel(card)}</span>
-                <small>{details(card)}</small>
+                <small>{details(card, ownedByCard.get(card.id))}</small>
               </button>
             </li>
           ))}

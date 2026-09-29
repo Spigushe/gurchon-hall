@@ -211,8 +211,13 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
                     data.card_id,
                     code,
                     data.card_set_id,
+                    # `acquired_quantity` est un effet de bord, pas un état : sur
+                    # une ligne existante, il est borné par ce que le
+                    # remplacement ajoute d'exemplaires réels (Lot 4b).
                     DeckCardUpdate(
-                        quantity=data.quantity, proxy_quantity=data.proxy_quantity
+                        quantity=data.quantity,
+                        proxy_quantity=data.proxy_quantity,
+                        acquired_quantity=data.acquired_quantity,
                     ),
                 )
             return Touched(

@@ -173,6 +173,13 @@ export interface DeckCardInput {
   cardSetId: number;
   quantity: number;
   proxyQuantity?: number;
+  /**
+   * Lot 4b : exemplaires physiques ajoutés à la collection (carte × langue ×
+   * extension) par cette écriture, et consommés aussitôt par la ligne. Un
+   * delta, borné par les exemplaires réels que l'écriture ajoute à la ligne
+   * (`invalid` au-delà). Omis de la charge utile s'il vaut 0 ou n'est pas fourni.
+   */
+  acquiredQuantity?: number;
 }
 
 export function deckCardUpsert(
@@ -191,6 +198,7 @@ export function deckCardUpsert(
       card_set_id: input.cardSetId,
       quantity: input.quantity,
       proxy_quantity: input.proxyQuantity,
+      acquired_quantity: input.acquiredQuantity || undefined,
     }),
   };
 }

@@ -295,6 +295,13 @@ class DeckCardUpsertOperation(SyncOperationBase):
     `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
     `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
     est refusée (`not_found`).
+
+    Lot 4b : `data.acquired_quantity` fait entrer des exemplaires physiques en
+    collection avec la ligne (entrée créée ou incrémentée, sous le même point
+    de sauvegarde que la ligne). Ce n'est pas un état mais un delta : sur une
+    ligne existante, il est borné par ce que le remplacement ajoute
+    d'exemplaires réels (`invalid` au-delà), et c'est la clé d'idempotence qui
+    empêche de le compter deux fois au rejeu, comme pour `bundle.deposit`.
     """
 
     type: Literal["deck_card.upsert"]

@@ -12,6 +12,8 @@ rejected operation, bundle deposit, plus empty / loading / not-found states.
 No behavioural change is intended: same routes, same data, same offline semantics.
 Only layout, type, color, spacing and navigation chrome change.
 
+> **Vue bureau (≥ 1024 px)** : voir `DESKTOP.md` — direction 3a validée, 9 écrans, captures dans `screenshots/desktop/`.
+
 ## About the Design Files
 The files in this bundle are **design references created in HTML** — prototypes showing the
 intended look and structure. They are *not* production code to copy.

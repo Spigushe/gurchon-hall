@@ -29,18 +29,19 @@ export async function readSettled<TOp extends OperationEnvelope = OperationEnvel
 
 /**
  * Efface les opérations tranchées jusqu'au curseur, éventuellement celles d'un
- * seul domaine (`types`) : chaque miroir n'efface que ce qu'il reflète. À
+ * seul domaine (`types`, qui reçoit aussi l'entrée entière pour trier sur son
+ * contenu) : chaque miroir n'efface que ce qu'il reflète. À
  * appeler dans la transaction qui remplace le miroir (elle doit inclure `settled`).
  */
 export async function pruneSettled(
   db: OfflineCoreDb,
   upToSeq: number,
-  types: (type: string) => boolean = () => true,
+  types: (type: string, entry: SettledEntry) => boolean = () => true,
 ): Promise<void> {
   if (upToSeq <= 0) return;
   await db.settled
     .where("seq")
     .belowOrEqual(upToSeq)
-    .filter((entry) => types(entry.type))
+    .filter((entry) => types(entry.type, entry))
     .delete();
 }

@@ -12,12 +12,22 @@ const openDeck = (key: DeckKey) =>
   });
 
 /** Crée un deck via la couche offline et l'ouvre (hors ligne : il n'a pas encore d'identifiant). */
-async function withDeck(options: AppOptions = {}, name = "Malkavien") {
+async function withDeck(
+  options: AppOptions = {},
+  name = "Malkavien",
+  proxyAllowed = false,
+) {
   const app = await renderApp({ online: false, catalog: true, ...options });
-  const { key } = await app.runtime.actions.createDeck({ name });
+  const { key } = await app.runtime.actions.createDeck({ name, proxyAllowed });
   openDeck(key);
   await screen.findByTestId("deck-page");
   return { ...app, key };
+}
+
+/** Ouvre la feuille « Ajouter » depuis le détail d'un deck déjà affiché. */
+async function openAddCardSheet() {
+  fireEvent.click(await screen.findByTestId("deck-card-add"));
+  return screen.findByTestId("deck-card-form");
 }
 
 /** Un deck déjà connu du serveur (identifiant attribué), miroir rafraîchi. */
@@ -53,7 +63,8 @@ describe("decks : liste et création", () => {
     await screen.findByTestId("decks-page");
     expect(await screen.findByTestId("decks-empty")).toBeInTheDocument();
 
-    const form = screen.getByTestId("deck-form");
+    fireEvent.click(await screen.findByTestId("deck-add"));
+    const form = await screen.findByTestId("deck-form");
     fireEvent.change(within(form).getByLabelText("Nom du deck"), { target: { value: "  Malkavien 2022 " } });
     fireEvent.click(within(form).getByTestId("deck-form-submit"));
 
@@ -80,7 +91,8 @@ describe("decks : liste et création", () => {
     const { runtime } = await renderApp({ online: false, hash: "#/decks" });
     await screen.findByTestId("decks-page");
 
-    const form = screen.getByTestId("deck-form");
+    fireEvent.click(await screen.findByTestId("deck-add"));
+    const form = await screen.findByTestId("deck-form");
     fireEvent.change(within(form).getByLabelText("Nom du deck"), { target: { value: "Gangrel" } });
     fireEvent.click(within(form).getByTestId("deck-form-proxy-allowed"));
     fireEvent.click(within(form).getByTestId("deck-form-submit"));
@@ -111,6 +123,7 @@ describe("decks : liste et création", () => {
 
   it("ne crée qu'un deck quand on valide deux fois de suite, et refuse un nom vide", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    fireEvent.click(await screen.findByTestId("deck-add"));
     const form = await screen.findByTestId("deck-form");
 
     fireEvent.click(within(form).getByTestId("deck-form-submit"));
@@ -137,7 +150,7 @@ describe("decks : liste et création", () => {
 
     fireEvent.click(screen.getByLabelText("Archivés"));
     await waitFor(() => expect(screen.getByTestId("deck-item")).toHaveTextContent("Ventrue"));
-    expect(screen.getByTestId("deck-item")).toHaveTextContent("Archivé");
+    expect(screen.getByTestId("deck-item")).toHaveTextContent(/archivé/);
 
     fireEvent.click(screen.getByLabelText("Tous"));
     await waitFor(() => expect(screen.getAllByTestId("deck-item")).toHaveLength(2));
@@ -212,16 +225,18 @@ describe("decks : liste et création", () => {
 
 describe("decks : composition", () => {
   it("ajoute une carte de la collection au deck, hors ligne, par la file", async () => {
-    const { runtime, server, key } = await withDeck();
+    const { runtime, server, key } = await withDeck({}, "Malkavien", true);
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
     server.state.requests.length = 0;
 
-    const form = screen.getByTestId("deck-card-form");
-    fireEvent.change(within(form).getByTestId("deck-card-search"), { target: { value: "ELAN" } });
-    fireEvent.click(await within(form).findByTestId("deck-card-option"));
-    expect(within(form).getByTestId("deck-card-form-chosen")).toHaveTextContent("possédée en 3 exemplaires");
-    fireEvent.change(within(form).getByLabelText("Quantité dans le deck"), { target: { value: "2" } });
-    fireEvent.change(within(form).getByLabelText("Dont proxies"), { target: { value: "1" } });
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "ELAN" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    expect(within(form).getByTestId("deck-card-form-chosen")).toHaveTextContent("Élan vital");
+    fireEvent.change(within(form).getByLabelText("Copies dans le deck"), { target: { value: "2" } });
+    // Une seule des deux copies est déclarée possédée : l'autre reste un proxy.
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Dont déjà possédées" }));
+    expect(within(form).getByTestId("deck-card-form-availability")).toHaveTextContent("1 proxy");
     fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
 
     const line = await screen.findByTestId("deck-card");
@@ -240,7 +255,7 @@ describe("decks : composition", () => {
   });
 
   it("distingue deux impressions de la même carte et langue, et laisse choisir l'entrée précise", async () => {
-    const { runtime, key } = await withDeck();
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
     await runtime.db.cardSets.put({
       id: 21,
       abbrev: "NEW",
@@ -249,47 +264,111 @@ describe("decks : composition", () => {
       company: null,
       isPlaceholder: false,
     });
+    const card = await runtime.db.cards.get(1);
+    await runtime.db.cards.put({ ...card!, cardSetIds: [9, 21], latestCardSetId: 21 });
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 21, quantityOwned: 5 });
 
-    const form = screen.getByTestId("deck-card-form");
-    fireEvent.change(within(form).getByTestId("deck-card-search"), { target: { value: "ELAN" } });
-    await waitFor(() =>
-      expect(within(form).getAllByTestId("deck-card-option")).toHaveLength(2),
-    );
-    const options = within(form).getAllByTestId("deck-card-option");
-    expect(options.map((option) => option.textContent)).toEqual([
-      expect.stringContaining("TEST — Extension de test"),
-      expect.stringContaining("NEW — Extension récente"),
-    ]);
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "ELAN" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
 
-    fireEvent.click(options[1]); // la seconde impression, celle à 5 exemplaires
-    expect(within(form).getByTestId("deck-card-form-chosen")).toHaveTextContent(
-      "possédée en 5 exemplaires",
-    );
+    // Déclarer au moins une copie possédée révèle le choix de l'impression (D2a).
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Dont déjà possédées" }));
+    const select = await within(form).findByTestId("deck-card-form-card-set");
+    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "TEST — Extension de test",
+      "NEW — Extension récente",
+    ]);
+    // Présélectionnée sur la dernière version (D2a).
+    expect(select).toHaveValue("21");
+
+    fireEvent.change(select, { target: { value: "9" } }); // choisit l'autre impression, à 3 exemplaires
     fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
 
     const line = await screen.findByTestId("deck-card");
-    await waitFor(() => expect(within(line).getByTestId("deck-card-set")).toHaveTextContent("NEW"));
+    await waitFor(() => expect(within(line).getByTestId("deck-card-set")).toHaveTextContent("TEST"));
     const last = (await runtime.outbox.list()).at(-1)!.operation;
     expect(last).toMatchObject({
       type: "deck_card.upsert",
       deck: { client_ref: key.slice(4) },
-      data: { card_id: 1, language_code: "FR", card_set_id: 21 },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9 },
     });
   });
 
-  it("propose d'ajouter d'abord la carte à la collection quand elle n'y est pas", async () => {
-    await withDeck();
-    const form = screen.getByTestId("deck-card-form");
-    fireEvent.change(within(form).getByTestId("deck-card-search"), { target: { value: "elan" } });
-    expect(await within(form).findByTestId("deck-card-no-result")).toHaveTextContent(
-      "doit être possédée",
+  it("ajoute une carte absente de la collection, entièrement en proxy (deck qui autorise les proxies)", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+
+    // Rien en collection : D2a prend la dernière version sans demander l'extension,
+    // et la copie entre entièrement en proxy (aucune acquisition).
+    expect(within(form).queryByTestId("deck-card-form-card-set")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-availability")).toHaveTextContent(
+        "Disponible en collection : 0",
+      ),
     );
-    expect(within(form).getByRole("link", { name: /collection/i })).toHaveAttribute(
-      "href",
-      "#/collection",
+    fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
+
+    const line = await screen.findByTestId("deck-card");
+    expect(line).toHaveAttribute("data-quantity", "1");
+    expect(line).toHaveAttribute("data-proxy-quantity", "1");
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      deck: { client_ref: key.slice(4) },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity: 1, proxy_quantity: 1 },
+    });
+  });
+
+  it("acquiert les exemplaires manquants quand on possède plus que le stock ne l'autorise", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    fireEvent.change(within(form).getByLabelText("Copies dans le deck"), { target: { value: "3" } });
+    // La disponibilité se lit en IndexedDB (asynchrone) : attendre qu'elle soit à
+    // jour avant d'enchaîner les clics, pour ne pas incrémenter « possédées » sur
+    // une valeur encore obsolète (0) le temps que la lecture locale se résolve.
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-availability")).toHaveTextContent(
+        "Disponible en collection : 1 exemplaire",
+      ),
     );
+
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Dont déjà possédées" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Dont déjà possédées" }));
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Dont déjà possédées" }));
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-acquire")).toHaveTextContent("2 exemplaires"),
+    );
+
+    fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
+
+    const line = await screen.findByTestId("deck-card");
+    expect(line).toHaveAttribute("data-quantity", "3");
+    expect(line).toHaveAttribute("data-proxy-quantity", "0");
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      deck: { client_ref: key.slice(4) },
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity: 3, proxy_quantity: 0, acquired_quantity: 2 },
+    });
+  });
+
+  it("verrouille les exemplaires possédés à la quantité quand le deck n'autorise pas les proxies", async () => {
+    await withDeck({}, "Malkavien", false);
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+
+    expect(within(form).getByTestId("deck-card-form-no-proxy")).toBeInTheDocument();
+    expect(within(form).queryByLabelText("Dont déjà possédées")).not.toBeInTheDocument();
   });
 
   it("modifie la quantité d'une ligne sans perdre ses proxies, et retire la ligne", async () => {
@@ -317,6 +396,72 @@ describe("decks : composition", () => {
     await waitFor(() => expect(screen.getByTestId("deck-cards-empty")).toBeInTheDocument());
     const after = await runtime.outbox.list();
     expect(after[after.length - 1].operation.type).toBe("deck_card.delete");
+  });
+
+  it("clampe le nombre de copies à 1 au minimum (saisie directe, pas seulement le bouton −)", async () => {
+    await withDeck({}, "Malkavien", true);
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+
+    const copies = within(form).getByLabelText("Copies dans le deck");
+    fireEvent.change(copies, { target: { value: "0" } });
+    expect(copies).toHaveValue(1);
+    fireEvent.change(copies, { target: { value: "-5" } });
+    expect(copies).toHaveValue(1);
+  });
+
+  it("borne les exemplaires déjà possédés entre 0 et le nombre de copies, y compris en rabaissant les copies", async () => {
+    await withDeck({}, "Malkavien", true);
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    fireEvent.change(within(form).getByLabelText("Copies dans le deck"), { target: { value: "3" } });
+
+    const owned = within(form).getByLabelText("Dont déjà possédées");
+    fireEvent.change(owned, { target: { value: "-2" } });
+    expect(owned).toHaveValue(0);
+    fireEvent.change(owned, { target: { value: "10" } });
+    expect(owned).toHaveValue(3); // plafonné au nombre de copies
+
+    // Rabaisser les copies re-plafonne ce qui était déjà saisi comme possédé.
+    fireEvent.change(within(form).getByLabelText("Copies dans le deck"), { target: { value: "1" } });
+    expect(owned).toHaveValue(1);
+  });
+
+  it("borne le nombre de proxies à convertir entre 1 et le total de proxies de la ligne", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 5 });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 4,
+      proxyQuantity: 3,
+    });
+    const line = await screen.findByTestId("deck-card");
+    const convert = within(line).getByTestId("deck-card-convert");
+    const minus = within(convert).getByRole("button", { name: /Retirer un proxy à acquérir/ });
+    const plus = within(convert).getByRole("button", { name: /Ajouter un proxy à acquérir/ });
+
+    // Départ à 1, bouton − déjà désactivé (borne basse).
+    expect(within(convert).getByTestId("deck-card-convert-count")).toHaveTextContent("1");
+    expect(minus).toBeDisabled();
+
+    fireEvent.click(plus);
+    fireEvent.click(plus);
+    fireEvent.click(plus);
+    fireEvent.click(plus); // un clic de trop : reste à 3 (borne haute, le total de la ligne)
+    expect(within(convert).getByTestId("deck-card-convert-count")).toHaveTextContent("3");
+    expect(plus).toBeDisabled();
+
+    fireEvent.click(within(convert).getByTestId("deck-card-convert-submit"));
+    await waitFor(() => expect(screen.getByTestId("deck-card")).toHaveAttribute("data-proxy-quantity", "0"));
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      data: { quantity: 4, proxy_quantity: 0, acquired_quantity: 3 },
+    });
   });
 });
 
@@ -379,8 +524,9 @@ describe("decks : légalité", () => {
 
     const verdict = await screen.findByTestId("legality-verdict");
     expect(within(verdict).getByTestId("legality-badge")).toHaveTextContent("Deck illégal");
-    expect(within(verdict).getByTestId("legality-crypt")).toHaveTextContent("Crypte : 11 (minimum 12)");
-    expect(within(verdict).getByTestId("legality-library")).toHaveTextContent("entre 60 et 90");
+    expect(within(verdict).getByTestId("legality-crypt")).toHaveTextContent("11");
+    expect(within(verdict).getByTestId("legality-crypt")).toHaveTextContent("min 12");
+    expect(within(verdict).getByTestId("legality-library")).toHaveTextContent("60–90");
     expect(within(verdict).getByTestId("legality-issues")).toHaveTextContent("minimum 12");
     expect(verdict).toHaveTextContent("G2");
     // Un brouillon n'a pas à être légal : pas d'alerte.

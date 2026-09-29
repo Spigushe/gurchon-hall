@@ -1319,7 +1319,7 @@
           "decks"
         ],
         "summary": "Ajoute une carte au deck",
-        "description": "La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.",
+        "description": "La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. `acquired_quantity` fait entrer des exemplaires physiques en collection avec la ligne, dans la même transaction : l'entrée est créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de 2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse `quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.",
         "operationId": "addDeckCard",
         "parameters": [
           {
@@ -1394,7 +1394,7 @@
           "decks"
         ],
         "summary": "Modifie une ligne du deck",
-        "description": "Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas.",
+        "description": "Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas. `acquired_quantity` ajoute des exemplaires physiques à l'entrée de collection de la ligne, dans la même transaction ; il ne peut dépasser les exemplaires réels que la modification ajoute à la ligne (422). Remplacer `n` proxies par de vraies cartes : `{\"proxy_quantity\": p - n, \"acquired_quantity\": n}`. Rejouer ce `PATCH` à l'identique rend un 422, jamais un double comptage.",
         "operationId": "updateDeckCard",
         "parameters": [
           {
@@ -2813,6 +2813,14 @@
             "title": "Proxy Quantity",
             "default": 0
           },
+          "acquired_quantity": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Acquired Quantity",
+            "description": "Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.",
+            "default": 0
+          },
           "card_id": {
             "type": "integer",
             "maximum": 2147483647.0,
@@ -2842,7 +2850,7 @@
           "card_set_id"
         ],
         "title": "DeckCardCreate",
-        "description": "Ajout d'une carte à un deck.\n\nLa carte doit déjà exister dans la collection pour la langue et\nl'extension demandées (CLAUDE.md §11 point 2) ; la vérification de\ndisponibilité relève du service, la base garantissant déjà l'existence de\nl'entrée de collection."
+        "description": "Ajout d'une carte à un deck.\n\nLa carte doit être dans la collection pour la langue et l'extension\ndemandées (CLAUDE.md §11 point 2), **ou y entrer par cette écriture** :\n`acquired_quantity` crée ou incrémente l'entrée de collection dans la même\ntransaction que la ligne (Lot 4b, `docs/lot4b-acquisition-depuis-deck.md`).\nLa vérification de disponibilité relève du service."
       },
       "DeckCardDeleteOperation": {
         "properties": {
@@ -2960,12 +2968,20 @@
             "maximum": 2147483647.0,
             "minimum": 0.0,
             "title": "Proxy Quantity"
+          },
+          "acquired_quantity": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 0.0,
+            "title": "Acquired Quantity",
+            "description": "Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.",
+            "default": 0
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "DeckCardUpdate",
-        "description": "Modification d'une ligne de decklist.\n\nLe contrôle `proxy_quantity <= quantity` n'est complet que si les deux\nvaleurs sont fournies. Sinon la comparaison porterait sur une valeur que\nseule la base connaît : **le service du Lot 2 doit refaire la vérification**\naprès fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`\nreste le dernier filet, mais elle produirait un 500 plutôt qu'un 422)."
+        "description": "Modification d'une ligne de decklist.\n\nLe contrôle `proxy_quantity <= quantity` n'est complet que si les deux\nvaleurs sont fournies. Sinon la comparaison porterait sur une valeur que\nseule la base connaît : **le service du Lot 2 doit refaire la vérification**\naprès fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`\nreste le dernier filet, mais elle produirait un 500 plutôt qu'un 422).\n\n`acquired_quantity` n'est pas un état de la ligne mais un effet de bord sur\nla collection, borné par ce que la modification ajoute d'exemplaires réels\nà la ligne : c'est au service de le vérifier, lui seul connaît la ligne\nd'avant. Convertir un proxy en vraie carte s'écrit donc\n`{\"proxy_quantity\": p - n, \"acquired_quantity\": n}`."
       },
       "DeckCardUpsertOperation": {
         "properties": {
@@ -3003,7 +3019,7 @@
           "data"
         ],
         "title": "DeckCardUpsertOperation",
-        "description": "Place une carte dans un deck, ou remplace sa ligne.\n\n`data` porte l'état complet voulu de la ligne (`quantity`,\n`proxy_quantity`). La carte doit être en collection dans cette langue et\ncette extension, les exemplaires disponibles doivent suffire, et un\n`proxy_quantity` non nul exige un deck qui autorise les proxies : sinon\n`conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée\nest refusée (`not_found`)."
+        "description": "Place une carte dans un deck, ou remplace sa ligne.\n\n`data` porte l'état complet voulu de la ligne (`quantity`,\n`proxy_quantity`). La carte doit être en collection dans cette langue et\ncette extension, les exemplaires disponibles doivent suffire, et un\n`proxy_quantity` non nul exige un deck qui autorise les proxies : sinon\n`conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée\nest refusée (`not_found`).\n\nLot 4b : `data.acquired_quantity` fait entrer des exemplaires physiques en\ncollection avec la ligne (entrée créée ou incrémentée, sous le même point\nde sauvegarde que la ligne). Ce n'est pas un état mais un delta : sur une\nligne existante, il est borné par ce que le remplacement ajoute\nd'exemplaires réels (`invalid` au-delà), et c'est la clé d'idempotence qui\nempêche de le compter deux fois au rejeu, comme pour `bundle.deposit`."
       },
       "DeckCreate": {
         "properties": {

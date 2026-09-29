@@ -1,18 +1,16 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
+import { Sheet, SheetHeader } from "../../components/Sheet";
+import { Stepper } from "../../components/Stepper";
+import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
-import { DECK_STATUS_LABELS, type DeckStatus } from "../../labels";
+import { DECK_STATUS_LABELS, REJECTION_LABELS, type DeckStatus } from "../../labels";
 import type { OutboxEntry } from "../../offline/core";
 import { useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import { useOperationDescriber } from "./useOperationLabels";
 
 type Entry = OutboxEntry<VtesOperation>;
 
 const MAX_INT = 2_147_483_647;
-
-function toInt(value: string): number | null {
-  if (!/^\d+$/.test(value.trim())) return null;
-  const parsed = Number(value);
-  return parsed <= MAX_INT ? parsed : null;
-}
 
 /**
  * Corrige une opération refusée puis la renvoie : la couche offline en crée une
@@ -24,15 +22,18 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
   const action = useGuardedAction();
   const operation = entry.operation;
   const formId = useId();
+  const titleId = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const describe = useOperationDescriber([entry]);
 
   const [quantity, setQuantity] = useState(() => {
-    if (operation.type === "stock.upsert") return String(operation.data.quantity_owned ?? 0);
-    if (operation.type === "deck_card.upsert") return String(operation.data.quantity);
-    if (operation.type === "bundle.deposit") return String(operation.data.count ?? 1);
-    return "";
+    if (operation.type === "stock.upsert") return operation.data.quantity_owned ?? 0;
+    if (operation.type === "deck_card.upsert") return operation.data.quantity;
+    if (operation.type === "bundle.deposit") return operation.data.count ?? 1;
+    return 0;
   });
   const [proxyQuantity, setProxyQuantity] = useState(() =>
-    operation.type === "deck_card.upsert" ? String(operation.data.proxy_quantity ?? 0) : "",
+    operation.type === "deck_card.upsert" ? (operation.data.proxy_quantity ?? 0) : 0,
   );
   const [proxyAllowed, setProxyAllowed] = useState(() => {
     if (operation.type === "deck.create") return operation.data.proxy_allowed ?? false;
@@ -54,17 +55,19 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
     let transform: (op: VtesOperation) => VtesOperation;
     switch (operation.type) {
       case "stock.upsert": {
-        const owned = toInt(quantity);
-        if (owned === null) return setInvalid("Indiquez un nombre d'exemplaires entier, 0 ou plus.");
+        const owned = quantity;
+        if (!(owned >= 0 && owned <= MAX_INT)) {
+          return setInvalid("Indiquez un nombre d'exemplaires entier, 0 ou plus.");
+        }
         transform = (op) =>
           op.type === "stock.upsert" ? { ...op, data: { ...op.data, quantity_owned: owned } } : op;
         break;
       }
       case "deck_card.upsert": {
-        const total = toInt(quantity);
-        const proxies = toInt(proxyQuantity);
-        if (total === null || total < 1) return setInvalid("La quantité doit être un entier, 1 ou plus.");
-        if (proxies === null || proxies > total) {
+        const total = quantity;
+        const proxies = proxyQuantity;
+        if (!(total >= 1 && total <= MAX_INT)) return setInvalid("La quantité doit être un entier, 1 ou plus.");
+        if (!(proxies >= 0 && proxies <= total)) {
           return setInvalid("Les proxies sont un entier compris entre 0 et la quantité.");
         }
         transform = (op) =>
@@ -74,10 +77,9 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
         break;
       }
       case "bundle.deposit": {
-        const count = toInt(quantity);
-        if (count === null || count < 1) return setInvalid("Le nombre de produits est un entier, 1 ou plus.");
-        transform = (op) =>
-          op.type === "bundle.deposit" ? { ...op, data: { ...op.data, count } } : op;
+        const count = quantity;
+        if (!(count >= 1 && count <= MAX_INT)) return setInvalid("Le nombre de produits est un entier, 1 ou plus.");
+        transform = (op) => (op.type === "bundle.deposit" ? { ...op, data: { ...op.data, count } } : op);
         break;
       }
       case "deck.create": {
@@ -117,103 +119,100 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
   };
 
   return (
-    <form
-      onSubmit={submit}
-      noValidate
-      className="form form--inline"
-      data-testid="correction-form"
-      aria-label="Corriger l'opération refusée"
-    >
-      {(operation.type === "stock.upsert" ||
-        operation.type === "deck_card.upsert" ||
-        operation.type === "bundle.deposit") && (
-        <div className="field">
-          <label htmlFor={`${formId}-qty`}>
-            {operation.type === "stock.upsert"
-              ? "Exemplaires possédés"
-              : operation.type === "bundle.deposit"
-                ? "Nombre de produits"
-                : "Quantité"}
-          </label>
-          <input
-            id={`${formId}-qty`}
-            type="number"
-            min={operation.type === "stock.upsert" ? 0 : 1}
-            step={1}
-            inputMode="numeric"
+    <Sheet titleId={titleId} titleRef={titleRef} onClose={onDone} data-testid="correction-form-sheet">
+      <SheetHeader
+        kicker="Opération refusée"
+        title="Corriger"
+        titleId={titleId}
+        titleRef={titleRef}
+        onClose={onDone}
+      />
+      <div className="accent-block">
+        <p className="accent-block__detail">{describe(operation)}</p>
+        <p className="accent-block__detail">
+          {entry.rejection ? REJECTION_LABELS[entry.rejection.code] : "Opération refusée"}
+          {entry.rejection?.message ? ` : ${entry.rejection.message}` : ""}
+        </p>
+      </div>
+
+      <form onSubmit={submit} noValidate data-testid="correction-form" aria-label="Corriger l'opération refusée">
+        {(operation.type === "stock.upsert" ||
+          operation.type === "deck_card.upsert" ||
+          operation.type === "bundle.deposit") && (
+          <Stepper
+            label={
+              operation.type === "stock.upsert"
+                ? "Exemplaires possédés"
+                : operation.type === "bundle.deposit"
+                  ? "Nombre de produits"
+                  : "Quantité"
+            }
             value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
+            onChange={setQuantity}
+            min={operation.type === "stock.upsert" ? 0 : 1}
           />
-        </div>
-      )}
-      {operation.type === "deck_card.upsert" && (
-        <div className="field">
-          <label htmlFor={`${formId}-proxy`}>Dont proxies</label>
-          <input
-            id={`${formId}-proxy`}
-            type="number"
-            min={0}
-            step={1}
-            inputMode="numeric"
-            value={proxyQuantity}
-            onChange={(event) => setProxyQuantity(event.target.value)}
-          />
-        </div>
-      )}
-      {(operation.type === "deck.create" ||
-        (operation.type === "deck.update" && operation.data.proxy_allowed !== undefined)) && (
-        <div className="field field--check">
-          <input
+        )}
+        {operation.type === "deck_card.upsert" && (
+          <Stepper label="Dont proxies" value={proxyQuantity} onChange={setProxyQuantity} min={0} max={quantity} />
+        )}
+        {(operation.type === "deck.create" ||
+          (operation.type === "deck.update" && operation.data.proxy_allowed !== undefined)) && (
+          <Switch
             id={`${formId}-proxy-allowed`}
-            type="checkbox"
             checked={proxyAllowed}
-            onChange={(event) => setProxyAllowed(event.target.checked)}
+            onChange={setProxyAllowed}
+            label="Proxies autorisés"
           />
-          <label htmlFor={`${formId}-proxy-allowed`}>Proxies autorisés</label>
-        </div>
-      )}
-      {(operation.type === "deck.create" ||
-        (operation.type === "deck.update" && operation.data.name !== undefined)) && (
-        <div className="field">
-          <label htmlFor={`${formId}-name`}>Nom du deck</label>
-          <input
-            id={`${formId}-name`}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </div>
-      )}
-      {operation.type === "deck.update" && operation.data.status !== undefined && (
-        <div className="field">
-          <label htmlFor={`${formId}-status`}>Statut</label>
-          <select
-            id={`${formId}-status`}
-            value={status}
-            onChange={(event) => setStatus(event.target.value as DeckStatus)}
-          >
-            <option value="draft">{DECK_STATUS_LABELS.draft}</option>
-            <option value="active">{DECK_STATUS_LABELS.active}</option>
-          </select>
-        </div>
-      )}
-      {invalid && (
-        <p className="error" role="alert">
-          {invalid}
+        )}
+        {(operation.type === "deck.create" ||
+          (operation.type === "deck.update" && operation.data.name !== undefined)) && (
+          <div className="field">
+            <label htmlFor={`${formId}-name`}>Nom du deck</label>
+            <input
+              id={`${formId}-name`}
+              className="underline-field"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+        )}
+        {operation.type === "deck.update" && operation.data.status !== undefined && (
+          <div className="field">
+            <label htmlFor={`${formId}-status`}>Statut</label>
+            <select
+              id={`${formId}-status`}
+              className="underline-field"
+              value={status}
+              onChange={(event) => setStatus(event.target.value as DeckStatus)}
+            >
+              <option value="draft">{DECK_STATUS_LABELS.draft}</option>
+              <option value="active">{DECK_STATUS_LABELS.active}</option>
+            </select>
+          </div>
+        )}
+
+        <p className="hint">
+          Renvoyer crée une nouvelle opération : la clé refusée n'est jamais rejouée telle quelle.
         </p>
-      )}
-      {action.error && (
-        <p className="error" role="alert">
-          {action.error}
-        </p>
-      )}
-      <div className="actions">
-        <button type="submit" disabled={action.pending} data-testid="correction-submit">
-          Corriger et renvoyer
+
+        {invalid && (
+          <p className="error-text" role="alert">
+            {invalid}
+          </p>
+        )}
+        {action.error && (
+          <p className="error-text" role="alert">
+            {action.error}
+          </p>
+        )}
+
+        <button type="submit" className="pill pill--floating" disabled={action.pending} data-testid="correction-submit">
+          Renvoyer la correction
         </button>
-        <button type="button" onClick={onDone} disabled={action.pending}>
+        <button type="button" className="btn-text" onClick={onDone} disabled={action.pending}>
           Annuler
         </button>
-      </div>
-    </form>
+      </form>
+    </Sheet>
   );
 }

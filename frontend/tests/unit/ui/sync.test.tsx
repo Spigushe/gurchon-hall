@@ -17,6 +17,19 @@ const refreshMirrors = (app: App) =>
   });
 
 /**
+ * Les refus ne se lisent plus sur toutes les pages : ils vivent sur l'écran
+ * Synchronisation (Lot 5, étape 11). On attend que la coquille compte le refus,
+ * puis on ouvre l'écran.
+ */
+async function openSyncPage() {
+  await waitFor(() => expect(screen.getByTestId("sync-status")).toHaveAttribute("data-rejected", "1"));
+  act(() => {
+    window.location.hash = hrefFor({ name: "sync" });
+  });
+  return screen.findByTestId("rejected-operations");
+}
+
+/**
  * Hors ligne : un deck et une carte ajoutée à ce deck sans avoir la carte en
  * collection. Au retour du réseau, le serveur refuse l'ajout (exemplaires
  * insuffisants) ; la création du deck passe.
@@ -25,7 +38,7 @@ async function refusedDeckCard(app: App) {
   const { key } = await app.runtime.actions.createDeck({ name: "Gangrel" });
   await app.runtime.actions.saveDeckCard(key, { cardId: 2, languageCode: "EN", cardSetId: 9, quantity: 3 });
   act(() => setOnline(true));
-  await screen.findByTestId("rejected-operations");
+  await openSyncPage();
   await app.settle();
   await refreshMirrors(app);
   return key;
@@ -119,7 +132,7 @@ describe("opérations refusées", () => {
     fireEvent.change(within(form).getByLabelText("Quantité"), { target: { value: "1" } });
     fireEvent.click(within(form).getByTestId("correction-submit"));
 
-    await waitFor(() => expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId("rejected-operation")).not.toBeInTheDocument()); // l'écran reste, sans refus
     await app.settle();
     expect(app.server.state.deckCards).toEqual([
       expect.objectContaining({ card_id: 2, language_code: "EN", quantity: 1 }),
@@ -153,7 +166,7 @@ describe("opérations refusées", () => {
     await app.settle();
 
     fireEvent.click(screen.getByTestId("reissue-button"));
-    await waitFor(() => expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId("rejected-operation")).not.toBeInTheDocument()); // l'écran reste, sans refus
     await app.settle();
 
     expect(app.server.state.deckCards).toHaveLength(1);
@@ -169,7 +182,7 @@ describe("opérations refusées", () => {
     expect(await app.runtime.outbox.list("rejected")).toHaveLength(1); // rien encore
     fireEvent.click(screen.getByTestId("discard-confirm"));
 
-    await waitFor(() => expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByTestId("rejected-operation")).not.toBeInTheDocument()); // l'écran reste, sans refus
     expect(await app.runtime.outbox.list()).toHaveLength(0);
     expect(app.server.state.deckCards).toHaveLength(0);
     expect(screen.getByTestId("sync-status")).toHaveAttribute("data-rejected", "0");
@@ -191,7 +204,7 @@ describe("opérations refusées", () => {
     // Le serveur factice ne gère pas `deck.update` : il le refuse, ce qui donne un refus sans champ éditable.
     await app.runtime.actions.archiveDeck(key);
     act(() => setOnline(true));
-    await screen.findByTestId("rejected-operations");
+    await openSyncPage();
     await app.settle();
     await refreshMirrors(app);
 
@@ -207,15 +220,28 @@ describe("opérations refusées", () => {
     expect(within(item).getByTestId("discard-button")).toBeInTheDocument();
   });
 
-  it("le panneau des refus est visible sur toutes les pages", async () => {
+  it("les refus s'annoncent par une alerte sur l'Atelier, qui mène à l'écran Synchronisation", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await refusedDeckCard(app);
-    for (const route of [{ name: "stock" }, { name: "decks" }, { name: "home" }] as const) {
+
+    // Ni la Collection ni les Decks ne portent le panneau des refus.
+    for (const route of [{ name: "stock" }, { name: "decks" }] as const) {
       act(() => {
         window.location.hash = hrefFor(route);
       });
-      expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
+      await screen.findByTestId(route.name === "stock" ? "stock-page" : "decks-page");
+      expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument();
+      expect(screen.getByTestId("sync-status")).toHaveAttribute("data-rejected", "1");
     }
+
+    act(() => {
+      window.location.hash = hrefFor({ name: "home" });
+    });
+    const alert = await screen.findByTestId("sync-alert");
+    expect(alert).toHaveTextContent("1 opération refusée");
+    expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument();
+    fireEvent.click(within(alert).getByTestId("sync-alert-link"));
+    expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
   });
 
   it("un refus n'a aucun effet local : la lecture retombe sur l'instantané du serveur", async () => {
@@ -226,7 +252,8 @@ describe("opérations refusées", () => {
     await waitFor(() => expect(screen.queryAllByTestId("deck-item")).toHaveLength(0));
 
     act(() => setOnline(true));
-    await screen.findByTestId("rejected-operations"); // le serveur factice refuse `deck.update`
+    // Le serveur factice refuse `deck.update` : la coquille compte le refus, sans changer de page.
+    await waitFor(() => expect(screen.getByTestId("sync-status")).toHaveAttribute("data-rejected", "1"));
     await app.settle();
     await refreshMirrors(app);
 

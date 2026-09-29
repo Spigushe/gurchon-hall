@@ -176,10 +176,37 @@ export function createFakeServer(): FakeServer {
         const deck = resolveDeck(op.deck as Json);
         if (!deck) return refuse("unresolved_client_ref", "deck introuvable");
         const cardSetId = (data.card_set_id as number | undefined) ?? CARD_SET_ID;
-        const owned = state.stock.get(stockKey(data.card_id, data.language_code, cardSetId));
+        const stockId = stockKey(data.card_id, data.language_code, cardSetId);
+        const owned = state.stock.get(stockId);
         const real = (data.quantity as number) - ((data.proxy_quantity as number | undefined) ?? 0);
-        if (!owned || owned.quantity_owned < real) {
+        // Lot 4b : `acquired_quantity` est un delta borné par les exemplaires
+        // réels que l'écriture ajoute à la ligne (ligne neuve : depuis 0).
+        const acquired = (data.acquired_quantity as number | undefined) ?? 0;
+        const previous = state.deckCards.find(
+          (line) =>
+            line.deck_id === deck.id &&
+            line.card_id === data.card_id &&
+            line.language_code === data.language_code &&
+            line.card_set_id === cardSetId,
+        );
+        const added = real - (previous ? previous.quantity - previous.proxy_quantity : 0);
+        if (acquired > added) {
+          return refuse("invalid", "acquired_quantity au-delà des exemplaires ajoutés à la ligne");
+        }
+        if (!owned && acquired === 0) {
           return refuse("conflict", "exemplaires insuffisants");
+        }
+        if ((owned?.quantity_owned ?? 0) + acquired < real) {
+          return refuse("conflict", "exemplaires insuffisants");
+        }
+        if (acquired > 0) {
+          state.stock.set(stockId, {
+            card_id: data.card_id as number,
+            language_code: data.language_code as string,
+            card_set_id: cardSetId,
+            quantity_owned: (owned?.quantity_owned ?? 0) + acquired,
+            notes: owned?.notes ?? null,
+          });
         }
         state.deckCards = state.deckCards.filter(
           (line) =>

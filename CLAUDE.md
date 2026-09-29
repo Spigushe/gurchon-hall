@@ -4,7 +4,8 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 4 livrés**. Lot 0 : squelette monorepo, FastAPI `/health`,
+**État actuel** : **Lots 0 à 5 livrés** (Lot 5 en attente de la vérification manuelle
+PWA, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
 React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -18,20 +19,25 @@ métier (collection, decks) sur routeur à hash. Détail des décisions au §11,
 d'entrée du contrat de sync dans `docs/lot3-sync-contrat.md`, de la couche offline dans
 `frontend/src/offline/README.md`. Lot 4 : l'autorisation de proxy passe de l'entrée de
 stock au deck, et une entrée de collection est désormais identifiée par carte × langue ×
-extension, de la base jusqu'à l'UI (plan dans `docs/lot4-plan-inventaire.md`). Le modèle
+extension, de la base jusqu'à l'UI (plan dans `docs/lot4-plan-inventaire.md`). Lot 5 :
+refonte mobile de l'UI sur le design system Nocturne, picker de cartes fusionné et
+acquisition d'exemplaires depuis un deck, écran Synchronisation (plan dans
+`docs/lot5-plan-design.md`, décisions au §11). Le modèle
 compte **23 tables** et six révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1552 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (1597 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
 à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 228 tests),
-`npm run test:e2e` (Playwright, 23 tests, dont 14 contre un vrai back sur base
-éphémère — projet `real-backend`, cf. `frontend/tests/e2e-real/`),
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 247 tests),
+`npm run test:e2e` (Playwright, 25 tests : 9 dans le projet `chromium` et 16 contre un
+vrai back sur base éphémère — projet `real-backend`, cf. `frontend/tests/e2e-real/`),
+`npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
+fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
@@ -716,6 +722,60 @@ Limites connues à la clôture du Lot 4 :
   Playwright les ignore sans prévenir : un run e2e n'est vert qu'avec le bon nombre de
   tests.
 
+Tranchées pendant le Lot 5 (plan dans `docs/lot5-plan-design.md`, handoff mobile
+« 1b » dans `docs/design-handoff-mobile/`) :
+
+- **Acquisition depuis un deck (Lot 4b, pris en cours de lot).** Une ligne de deck porte
+  un nombre de copies et un compteur « déjà possédées » ; le reste est en proxy. À
+  0 possédé, toute la ligne est en proxy, ce qui exige `proxy_allowed` sur le deck. Les
+  exemplaires possédés se prennent d'abord dans le stock disponible
+  (`useAvailableStock`, même comptabilité que le serveur), et seul le manque est acquis
+  (`acquired_quantity`). Pas de composition dans `DeckCreate` : `deck.create` puis un
+  `deck_card.upsert` par ligne dans le même lot, reliés par `client_ref`. Pas de nouveau
+  type d'opération `/sync` ni de migration. Le client ne refuse pas une carte absente du
+  stock sans acquisition : c'est le serveur qui rend `conflict`. Brief dans
+  `docs/lot4b-acquisition-depuis-deck.md`.
+- **Picker fusionné, une carte à la fois.** `CardPicker` et l'ancien formulaire d'ajout
+  limité au stock ne forment plus qu'un écran (`AddDeckCardForm`), qui cherche dans le
+  catalogue entier. Le « panier » multi-cartes du handoff n'est pas repris.
+- **Pas de menu overflow dans le détail de deck** : les actions restent des boutons
+  explicites sous la composition, comme au Lot 3.
+- **`Loading` signale le chargement par `aria-busy`, jamais par `role="status"`** : la
+  coquille ne garde qu'un seul `role="status"`, sur lequel les e2e s'appuient.
+- **Collection** : pilule flottante « Ajouter une carte » et bouton rond « Verser un
+  produit » ; feuille de filtres langue + extension + tri-état possédé / à 0
+  (`StockFilterSheet`), au-delà de ce que dessine le handoff.
+- **Decks** : le sous-titre « N decks » compte la liste filtrée, pas le total ; le
+  switch « Proxies autorisés » reste dans la feuille « Nouveau deck ».
+- **Catalogue** : `CatalogPanel` reste accessible en forme compacte au pied de l'Atelier
+  (retirer l'action de mise à jour aurait été un changement de comportement), en forme
+  pleine sur la Collection quand le catalogue local est vide.
+- **Thème et shell** : app uniquement sombre (le mode clair a été retiré), police Inter
+  auto-hébergée (`@fontsource/inter`) et précachée (`woff2` ajouté aux `globPatterns`),
+  couleurs du manifeste alignées sur le fond Nocturne (`#161826`), icônes
+  `@phosphor-icons/react`.
+- **Écarts au handoff mobile, actés** : pas de proxy par entrée de stock (propriété du
+  deck depuis le Lot 4) ; extension intégrée à la feuille d'entrée (sélecteur, désactivé
+  en modification), ce qui solde la limite « le handoff ne connaît pas l'extension » du
+  Lot 4 ; méta de ligne de collection « Catégorie · langue · extension » (le miroir n'a ni
+  clan ni capacité) ; langue non modifiable sur une entrée existante (elle fait partie de
+  la clé) ; puces de langue EN/FR/ES/Autre partagées ; « proxies autorisés » et
+  « archivé » rendus en texte dans la méta d'une ligne de deck, sans badge.
+- **Écran « Chercher » reporté** à un lot à part, hors ligne complet sur un miroir
+  enrichi (`docs/lot-chercher-brief.md`). Son onglet reste désactivé jusque-là.
+- **`data-testid`** : 170 occurrences sur 23 fichiers à la clôture (108 sur 17 avant le
+  lot) ; ce recensement sert de repère de non-régression au Lot 5bis.
+
+Limites connues à la clôture du Lot 5 :
+
+- **Vérification PWA manuelle non faite** : le contrôle automatisé
+  (`scripts/check-pwa-installability.mjs`) passe, mais le panneau Application de Chrome
+  DevTools, la coupure réseau réelle et l'invite d'installation sur mobile restent à
+  vérifier à la main, comme au Lot 0.
+- **La suite Playwright tourne en `Desktop Chrome` (1280 × 720)**, alors que l'UI livrée
+  est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
+  fixe une largeur mobile explicite avant d'en poser un.
+
 ---
 
 ## 12. Roadmap
@@ -770,15 +830,25 @@ Limites connues à la clôture du Lot 4 :
    scénario contre le vrai back : deux impressions de la même carte et langue saisies hors
    ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
    import rejoué sans doublon ni changement d'identifiant.
-6. **Lot 5 — Passe design** : reprendre l'UI React sur un design produit avec Claude
-   (maquette ou artefact), puis le déployer sur le front existant — thème, composants,
-   vues collection et decks livrées au Lot 3. Le mécanisme d'intégration reste à
-  préciser. À prendre de préférence avant le Lot 7, pour que la saisie des parties
-   hérite du nouveau socle visuel au lieu d'être reprise deux fois. Matière d'entrée
-   disponible, lot non commencé : un handoff de design (direction « 1b », design system
-   Nocturne) dans `docs/design-handoff-mobile/` — 10 écrans phone-first plus états
-   vides/chargement/introuvable, refonte visuelle sans changement de comportement (mêmes
-   routes, mêmes données, même sémantique offline).
+6. **Lot 5 — Passe design mobile** — *livré, en attente de validation manuelle.* Refonte
+   de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff-mobile/`) :
+   10 écrans phone-first plus les états vides, de chargement et introuvable, sans
+   changement de comportement (mêmes routes, mêmes données, même sémantique offline).
+   S'y ajoute l'acquisition depuis un deck (Lot 4b, back `acquired_quantity` et couche
+   offline), habillée dans le même langage. Plan dans `docs/lot5-plan-design.md`,
+   décisions et limites au §11. 1597 tests backend (2 `xfail` assumés), 247 tests vitest
+   et 25 tests Playwright passent (9 `chromium`, 16 `real-backend`, décompte vérifié par
+   fichier, par `--list` et à l'exécution), dont un nouveau scénario contre le vrai back :
+   un deck monté hors ligne avec acquisition totale puis partielle. Le contrôle
+   automatisé d'installabilité passe ; reste à confirmer à la main dans Chrome DevTools
+   (panneau Application, SW *activated*, coupure réseau réelle, invite d'installation
+   sur mobile). Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
+   desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
+   `docs/design-handoff-mobile/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
+   décaler la numérotation des lots suivants.
+   Un lot **Chercher** (écran de recherche dans le catalogue, hors ligne complet, brief
+   dans `docs/lot-chercher-brief.md`) est prévu après le Lot 5bis. Sa place par rapport
+   aux Lots 6 à 11 reste à fixer.
 7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
   introduisant un compte et l'isolation des données par utilisateur. Prévoir les
   parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,

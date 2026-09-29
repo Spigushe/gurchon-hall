@@ -385,3 +385,14 @@ pour que les routes restent cohérentes avec leurs signatures.
 `GET /extensions`, et `CardRow` stocke `card_set_ids` et
 `latest_card_set_id` tels que le serveur les rend : l'impression par défaut
 d'une carte jouée en proxy ne se recalcule pas côté client.
+
+## Lot 4b : acquisition depuis un deck
+
+`deck_card.upsert` accepte `data.acquired_quantity` (facultatif, 0 par
+défaut) : des exemplaires physiques qui entrent en collection avec la ligne,
+sous le même point de sauvegarde. Pas de type d'opération nouveau (il aurait
+fallu migrer le CHECK de `operation_type`). Le champ est un delta, borné par ce
+que l'upsert ajoute d'exemplaires réels à la ligne (`invalid` au-delà) ; le
+journal empêche de le rejouer, la borne empêche de compter deux fois une saisie
+mise en file sous deux clés. Détail et cas de test :
+`docs/lot4b-acquisition-depuis-deck.md`.

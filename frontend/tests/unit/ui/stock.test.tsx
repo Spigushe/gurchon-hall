@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { createFakeServer } from "../offline/fakeServer";
 import { renderApp, setOnline } from "./harness";
 
+/** Ouvre la feuille de saisie depuis la page Collection (le formulaire n'est plus affiché d'emblée). */
+async function openStockForm() {
+  fireEvent.click(await screen.findByTestId("stock-add"));
+  return screen.findByTestId("stock-form");
+}
+
 /** Sélectionne une carte du catalogue local dans le formulaire de saisie du stock. */
 async function pickCard(term: string) {
   const form = screen.getByTestId("stock-form");
@@ -19,7 +25,7 @@ describe("collection : saisie hors ligne", () => {
       hash: "#/collection",
       catalog: true,
     });
-    await screen.findByTestId("stock-form");
+    await openStockForm();
 
     await pickCard("elan"); // « elan » trouve « Élan vital » : même repli que le serveur
     const form = screen.getByTestId("stock-form");
@@ -66,7 +72,7 @@ describe("collection : saisie hors ligne", () => {
       hash: "#/collection",
       catalog: true,
     });
-    await screen.findByTestId("stock-form");
+    await openStockForm();
     await pickCard("theo");
     fireEvent.change(screen.getByLabelText("Exemplaires possédés"), { target: { value: "2" } });
     fireEvent.click(screen.getByTestId("stock-form-submit"));
@@ -91,7 +97,7 @@ describe("collection : saisie hors ligne", () => {
 
   it("ne crée qu'une opération quand on valide deux fois de suite", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
-    await screen.findByTestId("stock-form");
+    await openStockForm();
     await pickCard("elan");
     const form = screen.getByTestId("stock-form");
 
@@ -105,7 +111,7 @@ describe("collection : saisie hors ligne", () => {
 
   it("désactive le bouton de validation pendant l'action", async () => {
     await renderApp({ online: false, hash: "#/collection", catalog: true });
-    await screen.findByTestId("stock-form");
+    await openStockForm();
     await pickCard("elan");
 
     const submit = screen.getByTestId("stock-form-submit");
@@ -116,7 +122,7 @@ describe("collection : saisie hors ligne", () => {
 
   it("refuse une saisie sans carte ou avec une quantité invalide, sans rien mettre en file", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
-    await screen.findByTestId("stock-form");
+    await openStockForm();
 
     fireEvent.click(screen.getByTestId("stock-form-submit"));
     expect(await screen.findByTestId("stock-form-error")).toHaveTextContent("Choisissez une carte");
@@ -166,7 +172,7 @@ describe("collection : saisie hors ligne", () => {
     const card = await runtime.db.cards.get(1);
     await runtime.db.cards.put({ ...card!, cardSetIds: [9, 21], latestCardSetId: 21 });
 
-    await screen.findByTestId("stock-form");
+    await openStockForm();
     await pickCard("elan");
     const form = screen.getByTestId("stock-form");
     fireEvent.change(within(form).getByLabelText("Exemplaires possédés"), { target: { value: "2" } });
@@ -201,7 +207,7 @@ describe("collection : saisie hors ligne", () => {
     const card = await runtime.db.cards.get(1);
     await runtime.db.cards.put({ ...card!, cardSetIds: [9, 21], latestCardSetId: 21 });
 
-    await screen.findByTestId("stock-form");
+    await openStockForm();
     await pickCard("elan");
     const form = screen.getByTestId("stock-form");
     fireEvent.change(within(form).getByLabelText("Exemplaires possédés"), { target: { value: "0" } });
@@ -222,11 +228,15 @@ describe("collection : saisie hors ligne", () => {
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 1 });
     await screen.findByTestId("stock-entry");
 
-    fireEvent.click(screen.getByTestId("stock-entry-delete"));
+    // La suppression vit dans la feuille de modification (handoff Nocturne), plus dans la liste.
+    fireEvent.click(screen.getByRole("button", { name: "Modifier Élan vital (FR)" }));
+    const sheet = await screen.findByTestId("stock-form");
+    fireEvent.click(within(sheet).getByTestId("stock-entry-delete"));
     expect(await runtime.outbox.list()).toHaveLength(1); // pas encore : il faut confirmer
-    fireEvent.click(screen.getByTestId("stock-entry-delete-confirm"));
+    fireEvent.click(within(sheet).getByTestId("stock-entry-delete-confirm"));
 
     await waitFor(() => expect(screen.getByTestId("stock-empty")).toBeInTheDocument());
+    expect(screen.queryByTestId("stock-form")).not.toBeInTheDocument(); // la feuille se referme
     expect((await runtime.outbox.list()).map((entry) => entry.type)).toEqual([
       "stock.upsert",
       "stock.delete",
@@ -243,7 +253,10 @@ describe("collection : saisie hors ligne", () => {
     fireEvent.change(screen.getByTestId("stock-search"), { target: { value: "ÉLAN" } });
     await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
 
-    fireEvent.change(screen.getByTestId("stock-language-filter"), { target: { value: "FR" } });
+    // Le filtre de langue est passé dans une feuille de filtres (handoff Nocturne).
+    fireEvent.click(screen.getByTestId("stock-filters-open"));
+    fireEvent.change(await screen.findByTestId("stock-language-filter"), { target: { value: "FR" } });
+    fireEvent.click(screen.getByTestId("stock-filters-done"));
     await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(1));
 
     fireEvent.change(screen.getByTestId("stock-search"), { target: { value: "zzz" } });
@@ -252,9 +265,54 @@ describe("collection : saisie hors ligne", () => {
     );
   });
 
+  it("ouvre une entrée par sa ligne : l'extension et la langue sont figées, l'enregistrement garde l'état complet", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantityOwned: 2,
+      notes: "foil",
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Modifier Élan vital (FR)" }));
+    const form = await screen.findByTestId("stock-form");
+
+    expect(within(form).getByTestId("stock-form-card")).toHaveTextContent("Élan vital");
+    expect(within(form).getByTestId("stock-form-card-set")).toBeDisabled();
+    expect(within(form).getByTestId("stock-form-card-set")).toHaveValue("9");
+    expect(within(form).getByRole("radio", { name: "FR" })).toBeChecked();
+    expect(within(form).getByRole("radio", { name: "EN" })).toBeDisabled(); // la langue fait partie de la clé
+    expect(within(form).getByLabelText("Notes")).toHaveValue("foil");
+
+    fireEvent.click(within(form).getByRole("button", { name: "Ajouter : Exemplaires possédés" }));
+    fireEvent.click(within(form).getByTestId("stock-form-submit"));
+
+    await waitFor(() => expect(screen.queryByTestId("stock-form")).not.toBeInTheDocument());
+    const queued = await runtime.outbox.list();
+    expect(queued).toHaveLength(2);
+    expect(queued[1].operation).toMatchObject({
+      type: "stock.upsert",
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity_owned: 3, notes: "foil" },
+    });
+  });
+
+  it("garde l'entrée quand on choisit « Garder » au lieu de confirmer la suppression", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    fireEvent.click(await screen.findByRole("button", { name: "Modifier Élan vital (FR)" }));
+    const form = await screen.findByTestId("stock-form");
+
+    fireEvent.click(within(form).getByTestId("stock-entry-delete"));
+    fireEvent.click(within(form).getByRole("button", { name: "Garder" }));
+    expect(within(form).queryByTestId("stock-entry-delete-confirm")).not.toBeInTheDocument();
+    expect(within(form).getByTestId("stock-entry-delete")).toBeInTheDocument();
+    expect(await runtime.outbox.list()).toHaveLength(1);
+  });
+
   it("verse un produit par la file (recherche en ligne, écriture différée)", async () => {
     const { runtime, ui } = await renderApp({ online: true, hash: "#/collection", catalog: true });
     ui.bundles = [{ id: 7, card_set_id: 1, code: "PB", name: "Précon Brujah", size: 90, release_date: null }];
+    fireEvent.click(await screen.findByTestId("bundle-open"));
     const panel = await screen.findByTestId("bundle-deposit");
 
     fireEvent.change(within(panel).getByLabelText("Rechercher un produit"), {
@@ -274,10 +332,11 @@ describe("collection : saisie hors ligne", () => {
 describe("catalogue", () => {
   it("dit clairement qu'il manque quand on est hors ligne, et bloque la recherche de carte", async () => {
     await renderApp({ online: false, hash: "#/collection" });
+    await openStockForm();
 
     const state = await screen.findByTestId("catalog-state");
     await waitFor(() => expect(state).toHaveTextContent("pas encore téléchargé"));
-    expect(screen.getByTestId("catalog-offline-hint")).toHaveTextContent("hors ligne");
+    expect(screen.getByTestId("catalog-offline-hint")).toHaveTextContent(/hors ligne/i);
     expect(screen.getByTestId("catalog-update")).toBeDisabled();
     expect(screen.getByLabelText("Rechercher une carte")).toBeDisabled();
     expect(screen.getByTestId("card-picker-empty-catalog")).toBeInTheDocument();
@@ -290,6 +349,7 @@ describe("catalogue", () => {
       expect(server.state.requests.some((request) => request.path === "/cartes")).toBe(true),
     );
     // Une fois téléchargé, la recherche locale trouve les cartes (sans réseau).
+    await openStockForm();
     fireEvent.change(screen.getByLabelText("Rechercher une carte"), { target: { value: "theo" } });
     expect(await screen.findByTestId("card-picker-option")).toHaveTextContent("Theo Bell");
     expect(screen.queryByTestId("catalog-panel")).not.toBeInTheDocument();

@@ -285,7 +285,7 @@ export interface paths {
         put?: never;
         /**
          * Ajoute une carte au deck
-         * @description La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.
+         * @description La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. `acquired_quantity` fait entrer des exemplaires physiques en collection avec la ligne, dans la même transaction : l'entrée est créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de 2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse `quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.
          */
         post: operations["addDeckCard"];
         delete?: never;
@@ -313,7 +313,7 @@ export interface paths {
         head?: never;
         /**
          * Modifie une ligne du deck
-         * @description Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas.
+         * @description Refusé (409) si le deck est archivé ou supprimé, si le proxy n'est pas autorisé ou si les exemplaires disponibles ne suffisent pas. `acquired_quantity` ajoute des exemplaires physiques à l'entrée de collection de la ligne, dans la même transaction ; il ne peut dépasser les exemplaires réels que la modification ajoute à la ligne (422). Remplacer `n` proxies par de vraies cartes : `{"proxy_quantity": p - n, "acquired_quantity": n}`. Rejouer ce `PATCH` à l'identique rend un 422, jamais un double comptage.
          */
         patch: operations["updateDeckCard"];
         trace?: never;
@@ -851,10 +851,11 @@ export interface components {
          * DeckCardCreate
          * @description Ajout d'une carte à un deck.
          *
-         *     La carte doit déjà exister dans la collection pour la langue et
-         *     l'extension demandées (CLAUDE.md §11 point 2) ; la vérification de
-         *     disponibilité relève du service, la base garantissant déjà l'existence de
-         *     l'entrée de collection.
+         *     La carte doit être dans la collection pour la langue et l'extension
+         *     demandées (CLAUDE.md §11 point 2), **ou y entrer par cette écriture** :
+         *     `acquired_quantity` crée ou incrémente l'entrée de collection dans la même
+         *     transaction que la ligne (Lot 4b, `docs/lot4b-acquisition-depuis-deck.md`).
+         *     La vérification de disponibilité relève du service.
          */
         DeckCardCreate: {
             /** Quantity */
@@ -864,6 +865,12 @@ export interface components {
              * @default 0
              */
             proxy_quantity?: number;
+            /**
+             * Acquired Quantity
+             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.
+             * @default 0
+             */
+            acquired_quantity?: number;
             /** Card Id */
             card_id: number;
             /** Language Code */
@@ -939,12 +946,24 @@ export interface components {
          *     seule la base connaît : **le service du Lot 2 doit refaire la vérification**
          *     après fusion avec la ligne existante (la contrainte `CHECK` de `deck_card`
          *     reste le dernier filet, mais elle produirait un 500 plutôt qu'un 422).
+         *
+         *     `acquired_quantity` n'est pas un état de la ligne mais un effet de bord sur
+         *     la collection, borné par ce que la modification ajoute d'exemplaires réels
+         *     à la ligne : c'est au service de le vérifier, lui seul connaît la ligne
+         *     d'avant. Convertir un proxy en vraie carte s'écrit donc
+         *     `{"proxy_quantity": p - n, "acquired_quantity": n}`.
          */
         DeckCardUpdate: {
             /** Quantity */
             quantity?: number;
             /** Proxy Quantity */
             proxy_quantity?: number;
+            /**
+             * Acquired Quantity
+             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.
+             * @default 0
+             */
+            acquired_quantity?: number;
         };
         /**
          * DeckCardUpsertOperation
@@ -956,6 +975,13 @@ export interface components {
          *     `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
          *     `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
          *     est refusée (`not_found`).
+         *
+         *     Lot 4b : `data.acquired_quantity` fait entrer des exemplaires physiques en
+         *     collection avec la ligne (entrée créée ou incrémentée, sous le même point
+         *     de sauvegarde que la ligne). Ce n'est pas un état mais un delta : sur une
+         *     ligne existante, il est borné par ce que le remplacement ajoute
+         *     d'exemplaires réels (`invalid` au-delà), et c'est la clé d'idempotence qui
+         *     empêche de le compter deux fois au rejeu, comme pour `bundle.deposit`.
          */
         DeckCardUpsertOperation: {
             /**

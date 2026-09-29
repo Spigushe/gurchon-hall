@@ -934,8 +934,10 @@ SCHEMA_TO_MODEL = [
     (DeckCreate, Deck, set()),
     # `archived` n'est pas une colonne : le service le traduit en `archived_at`.
     (DeckUpdate, Deck, {"archived"}),
-    (DeckCardCreate, DeckCard, set()),
-    (DeckCardUpdate, DeckCard, set()),
+    # `acquired_quantity` n'est pas une colonne de la ligne : c'est un effet de
+    # bord sur l'entrée de collection (Lot 4b).
+    (DeckCardCreate, DeckCard, {"acquired_quantity"}),
+    (DeckCardUpdate, DeckCard, {"acquired_quantity"}),
     (PlayerCreate, Player, set()),
     (PlayerUpdate, Player, set()),
     (ParticipationCreate, Participation, set()),
