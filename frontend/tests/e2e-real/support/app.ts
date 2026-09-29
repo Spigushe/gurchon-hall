@@ -46,14 +46,75 @@ export async function expectPending(page: Page, count: number): Promise<void> {
   await expect(syncStatus(page)).toHaveAttribute("data-pending", String(count));
 }
 
+/** Va à la Collection (la liste seule : le formulaire de saisie est une feuille, cf. `openStockForm`). */
 export async function goToStock(page: Page): Promise<void> {
   await page.getByTestId("nav-stock").click();
-  await expect(page.getByTestId("stock-form")).toBeVisible();
+  await expect(page.getByTestId("stock-page")).toBeVisible();
+}
+
+/**
+ * Ouvre la feuille « Ajouter à la collection » (Lot 5). Si une autre feuille est
+ * ouverte (versement de produit), Échap la referme d'abord ; sans feuille, il est sans effet.
+ */
+export async function openStockForm(page: Page): Promise<void> {
+  const form = page.getByTestId("stock-form");
+  if (await form.isVisible()) return;
+  await page.keyboard.press("Escape");
+  await page.getByTestId("stock-add").click();
+  await expect(form).toBeVisible();
+}
+
+/** Ouvre la feuille « Verser un produit » depuis la Collection (Lot 5). */
+export async function openBundleDeposit(page: Page): Promise<Locator> {
+  await page.getByTestId("bundle-open").click();
+  const deposit = page.getByTestId("bundle-deposit");
+  await expect(deposit).toBeVisible();
+  return deposit;
+}
+
+/**
+ * Choisit une langue dans des puces `LanguageChips` (Lot 5) : EN, FR et ES sont des
+ * puces, le reste passe par « Autre » et son sélecteur.
+ */
+export async function chooseLanguage(scope: Locator, code: string): Promise<void> {
+  const chip = scope.locator("label.chip").filter({ hasText: new RegExp(`^\\s*${code}\\s*$`) });
+  if ((await chip.count()) > 0) {
+    await chip.click();
+    return;
+  }
+  await scope.locator("label.chip").filter({ hasText: "Autre" }).click();
+  await scope.getByLabel("Autre langue").selectOption(code);
 }
 
 export async function goToDecks(page: Page): Promise<void> {
   await page.getByTestId("nav-decks").click();
+  // Le formulaire est une feuille (Lot 5) : on l'ouvre par « Nouveau deck ».
+  await page.getByTestId("deck-add").click();
   await expect(page.getByTestId("deck-form")).toBeVisible();
+}
+
+/**
+ * Va à la liste des decks (Lot 5) **sans** ouvrir la feuille « Nouveau deck » —
+ * contrairement à `goToDecks`. Pour les scénarios qui veulent voir `deck-item` /
+ * `deck-link` ou le champ « Filtrer par nom », que la feuille masquerait sinon.
+ */
+export async function goToDecksList(page: Page): Promise<void> {
+  await page.getByTestId("nav-decks").click();
+  await expect(page.getByTestId("decks-page")).toBeVisible();
+}
+
+/**
+ * Va à la page Synchronisation (Lot 5) : les opérations refusées
+ * (`rejected-operation(s)`) ne vivent plus dans la coquille ni sur la page
+ * Decks, seulement sur `#/synchronisation`. L'alerte qui y mène
+ * (`sync-alert-link`) n'apparaît sur l'Atelier que si quelque chose ne va pas
+ * (refus, ou file en attente hors ligne) — toujours vrai quand ce helper est
+ * appelé, dans ces scénarios.
+ */
+export async function goToRejectedOperations(page: Page): Promise<void> {
+  await page.getByTestId("nav-home").click();
+  await page.getByTestId("sync-alert-link").click();
+  await expect(page.getByTestId("sync-page")).toBeVisible();
 }
 
 export interface StockInput {
@@ -74,12 +135,13 @@ export interface StockInput {
 
 /** Saisit une entrée de collection par le formulaire (page Collection). */
 export async function addStock(page: Page, input: StockInput): Promise<void> {
+  await openStockForm(page);
   const form = page.getByTestId("stock-form");
   await form.getByLabel("Rechercher une carte").fill(input.search);
   await form.getByTestId("card-picker-option").filter({ hasText: input.card }).first().click();
   await expect(form.getByTestId("stock-form-card")).toContainText(input.card);
-  if (input.language) await form.getByLabel("Langue", { exact: true }).selectOption(input.language);
-  await form.getByLabel("Exemplaires possédés").fill(String(input.quantity));
+  if (input.language) await chooseLanguage(form, input.language);
+  await form.getByRole("spinbutton", { name: "Exemplaires possédés" }).fill(String(input.quantity));
   if (input.cardSetLabel) {
     await form.getByTestId("stock-form-card-set").selectOption({ label: input.cardSetLabel });
   }
@@ -126,30 +188,54 @@ export async function createDeck(page: Page, name: string): Promise<string> {
 
 export interface DeckCardInput {
   search: string;
-  /** Texte de l'option de la collection à choisir. */
+  /** Texte de l'option du catalogue à choisir (picker fusionné, Lot 5). */
   card: string;
   language?: string;
-  /** Extension de l'entrée de collection visée (Lot 4) ; `deck-card-option` porte `data-card-set-id`. */
+  /**
+   * Extension de la ligne (Lot 4). Le sélecteur n'apparaît que si au moins un
+   * exemplaire est possédé (D2a) : ignoré si `quantity - (proxyQuantity ?? 0)`
+   * vaut 0, la ligne prenant alors la dernière version (`latestCardSetId`).
+   */
   cardSetId?: number;
   quantity: number;
   proxyQuantity?: number;
 }
 
-/** Ajoute une carte de la collection au deck ouvert. */
+/**
+ * Ajoute une carte au deck ouvert, depuis le catalogue entier (Lot 5,
+ * `AddDeckCardForm` fusionne le picker et la ligne de collection). Ouvre la
+ * feuille « Ajouter » si elle n'est pas déjà visible : elle reste ouverte
+ * après un envoi (`saved` remis à zéro sans fermer), donc plusieurs appels de
+ * suite n'en rouvrent pas une seconde.
+ */
 export async function addDeckCard(page: Page, input: DeckCardInput): Promise<void> {
   const form = page.getByTestId("deck-card-form");
-  await form.getByTestId("deck-card-search").fill(input.search);
-  let option = form.getByTestId("deck-card-option").filter({ hasText: input.card });
-  if (input.language) option = option.and(page.locator(`[data-language="${input.language}"]`));
-  if (input.cardSetId !== undefined) {
-    option = option.and(page.locator(`[data-card-set-id="${input.cardSetId}"]`));
+  if (!(await form.isVisible())) {
+    await page.getByTestId("deck-card-add").click();
+    await expect(form).toBeVisible();
   }
-  await option.first().click();
-  await form.getByLabel("Quantité dans le deck").fill(String(input.quantity));
-  await form.getByLabel("Dont proxies").fill(String(input.proxyQuantity ?? 0));
+  await form.getByLabel("Rechercher une carte").fill(input.search);
+  await form.getByTestId("card-picker-option").filter({ hasText: input.card }).first().click();
+  await expect(form.getByTestId("deck-card-form-chosen")).toBeVisible();
+  if (input.language) await chooseLanguage(form, input.language);
+
+  const proxyQuantity = input.proxyQuantity ?? 0;
+  const possessed = input.quantity - proxyQuantity;
+
+  // Les copies d'abord : le compteur « déjà possédées » est plafonné dessus.
+  await form.getByRole("spinbutton", { name: "Copies dans le deck" }).fill(String(input.quantity));
+
+  const ownedStepper = form.getByRole("spinbutton", { name: "Dont déjà possédées" });
+  if (await ownedStepper.isVisible()) await ownedStepper.fill(String(possessed));
+
+  if (input.cardSetId !== undefined) {
+    const cardSetSelect = form.getByTestId("deck-card-form-card-set");
+    if (await cardSetSelect.isVisible()) await cardSetSelect.selectOption(String(input.cardSetId));
+  }
+
   await form.getByTestId("deck-card-form-submit").click();
   await expect(form.getByTestId("deck-card-form-error")).toHaveCount(0);
-  await expect(form.getByTestId("deck-card-form-feedback")).toContainText("dans le deck");
+  await expect(form.getByTestId("deck-card-form-feedback")).toContainText("au deck");
 }
 
 /**

@@ -1,5 +1,5 @@
 import { expect, test } from "./support/backend";
-import { expectCatalogDownloaded, goToDecks, goToStock, openApp } from "./support/app";
+import { expectCatalogDownloaded, goToDecksList, goToStock, openApp, openStockForm } from "./support/app";
 
 /**
  * Parité de la recherche, en ligne (`GET ?q=` du vrai back) et hors ligne (miroir
@@ -79,6 +79,7 @@ test("recherche de cartes : le sélecteur local et GET /cartes?q= rendent les m�
   await openApp(page);
   await expectCatalogDownloaded(page);
   await goToStock(page);
+  await openStockForm(page);
   const form = page.getByTestId("stock-form");
   const search = form.getByLabel("Rechercher une carte");
 
@@ -113,7 +114,7 @@ test("recherche de decks : le filtre local et GET /decks?q= rendent les mêmes d
 
   await openApp(page);
   await expectCatalogDownloaded(page);
-  await goToDecks(page);
+  await goToDecksList(page);
   await expect(page.getByTestId("deck-item")).toHaveCount(DECK_NAMES.length);
   const filter = page.getByLabel("Filtrer par nom");
 
@@ -125,7 +126,9 @@ test("recherche de decks : le filtre local et GET /decks?q= rendent les mêmes d
       .map((deck) => deck.name)
       .sort();
     await filter.fill(query);
-    const seen = async () => (await page.getByTestId("deck-link").allTextContents()).sort();
+    // `deck-link` porte aussi la méta (« #0001 · brouillon ») : ne comparer que le nom.
+    const seen = async () =>
+      (await page.getByTestId("deck-link").locator(".row__name").allTextContents()).sort();
     try {
       await expect.poll(seen, { message: `q=${JSON.stringify(query)}` }).toEqual(expected);
     } catch {

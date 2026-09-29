@@ -7,6 +7,7 @@ import {
   addDeckCard,
   addStock,
   cardId,
+  chooseLanguage,
   createDeck,
   expectCatalogDownloaded,
   expectPending,
@@ -14,6 +15,7 @@ import {
   goToDecks,
   goToStock,
   openApp,
+  openBundleDeposit,
   readOutbox,
   stockEntry,
   syncStatus,
@@ -50,10 +52,10 @@ test("réponse de /sync perdue deux fois : le rejeu ne double rien, versement de
 
   // Le produit se trouve en ligne (pas de miroir local des produits) ; son
   // versement, lui, part dans la file avec sa clé d'idempotence.
-  const deposit = page.getByTestId("bundle-deposit");
+  const deposit = await openBundleDeposit(page);
   await deposit.getByLabel("Rechercher un produit").fill(BUNDLE_KIASYD.search);
   await deposit.getByRole("button", { name: new RegExp(BUNDLE_KIASYD.search) }).click();
-  await deposit.getByLabel("Langue du produit").selectOption("EN");
+  await chooseLanguage(deposit, "EN");
 
   await context.setOffline(true);
   await deposit.getByTestId("bundle-submit").click();
@@ -62,6 +64,7 @@ test("réponse de /sync perdue deux fois : le rejeu ne double rien, versement de
   await goToDecks(page);
   await createDeck(page, "Idempotence");
   await addDeckCard(page, { search: "awe", card: CARDS.awe, language: "EN", quantity: 1 });
+  await page.keyboard.press("Escape"); // ferme la feuille « Ajouter », restée ouverte après l'envoi
   await expectPending(page, 4);
   const queued = (await readOutbox(page)).map((row) => row.operationId);
 
@@ -123,10 +126,10 @@ test("rechargement de la page en plein envoi : le serveur a appliqué, le client
   await expectCatalogDownloaded(page);
   await goToStock(page);
 
-  const deposit = page.getByTestId("bundle-deposit");
+  const deposit = await openBundleDeposit(page);
   await deposit.getByLabel("Rechercher un produit").fill(BUNDLE_KIASYD.search);
   await deposit.getByRole("button", { name: new RegExp(BUNDLE_KIASYD.search) }).click();
-  await deposit.getByLabel("Langue du produit").selectOption("EN");
+  await chooseLanguage(deposit, "EN");
 
   // Le premier envoi va jusqu'au serveur (qui applique) mais sa réponse n'arrive
   // jamais : la page est rechargée pendant que la requête est en vol.
