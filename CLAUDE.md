@@ -787,6 +787,27 @@ Limites connues à la clôture du Lot 5 :
   est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
   fixe une largeur mobile explicite avant d'en poser un.
 
+Tranchées à l'ouverture du Lot 5bis (2026-09-29), avant toute implémentation :
+
+- **Le Lot 5bis ne conçoit pas d'équivalent mobile pour ce qu'il introduit.** S'il livre
+  un écran, une action ou une interaction propre au bureau sans contrepartie sous
+  1024 px, il livre et continue : il n'a ni à ouvrir un chantier de design mobile en
+  cours de route, ni à se demander à chaque écran si le mobile suit. Rattraper ces écarts
+  est le rôle d'un lot dédié, le **Lot 5c** (`docs/lot5c-plan-design.md`), qui audite la
+  symétrie fonctionnelle une fois les deux passes livrées, **dans les deux sens** :
+  bureau vers mobile, et mobile vers bureau — le handoff bureau ne décrivant que ce qui
+  change au-delà de 1024 px, la passe peut laisser tomber sans le voir une action que le
+  mobile propose aujourd'hui.
+- **Trois verdicts possibles au Lot 5c, pas quatre** : porté, hors périmètre avec
+  justification écrite, ou renvoyé à un autre lot. Un manque présent des **deux** côtés
+  (l'écran Chercher, les données absentes du miroir : disciplines, types, coût, image par
+  impression) n'est pas une asymétrie et ne relève pas de ce lot.
+- **Ordre proposé : Lot 5bis, puis Lot 5c, puis Chercher.** Un écart de symétrie se
+  corrige plus facilement tant que les deux passes sont fraîches, et Chercher, écran neuf
+  écrit après le breakpoint, peut naître directement dans les deux dispositions au lieu
+  d'être porté ensuite. Corollaire assumé : le lot Chercher livre ses deux dispositions
+  lui-même, le Lot 5c étant un rattrapage ponctuel et non une habitude.
+
 ---
 
 ## 12. Roadmap
@@ -857,9 +878,18 @@ Limites connues à la clôture du Lot 5 :
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
    `docs/design-handoff-mobile/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.
+   Un **Lot 5c** (plan `docs/lot5c-plan-design.md`) suit les deux passes : il audite la
+   **symétrie fonctionnelle** entre mobile et bureau écran par écran, sur les deux
+   handoffs et les deux implémentations, puis rend pour chaque écart un verdict écrit —
+   porté dans le mode qui le manque, hors périmètre avec justification, ou renvoyé à un
+   autre lot. Il existe parce que le Lot 5bis n'a pas la charge de concevoir du mobile
+   pour ce qu'il introduit en chemin (§11) ; il ne construit aucune fonctionnalité
+   nouvelle et ne rouvre pas les manques présents des deux côtés.
    Un lot **Chercher** (écran de recherche dans le catalogue, hors ligne complet, brief
-   dans `docs/lot-chercher-brief.md`) est prévu après le Lot 5bis. Sa place par rapport
-   aux Lots 6 à 11 reste à fixer.
+   dans `docs/lot-chercher-brief.md`) vient ensuite, et livre ses deux dispositions
+   lui-même. L'ordre proposé est donc Lot 5bis, Lot 5c, Chercher, puis les Lots 6 à 11,
+   dont la numérotation ne bouge pas ; la place exacte de Chercher par rapport aux
+   Lots 6 à 11 reste à confirmer avec l'utilisateur.
 7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
   introduisant un compte et l'isolation des données par utilisateur. Prévoir les
   parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,

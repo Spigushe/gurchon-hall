@@ -44,6 +44,17 @@ disciplines et coût, avec montée de version du miroir Dexie — l'ordre entre 
 lots ne s'inverse pas, l'architecte-contrat n'a pas de rôle dans le Lot 5bis. Ne pas
 reconstruire ces données côté client à partir d'autre chose.
 
+**Pas de conception mobile en cours de route (décidé le 2026-09-29).** Si ce lot
+introduit un écran, une action ou une interaction propre au bureau qui n'a pas
+d'équivalent sous 1024 px, il livre et continue. Il n'a pas à se demander à chaque écran
+« est-ce que ça existe côté mobile ? », ni à ouvrir un chantier de design mobile pour
+combler l'écart. Le rattrapage est le rôle du **Lot 5c** (`docs/lot5c-plan-design.md`),
+qui audite la symétrie fonctionnelle entre les deux modes une fois les deux passes
+livrées, dans les deux sens. Ce cadrage vaut aussi pour le sens inverse : une action que
+le mobile propose aujourd'hui et que la disposition bureau ne reprend pas est un écart
+comme un autre, qui se traite au Lot 5c et non ici. Corollaire : aucun journal d'écarts
+n'est attendu de ce lot — l'audit se fera sur le code livré, pas sur la mémoire du lot.
+
 La route cliente `sync` (`/#/synchronisation`) existe déjà
 (`frontend/src/app/routes.ts`, livrée pendant le Lot 5 pour l'écran plein écran
 `SyncPage.tsx`) : ce lot ne crée pas de route, il ajoute un onglet de barre haute qui y
