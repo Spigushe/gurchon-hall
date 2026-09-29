@@ -10,7 +10,10 @@ et du Lot 2.
 Deux vérifications dépassent l'insertion nue, parce qu'elles portent sur les
 décisions de CLAUDE.md §11 que ce lot devait trancher :
 
-* une carte absente de la collection ne peut pas entrer dans un deck ;
+* une langue inconnue de la table `language` ne peut pas entrer dans un deck
+  (dernier filet de base ; la collection, elle, n'est plus exigée à ce niveau
+  depuis le Lot 4b, piste A1 — c'est `decks.add_card` qui l'exige pour une
+  consommation réelle) ;
 * la même carte peut entrer dans un deck en deux langues différentes.
 """
 
@@ -263,12 +266,34 @@ def test_metadata_creates_on_a_blank_database():
     engine.dispose()
 
 
-def test_deck_card_requires_a_collection_entry(session, seeded):
-    """Une carte hors collection ne peut pas entrer dans un deck (§11 point 2).
+def test_deck_card_still_requires_a_known_language(session, seeded):
+    """Dernier filet de base : une langue jamais seedée reste refusée.
 
-    La carte existe au catalogue et la langue aussi, mais aucun exemplaire
-    espagnol n'est déclaré : la clé étrangère composite vers `card_copy` doit
-    refuser la ligne.
+    Depuis le Lot 4b (piste A1), `deck_card` ne référence plus `card_copy` :
+    seule la FK simple vers `language` protège encore la ligne, pas la
+    présence d'une entrée de collection (cf. le test suivant).
+    """
+    session.add(
+        DeckCard(
+            deck_id=seeded["deck"].id,
+            card_id=seeded["card"].id,
+            language_code="ZZ",
+            card_set_id=seeded["card_set_id"],
+            quantity=1,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        session.commit()
+    session.rollback()
+
+
+def test_deck_card_no_longer_requires_a_collection_entry(session, seeded):
+    """Depuis le Lot 4b (piste A1), une carte hors collection peut désormais
+    entrer dans un deck au niveau du modèle : la carte existe au catalogue et
+    la langue aussi, mais aucun exemplaire espagnol n'est déclaré — la ligne
+    s'écrit tout de même. C'est `services/decks.add_card` qui exige encore une
+    entrée pour une ligne qui consomme du réel
+    (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
     """
     session.add(Language(code="ES", label="Espagnol", sort_order=30))
     session.commit()
@@ -282,9 +307,7 @@ def test_deck_card_requires_a_collection_entry(session, seeded):
             quantity=1,
         )
     )
-    with pytest.raises(IntegrityError):
-        session.commit()
-    session.rollback()
+    session.commit()
 
 
 def test_deck_mixes_languages_for_the_same_card(session, seeded):

@@ -27,6 +27,7 @@ from app.models import (
     CardTranslation,
     CostType,
     Deck,
+    DeckCard,
     Discipline,
     DisciplineRequirement,
     Language,
@@ -332,6 +333,52 @@ def test_placeholder_card_is_kept_and_flagged_to_reassign_when_stock_uses_it(
         )
     )
     db.commit()
+
+    report = import_catalog(db, _give_ghost_a_real_printing(vtes), expansions)
+
+    assert [c.vekn_id for c in report.reassign_cards] == [100999]
+    assert report.placeholder_cards == []
+    db.refresh(ghost)
+    abbrevs_by_placeholder = {
+        p.card_set.is_placeholder: p.card_set.abbrev for p in ghost.printings
+    }
+    assert abbrevs_by_placeholder[False] == "EK"
+    assert abbrevs_by_placeholder[True]  # le tampon existe toujours, référencé
+
+
+def test_placeholder_card_is_kept_when_an_all_proxy_deck_line_uses_it(db, krcg):
+    """Lot 4b, piste A1 : une ligne de deck peut référencer une impression sans
+    passer par une entrée de collection (ligne intégralement en proxy). Le
+    garde-fou D2c doit la compter comme il compte déjà `card_copy`
+    (`still_used_deck_cards`, `catalog_import.py`), sinon l'import supprimerait
+    un tampon encore référencé par `deck_card` et échouerait par
+    `IntegrityError` sur la FK `deck_card` -> `card_printing`
+    (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
+
+    À la différence de `test_placeholder_card_is_kept_and_flagged_to_reassign_
+    when_stock_uses_it`, aucune `CardCopy` n'existe : c'est bien la ligne de
+    deck seule qui doit retenir le tampon.
+    """
+    vtes, expansions = krcg
+    import_catalog(db, vtes, expansions)
+    ghost = card_by_name(db, "Fantome Sans Extension")
+    placeholder_set_id = ghost.printings[0].card_set_id
+    add_languages(db, "EN")
+    deck = Deck(name="Tout proxy", discriminator="0001", proxy_allowed=True)
+    db.add(deck)
+    db.flush()
+    db.add(
+        DeckCard(
+            deck_id=deck.id,
+            card_id=ghost.id,
+            language_code="EN",
+            card_set_id=placeholder_set_id,
+            quantity=2,
+            proxy_quantity=2,
+        )
+    )
+    db.commit()
+    assert count(db, CardCopy) == 0
 
     report = import_catalog(db, _give_ghost_a_real_printing(vtes), expansions)
 

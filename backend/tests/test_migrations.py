@@ -43,13 +43,15 @@ ARCHIVE_REVISION = "de3b00e38c8d"  # archivage et suppression logique des decks
 DECK_IDENTITY_REVISION = "5dc50e3c1701"  # discriminant, decklist figée, légalité
 SYNC_REVISION = "8cc70f4bbbcc"  # journal d'idempotence de la file hors ligne (Lot 3)
 PROXY_REVISION = "6c9a178b7a1d"  # proxy autorisé au niveau du deck (Lot 4, passe A)
-HEAD_REVISION = "b7e41d0c9a52"  # extension dans l'identité du stock (Lot 4, passe B)
+EXTENSION_REVISION = "b7e41d0c9a52"  # extension dans l'identité du stock (Lot 4B)
+HEAD_REVISION = "f3a91c47b2de"  # deck_card sans entrée de collection (Lot 4b, A1)
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
     DECK_IDENTITY_REVISION,
     SYNC_REVISION,
     PROXY_REVISION,
+    EXTENSION_REVISION,
     HEAD_REVISION,
 ]
 
@@ -226,7 +228,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Six révisions à la suite, sans branche : une racine, une tête."""
+    """Sept révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -436,9 +438,12 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             )
             connection.commit()
 
-            # Carte hors collection -> refusée en deck (la FK composite de
-            # `deck_card` vise `card_copy` sur les trois colonnes, Lot 4 D1).
-            with pytest.raises(Exception) as no_copy:
+            # Aucune impression pour cette carte -> refusée en deck. Depuis le
+            # Lot 4b (piste A1), `deck_card` ne vise plus `card_copy` : la FK
+            # qui bloque ici est celle vers `card_printing`, sur (card_id,
+            # card_set_id) — aucune ligne de `card_set`/`card_printing` n'a été
+            # insérée pour l'extension 1, donc l'impression n'existe pas.
+            with pytest.raises(Exception) as no_printing:
                 connection.execute(
                     text(
                         "INSERT INTO deck_card (deck_id, card_id, language_code,"
@@ -446,7 +451,7 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
                         " VALUES (1, 1, 'EN', 1, 1, 0)"
                     )
                 )
-            assert "FOREIGN KEY" in str(no_copy.value)
+            assert "FOREIGN KEY" in str(no_printing.value)
             connection.rollback()
 
             # Deux « Moi » -> refusés.
@@ -1617,26 +1622,38 @@ def test_migrated_database_enforces_the_composite_foreign_key_to_card_printing(
 def test_upgrading_past_the_extension_revision_refuses_a_populated_collection(
     empty_db,
 ):
-    """La garde D3 (`b7e41d0c9a52`) arrête la migration comme celle du proxy."""
+    """La garde D3 (`b7e41d0c9a52`) arrête la migration comme celle du proxy.
+
+    Elle bloque avant même d'atteindre `f3a91c47b2de` (Lot 4b) : la tête reste
+    hors de portée, comme pour la révision du proxy.
+    """
     alembic(empty_db, "upgrade", PROXY_REVISION)
     seed_decks_at_proxy_revision(empty_db)
 
     result = alembic(empty_db, "upgrade", "head", check=False)
 
     assert result.returncode != 0
-    assert HEAD_REVISION in result.stdout + result.stderr
+    assert EXTENSION_REVISION in result.stdout + result.stderr
     assert scalar(empty_db, "SELECT version_num FROM alembic_version") == PROXY_REVISION
 
 
 def test_downgrading_the_extension_revision_refuses_a_populated_collection(empty_db):
-    """Symétrique à la montée : la garde D3 s'applique aussi à la descente."""
+    """Symétrique à la montée : la garde D3 s'applique aussi à la descente.
+
+    La descente s'arrête entre les deux révisions du Lot 4 : celle de
+    `f3a91c47b2de` (Lot 4b) réussit d'abord — aucune ligne orpheline dans ce
+    jeu de données — puis celle de `b7e41d0c9a52` (Lot 4, passe B) échoue sur
+    sa propre garde D3, laissant la base à `EXTENSION_REVISION`.
+    """
     alembic(empty_db, "upgrade", "head")
     seed_decks_at_head(empty_db)
 
     result = alembic(empty_db, "downgrade", PROXY_REVISION, check=False)
 
     assert result.returncode != 0
-    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == HEAD_REVISION
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == (
+        EXTENSION_REVISION
+    )
 
 
 def test_downgrade_from_head_to_the_proxy_revision_gives_the_proxy_schema(
@@ -1654,6 +1671,105 @@ def test_downgrade_from_head_to_the_proxy_revision_gives_the_proxy_schema(
 def test_the_extension_revision_does_not_render_offline(empty_db):
     """Comme la révision du proxy : la garde D3 lit la base, `--sql` échoue."""
     result = alembic(
-        empty_db, "upgrade", f"{PROXY_REVISION}:{HEAD_REVISION}", "--sql", check=False
+        empty_db,
+        "upgrade",
+        f"{PROXY_REVISION}:{EXTENSION_REVISION}",
+        "--sql",
+        check=False,
     )
     assert result.returncode != 0
+
+
+# --------------------------------------------------------------------------
+# Révision « ligne de deck sans entrée de collection » (Lot 4b, piste A1)
+# --------------------------------------------------------------------------
+
+
+def seed_a_fully_proxy_line_without_a_collection_entry(db_path: Path) -> None:
+    """Une carte, une impression, un deck ``proxy_allowed`` et une ligne
+    100 % proxy (`quantity == proxy_quantity`) qui ne référence aucune
+    `card_copy` — exactement ce que la révision `f3a91c47b2de` rend possible.
+    """
+    execute(
+        db_path,
+        "INSERT INTO card (id, vekn_id, name, category, advanced, burn_option, trifle)"
+        " VALUES (1, 1, 'X', 'crypt', 0, 0, 0)",
+    )
+    execute(db_path, "INSERT INTO card_set (id, abbrev) VALUES (1, 'FN')")
+    execute(
+        db_path,
+        "INSERT INTO card_printing (id, card_id, card_set_id) VALUES (1, 1, 1)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck (id, name, discriminator, status, proxy_allowed)"
+        " VALUES (1, 'Tout proxy', '0001', 'draft', 1)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
+        " quantity, proxy_quantity) VALUES (1, 1, 'EN', 1, 3, 3)",
+    )
+
+
+def test_head_no_longer_links_deck_card_to_the_collection(migrated):
+    """La FK composite vers `card_copy` a cédé la place à `card_printing` +
+    `language`."""
+    engine = create_engine(url_for(migrated))
+    try:
+        keys = inspect(engine).get_foreign_keys("deck_card")
+    finally:
+        engine.dispose()
+    referred = {fk["referred_table"] for fk in keys}
+    assert referred == {"deck", "card_printing", "language"}
+    assert "card_copy" not in referred
+    printing_fk = next(fk for fk in keys if fk["referred_table"] == "card_printing")
+    assert set(printing_fk["constrained_columns"]) == {"card_id", "card_set_id"}
+
+
+def test_head_accepts_a_fully_proxied_line_without_any_collection_entry(migrated):
+    """Le cas exact du rapport d'incident : plus jamais un mur pour ce cas-là."""
+    seed_a_fully_proxy_line_without_a_collection_entry(migrated)
+    assert scalar(migrated, "SELECT COUNT(*) FROM deck_card") == 1
+    assert scalar(migrated, "SELECT COUNT(*) FROM card_copy") == 0
+    assert foreign_key_violations(migrated) == []
+
+
+def test_downgrading_the_no_collection_revision_refuses_an_orphan_line(empty_db):
+    """La garde de descente : une ligne tout-proxy sans entrée bloque le retour
+    à la FK composite vers `card_copy`, qu'elle ne pourrait plus satisfaire."""
+    alembic(empty_db, "upgrade", "head")
+    seed_a_fully_proxy_line_without_a_collection_entry(empty_db)
+
+    result = alembic(empty_db, "downgrade", EXTENSION_REVISION, check=False)
+
+    assert result.returncode != 0
+    assert "f3a91c47b2de" in result.stdout + result.stderr
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == HEAD_REVISION
+
+
+def test_downgrading_the_no_collection_revision_succeeds_without_orphans(
+    empty_db, tmp_path
+):
+    """Sans ligne orpheline, la descente rend le schéma exact de la révision
+    précédente : toute ligne en place référence déjà une `card_copy`."""
+    alembic(empty_db, "upgrade", "head")
+
+    alembic(empty_db, "downgrade", EXTENSION_REVISION)
+
+    reference = tmp_path / "extension.db"
+    alembic(reference, "upgrade", EXTENSION_REVISION)
+    assert snapshot_of(empty_db) == snapshot_of(reference)
+
+
+def test_the_no_collection_revision_upgrade_renders_offline(empty_db):
+    """Contrairement à sa descente, la montée ne lit aucune donnée (§ docstring
+    de la révision) : elle se rejoue hors ligne, prise isolément."""
+    result = alembic(
+        empty_db,
+        "upgrade",
+        f"{EXTENSION_REVISION}:{HEAD_REVISION}",
+        "--sql",
+    )
+    assert "CREATE TABLE deck_card" in result.stdout
+    assert not empty_db.exists()

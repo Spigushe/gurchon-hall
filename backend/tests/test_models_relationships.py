@@ -280,11 +280,6 @@ def test_database_cascades_card_delete_to_catalogue_children(db):
     ("sql", "why"),
     [
         pytest.param(
-            "DELETE FROM card_copy WHERE language_code = 'EN'",
-            "exemplaire alloué à un deck",
-            id="card_copy-used-by-deck_card",
-        ),
-        pytest.param(
             "DELETE FROM card", "carte présente en collection", id="card-in-collection"
         ),
         pytest.param("DELETE FROM deck", "deck joué dans une partie", id="deck-played"),
@@ -324,18 +319,32 @@ def test_referenced_rows_cannot_be_deleted(db, world, sql, why):
         db.execute(text(sql))
 
 
-def test_orm_delete_of_an_allocated_card_copy_does_not_go_through(db, world):
-    """Supprimer via l'ORM une copie encore allouée à un deck échoue.
+def test_raw_sql_delete_of_an_allocated_card_copy_now_succeeds(db, world):
+    """Contre-épreuve en SQL brut de la ligne retirée de
+    `test_referenced_rows_cannot_be_deleted` (id `card_copy-used-by-deck_card`) :
 
-    `CardCopy.deck_allocations` est déclarée `passive_deletes="all"` : l'ORM
-    n'essaie pas de réécrire `deck_card` avant le DELETE et laisse la base
-    trancher. On obtient donc la même `IntegrityError` qu'en SQL brut.
+    depuis le Lot 4b (piste A1), `deck_card` ne référence plus `card_copy` par
+    clé étrangère. La base ne bloque donc plus, même en SQL brut, la
+    suppression d'une entrée encore consommée par une ligne de deck vivante —
+    c'est désormais `services/stock.delete_copy` qui le refuse, et seulement
+    si l'entrée est consommée par du réel (`allocated_real(...) > 0`), pas à
+    la seule existence d'une ligne
+    (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
+    """
+    db.execute(text("DELETE FROM card_copy WHERE language_code = 'EN'"))
+    db.commit()
+    assert count(db, CardCopy) == 1
+    assert count(db, DeckCard) == 1  # la ligne de deck survit, orpheline
+
+
+def test_orm_delete_of_an_allocated_card_copy_now_succeeds_too(db, world):
+    """Même constat côté ORM : plus de `passive_deletes` à observer ici, la
+    relation `CardCopy.deck_allocations` est `viewonly` depuis le Lot 4b — il
+    n'y a plus de cascade FK à laisser la base trancher.
     """
     db.delete(world.copy_en)
-    with pytest.raises(IntegrityError):
-        db.flush()
-    db.rollback()
-    assert count(db, CardCopy) == 2
+    db.commit()
+    assert count(db, CardCopy) == 1
     assert count(db, DeckCard) == 1
 
 
