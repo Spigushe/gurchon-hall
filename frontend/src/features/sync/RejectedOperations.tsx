@@ -31,75 +31,84 @@ function RejectedItem({ entry, describe }: { entry: Entry; describe: (op: VtesOp
 
   return (
     <li
-      className="rejected"
+      className="row"
       data-testid="rejected-operation"
       data-operation-id={entry.operationId}
       data-operation-type={entry.type}
       data-rejection-code={rejection?.code}
     >
-      <p className="rejected__what" data-testid="rejected-description">
+      <p className="row__name" data-testid="rejected-description">
         {describe(entry.operation)}
       </p>
-      <p className="rejected__why" data-testid="rejection-reason">
-        <strong>{rejection ? REJECTION_LABELS[rejection.code] : "Opération refusée"}</strong>
+      <p className="error-text" data-testid="rejection-reason">
+        {rejection ? REJECTION_LABELS[rejection.code] : "Opération refusée"}
         {rejection?.message ? ` : ${rejection.message}` : ""}
       </p>
-      <p className="hint">Saisie du {formatDateTime(entry.recordedAt)}</p>
+      <p className="row__meta">Saisie du {formatDateTime(entry.recordedAt)}</p>
 
       {action.error && (
-        <p className="error" role="alert">
+        <p className="error-text" role="alert">
           {action.error}
         </p>
       )}
 
-      {mode === "correcting" ? (
-        <CorrectionForm entry={entry} onDone={() => setMode("idle")} />
-      ) : mode === "confirm-discard" ? (
-        <div className="actions" role="group" aria-label="Confirmer l'abandon">
-          <span>Abandonner définitivement cette saisie ?</span>
+      {mode === "correcting" && <CorrectionForm entry={entry} onDone={() => setMode("idle")} />}
+
+      {mode === "confirm-discard" ? (
+        <div className="confirm-row" role="group" aria-label="Confirmer l'abandon">
+          <span className="hint">Abandonner définitivement cette saisie ?</span>
           <button
             type="button"
-            className="button--danger"
+            className="chip-action chip-action--accent"
             disabled={action.pending}
             data-testid="discard-confirm"
             onClick={() => void action.run(() => outbox.discard(entry.operationId))}
           >
             Oui, abandonner
           </button>
-          <button type="button" disabled={action.pending} onClick={() => setMode("idle")}>
+          <button
+            type="button"
+            className="chip-action chip-action--neutral"
+            disabled={action.pending}
+            onClick={() => setMode("idle")}
+          >
             Garder
           </button>
         </div>
       ) : (
-        <div className="actions">
-          {correctable && (
+        mode !== "correcting" && (
+          <div className="confirm-row">
+            {correctable && (
+              <button
+                type="button"
+                className="chip-action chip-action--accent"
+                disabled={action.pending}
+                data-testid="correct-button"
+                onClick={() => setMode("correcting")}
+              >
+                Corriger et renvoyer
+              </button>
+            )}
             <button
               type="button"
+              className="chip-action chip-action--neutral"
               disabled={action.pending}
-              data-testid="correct-button"
-              onClick={() => setMode("correcting")}
+              data-testid="reissue-button"
+              onClick={() => void action.run(() => outbox.reissue(entry.operationId))}
             >
-              Corriger et renvoyer
+              Renvoyer tel quel
             </button>
-          )}
-          <button
-            type="button"
-            disabled={action.pending}
-            data-testid="reissue-button"
-            onClick={() => void action.run(() => outbox.reissue(entry.operationId))}
-          >
-            Renvoyer tel quel
-          </button>
-          <button
-            type="button"
-            className="button--danger"
-            disabled={action.pending}
-            data-testid="discard-button"
-            onClick={() => setMode("confirm-discard")}
-          >
-            Abandonner
-          </button>
-        </div>
+            <button
+              type="button"
+              className="chip-action chip-action--text"
+              disabled={action.pending}
+              data-testid="discard-button"
+              onClick={() => setMode("confirm-discard")}
+            >
+              Abandonner
+            </button>
+          </div>
+        )
       )}
     </li>
   );
@@ -109,27 +118,35 @@ function RejectedItem({ entry, describe }: { entry: Entry; describe: (op: VtesOp
  * Les saisies que le serveur a refusées, avec leur motif. Un refus ne se rejoue
  * pas tel quel sous la même clé (le serveur rendrait éternellement le même
  * verdict) : « renvoyer » crée une nouvelle opération, « abandonner » renonce.
- * Le panneau reste visible sur toutes les pages tant qu'il y a un refus.
+ *
+ * Restylé au Lot 5 : ne vit plus dans la coquille (`App.tsx`) mais seulement
+ * sur la page Synchronisation (`SyncPage`).
  */
 export function RejectedOperations() {
   const entries = useRejectedVtesOperations();
   const describe = useOperationDescriber(entries ?? NO_ENTRIES);
-  if (!entries || entries.length === 0) return null;
+  if (!entries) return null;
+
+  if (entries.length === 0) {
+    return (
+      <section aria-label="Opérations refusées" data-testid="rejected-operations">
+        <p className="hint">Aucune opération refusée.</p>
+      </section>
+    );
+  }
 
   return (
-    <section
-      className="panel panel--alert"
-      aria-labelledby="rejected-title"
-      data-testid="rejected-operations"
-    >
-      <h2 id="rejected-title" className="panel__title panel__title--small">
-        {plural(entries.length, "opération refusée", "opérations refusées")}
-      </h2>
-      <p className="hint">
-        Le serveur n'a pas appliqué ces saisies. Elles n'ont aucun effet sur vos données : corrigez
-        puis renvoyez, ou abandonnez. Une création de deck refusée entraîne le refus de ses
-        opérations suivantes : renvoyez d'abord la création.
-      </p>
+    <section aria-labelledby="rejected-title" data-testid="rejected-operations">
+      <div className="accent-block">
+        <h2 id="rejected-title" className="accent-block__title">
+          {plural(entries.length, "opération refusée", "opérations refusées")}
+        </h2>
+        <p className="accent-block__detail">
+          Le serveur n'a pas appliqué ces saisies. Elles n'ont aucun effet sur vos données : corrigez
+          puis renvoyez, ou abandonnez. Une création de deck refusée entraîne le refus de ses
+          opérations suivantes : renvoyez d'abord la création.
+        </p>
+      </div>
       <ul className="list">
         {entries.map((entry) => (
           <RejectedItem key={entry.operationId} entry={entry} describe={describe} />

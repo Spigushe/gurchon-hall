@@ -1148,6 +1148,28 @@ fieldset:disabled .chip {
   color: var(--color-neutral-400);
 }
 
+/* Alerte de l'Atelier (HomePage) : rendue seulement en cas de problème. */
+.sync-alert {
+  border-left: 2px solid var(--color-accent);
+  padding: 2px 0 2px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.sync-alert__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  color: var(--color-accent-200);
+}
+
+.sync-alert .btn-ghost {
+  font-size: 13px;
+  padding-inline: 0;
+}
+
 .quote-block {
   border-left: 2px solid var(--color-divider);
   padding-left: 14px;
