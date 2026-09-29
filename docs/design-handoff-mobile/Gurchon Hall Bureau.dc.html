@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  body { margin: 0; background: #0d0e16; }
+  a { color: var(--color-accent-300); text-decoration: none; }
+  a:hover { color: var(--color-accent-200); }
+  i[class^="ph"] { display: block; }
+</style>
+</helmet>
+
+<section style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:40px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:760px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · bureau 1440 · direction 1b</div>
+    <h2 style="font-size:30px;margin:0">Vue bureau — deux structures</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:66ch;text-wrap:pretty">Barre haute fine, raccourcis visibles, formulaires en panneau latéral, visuels KRCG au survol. <a href="#3a">3a</a> centre le contenu sur 1200 px et décline tous les écrans ; <a href="#3b">3b</a> occupe toute la largeur — montré sur le deckbuilder, la collection et l'atelier, là où la largeur change vraiment la donne.</p>
+  </div>
+
+  <div style="display:flex;gap:80px;align-items:flex-start">
+    <div id="3a" style="display:flex;flex-direction:column;gap:56px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">3a</span>
+        <span style="font-family:var(--font-heading);font-size:19px">Centré — colonne de 1200 px</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">01 · Deckbuilder — deck + picker permanent</span>
+        <div id="shot-d01-deckbuilder" data-screen-label="3a-01 Deckbuilder" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="decks" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:24px;padding:24px 0;min-height:0">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:32px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-400)"><i class="ph ph-arrow-left" style="font-size:15px"></i>Decks<span style="color:var(--color-neutral-600)">·</span>Deck actif · #0001</span>
+                <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Toreador Mass Vote</h3>
+              </div>
+              <div style="display:flex;align-items:center;gap:28px">
+                <div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid var(--color-accent);padding-left:14px">
+                  <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-200)">Deck légal</span>
+                  <span style="font-size:12px;color:var(--color-neutral-400)">Crypte 12 / min 12 · Bibliothèque 78 / 60–90 · groupes 4, 5</span>
+                </div>
+                <span style="display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)"><i class="ph ph-arrows-clockwise" style="font-size:15px"></i>Recalculer<span style="font-size:11px;color:var(--color-neutral-500);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">R</span></span>
+              </div>
+            </div>
+
+            <div style="flex:1;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:40px;min-height:0">
+              <div style="display:flex;flex-direction:column;gap:22px;min-height:0">
+                <div style="display:flex;flex-direction:column">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:8px">
+                    <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Crypte · 12</span>
+                    <span style="font-size:12px;color:var(--color-neutral-500)">capacité moy. 8,2</span>
+                  </div>
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 140px 60px;align-items:center;height:36px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-400)">×3</span><span>Victoria Ash (G5)</span><span style="font-size:12px;color:var(--color-neutral-500)">Toreador · aus cel pre</span><span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">9</span></div>
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 140px 60px;align-items:center;height:36px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-400)">×2</span><span>Anneke (G4)</span><span style="font-size:12px;color:var(--color-neutral-500)">Toreador · aus dom pre</span><span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">7</span></div>
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 140px 60px;align-items:center;height:36px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-400)">×2</span><span>Lodin (G4, Adv)</span><span style="font-size:12px;color:var(--color-neutral-500)">Ventrue · dom for pre</span><span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">9</span></div>
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 140px 60px;align-items:center;height:36px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-400)">×3</span><span>Rafael de Corazón (G4)</span><span style="font-size:12px;color:var(--color-neutral-500)">Toreador · aus cel pre</span><span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">8</span></div>
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) 140px 60px;align-items:center;height:36px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-400)">×2</span><span>Sir Walter Nash (G5)</span><span style="font-size:12px;color:var(--color-neutral-500)">Toreador · aus pre</span><span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">8</span></div>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:14px">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Bibliothèque · 78</span>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px">
+                    <div style="display:flex;flex-direction:column">
+                      <span style="font-size:12px;color:var(--color-neutral-400);padding-bottom:6px">Master · 14</span>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:30px;color:var(--color-neutral-400)">×6</span>Villein</div>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:30px;color:var(--color-neutral-400)">×4</span>Giant's Blood</div>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:30px;color:var(--color-neutral-400)">×4</span>Ashur Tablets</div>
+                    </div>
+                    <div style="display:flex;flex-direction:column">
+                      <span style="font-size:12px;color:var(--color-neutral-400);padding-bottom:6px">Action · 18</span>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px;background:color-mix(in srgb, var(--color-accent) 12%, transparent);margin:0 -8px;padding:0 8px;border-radius:var(--radius-sm)"><span style="font-family:var(--font-heading);width:30px;color:var(--color-accent-300)">×6</span><span style="color:var(--color-accent-100)">Govern the Unaligned</span><span style="margin-left:auto;font-size:12px;color:var(--color-accent-300)">+2 à l'instant</span></div>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:30px;color:var(--color-neutral-400)">×6</span>Conditioning</div>
+                      <div style="display:flex;gap:14px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:30px;color:var(--color-neutral-400)">×6</span>Parity Shift</div>
+                    </div>
+                  </div>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Political Action · 22 · Reaction · 16 · Combat · 8 — <a href="#3a">tout déplier</a></span>
+                </div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:14px;border-left:1px solid var(--color-divider);padding-left:32px;min-height:0">
+                <div style="display:flex;justify-content:space-between;align-items:baseline">
+                  <span style="font-family:var(--font-heading);font-size:16px">Ajouter des cartes</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">catalogue local · 3 812</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;height:40px;box-sizing:border-box;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-surface)">
+                  <i class="ph ph-magnifying-glass" style="font-size:17px;color:var(--color-accent)"></i>
+                  <span style="font-size:14px">gov</span><span style="width:1px;height:18px;background:var(--color-accent);margin-left:-8px"></span>
+                  <span style="margin-left:auto;font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">/</span>
+                </div>
+                <div style="display:flex;gap:14px;padding:14px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+                  <img src="https://static.krcg.org/card/governtheunaligned.jpg" alt="Govern the Unaligned" style="width:112px;height:156px;object-fit:cover;border-radius:6px;flex:none;background:var(--color-neutral-900)">
+                  <div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+                    <span style="font-family:var(--font-heading);font-size:16px">Govern the Unaligned</span>
+                    <span style="font-size:12px;color:var(--color-neutral-400)">Action · Dominate · en collection 6 · dans le deck 6</span>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:auto">
+                      <span style="width:32px;height:32px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)">−</span>
+                      <span style="font-family:var(--font-heading);font-size:17px;font-variant-numeric:tabular-nums">1</span>
+                      <span style="width:32px;height:32px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent)">+</span>
+                      <span style="margin-left:auto;display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:13px">Ajouter<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:16px">↵</span></span>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column">
+                  <div style="display:flex;justify-content:space-between;align-items:center;height:40px;border-top:1px solid var(--color-divider);font-size:14px"><span>Governed Territory</span><span style="font-size:12px;color:var(--color-neutral-500)">Master · 2 en coll.</span></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;height:40px;border-top:1px solid var(--color-divider);font-size:14px"><span>Government Liaison</span><span style="font-size:12px;color:var(--color-neutral-500)">Ally · absente</span></div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;height:40px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span>Governor's Mansion</span><span style="font-size:12px;color:var(--color-neutral-500)">Equipment · 1 en coll.</span></div>
+                </div>
+                <div style="margin-top:auto;display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--color-neutral-500)">
+                  <span style="display:flex;gap:6px;align-items:center"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px;color:var(--color-neutral-400)">↑↓</span>parcourir</span>
+                  <span style="display:flex;gap:6px;align-items:center"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px;color:var(--color-neutral-400)">+ −</span>quantité</span>
+                  <span style="display:flex;gap:6px;align-items:center"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px;color:var(--color-neutral-400)">↵</span>ajouter au deck</span>
+                  <span style="display:flex;gap:6px;align-items:center"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px;color:var(--color-neutral-400)">Échap</span>vider</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">02 · Collection — tableau triable, visuel au survol, quantité éditée en place (double-clic)</span>
+        <div id="shot-d02-collection" data-screen-label="3a-02 Collection" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+          <dc-import name="TopBar" active="collection" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:28px 0">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Collection</h3>
+                <span style="font-size:13px;color:var(--color-neutral-400)">412 entrées · 1 286 exemplaires · une ligne par carte et par langue</span>
+              </div>
+              <div style="display:flex;gap:10px">
+                <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">Verser un produit<span style="font-size:11px;color:var(--color-neutral-500);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">V</span></span>
+                <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:15px"></i>Ajouter une carte<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--color-divider)">
+              <span style="font-size:13px;font-family:var(--font-heading);padding:10px 0;box-shadow:inset 0 -2px 0 var(--color-accent)">Toutes · 412</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Crypte · 96</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Bibliothèque · 316</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Proxy · 11</span>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:14px;padding:6px 0">
+                <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-neutral-300)">Langue : toutes<i class="ph ph-caret-down" style="font-size:13px"></i></span>
+                <div style="width:240px;height:32px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:0 10px;border-radius:var(--radius-md);border:1px solid var(--color-divider)"><i class="ph ph-funnel-simple" style="font-size:15px;color:var(--color-neutral-500)"></i><span style="font-size:13px;color:var(--color-neutral-500);flex:1">Filtrer le tableau</span><span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">F</span></div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:34px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)">
+                <span style="display:flex;align-items:center;gap:6px;color:var(--color-text)">Nom<i class="ph ph-caret-up" style="font-size:12px;color:var(--color-accent)"></i></span><span>Type</span><span>Clan / discipline</span><span>Cap. / coût</span><span>Langue</span><span style="text-align:right">Ex.</span><span style="text-align:right">Decks</span><span>Notes</span>
+              </div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Anneke (G4)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Toreador · aus dom pre</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">7</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">2</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Conditioning</span><span style="color:var(--color-neutral-400)">Action</span><span style="color:var(--color-neutral-400)">Dominate</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">—</span><span style="color:var(--color-neutral-400)">FR</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">6</span><span style="text-align:right;color:var(--color-neutral-400)">2</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Deflection</span><span style="color:var(--color-neutral-400)">Reaction</span><span style="color:var(--color-neutral-400)">Auspex</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">—</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">8</span><span style="text-align:right;color:var(--color-neutral-400)">3</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider);background:color-mix(in srgb, var(--color-text) 7%, transparent);margin:0 -10px;padding:0 10px;border-radius:var(--radius-sm)"><span style="display:flex;align-items:center;gap:8px">Govern the Unaligned<i class="ph ph-image" style="font-size:14px;color:var(--color-neutral-500)"></i></span><span style="color:var(--color-neutral-400)">Action</span><span style="color:var(--color-neutral-400)">Dominate</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">—</span><span style="color:var(--color-neutral-400)">FR</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">6</span><span style="text-align:right;color:var(--color-neutral-400)">2</span><span style="color:var(--color-neutral-300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Proxy autorisé · 2 prêtées</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Lodin (G4, Adv)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Ventrue · dom for pre</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">9</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">1</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Parity Shift</span><span style="color:var(--color-neutral-400)">Political</span><span style="color:var(--color-neutral-400)">—</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">1 pool</span><span style="color:var(--color-neutral-400)">EN</span>
+                <span style="justify-self:end;display:flex;align-items:center;height:30px;box-sizing:border-box;width:56px;padding:0 8px;border-radius:var(--radius-sm);border:1px solid var(--color-accent);background:var(--color-surface);font-family:var(--font-heading);font-variant-numeric:tabular-nums;justify-content:flex-end;gap:2px">7<span style="width:1px;height:16px;background:var(--color-accent)"></span></span>
+                <span style="text-align:right;color:var(--color-neutral-400)">2</span><span style="font-size:12px;color:var(--color-neutral-500)">↵ valider · Échap annuler</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Theo Bell (G2, Adv)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Brujah · cel pot pre</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">8</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">3</span><span style="text-align:right;color:var(--color-neutral-400)">0</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Victoria Ash (G5)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Toreador · aus cel pre</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">9</span><span style="color:var(--color-neutral-400)">FR</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">3</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2.1fr) 110px minmax(0,1.3fr) 96px 72px 64px 64px minmax(0,1.5fr);gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span>Villein</span><span style="color:var(--color-neutral-400)">Master</span><span style="color:var(--color-neutral-400)">—</span><span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">0</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums">4</span><span style="text-align:right;color:var(--color-neutral-400)">3</span><span style="color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</span></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-500)">
+              <span>1–9 sur 412</span>
+              <span style="display:flex;gap:16px"><span>↑↓ parcourir</span><span>↵ ouvrir la fiche</span><span>double-clic sur Ex. : éditer</span><span>Suppr retirer</span></span>
+            </div>
+          </div>
+          <div style="position:absolute;left:470px;top:318px;width:196px;padding:8px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:6px">
+            <img src="https://static.krcg.org/card/governtheunaligned.jpg" alt="Govern the Unaligned" style="width:180px;height:251px;object-fit:cover;border-radius:6px;background:var(--color-neutral-900)">
+            <span style="font-size:11px;color:var(--color-neutral-500)">Image KRCG · version EN</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">03 · Modifier une entrée — panneau latéral sur la collection</span>
+        <div id="shot-d03-modifier-entree" data-screen-label="3a-03 Modifier une entrée" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+          <dc-import name="TopBar" active="collection" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:28px 0;opacity:.35">
+            <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Collection</h3>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Anneke (G4)</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Conditioning</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Deflection</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Govern the Unaligned</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Lodin (G4, Adv)</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Theo Bell (G2, Adv)</div>
+            </div>
+          </div>
+          <aside style="position:absolute;top:56px;right:0;bottom:0;width:460px;box-sizing:border-box;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:24px;padding:28px 32px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Modifier une entrée</span>
+                <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Theo Bell (G2, Adv)</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Crypte · Brujah · capacité 8</span>
+              </div>
+              <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-500)"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span><i class="ph ph-x" style="font-size:18px;color:var(--color-neutral-400)"></i></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Langue</span>
+              <div style="display:flex;gap:8px">
+                <span style="font-size:13px;height:34px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)">EN</span>
+                <span style="font-size:13px;height:34px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">FR</span>
+                <span style="font-size:13px;height:34px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">ES</span>
+                <span style="font-size:13px;height:34px;padding:0 12px;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400)">Autre<i class="ph ph-caret-down" style="font-size:13px"></i></span>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Changer la langue crée une autre entrée.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Exemplaires possédés</span>
+              <div style="display:flex;align-items:center;gap:16px">
+                <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)">−</span>
+                <span style="font-family:var(--font-heading);font-size:24px;font-variant-numeric:tabular-nums;min-width:24px;text-align:center">3</span>
+                <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent)">+</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">+ / − au clavier</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <span style="font-size:14px">Proxy autorisé</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Compté comme jouable en partie amicale</span>
+              </div>
+              <span style="width:40px;height:24px;box-sizing:border-box;border-radius:999px;background:var(--color-neutral-900);border:1px solid var(--color-divider);display:flex;align-items:center;padding:0 3px;flex:none"><span style="width:16px;height:16px;border-radius:999px;background:var(--color-neutral-500)"></span></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Notes</span>
+              <div style="min-height:96px;box-sizing:border-box;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:var(--color-bg);padding:10px 12px;font-size:14px;color:var(--color-neutral-300)">Deux exemplaires prêtés à Marc — rendus au prochain tournoi.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Utilisée dans</span>
+              <span style="font-size:14px;color:var(--color-neutral-300)">Aucun deck</span>
+            </div>
+            <div style="margin-top:auto;display:flex;align-items:center;gap:10px">
+              <span style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-accent-300)"><i class="ph ph-trash" style="font-size:15px"></i>Retirer</span>
+              <span style="margin-left:auto;height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Annuler</span>
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Enregistrer<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">04 · Decks — liste + aperçu (maître/détail)</span>
+        <div id="shot-d04-decks" data-screen-label="3a-04 Decks" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="decks" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:380px minmax(0,1fr);gap:48px;padding:28px 0;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Decks</h3>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">6 decks · lecture locale</span>
+                </div>
+                <span style="display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:15px"></i>Nouveau<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+              </div>
+              <div style="display:flex;gap:22px;font-size:13px;border-bottom:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);padding:8px 0;box-shadow:inset 0 -2px 0 var(--color-accent)">En cours</span>
+                <span style="color:var(--color-neutral-500);padding:8px 0">Archivés</span>
+                <span style="color:var(--color-neutral-500);padding:8px 0">Tous</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 2px 0 0 var(--color-accent)">
+                  <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-100)">Toreador Mass Vote</span>
+                  <span style="font-size:12px;color:var(--color-accent-300)">#0001 · actif · légal</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md)">
+                  <span style="font-family:var(--font-heading);font-size:16px">Malkavian Bleed</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">#0002 · actif · légal</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md)">
+                  <span style="font-family:var(--font-heading);font-size:16px">Nosferatu Rush</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">#0004 · brouillon · 54 bibliothèque</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md)">
+                  <span style="font-family:var(--font-heading);font-size:16px">Ventrue Grinder</span>
+                  <span style="font-size:12px;color:var(--color-accent-300);display:flex;align-items:center;gap:6px"><i class="ph ph-clock-countdown" style="font-size:13px"></i>En attente de synchronisation</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md)">
+                  <span style="font-family:var(--font-heading);font-size:16px">Tremere Stealth Bleed</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">#0006 · actif · <span style="color:var(--color-accent-200)">illégal</span></span>
+                </div>
+              </div>
+              <span style="margin-top:auto;font-size:12px;color:var(--color-neutral-500)">↑↓ parcourir · ↵ ouvrir le deckbuilder</span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:28px;border-left:1px solid var(--color-divider);padding-left:48px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Deck actif · #0001 · vote</span>
+                  <span style="font-family:var(--font-heading);font-size:30px;letter-spacing:-.02em">Toreador Mass Vote</span>
+                  <span style="font-size:13px;color:var(--color-neutral-400)">Modifié il y a 2 h</span>
+                </div>
+                <span style="display:flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Ouvrir le deckbuilder<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">↵</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--color-accent);padding-left:16px">
+                <span style="font-family:var(--font-heading);font-size:20px;color:var(--color-accent-200)">Deck légal</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Verdict du serveur, 21/09/2026</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px;font-variant-numeric:tabular-nums">12</span><span style="font-size:12px;color:var(--color-neutral-500)">crypte · min 12</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px;font-variant-numeric:tabular-nums">78</span><span style="font-size:12px;color:var(--color-neutral-500)">bibliothèque · 60–90</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px">4, 5</span><span style="font-size:12px;color:var(--color-neutral-500)">groupes</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px">0</span><span style="font-size:12px;color:var(--color-neutral-500)">cartes bannies</span></div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px">
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Crypte</span>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Victoria Ash (G5)</span><span style="color:var(--color-neutral-400)">×3</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Rafael de Corazón (G4)</span><span style="color:var(--color-neutral-400)">×3</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Anneke (G4)</span><span style="color:var(--color-neutral-400)">×2</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Lodin (G4, Adv)</span><span style="color:var(--color-neutral-400)">×2</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Bibliothèque par type</span>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Political Action</span><span style="color:var(--color-neutral-400)">22</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Action</span><span style="color:var(--color-neutral-400)">18</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Reaction</span><span style="color:var(--color-neutral-400)">16</span></div>
+                  <div style="display:flex;justify-content:space-between;height:36px;align-items:center;border-top:1px solid var(--color-divider);font-size:14px"><span>Master</span><span style="color:var(--color-neutral-400)">14</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">05 · Nouveau deck — panneau latéral</span>
+        <div id="shot-d05-nouveau-deck" data-screen-label="3a-05 Nouveau deck" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+          <dc-import name="TopBar" active="decks" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding:28px 0;opacity:.35">
+            <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Decks</h3>
+            <div style="width:380px;display:flex;flex-direction:column;gap:2px;font-family:var(--font-heading);font-size:16px">
+              <div style="padding:14px">Toreador Mass Vote</div><div style="padding:14px">Malkavian Bleed</div><div style="padding:14px">Nosferatu Rush</div><div style="padding:14px">Tremere Stealth Bleed</div>
+            </div>
+          </div>
+          <aside style="position:absolute;top:56px;right:0;bottom:0;width:460px;box-sizing:border-box;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:26px;padding:28px 32px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Nouveau deck</span>
+              <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-500)"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span><i class="ph ph-x" style="font-size:18px;color:var(--color-neutral-400)"></i></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Nom du deck</span>
+              <div style="height:40px;box-sizing:border-box;display:flex;align-items:center;gap:2px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-bg);font-size:14px">Ventrue Grinder<span style="width:1px;height:18px;background:var(--color-accent)"></span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Archétype (facultatif)</span>
+              <div style="height:40px;box-sizing:border-box;display:flex;align-items:center;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:var(--color-bg);font-size:14px;color:var(--color-neutral-500)">ex. grind, vote, combat</div>
+            </div>
+            <p style="margin:0;font-size:13px;color:var(--color-neutral-400);border-left:2px solid var(--color-divider);padding-left:14px;text-wrap:pretty">Le deck est créé en brouillon. Le serveur lui attribuera son numéro (« #0001 ») à la synchronisation.</p>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:flex-end;gap:10px">
+                <span style="height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Annuler</span>
+                <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Créer et ouvrir<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500);text-align:right">Créé sur cet appareil, envoyé au prochain réseau</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">06 · Synchronisation + correction — file à gauche, correction à droite</span>
+        <div id="shot-d06-synchronisation" data-screen-label="3a-06 Synchronisation" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="sync" alert="{{ true }}" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:48px;padding:28px 0;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Synchronisation</span>
+                  <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Hors ligne</h3>
+                  <span style="font-size:14px;color:var(--color-neutral-300)">3 opérations en attente · nouvel essai à 21:36</span>
+                </div>
+                <span style="display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300);opacity:.45">Synchroniser maintenant<span style="font-size:11px;border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">S</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--color-accent);padding-left:16px">
+                <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-200)">2 opérations refusées</span>
+                <span style="font-size:13px;color:var(--color-neutral-400);max-width:62ch">Le serveur n'a pas appliqué ces saisies : elles n'ont aucun effet sur vos données. Renvoyez d'abord une création de deck refusée.</span>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Refusées</span>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;padding:14px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 2px 0 0 var(--color-accent)">
+                  <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:14px;color:var(--color-accent-100)">Ajouter 2 × Govern the Unaligned au deck #0001</span><span style="font-size:12px;color:var(--color-accent-300)">Règle de gestion : la carte n'est pas encore légale</span></div>
+                  <span style="font-size:12px;color:var(--color-accent-300);text-align:right">21/09 21:12</span>
+                </div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;padding:14px">
+                  <div style="display:flex;flex-direction:column;gap:3px"><span style="font-size:14px">Créer le deck « Ventrue Grinder »</span><span style="font-size:12px;color:var(--color-accent-200)">Données invalides : nom déjà utilisé</span></div>
+                  <span style="font-size:12px;color:var(--color-neutral-500);text-align:right">21/09 21:08</span>
+                </div>
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding:18px 0 8px">En attente · 3</span>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;height:40px;border-top:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)"><span>Modifier Theo Bell (EN) : 3 exemplaires</span><span style="font-size:12px;color:var(--color-neutral-500);text-align:right">21:31</span></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;height:40px;border-top:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)"><span>Verser 1 × Fifth Edition — Nosferatu (FR)</span><span style="font-size:12px;color:var(--color-neutral-500);text-align:right">21:29</span></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;height:40px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)"><span>Ajouter 6 × Conditioning au deck #0001</span><span style="font-size:12px;color:var(--color-neutral-500);text-align:right">21:27</span></div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:22px;padding:24px 28px;border-radius:var(--radius-lg);background:var(--color-surface);box-shadow:var(--shadow-sm)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Corriger l'opération</span>
+                <span style="font-size:14px;color:var(--color-neutral-300)">Ajouter 2 × Govern the Unaligned au deck #0001</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Carte</span>
+                <div style="height:40px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:var(--color-bg);font-size:14px">Govern the Unaligned<span style="font-size:13px;color:var(--color-accent-300)">Changer</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Exemplaires</span>
+                <div style="display:flex;align-items:center;gap:16px">
+                  <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)">−</span>
+                  <span style="font-family:var(--font-heading);font-size:24px;font-variant-numeric:tabular-nums">1</span>
+                  <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent)">+</span>
+                </div>
+              </div>
+              <p style="margin:0;font-size:13px;color:var(--color-neutral-400);text-wrap:pretty">Renvoyer crée une nouvelle opération : la clé refusée n'est jamais rejouée telle quelle.</p>
+              <div style="margin-top:auto;display:flex;align-items:center;gap:10px">
+                <span style="font-size:13px;color:var(--color-accent-300)">Abandonner</span>
+                <span style="margin-left:auto;height:38px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">Renvoyer tel quel</span>
+                <span style="height:38px;padding:0 14px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)">Renvoyer la correction<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">07 · Verser un produit — panneau latéral sur la collection</span>
+        <div id="shot-d07-verser-produit" data-screen-label="3a-07 Verser un produit" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+          <dc-import name="TopBar" active="collection" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:28px 0;opacity:.35">
+            <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Collection</h3>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Anneke (G4)</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Conditioning</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Deflection</div>
+              <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">Govern the Unaligned</div>
+            </div>
+          </div>
+          <aside style="position:absolute;top:56px;right:0;bottom:0;width:460px;box-sizing:border-box;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:24px;padding:28px 32px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Verser un produit</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Précon ou boîte : tout son contenu entre en collection.</span>
+              </div>
+              <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-500)"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span><i class="ph ph-x" style="font-size:18px;color:var(--color-neutral-400)"></i></span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Produit</span>
+              <div style="height:40px;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-bg);font-size:14px"><i class="ph ph-magnifying-glass" style="font-size:16px;color:var(--color-accent)"></i>nosf<span style="width:1px;height:18px;background:var(--color-accent);margin-left:-8px"></span></div>
+              <div style="display:flex;flex-direction:column;border-radius:var(--radius-md);border:1px solid var(--color-divider);overflow:hidden">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--color-accent-900);font-size:14px;color:var(--color-accent-100)">Fifth Edition — Nosferatu<span style="font-size:12px;color:var(--color-accent-300)">5E-NOS · 77 cartes</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-top:1px solid var(--color-divider);font-size:14px">Nosferatu Starter (Heirs)<span style="font-size:12px;color:var(--color-neutral-500)">HTTB · 77 cartes</span></div>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">La recherche d'un produit demande le réseau.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Langue du produit</span>
+              <div style="display:flex;gap:8px">
+                <span style="font-size:13px;height:34px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)">FR</span>
+                <span style="font-size:13px;height:34px;padding:0 14px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">EN</span>
+                <span style="font-size:13px;height:34px;padding:0 12px;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400)">Autre<i class="ph ph-caret-down" style="font-size:13px"></i></span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Nombre de produits</span>
+              <div style="display:flex;align-items:center;gap:16px">
+                <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)">−</span>
+                <span style="font-family:var(--font-heading);font-size:24px;font-variant-numeric:tabular-nums">1</span>
+                <span style="width:36px;height:36px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent)">+</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">entre 1 et 1000</span>
+              </div>
+            </div>
+            <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Annuler</span>
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Verser 77 cartes<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">08 · Atelier — accueil, alerte seulement en cas de problème</span>
+        <div id="shot-d08-atelier" data-screen-label="3a-08 Atelier" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="atelier" alert="{{ true }}" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:72px;padding:48px 0">
+            <div style="display:flex;flex-direction:column;gap:36px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Lundi 21 septembre · tout est local</span>
+                <h3 style="font-size:40px;margin:0;letter-spacing:-.02em">Atelier</h3>
+              </div>
+              <div style="display:flex;gap:40px">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:36px;letter-spacing:-.03em">412</span><span style="font-size:12px;color:var(--color-neutral-500)">entrées en collection</span></div>
+                <div style="width:1px;background:var(--color-divider)"></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:36px;letter-spacing:-.03em">6</span><span style="font-size:12px;color:var(--color-neutral-500)">decks actifs</span></div>
+                <div style="width:1px;background:var(--color-divider)"></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:36px;letter-spacing:-.03em">2</span><span style="font-size:12px;color:var(--color-neutral-500)">brouillons</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--color-accent);padding-left:16px">
+                <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-200)">2 opérations refusées</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Hors ligne depuis 14 min — les écritures attendent le réseau. <a href="#3a">Corriger maintenant →</a></span>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:10px">En cours</span>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 24px;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:18px">Toreador Mass Vote</span><span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 78 bibliothèque</span><span style="font-size:13px;color:var(--color-accent-300)">légal</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 24px;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:18px">Nosferatu Rush</span><span style="font-size:13px;color:var(--color-neutral-400)">10 crypte · 54 bibliothèque</span><span style="font-size:13px;color:var(--color-neutral-400)">brouillon</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 24px;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:18px">Malkavian Bleed</span><span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 90 bibliothèque</span><span style="font-size:13px;color:var(--color-accent-300)">légal</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px 120px 24px;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:18px">Tremere Stealth Bleed</span><span style="font-size:13px;color:var(--color-neutral-400)">12 crypte · 82 bibliothèque</span><span style="font-size:13px;color:var(--color-accent-200)">illégal</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:32px;padding-top:8px">
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Raccourcis</span>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Chercher une carte<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">/</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Nouvelle entrée / nouveau deck<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">N</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Aller à Collection, Decks…<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">G puis C / D</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Tous les raccourcis<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">?</span></div>
+              </div>
+              <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Catalogue</span>
+                <span style="font-size:14px;color:var(--color-neutral-300)">À jour — 3 812 cartes</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Synchronisé à 20:41</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">09 · États — vide, chargement, introuvable</span>
+        <div id="shot-d09-etats" data-screen-label="3a-09 États" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="collection" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:48px;padding:48px 0">
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Collection vide</span>
+              <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Aucune carte pour l'instant</h3>
+              <span style="font-size:14px;color:var(--color-neutral-400);text-wrap:pretty">Ajoutez une carte, ou versez un produit entier d'un coup.</span>
+              <div style="display:flex;gap:10px;margin-top:6px">
+                <span style="height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:13px;display:flex;align-items:center;gap:8px">Ajouter une carte<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+                <span style="height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300);font-size:13px;display:flex;align-items:center">Verser un produit</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Chargement</span>
+              <div style="display:flex;flex-direction:column">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span style="height:12px;width:80%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:60%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:40%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span></div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span style="height:12px;width:62%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:70%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:30%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span></div>
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span style="height:12px;width:72%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:50%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span><span style="height:12px;width:45%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></span></div>
+              </div>
+              <span style="font-size:13px;color:var(--color-neutral-500)">Lecture du miroir local — aucun appel réseau.</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">404</span>
+              <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Page introuvable</h3>
+              <span style="font-size:14px;color:var(--color-neutral-400)">Cette adresse ne correspond à rien dans l'application.</span>
+              <a href="#3a" style="font-size:14px">Retour à l'atelier →</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="3b" style="display:flex;flex-direction:column;gap:56px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">3b</span>
+        <span style="font-family:var(--font-heading);font-size:19px">Pleine largeur — panneaux</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">01 · Deckbuilder — trois panneaux : deck | recherche | fiche carte</span>
+        <div data-screen-label="3b-01 Deckbuilder" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="decks" wide="{{ true }}" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 400px 360px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:22px;padding:24px 32px;min-height:0">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:20px">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:12px;color:var(--color-neutral-400)">Decks · #0001 · actif</span>
+                  <span style="font-family:var(--font-heading);font-size:26px;letter-spacing:-.02em">Toreador Mass Vote</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid var(--color-accent);padding-left:12px">
+                  <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent-200)">Deck légal</span>
+                  <span style="font-size:12px;color:var(--color-neutral-400)">12 / 78 · groupes 4, 5 · R recalculer</span>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Crypte · 12</span>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×3</span>Victoria Ash (G5)<span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500)">9</span></div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×3</span>Rafael de Corazón (G4)<span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500)">8</span></div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×2</span>Anneke (G4)<span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500)">7</span></div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×2</span>Lodin (G4, Adv)<span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500)">9</span></div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×2</span>Sir Walter Nash (G5)<span style="margin-left:auto;font-size:12px;color:var(--color-neutral-500)">8</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Master · 14</span>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×6</span>Villein</div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×4</span>Giant's Blood</div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×4</span>Ashur Tablets</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Action · 18</span>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px;background:color-mix(in srgb, var(--color-accent) 12%, transparent);margin:0 -8px;padding:0 8px;border-radius:var(--radius-sm)"><span style="font-family:var(--font-heading);width:26px;color:var(--color-accent-300)">×6</span><span style="color:var(--color-accent-100)">Govern the Unaligned</span><span style="margin-left:auto;font-size:12px;color:var(--color-accent-300)">+2</span></div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×6</span>Conditioning</div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×6</span>Enchant Kindred</div>
+                </div>
+                <div style="display:flex;flex-direction:column">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Political Action · 22</span>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×6</span>Parity Shift</div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×5</span>Kine Resources Contested</div>
+                  <div style="display:flex;gap:12px;align-items:center;height:34px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);width:26px;color:var(--color-neutral-400)">×4</span>Reckless Agitation</div>
+                </div>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Reaction · 16 · Combat · 8 — <a href="#3b">tout déplier</a></span>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:12px;padding:24px 24px;border-left:1px solid var(--color-divider);min-height:0">
+              <div style="display:flex;align-items:center;gap:10px;height:40px;box-sizing:border-box;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-surface)">
+                <i class="ph ph-magnifying-glass" style="font-size:17px;color:var(--color-accent)"></i><span style="font-size:14px">gov</span><span style="width:1px;height:18px;background:var(--color-accent);margin-left:-8px"></span>
+                <span style="margin-left:auto;font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">/</span>
+              </div>
+              <div style="display:flex;gap:8px">
+                <span style="font-size:12px;padding:4px 10px;border-radius:999px;background:var(--color-accent-900);color:var(--color-accent-200)">Tout</span>
+                <span style="font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-400)">En collection</span>
+                <span style="font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-400)">Dominate</span>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">4 résultats</span>
+              <div style="display:flex;flex-direction:column">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 2px 0 0 var(--color-accent)"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:var(--color-accent-100)">Govern the Unaligned</span><span style="font-size:12px;color:var(--color-accent-300)">Action · 6 en coll. · 6 dans le deck</span></div><span style="font-size:11px;color:var(--color-accent-300);border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">↵</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">Governed Territory</span><span style="font-size:12px;color:var(--color-neutral-500)">Master · 2 en coll.</span></div><i class="ph ph-plus" style="font-size:16px;color:var(--color-accent)"></i></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">Government Liaison</span><span style="font-size:12px;color:var(--color-neutral-500)">Ally · absente</span></div><i class="ph ph-plus" style="font-size:16px;color:var(--color-accent)"></i></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px"><div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px">Governor's Mansion</span><span style="font-size:12px;color:var(--color-neutral-500)">Equipment · 1 en coll.</span></div><i class="ph ph-plus" style="font-size:16px;color:var(--color-accent)"></i></div>
+              </div>
+              <div style="margin-top:auto;display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--color-neutral-500)"><span>↑↓ parcourir</span><span>+ − quantité</span><span>↵ ajouter</span><span>⇧↵ ajouter ×4</span></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:16px;padding:24px 28px;border-left:1px solid var(--color-divider);background:var(--color-surface)">
+              <img src="https://static.krcg.org/card/governtheunaligned.jpg" alt="Govern the Unaligned" style="width:304px;height:424px;object-fit:cover;border-radius:10px;background:var(--color-neutral-900)">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-family:var(--font-heading);font-size:18px">Govern the Unaligned</span>
+                <span style="font-size:12px;color:var(--color-neutral-400)">Action · Dominate · image KRCG</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <span style="width:34px;height:34px;border-radius:var(--radius-md);border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)">−</span>
+                <span style="font-family:var(--font-heading);font-size:20px;font-variant-numeric:tabular-nums">1</span>
+                <span style="width:34px;height:34px;border-radius:var(--radius-md);border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;color:var(--color-accent)">+</span>
+                <span style="margin-left:auto;height:34px;padding:0 14px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)">Ajouter au deck<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:16px">↵</span></span>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">En collection : 6 (FR, proxy autorisé) · déjà 6 dans ce deck</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">02 · Collection — filtres à gauche, tableau, aperçu fixe à droite</span>
+        <div data-screen-label="3b-02 Collection" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="collection" wide="{{ true }}" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;display:grid;grid-template-columns:220px minmax(0,1fr) 300px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:22px;padding:24px 24px;border-right:1px solid var(--color-divider)">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-family:var(--font-heading);font-size:22px;letter-spacing:-.02em">Collection</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">412 entrées · 1 286 ex.</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:4px">Type</span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;border-radius:var(--radius-md);background:var(--color-accent-900);color:var(--color-accent-100)">Toutes<span style="color:var(--color-accent-300)">412</span></span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">Crypte<span style="color:var(--color-neutral-500)">96</span></span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">Bibliothèque<span style="color:var(--color-neutral-500)">316</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:4px">Langue</span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">EN<span style="color:var(--color-neutral-500)">301</span></span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">FR<span style="color:var(--color-neutral-500)">104</span></span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">ES<span style="color:var(--color-neutral-500)">7</span></span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:4px">Autres</span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">Proxy autorisé<span style="color:var(--color-neutral-500)">11</span></span>
+                <span style="display:flex;justify-content:space-between;font-size:13px;padding:6px 10px;color:var(--color-neutral-300)">Hors de tout deck<span style="color:var(--color-neutral-500)">188</span></span>
+              </div>
+              <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+                <span style="height:34px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)">Ajouter une carte<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+                <span style="height:34px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">Verser un produit<span style="font-size:11px;color:var(--color-neutral-500);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">V</span></span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;padding:16px 28px;font-size:14px;min-width:0">
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:36px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)">
+                <span style="display:flex;align-items:center;gap:6px;color:var(--color-text)">Nom<i class="ph ph-caret-up" style="font-size:12px;color:var(--color-accent)"></i></span><span>Type</span><span>Clan / discipline</span><span>Cap./coût</span><span>Langue</span><span style="text-align:right">Ex.</span><span style="text-align:right">Decks</span><span>Notes</span>
+              </div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Anneke (G4)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Toreador</span><span style="color:var(--color-neutral-300)">7</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">2</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Conditioning</span><span style="color:var(--color-neutral-400)">Action</span><span style="color:var(--color-neutral-400)">Dominate</span><span style="color:var(--color-neutral-300)">—</span><span style="color:var(--color-neutral-400)">FR</span><span style="text-align:right;font-family:var(--font-heading)">6</span><span style="text-align:right;color:var(--color-neutral-400)">2</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Deflection</span><span style="color:var(--color-neutral-400)">Reaction</span><span style="color:var(--color-neutral-400)">Auspex</span><span style="color:var(--color-neutral-300)">—</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">8</span><span style="text-align:right;color:var(--color-neutral-400)">3</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider);background:var(--color-accent-900);margin:0 -10px;padding:0 10px;border-radius:var(--radius-sm);box-shadow:inset 2px 0 0 var(--color-accent)"><span style="color:var(--color-accent-100)">Govern the Unaligned</span><span style="color:var(--color-accent-300)">Action</span><span style="color:var(--color-accent-300)">Dominate</span><span style="color:var(--color-accent-300)">—</span><span style="color:var(--color-accent-300)">FR</span><span style="text-align:right;font-family:var(--font-heading);color:var(--color-accent-100)">6</span><span style="text-align:right;color:var(--color-accent-300)">2</span><span style="color:var(--color-accent-200);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Proxy · 2 prêtées</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Lodin (G4, Adv)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Ventrue</span><span style="color:var(--color-neutral-300)">9</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">1</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Parity Shift</span><span style="color:var(--color-neutral-400)">Political</span><span style="color:var(--color-neutral-400)">—</span><span style="color:var(--color-neutral-300)">1 pool</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">7</span><span style="text-align:right;color:var(--color-neutral-400)">2</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Theo Bell (G2, Adv)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Brujah</span><span style="color:var(--color-neutral-300)">8</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">3</span><span style="text-align:right;color:var(--color-neutral-400)">0</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Victoria Ash (G5)</span><span style="color:var(--color-neutral-400)">Crypte</span><span style="color:var(--color-neutral-400)">Toreador</span><span style="color:var(--color-neutral-300)">9</span><span style="color:var(--color-neutral-400)">FR</span><span style="text-align:right;font-family:var(--font-heading)">3</span><span style="text-align:right;color:var(--color-neutral-400)">1</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,2fr) 100px minmax(0,1.3fr) 80px 60px 52px 52px minmax(0,1.3fr);gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Villein</span><span style="color:var(--color-neutral-400)">Master</span><span style="color:var(--color-neutral-400)">—</span><span style="color:var(--color-neutral-300)">0</span><span style="color:var(--color-neutral-400)">EN</span><span style="text-align:right;font-family:var(--font-heading)">4</span><span style="text-align:right;color:var(--color-neutral-400)">3</span><span style="color:var(--color-neutral-500)">—</span></div>
+              <div style="margin-top:auto;display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-500)"><span>1–9 sur 412</span><span style="display:flex;gap:16px"><span>↑↓ parcourir</span><span>↵ modifier</span><span>double-clic Ex. : éditer</span></span></div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:14px;padding:24px;border-left:1px solid var(--color-divider);background:var(--color-surface)">
+              <img src="https://static.krcg.org/card/governtheunaligned.jpg" alt="Govern the Unaligned" style="width:252px;height:352px;object-fit:cover;border-radius:10px;background:var(--color-neutral-900)">
+              <span style="font-family:var(--font-heading);font-size:17px">Govern the Unaligned</span>
+              <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-400)">Exemplaires</span><span>6 · FR</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-400)">Proxy</span><span>autorisé</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--color-neutral-400)">Decks</span><span>Toreador Mass Vote ×6</span></div>
+              </div>
+              <span style="font-size:12px;color:var(--color-neutral-500)">Notes : 2 prêtées à Marc</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">03 · Atelier — decks sur toute la largeur, colonne d'état à droite</span>
+        <div data-screen-label="3b-03 Atelier" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+          <dc-import name="TopBar" active="atelier" alert="{{ true }}" wide="{{ true }}" hint-size="100%,56px"></dc-import>
+          <div style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 360px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:32px;padding:40px 48px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-end">
+                <div style="display:flex;flex-direction:column;gap:4px">
+                  <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Lundi 21 septembre · tout est local</span>
+                  <h3 style="font-size:40px;margin:0;letter-spacing:-.02em">Atelier</h3>
+                </div>
+                <div style="display:flex;gap:40px">
+                  <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end"><span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">412</span><span style="font-size:12px;color:var(--color-neutral-500)">entrées</span></div>
+                  <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end"><span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">6</span><span style="font-size:12px;color:var(--color-neutral-500)">decks actifs</span></div>
+                  <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end"><span style="font-family:var(--font-heading);font-size:32px;letter-spacing:-.03em">2</span><span style="font-size:12px;color:var(--color-neutral-500)">brouillons</span></div>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:10px">En cours</span>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 140px 150px 24px;gap:20px;align-items:center;height:32px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)"><span>Deck</span><span>Crypte</span><span>Bibliothèque</span><span>Légalité</span><span>Modifié</span><span></span></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 140px 150px 24px;gap:20px;align-items:center;height:56px;border-bottom:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:17px">Toreador Mass Vote</span><span style="color:var(--color-neutral-300)">12</span><span style="color:var(--color-neutral-300)">78</span><span style="color:var(--color-accent-300)">légal</span><span style="font-size:13px;color:var(--color-neutral-500)">il y a 2 h</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 140px 150px 24px;gap:20px;align-items:center;height:56px;border-bottom:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:17px">Malkavian Bleed</span><span style="color:var(--color-neutral-300)">12</span><span style="color:var(--color-neutral-300)">90</span><span style="color:var(--color-accent-300)">légal</span><span style="font-size:13px;color:var(--color-neutral-500)">hier</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 140px 150px 24px;gap:20px;align-items:center;height:56px;border-bottom:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:17px">Tremere Stealth Bleed</span><span style="color:var(--color-neutral-300)">12</span><span style="color:var(--color-neutral-300)">82</span><span style="color:var(--color-accent-200)">illégal</span><span style="font-size:13px;color:var(--color-neutral-500)">18/09</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 110px 140px 150px 24px;gap:20px;align-items:center;height:56px;border-bottom:1px solid var(--color-divider)"><span style="font-family:var(--font-heading);font-size:17px">Nosferatu Rush</span><span style="color:var(--color-neutral-300)">10</span><span style="color:var(--color-neutral-300)">54</span><span style="color:var(--color-neutral-400)">brouillon</span><span style="font-size:13px;color:var(--color-neutral-500)">15/09</span><i class="ph ph-arrow-up-right" style="font-size:17px;color:var(--color-accent)"></i></div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:32px;padding:40px 32px;border-left:1px solid var(--color-divider);background:var(--color-surface)">
+              <div style="display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--color-accent);padding-left:14px">
+                <span style="font-family:var(--font-heading);font-size:16px;color:var(--color-accent-200)">2 opérations refusées</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Hors ligne depuis 14 min · 3 en attente.</span>
+                <a href="#3b" style="font-size:13px">Corriger maintenant →</a>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Raccourcis</span>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Chercher une carte<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">/</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Nouveau<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">N</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Naviguer<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">G puis A / C / D / S</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--color-neutral-300)">Tous les raccourcis<span style="font-size:11px;color:var(--color-neutral-400);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 6px;line-height:18px">?</span></div>
+              </div>
+              <div style="margin-top:auto;display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:14px;color:var(--color-neutral-300)">Catalogue à jour — 3 812 cartes</span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">Synchronisé à 20:41</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</x-dc>
+</body>
+</html>
