@@ -1836,3 +1836,46 @@ fieldset:disabled .chip {
 .picker__option:hover {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
+
+/*
+ * — scan de carte (KRCG), `CardImage` (Lot 5bis étape 4) —
+ * Deux tailles : `sm` (112×156, sélecteur du deckbuilder) et `lg` (180×251,
+ * aperçu flottant de la Collection). Fond neutre pendant le chargement et en
+ * repli, ratio proche de celui d'une carte VtES (~5:7) dans les deux tailles.
+ */
+.card-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+  box-shadow: var(--shadow-sm);
+  flex: none;
+}
+
+.card-image--sm {
+  width: 112px;
+  height: 156px;
+}
+
+.card-image--lg {
+  width: 180px;
+  height: 251px;
+}
+
+.card-image__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-image__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-neutral-600);
+}
