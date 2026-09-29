@@ -12,6 +12,13 @@ vides / chargement / introuvable, sans changement de comportement — mêmes
 routes, mêmes données, même sémantique offline. Seuls layout, typo, couleur,
 espacement et chrome de navigation bougent.
 
+**Ce lot livre l'affichage mobile.** Le handoff (`docs/design-handoff-mobile/`) est
+phone-first et ne couvre pas de disposition desktop dédiée ; l'implémentation du Lot 5
+reste donc en colonne unique, sans rupture de mise en page au-delà du centrage existant
+(`max-width: 560px`). La disposition desktop fait l'objet d'un handoff distinct
+(`docs/design-handoff-mobile/DESKTOP.md`), et sa mise en œuvre constitue un lot séparé,
+**Lot 5bis** (`docs/lot5bis-plan-design.md`).
+
 ## Ce que ce lot ne touche pas
 
 Aucune migration Alembic, aucun schéma Pydantic, aucune route. Le contrat
@@ -148,6 +155,9 @@ scénarios de comportement (aucun comportement ne change). Deux angles :
   que le composant ne soit réécrit, plutôt que de découvrir après coup qu'un
   test cible un testid disparu.
 
+  *Tranché pendant le lot* : le picker fusionné n'a pas de panier, il ajoute une carte
+  à la fois (CLAUDE.md § 11, Lot 5).
+
 ## Risques et points d'attention
 
 **Le retrait de `color-scheme: light dark`.** `frontend/src/index.css` déclare
@@ -209,6 +219,10 @@ un état local nouveau (le panier, explicitement prévu au § « State
 Management » du handoff). À traiter en dernier parmi les écrans, avec
 qa-tests associé dès la conception plutôt qu'après coup.
 
+*Tranché pendant le lot* : la fusion a eu lieu, mais sans panier. L'écran ajoute une
+carte à la fois, comme l'ancien formulaire, et chaque ajout part en file dès sa
+validation. Le panier du handoff n'est pas repris (CLAUDE.md § 11, Lot 5).
+
 **Nouvelle dépendance `@phosphor-icons/react`.** Absente de
 `frontend/package.json` aujourd'hui. Son ajout passe par `npm install` côté
 frontend-react ; à vérifier ensuite que `npm run build` et le bundle e2e
@@ -253,6 +267,12 @@ comportement de la refonte, c'est un comportement nouveau habillé comme le rest
   deck n'est ni archivé ni supprimé.
 - **Étape 13** : un e2e contre le vrai back (deck monté hors ligne avec acquisition,
   puis rejeu), et les tests vitest des deux compteurs, bornes comprises.
+
+*Trouvé en reprenant l'étape 10* : `useAvailableStock` lit la disponibilité en
+IndexedDB par `liveQuery` (Dexie), donc de façon asynchrone. Un test qui enchaîne
+plusieurs clics sans laisser cette première lecture se résoudre échoue par course,
+pas par un défaut du composant — à couvrir par un `waitFor` avant les clics plutôt
+que par une assertion synchrone (aucun changement côté code applicatif).
 
 ## Critère de fin de lot
 
