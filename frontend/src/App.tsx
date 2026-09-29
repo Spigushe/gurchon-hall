@@ -213,17 +213,20 @@ function App() {
   // Raccourcis globaux (handoff bureau, § « Style kbd ») : seule la navigation
   // `G` puis `A/C/D/S` est câblée à l'étape 2 du Lot 5bis. Le reste de la liste du
   // handoff est explicitement laissé de côté ici, pas oublié :
-  //  - `Échap` reste géré localement par `Sheet.tsx` (son propre écouteur `keydown`,
-  //    déjà posé au Lot 5) ; ajouter un second gestionnaire global ici ferait doublon
-  //    sans rien à fermer de plus tant qu'aucun panneau latéral bureau n'existe
-  //    (`SidePanel`, étape 3) — ce sera le bon moment de décider si `Sheet` continue de
-  //    se fermer seul ou si un registre de panneaux ouverts migre dans ce hook ;
+  //  - `Échap` et `⌘↵`/`Ctrl↵` restent gérés **localement** par chaque instance de
+  //    `Sheet` (décidé à l'étape 3, `docs/lot5bis-plan-design.md`) : chaque feuille
+  //    connaît déjà son `onClose` (et, pour `⌘↵`, son éventuelle action primaire) par
+  //    ses props, alors qu'`App.tsx` ne sait pas quelles feuilles sont ouvertes — un
+  //    registre global ici demanderait de faire remonter cet état sans bénéfice
+  //    mesurable. `Sheet.tsx` n'a plus son propre écouteur `keydown` maison depuis
+  //    cette étape : il appelle `useKeyboardShortcuts` comme ici, une instance par
+  //    feuille ouverte, coexistant sans conflit avec celle-ci (voir le hook) ;
   //  - `?` (aide) : aucun écran d'aide n'est spécifié à ce stade du plan ; ne rien
   //    enregistrer est délibéré (la frappe reste sans effet, rien à casser) plutôt que
   //    de poser un raccourci qui ne mène nulle part ;
-  //  - `/` (focus recherche), `N` (nouveau), `V` (verser un produit), `⌘↵`/`Ctrl↵`
-  //    (valider un panneau) : leurs cibles (champ de recherche fonctionnel, panneaux
-  //    bureau) arrivent aux étapes 3, 7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
+  //  - `/` (focus recherche), `N` (nouveau), `V` (verser un produit) : leurs cibles
+  //    (champ de recherche fonctionnel, panneaux bureau concrets) arrivent aux étapes
+  //    7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
   useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS);
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au

@@ -67,22 +67,15 @@
  * Breakpoint unique du projet (Lot 5bis, `docs/lot5bis-plan-design.md` étape 1) :
  * < 1024px reste l'implémentation mobile de référence du Lot 5, telle quelle.
  * À partir de 1024px, la barre haute (`.topbar`) remplace visuellement la
- * barre d'onglets basse (`.tabbar`) et la colonne de contenu s'élargit. Cette
- * media query est volontairement posée une seule fois ici plutôt que répétée
- * par composant.
+ * barre d'onglets basse (`.tabbar`) et la colonne de contenu s'élargit.
+ * Les overrides `.tabbar`/`.shell-bar__brand` eux-mêmes sont posés plus bas
+ * dans le fichier, dans le bloc `@media` qui suit leurs règles de base
+ * (ligne ~403) : à spécificité égale, la règle la plus tardive du fichier
+ * l'emporte, y compris quand une règle antérieure vit dans un `@media` déjà
+ * vérifié. Les poser ici, avant `.tabbar { display: grid }` et
+ * `.shell-bar__brand { … }` plus bas, les ferait perdre la cascade et
+ * laisserait la tab bar visible au-delà de 1024px.
  */
-@media (min-width: 1024px) {
-  .tabbar {
-    display: none;
-  }
-
-  .shell-bar__brand {
-    /* La marque vit désormais dans `.topbar__brand` ; `role="status"` juste
-       après reste seul et visible (un seul indicateur de connectivité dans
-       le DOM, cf. commentaire dans App.tsx). */
-    display: none;
-  }
-}
 
 *,
 *::before,
@@ -410,6 +403,17 @@ footer.shell-footer {
     background: var(--color-bg);
     border-bottom: 1px solid var(--color-divider);
   }
+
+  .tabbar {
+    display: none;
+  }
+
+  .shell-bar__brand {
+    /* La marque vit désormais dans `.topbar__brand` ; `role="status"` juste
+       après reste seul et visible (un seul indicateur de connectivité dans
+       le DOM, cf. commentaire dans App.tsx). */
+    display: none;
+  }
 }
 
 .topbar__inner {
@@ -621,6 +625,144 @@ footer.shell-footer {
 
 .back-row:hover {
   color: var(--color-text);
+}
+
+/* — en-tête et pied de feuille (kbd bureau, Lot 5bis étape 3) — */
+.sheet__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+/* Visibles seulement à partir du panneau bureau : pas de clavier physique
+   supposé en dessous de 1024px (DESKTOP.md « Style kbd », « Panneau latéral »). */
+.sheet__escape-kbd,
+.sheet__primary-kbd {
+  display: none;
+}
+
+.sheet__footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+}
+
+/*
+ * — panneau latéral bureau (≥ 1024px, DESKTOP.md « Panneau latéral ») —
+ * Même `.sheet` qu'au Lot 5 (feuille plein écran mobile) : cette media query
+ * est la seule différence de disposition, posée une fois ici plutôt que
+ * dupliquée dans un second composant (principe « un seul composant », plan du
+ * Lot 5bis). En dessous de 1024px, aucune de ces règles ne s'applique : la
+ * feuille mobile du Lot 5 reste inchangée au pixel.
+ */
+@media (min-width: 1024px) {
+  .sheet {
+    left: auto;
+    top: var(--topbar-height);
+    width: 460px;
+    padding: 28px 32px;
+    gap: 24px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* `.sheet--pushed` descend jusqu'à la tab bar et reste sous elle (z-index 30)
+     sur mobile : sans tab bar bureau, le panneau va jusqu'en bas et repasse au
+     même niveau que la feuille plein écran (60), au-dessus de la barre haute
+     (50) — les deux ne se chevauchent pas (`top: var(--topbar-height)`), mais
+     rien ne doit dépendre de cet ordre accidentel. */
+  .sheet--pushed {
+    bottom: 0;
+    z-index: 60;
+  }
+
+  .sheet__inner {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    gap: 24px;
+  }
+
+  .sheet .sheet__title {
+    font-size: 24px;
+  }
+
+  .sheet__escape-kbd,
+  .sheet__primary-kbd {
+    display: inline-flex;
+  }
+
+  /* Fond assombri et inerte derrière le panneau (`Sheet`, `acquireBackgroundInert`) :
+     `inert` (attribut HTML, posé par `isDesktopViewport()`) et cette estompe visuelle
+     sont tous deux propres au bureau — en dessous de 1024px, une feuille `pushed`
+     laisse la tab bar volontairement accessible (voir le commentaire de `Sheet.tsx`). */
+  .app-dimmed {
+    opacity: 0.35;
+    transition: opacity 160ms ease-out;
+  }
+
+  /* Champs de saisie bureau (DESKTOP.md « Panneau latéral ») : encadrés plutôt
+     que soulignés, 40px de haut. Porté par les classes existantes
+     (`.underline-field`) plutôt que par une nouvelle classe à appliquer écran
+     par écran : les feuilles déjà écrites (Modifier une entrée, Nouveau deck,
+     Verser un produit) en héritent sans y être réécrites (Lot 5bis, étape 3). */
+  .sheet .underline-field:not(textarea) {
+    min-height: 40px;
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: 0 12px;
+  }
+
+  .sheet .underline-field:not(textarea):focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  .sheet textarea.underline-field {
+    border-color: var(--color-divider);
+    background: var(--color-bg);
+  }
+
+  .sheet textarea.underline-field:focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  /* Steppers 36px et chips de langue 34px (DESKTOP.md « Panneau latéral »),
+     scopés au panneau : ailleurs (ex. le picker du Deckbuilder, étape 11), le
+     handoff donne d'autres tailles (32px), qui ne relèvent pas de cette étape. */
+  .sheet .stepper--form .stepper__btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .sheet .stepper--form .stepper__value {
+    font-size: 20px;
+    width: 3rem;
+  }
+
+  .sheet .chip {
+    min-height: 34px;
+  }
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .sheet {
+    animation: sheet-slide-right 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
+
+@keyframes sheet-slide-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* — action flottante — */
