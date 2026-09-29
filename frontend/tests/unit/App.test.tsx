@@ -62,4 +62,51 @@ describe("<App /> : coquille", () => {
     expect(await screen.findByTestId("stock-page")).toBeInTheDocument();
     await waitFor(() => expect(document.activeElement).not.toBeNull());
   });
+
+  describe("raccourcis clavier de navigation (`G` puis A/C/D/S)", () => {
+    it("navigue vers la Collection, les Decks puis la Synchronisation", async () => {
+      await renderApp({ online: false });
+
+      fireEvent.keyDown(document, { key: "g" });
+      fireEvent.keyDown(document, { key: "c" });
+      expect(await screen.findByTestId("stock-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("#/collection");
+
+      fireEvent.keyDown(document, { key: "g" });
+      fireEvent.keyDown(document, { key: "d" });
+      expect(await screen.findByTestId("decks-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("#/decks");
+
+      fireEvent.keyDown(document, { key: "g" });
+      fireEvent.keyDown(document, { key: "s" });
+      expect(await screen.findByTestId("sync-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("#/synchronisation");
+
+      fireEvent.keyDown(document, { key: "g" });
+      fireEvent.keyDown(document, { key: "a" });
+      expect(await screen.findByTestId("home-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("#/");
+    });
+
+    it("ne navigue pas sur `G` seul, sans deuxième touche", async () => {
+      await renderApp({ online: false });
+
+      fireEvent.keyDown(document, { key: "g" });
+
+      expect(screen.getByTestId("home-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("");
+    });
+
+    it("reste inactif quand le focus est dans un champ de saisie (recherche de la barre haute)", async () => {
+      await renderApp({ online: false });
+
+      const search = screen.getByRole("searchbox", { name: "Recherche" });
+      search.focus();
+      fireEvent.keyDown(search, { key: "g" });
+      fireEvent.keyDown(search, { key: "c" });
+
+      expect(screen.getByTestId("home-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("");
+    });
+  });
 });

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Cards, House, MagnifyingGlass, Stack, WarningCircle, WifiSlash } from "@phosphor-icons/react";
 import { Link } from "./app/Link";
-import { useRoute, type Route } from "./app/routes";
+import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
+import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
 import { DeckDetailPage } from "./features/decks/DeckDetailPage";
 import { DecksPage } from "./features/decks/DecksPage";
@@ -95,12 +96,34 @@ function TabBar({ route }: { route: Route }) {
   );
 }
 
-const TOP_NAV_ITEMS: Array<{ key: NavKey; route: Route; label: string; shortcut: string; testId: string }> = [
-  { key: "home", route: { name: "home" }, label: "Atelier", shortcut: "G A", testId: "topnav-home" },
-  { key: "stock", route: { name: "stock" }, label: "Collection", shortcut: "G C", testId: "topnav-stock" },
-  { key: "decks", route: { name: "decks" }, label: "Decks", shortcut: "G D", testId: "topnav-decks" },
-  { key: "sync", route: { name: "sync" }, label: "Synchronisation", shortcut: "G S", testId: "topnav-sync" },
+const TOP_NAV_ITEMS: Array<{
+  key: NavKey;
+  route: Route;
+  label: string;
+  /** Seconde touche du chord `G` + …, réutilisée telle quelle par `NAV_SHORTCUT_BINDINGS`. */
+  chordKey: string;
+  testId: string;
+}> = [
+  { key: "home", route: { name: "home" }, label: "Atelier", chordKey: "a", testId: "topnav-home" },
+  { key: "stock", route: { name: "stock" }, label: "Collection", chordKey: "c", testId: "topnav-stock" },
+  { key: "decks", route: { name: "decks" }, label: "Decks", chordKey: "d", testId: "topnav-decks" },
+  { key: "sync", route: { name: "sync" }, label: "Synchronisation", chordKey: "s", testId: "topnav-sync" },
 ];
+
+/**
+ * Raccourcis de navigation `G` puis `A/C/D/S` (handoff bureau, § « Style kbd »), seul
+ * comportement de raccourci câblé de bout en bout à l'étape 2 du Lot 5bis
+ * (`docs/lot5bis-plan-design.md`) : c'est le seul dont la cible (une route existante)
+ * est déjà livrée. `/`, `N`, `V`, `?`, `⌘↵`/`Ctrl↵` restent non câblés (voir `App`
+ * ci-dessous) ; `Échap` reste porté localement par `Sheet.tsx`, pas ici (idem).
+ *
+ * Table dérivée de `TOP_NAV_ITEMS` plutôt que dupliquée : le libellé affiché dans
+ * `TopBar` (`Kbd`) et le comportement réel restent la même source.
+ */
+const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
+  keys: ["g", item.chordKey],
+  onTrigger: () => navigate(item.route),
+}));
 
 /**
  * Barre haute bureau (≥ 1024px, `docs/design-handoff-mobile/DESKTOP.md`) :
@@ -111,12 +134,14 @@ const TOP_NAV_ITEMS: Array<{ key: NavKey; route: Route; label: string; shortcut:
  * recouvrent jamais (`nav-*` pour la tab bar, `topnav-*` ici) pour rester
  * distinguables par les tests indépendamment de ce que CSS masque.
  *
- * Les kbd affichés sont purement visuels : l'écoute des touches
- * (`G` puis `A/C/D/S`) est portée par `useKeyboardShortcuts`, à venir à
- * l'étape 2 du Lot 5bis (`docs/lot5bis-plan-design.md`). Le champ de
- * recherche global est également un gabarit visuel pour l'instant : sa
- * délégation vers la recherche de l'écran courant (§ « Ce que ce lot ne
- * touche pas » du plan) suppose des écrans bureau qui n'existent pas encore.
+ * Les kbd affichés restent un gabarit visuel porté par ce composant ; l'écoute des
+ * touches (`G` puis `A/C/D/S`) est câblée dans `App` via `useKeyboardShortcuts`
+ * (étape 2 du Lot 5bis, `docs/lot5bis-plan-design.md`), pas ici, pour que la
+ * navigation clavier fonctionne quel que soit l'écran affiché et pas seulement quand
+ * `TopBar` a le focus. Le champ de recherche global est, lui, toujours un gabarit
+ * visuel pour l'instant : sa délégation vers la recherche de l'écran courant
+ * (§ « Ce que ce lot ne touche pas » du plan) suppose des écrans bureau qui
+ * n'existent pas encore.
  */
 function TopBar({ route }: { route: Route }) {
   const status = useSyncStatus();
@@ -149,10 +174,10 @@ function TopBar({ route }: { route: Route }) {
               current={active[item.key]}
               className="topbar__tab"
               data-testid={item.testId}
-              aria-keyshortcuts={item.shortcut.toLowerCase()}
+              aria-keyshortcuts={`g ${item.chordKey}`}
             >
               {item.label}
-              <Kbd>{item.shortcut}</Kbd>
+              <Kbd>{`G ${item.chordKey.toUpperCase()}`}</Kbd>
             </Link>
           ))}
         </nav>
@@ -184,6 +209,22 @@ function App() {
   const online = useConnectivity();
   const route = useRoute();
   const mainRef = useRef<HTMLElement>(null);
+
+  // Raccourcis globaux (handoff bureau, § « Style kbd ») : seule la navigation
+  // `G` puis `A/C/D/S` est câblée à l'étape 2 du Lot 5bis. Le reste de la liste du
+  // handoff est explicitement laissé de côté ici, pas oublié :
+  //  - `Échap` reste géré localement par `Sheet.tsx` (son propre écouteur `keydown`,
+  //    déjà posé au Lot 5) ; ajouter un second gestionnaire global ici ferait doublon
+  //    sans rien à fermer de plus tant qu'aucun panneau latéral bureau n'existe
+  //    (`SidePanel`, étape 3) — ce sera le bon moment de décider si `Sheet` continue de
+  //    se fermer seul ou si un registre de panneaux ouverts migre dans ce hook ;
+  //  - `?` (aide) : aucun écran d'aide n'est spécifié à ce stade du plan ; ne rien
+  //    enregistrer est délibéré (la frappe reste sans effet, rien à casser) plutôt que
+  //    de poser un raccourci qui ne mène nulle part ;
+  //  - `/` (focus recherche), `N` (nouveau), `V` (verser un produit), `⌘↵`/`Ctrl↵`
+  //    (valider un panneau) : leurs cibles (champ de recherche fonctionnel, panneaux
+  //    bureau) arrivent aux étapes 3, 7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
+  useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS);
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.
