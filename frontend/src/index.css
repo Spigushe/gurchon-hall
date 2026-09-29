@@ -56,6 +56,32 @@
   --tabbar-height: 84px;
   --page-max-width: 560px;
   --page-padding: 26px;
+
+  /* Bureau (≥ 1024px, Lot 5bis) : `docs/design-handoff-mobile/DESKTOP.md`. */
+  --topbar-height: 56px;
+  --page-max-width-desktop: 1200px;
+  --page-padding-desktop: 32px;
+}
+
+/*
+ * Breakpoint unique du projet (Lot 5bis, `docs/lot5bis-plan-design.md` étape 1) :
+ * < 1024px reste l'implémentation mobile de référence du Lot 5, telle quelle.
+ * À partir de 1024px, la barre haute (`.topbar`) remplace visuellement la
+ * barre d'onglets basse (`.tabbar`) et la colonne de contenu s'élargit. Cette
+ * media query est volontairement posée une seule fois ici plutôt que répétée
+ * par composant.
+ */
+@media (min-width: 1024px) {
+  .tabbar {
+    display: none;
+  }
+
+  .shell-bar__brand {
+    /* La marque vit désormais dans `.topbar__brand` ; `role="status"` juste
+       après reste seul et visible (un seul indicateur de connectivité dans
+       le DOM, cf. commentaire dans App.tsx). */
+    display: none;
+  }
 }
 
 *,
@@ -247,6 +273,30 @@ main:focus {
   padding-bottom: 176px;
 }
 
+@media (min-width: 1024px) {
+  /*
+   * Gabarit bureau du handoff : colonne max-width 1200px centrée, padding
+   * vertical 28px, horizontal 32px (DESKTOP.md « Breakpoint et gabarit »).
+   * Le padding vertical spécifique à l'Atelier/aux États (48px) et la
+   * disposition interne de chaque écran restent hors de cette étape (Lot 5bis,
+   * étapes 5+) : ici, seul le conteneur commun change. Le supplément de
+   * padding bas de `.page--with-floating` (dégagement pour la tab bar mobile)
+   * n'a plus lieu d'être sans tab bar fixe en bas.
+   */
+  .page,
+  footer.shell-footer {
+    max-width: var(--page-max-width-desktop);
+    padding-left: var(--page-padding-desktop);
+    padding-right: var(--page-padding-desktop);
+  }
+
+  .page,
+  .page--with-floating {
+    padding-top: 28px;
+    padding-bottom: 28px;
+  }
+}
+
 .page-title {
   font-size: 30px;
 }
@@ -343,6 +393,150 @@ footer.shell-footer {
   height: 8px;
   border-radius: 999px;
   background: var(--color-accent);
+}
+
+/* — barre haute (≥ 1024px, remplace la tab bar — DESKTOP.md « Barre haute ») — */
+.topbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .topbar {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    height: var(--topbar-height);
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-divider);
+  }
+}
+
+.topbar__inner {
+  height: 100%;
+  max-width: var(--page-max-width-desktop);
+  margin: 0 auto;
+  padding: 0 var(--page-padding-desktop);
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.topbar__brand {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  text-decoration: none;
+  color: inherit;
+  flex: none;
+}
+
+.topbar__brand-name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  color: var(--color-text);
+}
+
+.topbar__brand-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-neutral-500);
+}
+
+.topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 100%;
+}
+
+.topbar__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  font-size: 14px;
+  color: var(--color-neutral-400);
+  text-decoration: none;
+  box-shadow: inset 0 -2px 0 transparent;
+  transition: color 140ms ease-out, box-shadow 140ms ease-out;
+}
+
+.topbar__tab:hover {
+  color: var(--color-text);
+}
+
+.topbar__tab[aria-current="page"] {
+  color: var(--color-text);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-left: auto;
+}
+
+.topbar__alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-accent-200);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.topbar__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 280px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-neutral-500);
+}
+
+.topbar__search:focus-within {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.topbar__search-icon {
+  flex: none;
+  color: var(--color-neutral-500);
+}
+
+.topbar__search input {
+  border: none;
+  background: none;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.topbar__search input::placeholder {
+  color: var(--color-neutral-500);
+}
+
+/* — kbd (raccourcis visibles, DESKTOP.md « Style kbd ») — */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 17px;
+  padding: 0 5px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 17px;
+  color: var(--color-neutral-400);
 }
 
 /* — sheets (feuilles plein écran / écrans poussés) — */
