@@ -7,9 +7,10 @@ code.
 
 Point SQLite important : les contraintes de clé étrangère ne sont **pas**
 appliquées tant que `PRAGMA foreign_keys = ON` n'a pas été exécuté sur la
-connexion. Or le modèle s'appuie dessus (`deck_card` référence `card_copy`
-pour interdire une carte de deck absente de la collection, cf. CLAUDE.md §11
-point 2). D'où l'écouteur ci-dessous.
+connexion. Or le modèle s'appuie dessus (`card_copy` et `deck_card` référencent
+`card_printing` pour interdire un exemplaire ou une ligne de deck rangés sous
+une extension où la carte n'a pas été imprimée, cf. décision D2 du Lot 4).
+D'où l'écouteur ci-dessous.
 
 Le même écouteur enregistre `fold_text(texte)`, fonction SQL déterministe qui
 replie casse et accents : `ilike` ne couvre que l'ASCII sur SQLite. Posée sur

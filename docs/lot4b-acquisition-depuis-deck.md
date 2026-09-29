@@ -1,10 +1,20 @@
 # Lot 4b — Ajouter une carte à la collection depuis un deck
 
 Décision de contrat prise le 2026-09-25 par l'architecte-contrat. Elle assouplit
-la décision §11.2 de CLAUDE.md (« une carte doit être en collection pour être
-ajoutée à un deck ») sans la contourner : il n'existe toujours pas de ligne de
-deck sans entrée de collection. Ce qui change, c'est qu'une écriture de ligne
-peut créer cette entrée, ou l'enrichir, dans la même transaction.
+la décision §11.2 de CLAUDE.md sans la contourner : ce qui change, c'est qu'une
+écriture de ligne de deck peut créer l'entrée de collection dont elle a besoin,
+ou l'enrichir, dans la même transaction.
+
+> **Amendement du 2026-09-29.** Ce brief affirmait plus loin qu'« il n'existe
+> toujours pas de ligne de deck sans entrée de collection ». Ce n'est plus vrai,
+> et cette exigence s'est révélée intenable : elle rendait une ligne entièrement
+> jouée en proxy impossible à écrire, quelle que soit la valeur du champ décrit
+> ici. `deck_card` ne référence plus `card_copy` (révision `f3a91c47b2de`), et
+> une ligne qui ne consomme aucun exemplaire réel ne demande plus rien à la
+> collection. Le reste du brief tient : `acquired_quantity` sert toujours à
+> faire entrer des exemplaires **réels** avec la ligne qui les consomme.
+> Diagnostic complet dans
+> `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`.
 
 ## Les deux besoins
 
@@ -90,7 +100,8 @@ seul le service connaît l'état d'avant.
 | Situation | Réponse en ligne | Verdict `/sync` |
 | --- | --- | --- |
 | Entrée de collection absente, `acquired_quantity > 0` | entrée créée à `quantity_owned = acquired_quantity`, notes vides | `applied` |
-| Entrée absente, `acquired_quantity = 0` (ou omis) | 409, comme avant : la carte doit être en collection | `conflict` |
+| Entrée absente, `acquired_quantity = 0` (ou omis), ligne qui consomme du réel | 409 : les exemplaires réels doivent venir de la collection | `conflict` |
+| Entrée absente, ligne entièrement en proxy (`quantity == proxy_quantity`) | acceptée, aucune entrée créée (amendement du 2026-09-29) | `applied` |
 | Entrée présente | `quantity_owned += acquired_quantity` | `applied` |
 | Total au-delà de 2³¹ − 1 | 409, rien d'écrit | `conflict` |
 | Exemplaires disponibles insuffisants malgré l'acquisition | 409, ni entrée créée ni incrément | `conflict` |
@@ -130,7 +141,9 @@ l'opération, et un refus revient à ce point sans rien laisser de partiel.
 ## Ce qui ne change pas
 
 - Aucune migration, aucune table, aucune opération ni aucun type `/sync` de
-  plus. Le contrat reste à 24 opérations.
+  plus. Le contrat reste à 24 opérations. (L'amendement du 2026-09-29 ajoute une
+  migration, mais aucune opération : elle ne touche que les clés étrangères de
+  `deck_card`.)
 - `deleted_deck_card` n'est pas concerné : une decklist figée ne réserve rien
   et ne s'écrit pas. Supprimer un deck ne retire pas de la collection les
   exemplaires acquis par lui : l'acquisition est définitive.
@@ -147,8 +160,9 @@ Couverts par `backend/tests/test_deck_acquisition.py` :
 - création de l'entrée manquante, incrément d'une entrée existante (y compris
   toute allouée ailleurs), complément par le stock libre, proxies sur un deck
   qui les autorise ;
-- sans acquisition, l'entrée doit exister (409), `0` explicite identique à
-  l'absence ;
+- sans acquisition, l'entrée doit exister dès que la ligne consomme un
+  exemplaire réel (409), `0` explicite identique à l'absence ; une ligne
+  entièrement en proxy passe sans entrée (amendement du 2026-09-29) ;
 - refus d'allocation sans écriture partielle ; refus de la base (déclencheur
   de test sur `deck_card`) qui annule aussi l'entrée créée, en ligne et par
   `/sync` ;

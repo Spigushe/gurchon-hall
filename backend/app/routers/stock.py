@@ -98,7 +98,11 @@ def update_stock_entry(
     status_code=204,
     operation_id="deleteStockEntry",
     summary="Retire une entrée de collection",
-    description="Refusé (409) tant que des decks utilisent l'entrée.",
+    description=(
+        "Refusé (409) tant qu'un deck vivant consomme des exemplaires réels de "
+        "l'entrée. Une ligne de deck entièrement jouée en proxy n'en consomme "
+        "aucun : elle ne retient pas l'entrée."
+    ),
     responses={**NOT_FOUND, **CONFLICT},
 )
 def delete_stock_entry(

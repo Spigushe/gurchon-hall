@@ -111,8 +111,8 @@ class CardListItem(CardSummary):
 
     Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
     une impression réelle sans rappeler l'API : les extensions où la carte a
-    été imprimée, et celle qu'il faut prendre par défaut quand la carte entre
-    en collection pour être jouée en proxy (décision D2a).
+    été imprimée, et celle qu'il faut prendre par défaut quand rien ne désigne
+    l'impression — une carte jouée en proxy, par exemple (décision D2a).
 
     Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
     stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
@@ -133,8 +133,8 @@ class CardListItem(CardSummary):
             "l'impression (à défaut, la date de l'extension) ; à date égale, "
             "une extension datée passe avant une extension sans date, puis la "
             "première abréviation par ordre alphabétique. L'extension tampon "
-            "ne compte que si elle est la seule. Impression par défaut d'une "
-            "carte ajoutée en collection pour être jouée en proxy."
+            "ne compte que si elle est la seule. Impression par défaut quand "
+            "rien ne désigne laquelle jouer, une carte en proxy par exemple."
         ),
     )
 

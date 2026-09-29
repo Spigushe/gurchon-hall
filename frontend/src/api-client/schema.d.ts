@@ -193,7 +193,7 @@ export interface paths {
         post?: never;
         /**
          * Retire une entrée de collection
-         * @description Refusé (409) tant que des decks utilisent l'entrée.
+         * @description Refusé (409) tant qu'un deck vivant consomme des exemplaires réels de l'entrée. Une ligne de deck entièrement jouée en proxy n'en consomme aucun : elle ne retient pas l'entrée.
          */
         delete: operations["deleteStockEntry"];
         options?: never;
@@ -285,7 +285,7 @@ export interface paths {
         put?: never;
         /**
          * Ajoute une carte au deck
-         * @description La carte doit être en collection dans la langue et l'extension demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon 409. `acquired_quantity` fait entrer des exemplaires physiques en collection avec la ligne, dans la même transaction : l'entrée est créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de 2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse `quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.
+         * @description Les exemplaires réels que la ligne consomme (`quantity - proxy_quantity`) doivent être disponibles en collection dans la langue et l'extension demandées ; sinon 409. Une ligne entièrement jouée en proxy n'en consomme aucun et n'exige donc aucune entrée de collection — seulement un deck qui autorise les proxies. `acquired_quantity` fait entrer des exemplaires physiques en collection avec la ligne, dans la même transaction : l'entrée est créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de 2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse `quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou supprimé. 404 si la carte n'a pas été imprimée dans cette extension.
          */
         post: operations["addDeckCard"];
         delete?: never;
@@ -508,7 +508,7 @@ export interface components {
             card_set_id: number;
             /**
              * Quantity Owned
-             * @description Nombre d'exemplaires réellement possédés. Une entrée à 0 est valide : c'est ainsi qu'une carte jouée uniquement en proxy entre en collection.
+             * @description Nombre d'exemplaires réellement possédés. Une entrée à 0 reste valide — on garde la trace d'une carte vendue ou perdue —, mais jouer une carte en proxy n'en crée aucune : une ligne de deck qui ne consomme aucun exemplaire réel ne passe pas par la collection.
              */
             quantity_owned: number;
             /** Notes */
@@ -548,8 +548,8 @@ export interface components {
          *
          *     Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
          *     une impression réelle sans rappeler l'API : les extensions où la carte a
-         *     été imprimée, et celle qu'il faut prendre par défaut quand la carte entre
-         *     en collection pour être jouée en proxy (décision D2a).
+         *     été imprimée, et celle qu'il faut prendre par défaut quand rien ne désigne
+         *     l'impression — une carte jouée en proxy, par exemple (décision D2a).
          *
          *     Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
          *     stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
@@ -585,7 +585,7 @@ export interface components {
             card_set_ids: number[];
             /**
              * Latest Card Set Id
-             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy.
+             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple.
              */
             latest_card_set_id: number;
         };
@@ -669,7 +669,7 @@ export interface components {
             card_set_ids: number[];
             /**
              * Latest Card Set Id
-             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut d'une carte ajoutée en collection pour être jouée en proxy.
+             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple.
              */
             latest_card_set_id: number;
             sect: components["schemas"]["SectRead"] | null;
@@ -851,11 +851,14 @@ export interface components {
          * DeckCardCreate
          * @description Ajout d'une carte à un deck.
          *
-         *     La carte doit être dans la collection pour la langue et l'extension
-         *     demandées (CLAUDE.md §11 point 2), **ou y entrer par cette écriture** :
-         *     `acquired_quantity` crée ou incrémente l'entrée de collection dans la même
-         *     transaction que la ligne (Lot 4b, `docs/lot4b-acquisition-depuis-deck.md`).
-         *     La vérification de disponibilité relève du service.
+         *     Les exemplaires réels que la ligne consomme (`quantity - proxy_quantity`)
+         *     doivent être dans la collection pour la langue et l'extension demandées,
+         *     **ou y entrer par cette écriture** : `acquired_quantity` crée ou incrémente
+         *     l'entrée de collection dans la même transaction que la ligne (Lot 4b,
+         *     `docs/lot4b-acquisition-depuis-deck.md`). Une ligne entièrement jouée en
+         *     proxy ne consomme rien et n'a donc pas besoin d'entrée du tout ; le deck
+         *     doit en revanche autoriser les proxies. La vérification de disponibilité
+         *     relève du service.
          */
         DeckCardCreate: {
             /** Quantity */
@@ -867,7 +870,7 @@ export interface components {
             proxy_quantity?: number;
             /**
              * Acquired Quantity
-             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.
+             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : l'écriture prend alors dans la collection les exemplaires réels qu'elle consomme, qui doivent y être (sinon 409). Une ligne entièrement jouée en proxy (`quantity == proxy_quantity`) n'en consomme aucun : elle n'a besoin ni d'acquisition ni d'entrée de collection, seulement de `proxy_allowed` sur le deck.
              * @default 0
              */
             acquired_quantity?: number;
@@ -925,7 +928,7 @@ export interface components {
             language_code: string;
             /**
              * Card Set Id
-             * @description Extension de l'entrée de collection allouée.
+             * @description Extension de l'impression jouée — celle de l'entrée de collection allouée, quand la ligne consomme des exemplaires réels.
              */
             card_set_id: number;
             /** Quantity */
@@ -960,7 +963,7 @@ export interface components {
             proxy_quantity?: number;
             /**
              * Acquired Quantity
-             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être déjà en collection.
+             * @description Exemplaires physiques que cette écriture **ajoute à la collection** (entrée carte × langue × extension, créée si elle manque), et que la ligne consomme aussitôt. Sert à monter un deck déjà construit à la main, ou à déclarer qu'un proxy est remplacé par une vraie carte (baisser `proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la ligne consommait déjà), sinon 422. 0 par défaut : l'écriture prend alors dans la collection les exemplaires réels qu'elle consomme, qui doivent y être (sinon 409). Une ligne entièrement jouée en proxy (`quantity == proxy_quantity`) n'en consomme aucun : elle n'a besoin ni d'acquisition ni d'entrée de collection, seulement de `proxy_allowed` sur le deck.
              * @default 0
              */
             acquired_quantity?: number;
@@ -970,11 +973,13 @@ export interface components {
          * @description Place une carte dans un deck, ou remplace sa ligne.
          *
          *     `data` porte l'état complet voulu de la ligne (`quantity`,
-         *     `proxy_quantity`). La carte doit être en collection dans cette langue et
-         *     cette extension, les exemplaires disponibles doivent suffire, et un
-         *     `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
-         *     `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
-         *     est refusée (`not_found`).
+         *     `proxy_quantity`). Les exemplaires réels que la ligne consomme
+         *     (`quantity - proxy_quantity`) doivent être disponibles en collection dans
+         *     cette langue et cette extension, et un `proxy_quantity` non nul exige un
+         *     deck qui autorise les proxies : sinon `conflict`, comme en ligne. Une ligne
+         *     entièrement jouée en proxy ne consomme rien et n'exige aucune entrée de
+         *     collection. Une extension où la carte n'a pas été imprimée est refusée
+         *     (`not_found`).
          *
          *     Lot 4b : `data.acquired_quantity` fait entrer des exemplaires physiques en
          *     collection avec la ligne (entrée créée ou incrémentée, sous le même point

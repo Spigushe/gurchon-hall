@@ -69,6 +69,7 @@ from app.models import (
     CardTypeLink,
     Clan,
     CostType,
+    DeckCard,
     Discipline,
     DisciplineRequirement,
     Language,
@@ -437,7 +438,14 @@ def _sync_printings(
             None,
         )
         if placeholder is not None:
-            still_used = db.scalar(
+            # Depuis le Lot 4b (piste A1,
+            # `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`),
+            # une ligne de deck peut référencer une impression sans
+            # passer par une entrée de collection (ligne tout-proxy, `card_copy`
+            # absente) : la compter aussi, sinon l'import supprimerait une
+            # impression tampon encore utilisée par un deck et échouerait par
+            # `IntegrityError`.
+            still_used_copies = db.scalar(
                 select(func.count())
                 .select_from(CardCopy)
                 .where(
@@ -445,6 +453,15 @@ def _sync_printings(
                     CardCopy.card_set_id == placeholder.card_set_id,
                 )
             )
+            still_used_deck_cards = db.scalar(
+                select(func.count())
+                .select_from(DeckCard)
+                .where(
+                    DeckCard.card_id == card.id,
+                    DeckCard.card_set_id == placeholder.card_set_id,
+                )
+            )
+            still_used = still_used_copies + still_used_deck_cards
             if still_used:
                 kept.append(placeholder)
                 report.reassign_cards.append(

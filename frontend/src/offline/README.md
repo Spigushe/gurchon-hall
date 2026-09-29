@@ -111,9 +111,12 @@ await actions.convertProxies(key, { cardId: 12, languageCode: "FR", cardSetId: 3
   Sinon `AcquisitionBoundError` est levée et **rien** n'est mis en file. Cela évite un
   `invalid` du serveur, qui reste le garde-fou. Cette borne rend aussi impossible de compter
   deux fois une même saisie sur une ligne déjà écrite.
-- **Sans acquisition**, la carte absente du stock n'est pas refusée localement : la file
-  part et le serveur rend `conflict`, comme avant (l'entrée peut avoir été créée par une
-  opération précédente du même lot, ou par un autre appareil).
+- **Sans acquisition**, l'entrée de collection n'est exigée que si la ligne consomme des
+  exemplaires réels (`quantity > proxyQuantity`) : une carte absente du stock n'est pas
+  refusée localement dans ce cas non plus, la file part et le serveur rend `conflict`,
+  comme avant (l'entrée peut avoir été créée par une opération précédente du même lot, ou
+  par un autre appareil). Une ligne entièrement en proxy (`quantity == proxyQuantity`)
+  s'écrit sans entrée : le serveur ne l'exige plus, et aucune n'est créée.
 - **Miroir** : la projection crée l'entrée de stock (`quantityOwned = acquis`) ou
   l'incrémente, avec la marque « en attente », en même temps que la ligne.
 - **`settled`** : une opération qui acquiert touche deux miroirs. Le rafraîchissement du

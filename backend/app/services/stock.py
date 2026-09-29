@@ -193,19 +193,24 @@ def update_copy(
 def delete_copy(
     db: Session, card_id: int, language_code: str, card_set_id: int
 ) -> None:
+    """Supprime une entrée, sauf si un deck vivant en consomme un exemplaire réel.
+
+    Depuis le Lot 4b
+    (piste A1, `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`),
+    une ligne de deck peut exister sans entrée de collection (ligne
+    tout-proxy) : la seule
+    présence d'une ligne référençant cette clé ne suffit plus à refuser la
+    suppression, seule sa consommation réelle (`quantity - proxy_quantity`)
+    compte. Sans ça, une ligne née sans entrée empêcherait malgré tout la
+    disparition d'une entrée qu'elle ne réserve pas.
+    """
     copy = get_copy(db, card_id, language_code, card_set_id)
-    in_decks = db.scalar(
-        select(func.count()).select_from(DeckCard).where(
-            DeckCard.card_id == card_id,
-            DeckCard.language_code == copy.language_code,
-            DeckCard.card_set_id == card_set_id,
-        )
-    )
-    if in_decks:
+    allocated = allocated_real(db, card_id, copy.language_code, card_set_id)
+    if allocated:
         raise ConflictError(
-            f"Cette entrée est utilisée par {in_decks} ligne(s) de deck (decks "
-            "archivés compris) : la retirer des decks d'abord, ou mettre sa "
-            "quantité à 0."
+            f"{allocated} exemplaire(s) réel(s) sont alloués par des ligne(s) "
+            "de deck (decks archivés compris) : les retirer des decks d'abord, "
+            "ou mettre sa quantité à 0."
         )
     db.delete(copy)
     # Course possible avec un ajout en deck : la base refuse la suppression.

@@ -146,9 +146,12 @@ def get_deck_legality(deck_id: PathId, db: DbSession):
     operation_id="addDeckCard",
     summary="Ajoute une carte au deck",
     description=(
-        "La carte doit être en collection dans la langue et l'extension "
-        "demandées, avec assez d'exemplaires disponibles (hors proxies) ; sinon "
-        "409. `acquired_quantity` fait entrer des exemplaires physiques en "
+        "Les exemplaires réels que la ligne consomme "
+        "(`quantity - proxy_quantity`) doivent être disponibles en collection "
+        "dans la langue et l'extension demandées ; sinon 409. Une ligne "
+        "entièrement jouée en proxy n'en consomme aucun et n'exige donc aucune "
+        "entrée de collection — seulement un deck qui autorise les proxies. "
+        "`acquired_quantity` fait entrer des exemplaires physiques en "
         "collection avec la ligne, dans la même transaction : l'entrée est "
         "créée à ce nombre si elle manque, incrémentée sinon (409 au-delà de "
         "2³¹ − 1 exemplaires, 404 pour une langue inconnue, 422 s'il dépasse "
