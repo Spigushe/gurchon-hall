@@ -272,22 +272,44 @@ function DeckCompositionColumns({ lines }: { lines: LocalDeckCard[] | undefined 
     (categories.get(line.cardId) === "crypt" ? crypt : library).push(line);
   }
 
-  const column = (title: string, cards: LocalDeckCard[], testId: string) => (
-    <div>
-      <p className="kicker">{title}</p>
-      {cards.length === 0 ? (
-        <p className="hint">Aucune.</p>
-      ) : (
-        <ul className="deck-columns__list" data-testid={testId}>
-          {cards.map((line) => (
-            <li key={`${line.cardId}|${line.languageCode}|${line.cardSetId}`}>
-              {line.quantity}× {line.cardName ?? `Carte n° ${line.cardId}`}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  const column = (title: string, cards: LocalDeckCard[], testId: string) => {
+    // Une même carte peut apparaître en plusieurs lignes (langue et/ou
+    // extension différentes, cf. LocalDeckCard) : ce panneau de résumé en
+    // lecture seule fusionne les lignes par carte plutôt que d'afficher une
+    // entrée par triplet carte × langue × extension. L'ordre d'apparition du
+    // tableau reçu (déjà trié par `readDeckCards`) est conservé.
+    const grouped = new Map<number, { cardId: number; cardName: string | null; quantity: number }>();
+    for (const line of cards) {
+      const existing = grouped.get(line.cardId);
+      if (existing) {
+        existing.quantity += line.quantity;
+      } else {
+        grouped.set(line.cardId, {
+          cardId: line.cardId,
+          cardName: line.cardName,
+          quantity: line.quantity,
+        });
+      }
+    }
+    const aggregated = Array.from(grouped.values());
+
+    return (
+      <div>
+        <p className="kicker">{title}</p>
+        {aggregated.length === 0 ? (
+          <p className="hint">Aucune.</p>
+        ) : (
+          <ul className="deck-columns__list" data-testid={testId}>
+            {aggregated.map((entry) => (
+              <li key={entry.cardId}>
+                {entry.quantity}× {entry.cardName ?? `Carte n° ${entry.cardId}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="deck-columns" data-testid="decks-detail-columns">

@@ -330,6 +330,38 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
     expect(within(screen.getByTestId("decks-detail-library")).getByText(/Élan vital/)).toBeInTheDocument();
   });
 
+  it("fusionne dans le résumé les lignes d'une même carte tenues séparément (langue et extension différentes)", async () => {
+    const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
+    const { key } = await app.runtime.actions.createDeck({ name: "Ventrue", proxyAllowed: true });
+    await act(async () => {
+      await app.runtime.engine.flush();
+      await app.runtime.refresh();
+    });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 1, // Élan vital, bibliothèque
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 1,
+      proxyQuantity: 1,
+    });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 1, // même carte, langue différente : une deuxième ligne dans le miroir
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 2,
+    });
+
+    await waitFor(async () => expect(await app.runtime.outbox.list()).toHaveLength(2));
+
+    act(() => setOnline(false));
+
+    const library = await screen.findByTestId("decks-detail-library");
+    await waitFor(() => expect(within(library).getByText("3× Élan vital")).toBeInTheDocument());
+    // Une seule entrée, pas une par triplet carte × langue × extension.
+    expect(within(library).getAllByText(/Élan vital/)).toHaveLength(1);
+  });
+
   it("affiche le verdict du serveur (crypte, bibliothèque, groupes, bannies) une fois le deck synchronisé", async () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
     app.ui.legality = { status: 200, body: LEGALITY };
