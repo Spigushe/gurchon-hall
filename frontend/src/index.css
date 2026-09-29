@@ -270,11 +270,12 @@ main:focus {
   /*
    * Gabarit bureau du handoff : colonne max-width 1200px centrée, padding
    * vertical 28px, horizontal 32px (DESKTOP.md « Breakpoint et gabarit »).
-   * Le padding vertical spécifique à l'Atelier/aux États (48px) et la
-   * disposition interne de chaque écran restent hors de cette étape (Lot 5bis,
-   * étapes 5+) : ici, seul le conteneur commun change. Le supplément de
-   * padding bas de `.page--with-floating` (dégagement pour la tab bar mobile)
-   * n'a plus lieu d'être sans tab bar fixe en bas.
+   * Le padding vertical spécifique à l'Atelier/aux États (48px, posé juste en
+   * dessous par `.page--atelier`) et la disposition interne de chaque écran
+   * restent hors de cette étape pour le reste des écrans (Lot 5bis, étapes 6+) :
+   * ici, seul le conteneur commun change. Le supplément de padding bas de
+   * `.page--with-floating` (dégagement pour la tab bar mobile) n'a plus lieu
+   * d'être sans tab bar fixe en bas.
    */
   .page,
   footer.shell-footer {
@@ -287,6 +288,18 @@ main:focus {
   .page--with-floating {
     padding-top: 28px;
     padding-bottom: 28px;
+  }
+
+  /*
+   * Atelier (d08, Lot 5bis étape 5) : padding vertical propre, 48px au lieu
+   * des 28px génériques ci-dessus. Deux classes sur le même élément
+   * (`.page.page--atelier`) l'emportent par spécificité sur `.page` seul,
+   * quel que soit l'ordre dans le fichier — contrairement au piège documenté
+   * en tête de fichier, qui ne joue qu'à spécificité égale.
+   */
+  .page.page--atelier {
+    padding-top: 48px;
+    padding-bottom: 48px;
   }
 }
 
@@ -1700,6 +1713,111 @@ fieldset:disabled .chip {
 .stat__label {
   font-size: 12px;
   color: var(--color-neutral-500);
+}
+
+/*
+ * — Atelier, disposition bureau (Lot 5bis, étape 5 ; DESKTOP.md « d08 ») —
+ * `.home-grid` vaut `display: contents` par défaut (mobile) : ses deux
+ * enfants directs (`.home-main`, `.home-aside`) rejoignent alors le flux
+ * flex de `.page` lui-même, dans le même ordre et avec le même `gap` que
+ * portait `.page` seul avant cette étape — aucune disposition mobile
+ * nouvelle. `.home-shortcuts` (raccourcis, propres au bureau, sans
+ * équivalent mobile) reste cependant masqué en dessous de 1024px : `hr` et
+ * `CatalogPanel`, eux, redeviennent visibles puisqu'ils existaient déjà en
+ * pied de l'Atelier mobile (Lot 5).
+ */
+.home-grid {
+  display: contents;
+}
+
+.home-main,
+.home-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.home-shortcuts {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 72px;
+    align-items: start;
+  }
+
+  .home-shortcuts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .page--atelier .page-title {
+    font-size: 40px;
+  }
+
+  .page--atelier .stat__value {
+    font-size: 36px;
+  }
+}
+
+.home-shortcuts__item {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+/* Tableau « En cours » (bureau uniquement, cf. `HomePage.tsx`) : nom, comptes, légalité, flèche. */
+.home-deck-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.home-deck-row {
+  display: grid;
+  grid-template-columns: 1fr 168px 96px 20px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--color-divider);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 140ms ease-out;
+}
+
+.home-deck-row:first-child {
+  border-top: none;
+}
+
+.home-deck-row:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.home-deck-row__name {
+  font-size: 18px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+}
+
+.home-deck-row__counts,
+.home-deck-row__legality {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.home-deck-row__legality[data-legal="true"] {
+  color: var(--color-accent-200);
+}
+
+.home-deck-row__legality[data-legal="false"] {
+  color: var(--color-accent-300);
+}
+
+.home-deck-row__arrow {
+  color: var(--color-accent);
+  flex: none;
 }
 
 /* — formulaire dans une feuille (pied poussé en bas) — */
