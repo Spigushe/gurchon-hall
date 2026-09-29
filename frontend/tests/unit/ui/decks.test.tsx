@@ -361,6 +361,65 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
   });
 });
 
+describe("decks : nouveau deck, pied bureau/mobile (Lot 5bis, étape 7)", () => {
+  it(
+    "bureau (jsdom ≥ 1024px par défaut) : pied à deux actions, Annuler ferme la feuille " +
+      "sans créer de deck",
+    async () => {
+      const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+      fireEvent.click(await screen.findByTestId("deck-add"));
+      const form = await screen.findByTestId("deck-form");
+
+      // Pas de pilule mobile ni de légende flottante sur ce pied.
+      expect(within(form).getByTestId("deck-form-submit")).toHaveTextContent("Créer et ouvrir");
+      expect(
+        within(form).queryByText("Créé sur cet appareil, envoyé au prochain réseau"),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByTestId("deck-form-sheet")).not.toBeInTheDocument();
+      expect(await runtime.outbox.list()).toHaveLength(0);
+    },
+  );
+
+  it("⌘↵ crée le deck et ouvre le deckbuilder, comme un clic sur « Créer et ouvrir »", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    fireEvent.click(await screen.findByTestId("deck-add"));
+    const form = await screen.findByTestId("deck-form");
+    fireEvent.change(within(form).getByLabelText("Nom du deck"), { target: { value: "Ventrue" } });
+
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+
+    await screen.findByTestId("deck-page");
+    expect(screen.getByTestId("deck-title")).toHaveTextContent("Ventrue");
+    const queued = await runtime.outbox.list();
+    expect(queued).toHaveLength(1);
+    expect(queued[0].operation).toMatchObject({ type: "deck.create", data: { name: "Ventrue" } });
+  });
+
+  it(
+    "aucune régression mobile : un seul bouton « Créer le deck », pas d'Annuler ni de kbd visible",
+    async () => {
+      setViewportWidth(390);
+      const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+      fireEvent.click(await screen.findByTestId("deck-add"));
+      const form = await screen.findByTestId("deck-form");
+
+      expect(within(form).queryByRole("button", { name: "Annuler" })).not.toBeInTheDocument();
+      const submit = within(form).getByTestId("deck-form-submit");
+      expect(submit).toHaveTextContent("Créer le deck");
+      expect(
+        screen.getByText("Créé sur cet appareil, envoyé au prochain réseau"),
+      ).toBeInTheDocument();
+
+      fireEvent.change(within(form).getByLabelText("Nom du deck"), { target: { value: "Brujah" } });
+      fireEvent.click(submit);
+      await screen.findByTestId("deck-page");
+      expect(await runtime.outbox.list()).toHaveLength(1);
+    },
+  );
+});
+
 describe("decks : composition", () => {
   it("ajoute une carte de la collection au deck, hors ligne, par la file", async () => {
     const { runtime, server, key } = await withDeck({}, "Malkavien", true);

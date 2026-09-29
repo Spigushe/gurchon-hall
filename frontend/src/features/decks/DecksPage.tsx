@@ -5,7 +5,7 @@ import { navigate } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
-import { Sheet, SheetHeader } from "../../components/Sheet";
+import { Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
 import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
@@ -29,22 +29,43 @@ const STATES: Array<{ value: DeckListState; label: string }> = [
   { value: "all", label: "Tous" },
 ];
 
-/** Feuille « Nouveau deck » : deux champs soulignés, l'autorisation de proxy, création en file. */
+/**
+ * Feuille « Nouveau deck » : deux champs soulignés (bordés à partir de 1024px,
+ * `.sheet .underline-field`, Lot 5bis étape 3), l'autorisation de proxy,
+ * création en file. Pied bureau/mobile distinct : le handoff bureau (d05,
+ * DESKTOP.md « Panneau latéral ») décrit un pied à deux actions alignées à
+ * droite (`SheetFooter`, câblé ici pour la première fois — Lot 5bis étape 7),
+ * quand le handoff mobile (README.md « 7. Nouveau deck ») garde une seule
+ * pilule flottante centrée avec une légende sous elle. Les deux visuels ne se
+ * recouvrent pas (pilule ronde flottante vs bouton bordé aligné à droite, avec
+ * ou sans légende) : piloter les deux par CSS seul sur un même balisage
+ * perdrait soit la légende mobile, soit la forme de pilule — d'où un
+ * `isDesktop` qui choisit entre les deux pieds, comme `DecksPage` le fait déjà
+ * pour sa disposition maître/détail. Le bouton primaire garde `type="submit"`
+ * dans les deux cas : un seul chemin de soumission (l'`onSubmit` du
+ * formulaire), que ce soit un clic, `Entrée` ou `⌘↵`/`Ctrl↵` (ce dernier via
+ * `onPrimaryAction` sur `Sheet`, actif aux deux largeurs comme Échap
+ * — `Sheet.tsx` ne conditionne ses raccourcis à aucun seuil, seul le kbd visible
+ * l'est).
+ */
 function DeckCreateForm({ onClose }: { onClose: () => void }) {
   const { actions } = useVtesOffline();
   const action = useGuardedAction();
   const formId = useId();
   const titleId = `${formId}-title`;
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const isDesktop = useIsDesktop();
   const [name, setName] = useState("");
   const [archetype, setArchetype] = useState("");
   const [proxyAllowed, setProxyAllowed] = useState(false);
   const [invalid, setInvalid] = useState<string | null>(null);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
     const trimmed = name.trim();
-    if (!trimmed) return setInvalid("Le nom du deck est obligatoire.");
+    if (!trimmed) {
+      setInvalid("Le nom du deck est obligatoire.");
+      return;
+    }
     setInvalid(null);
     const created: { key: DeckKey | null } = { key: null };
     const done = await action.run(async () => {
@@ -60,11 +81,22 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
     if (done && created.key) navigate({ name: "deck", key: created.key });
   };
 
+  const onFormSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    void submit();
+  };
+
   return (
-    <Sheet titleId={titleId} titleRef={titleRef} onClose={onClose} data-testid="deck-form-sheet">
+    <Sheet
+      titleId={titleId}
+      titleRef={titleRef}
+      onClose={onClose}
+      onPrimaryAction={() => void submit()}
+      data-testid="deck-form-sheet"
+    >
       <SheetHeader title="Nouveau deck" titleId={titleId} titleRef={titleRef} onClose={onClose} />
       <form
-        onSubmit={submit}
+        onSubmit={onFormSubmit}
         noValidate
         className="sheet-form"
         data-testid="deck-form"
@@ -114,12 +146,21 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
             {action.error}
           </p>
         )}
-        <div className="sheet-form__footer">
-          <Pill type="submit" disabled={action.pending} data-testid="deck-form-submit">
-            Créer le deck
-          </Pill>
-          <p className="floating-hint">Créé sur cet appareil, envoyé au prochain réseau</p>
-        </div>
+        {isDesktop ? (
+          <SheetFooter
+            onCancel={onClose}
+            primaryLabel="Créer et ouvrir"
+            primaryDisabled={action.pending}
+            primaryTestId="deck-form-submit"
+          />
+        ) : (
+          <div className="sheet-form__footer">
+            <Pill type="submit" disabled={action.pending} data-testid="deck-form-submit">
+              Créer le deck
+            </Pill>
+            <p className="floating-hint">Créé sur cet appareil, envoyé au prochain réseau</p>
+          </div>
+        )}
       </form>
     </Sheet>
   );
