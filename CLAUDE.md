@@ -42,11 +42,22 @@ fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
 la base de développement. Vérifier la variable avant toute migration. Cette base n'est
-pas versionnée ; elle a été reconstruite le 2026-09-25 à la révision `b7e41d0c9a52`
+pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`
 (la tête), avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits),
 aucune entrée de stock et aucun deck. Une base plus ancienne se remet à niveau par ce
 même `upgrade head` ; une base repartie de zéro se reconstruit par `upgrade head` suivi
 de `uv run python scripts/import_catalog.py`.
+
+**Piège vécu (2026-09-29)** : les deux migrations du Lot 4 (`6c9a178b7a1d`,
+`b7e41d0c9a52`) ne convertissent aucune donnée et refusent de s'exécuter
+(`RuntimeError`) si `card_copy`, `deck_card` ou `deleted_deck_card` contiennent une
+ligne (D3, `docs/lot4-plan-inventaire.md`). Une base locale restée en retard sur ces
+deux révisions à cause d'une ligne de test oubliée bloque du même coup l'import du
+catalogue : le code sur `main` lit `card_set.is_placeholder` (ajoutée par
+`b7e41d0c9a52`), absente tant que la base n'est pas à la tête, d'où une
+`OperationalError: no such column: card_set.is_placeholder` sur
+`scripts/import_catalog.py`. Remède : vider les trois tables (ou repartir d'une base
+neuve), puis `upgrade head` avant de relancer l'import.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
 `/extensions`, `/sync` — 24 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,

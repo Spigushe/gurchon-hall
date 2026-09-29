@@ -21,14 +21,18 @@ from app.routers.stock import router as stock_router
 from app.routers.sync import router as sync_router
 from app.services.errors import DomainError, InvalidRequestError
 
-# Origines autorisées par défaut : le serveur de dev Vite (front React), sur
-# localhost et 127.0.0.1. Configurable via la variable d'environnement
+# Origines autorisées par défaut : le serveur de dev Vite (front React) sur
+# localhost et 127.0.0.1, port 5173 (`npm run dev`) ou 4173 (`npm run preview`,
+# nécessaire pour tester l'installabilité PWA : le service worker ne précache
+# pas en mode dev). Configurable via la variable d'environnement
 # BACKEND_CORS_ORIGINS (liste séparée par des virgules) — à positionner
 # explicitement en production avec l'origine réelle du front. Ne jamais
 # utiliser "*" : on veut une liste d'origines fermée, pas un CORS permissif.
 _DEFAULT_DEV_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
 ]
 
 
