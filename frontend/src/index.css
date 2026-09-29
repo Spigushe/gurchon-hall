@@ -964,6 +964,19 @@ footer.shell-footer {
   color: inherit;
   text-decoration: none;
   width: 100%;
+  /*
+   * Resets nécessaires depuis le Lot 5bis (étape 6, maître/détail des Decks) :
+   * cette classe habille désormais aussi un <button> (sélection bureau, sans
+   * navigation), en plus du <a>/<Link> déjà utilisé ailleurs (Home, Decks
+   * mobile). Sans effet sur ce dernier : un lien n'a par défaut ni bordure, ni
+   * fond, ni padding.
+   */
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .row__arrow {
@@ -1818,6 +1831,94 @@ fieldset:disabled .chip {
 .home-deck-row__arrow {
   color: var(--color-accent);
   flex: none;
+}
+
+/*
+ * — Decks, disposition bureau maître/détail (Lot 5bis, étape 6 ; DESKTOP.md « d04 ») —
+ * Même principe que `.home-grid` (étape 5) : `.decks-grid` vaut
+ * `display: contents` par défaut (mobile), ses enfants directs rejoignent
+ * alors le flux vertical de `.page` — mais `.decks-detail`, lui, n'est jamais
+ * *monté* sous 1024px (`DecksPage.tsx`, `isDesktop`), pas seulement masqué en
+ * CSS : pas d'équivalent mobile (pas d'aperçu à côté de l'écran plein écran du
+ * deck, Lot 5), et son verdict de légalité ne doit partir en ligne que sous
+ * cette forme (revue pwa-offline de l'étape). `.decks-master` porte lui-même
+ * le `gap: 26px` que `.page` donnait jusqu'ici directement à ses enfants
+ * (en-tête, recherche, onglets, liste) : le rendu mobile reste pixel pour
+ * pixel celui du Lot 5, `.decks-master` n'étant qu'un conteneur de plus dans
+ * un flux par ailleurs inchangé.
+ */
+.decks-grid {
+  display: contents;
+}
+
+.decks-master {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+@media (min-width: 1024px) {
+  .decks-grid {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 48px;
+    align-items: start;
+  }
+
+  .decks-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .decks-detail {
+    border-left: 1px solid var(--color-divider);
+    padding-left: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+  }
+
+  /* Item actif de la liste maître (DESKTOP.md « d04 ») : fond accent-900 et
+     filet accent 2px à gauche. Scopé à `.decks-master` et à ce palier : le
+     `.row` mobile (ici et ailleurs) n'en hérite jamais. */
+  .decks-master .row {
+    padding-left: 14px;
+    padding-right: 6px;
+    border-left: 2px solid transparent;
+  }
+
+  .decks-master .row[data-selected="true"] {
+    background: var(--color-accent-900);
+    border-left-color: var(--color-accent);
+  }
+
+  /* Le bouton « Nouveau » de l'en-tête bureau (kbd `N`) remplace la pilule
+     flottante mobile (Lot 5) : une seule action de création affichée à la
+     fois, pas les deux superposées. */
+  .page--decks .floating-actions {
+    display: none;
+  }
+}
+
+/* Composition du deck prévisualisé (panneau de droite), en deux colonnes
+   Crypte / Bibliothèque — `DecksPage.tsx`, `DeckCompositionColumns`. */
+.deck-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.deck-columns__list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-neutral-300);
 }
 
 /* — formulaire dans une feuille (pied poussé en bas) — */

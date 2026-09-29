@@ -1,10 +1,23 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { hrefFor } from "../../../src/app/routes";
 import type { DeckKey } from "../../../src/offline/vtes";
-import { renderApp, type AppOptions } from "./harness";
+import { renderApp, setOnline, type AppOptions } from "./harness";
 
 type App = Awaited<ReturnType<typeof renderApp>>;
+
+/**
+ * jsdom vaut 1024 par défaut (bureau) : les tests qui veulent le mobile le
+ * fixent explicitement, avant le rendu, et le remettent après coup (même
+ * convention que `tests/unit/ui/home.test.tsx`, Lot 5bis étape 5).
+ */
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: width });
+}
+
+afterEach(() => {
+  setViewportWidth(1024);
+});
 
 const openDeck = (key: DeckKey) =>
   act(() => {
@@ -158,7 +171,8 @@ describe("decks : liste et création", () => {
     await waitFor(() => expect(screen.getAllByTestId("deck-item")).toHaveLength(1));
   });
 
-  it("route par deck.key : un lien de la liste ouvre le détail, une clé inconnue est introuvable", async () => {
+  it("route par deck.key : un lien de la liste ouvre le détail, une clé inconnue est introuvable (mobile)", async () => {
+    setViewportWidth(390);
     const { runtime } = await renderApp({ online: false, hash: "#/decks" });
     const { key } = await runtime.actions.createDeck({ name: "Brujah" });
     fireEvent.click(await screen.findByTestId("deck-link"));
@@ -220,6 +234,130 @@ describe("decks : liste et création", () => {
     expect(screen.queryByTestId("deck-not-found")).not.toBeInTheDocument();
     expect(screen.getByTestId("deck-page").getAttribute("data-deck-key")).toBe(key);
     expect(screen.getByTestId("deck-title")).toHaveTextContent("Tzimisce");
+  });
+});
+
+describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
+  it("sélectionne un deck dans la liste sans naviguer, et prévisualise le premier par défaut", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await runtime.actions.createDeck({ name: "Assamite" });
+    await runtime.actions.createDeck({ name: "Brujah" });
+
+    await waitFor(() => expect(screen.getAllByTestId("deck-item")).toHaveLength(2));
+    // La liste est triée par nom (comme le serveur) : « Assamite » d'abord.
+    expect(await screen.findByTestId("decks-detail-title")).toHaveTextContent("Assamite");
+
+    const items = screen.getAllByTestId("deck-select");
+    fireEvent.click(items[1]); // « Brujah »
+    expect(await screen.findByTestId("decks-detail-title")).toHaveTextContent("Brujah");
+    // La sélection reste sur /decks : elle ne navigue jamais vers /decks/<clé>.
+    expect(window.location.hash).toBe("#/decks");
+    expect(screen.getAllByTestId("deck-item")[1]).toHaveAttribute("data-selected", "true");
+    expect(screen.getAllByTestId("deck-item")[0]).toHaveAttribute("data-selected", "false");
+  });
+
+  it("ouvre le deckbuilder depuis le panneau de droite, au clic puis au raccourci Entrée", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    const { key } = await runtime.actions.createDeck({ name: "Gangrel" });
+    await screen.findByTestId("decks-detail-title");
+
+    fireEvent.click(screen.getByTestId("decks-detail-open"));
+    expect((await screen.findByTestId("deck-page")).getAttribute("data-deck-key")).toBe(key);
+
+    act(() => {
+      window.location.hash = "#/decks";
+    });
+    await screen.findByTestId("decks-detail-title");
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect((await screen.findByTestId("deck-page")).getAttribute("data-deck-key")).toBe(key);
+  });
+
+  it("le raccourci N ouvre « Nouveau deck », qui désactive Entrée tant qu'elle reste ouverte", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await runtime.actions.createDeck({ name: "Lasombra" });
+    await screen.findByTestId("decks-detail-title");
+
+    fireEvent.keyDown(document, { key: "n" });
+    await screen.findByTestId("deck-form-sheet");
+
+    // Entrée ne doit jamais agir derrière une feuille ouverte (elle démonterait
+    // la feuille en changeant de route, cf. le commentaire de `DecksPage.tsx`).
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(screen.getByTestId("deck-form-sheet")).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/decks");
+  });
+
+  it("garde des comptes crypte/bibliothèque locaux hors ligne, verdict et groupes indisponibles", async () => {
+    const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
+    const { key } = await app.runtime.actions.createDeck({ name: "Tremere", proxyAllowed: true });
+    await act(async () => {
+      await app.runtime.engine.flush();
+      await app.runtime.refresh();
+    });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 1, // Élan vital, bibliothèque
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 2,
+    });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 3, // Theo Bell, crypte
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 1,
+      proxyQuantity: 1,
+    });
+
+    // Les deux lignes doivent être en file avant de couper le réseau : sans
+    // cela, la seconde pourrait encore être en vol au moment de l'assertion.
+    await waitFor(async () => expect(await app.runtime.outbox.list()).toHaveLength(2));
+
+    act(() => setOnline(false));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent(/indisponible/i),
+    );
+    // Les comptes locaux (composition + miroir catalogue) se lisent par une
+    // lecture IndexedDB asynchrone, distincte du verdict : attendre qu'ils
+    // reflètent les deux lignes avant de les vérifier.
+    await waitFor(() => expect(screen.getByTestId("deck-summary-crypt")).toHaveTextContent("1"));
+    expect(screen.getByTestId("deck-summary-library")).toHaveTextContent("2");
+    expect(screen.getByTestId("deck-summary-groups")).toHaveTextContent("indisponible");
+    expect(screen.getByTestId("deck-summary-banned")).toHaveTextContent("indisponible");
+
+    expect(within(screen.getByTestId("decks-detail-crypt")).getByText(/Theo Bell/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("decks-detail-library")).getByText(/Élan vital/)).toBeInTheDocument();
+  });
+
+  it("affiche le verdict du serveur (crypte, bibliothèque, groupes, bannies) une fois le deck synchronisé", async () => {
+    const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
+    app.ui.legality = { status: 200, body: LEGALITY };
+    await app.runtime.actions.createDeck({ name: "Nosferatu" });
+    await act(async () => {
+      await app.runtime.engine.flush();
+      await app.runtime.refresh();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent("Deck illégal"),
+    );
+    expect(screen.getByTestId("deck-summary-crypt")).toHaveTextContent("11");
+    expect(screen.getByTestId("deck-summary-library")).toHaveTextContent("60");
+    expect(screen.getByTestId("deck-summary-groups")).toHaveTextContent("G2");
+    expect(screen.getByTestId("deck-summary-banned")).toHaveTextContent("0");
+  });
+
+  it("aucune régression mobile : liste plein écran, sans panneau de droite ni bouton d'en-tête (Lot 5)", async () => {
+    setViewportWidth(390);
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await runtime.actions.createDeck({ name: "Malkavien" });
+    await screen.findByTestId("deck-item");
+
+    expect(screen.queryByTestId("decks-detail")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("decks-new-desktop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deck-select")).not.toBeInTheDocument();
+    expect(screen.getByTestId("deck-link")).toBeInTheDocument();
   });
 });
 

@@ -1,20 +1,27 @@
-import { useDeferredValue, useId, useRef, useState, type FormEvent } from "react";
+import { useDeferredValue, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRight, ClockCountdown, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { navigate } from "../../app/routes";
+import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
 import { Sheet, SheetHeader } from "../../components/Sheet";
 import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { useIsDesktop } from "../../components/useIsDesktop";
+import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { DECK_STATUS_LABELS, plural } from "../../labels";
 import {
+  useLocalDeckCards,
   useLocalDecks,
   useVtesOffline,
   type DeckKey,
   type DeckListState,
   type LocalDeck,
+  type LocalDeckCard,
 } from "../../offline/vtes";
+import { DeckLegalitySummary } from "./DeckLegalitySummary";
+import { useCardCategoriesById } from "./useCardCategories";
 
 const STATES: Array<{ value: DeckListState; label: string }> = [
   { value: "active", label: "En cours" },
@@ -118,107 +125,335 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function DeckItem({ deck }: { deck: LocalDeck }) {
+/**
+ * Une ligne de la liste maître. Mobile (Lot 5, inchangé) : un lien qui ouvre
+ * le deck en plein écran. Bureau (Lot 5bis, étape 6, `isDesktop`) : un bouton
+ * qui change la sélection du panneau de droite sans quitter `/decks` —
+ * ouvrir le deck plein écran (le deckbuilder existant) reste une action
+ * explicite du panneau de droite (« Ouvrir le deckbuilder »), pas un effet du
+ * clic sur la liste.
+ */
+function DeckItem({
+  deck,
+  isDesktop,
+  selected,
+  onSelect,
+}: {
+  deck: LocalDeck;
+  isDesktop: boolean;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const content = (
+    <>
+      <span>
+        <span className="row__name">{deck.name}</span>
+        <span className="row__meta">
+          <span data-testid="deck-discriminator">
+            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+          </span>
+          {" · "}
+          {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+          {deck.archivedAt && " · archivé"}
+          {deck.archetype && ` · ${deck.archetype}`}
+          {deck.proxyAllowed && (
+            <>
+              {" · "}
+              <span data-testid="deck-proxy-allowed-badge">proxies autorisés</span>
+            </>
+          )}
+        </span>
+        {deck.pending && (
+          <span className="row__pending" data-testid="pending-badge">
+            <ClockCountdown size={14} />
+            En attente de synchronisation
+          </span>
+        )}
+      </span>
+      <ArrowUpRight size={18} className="row__arrow" />
+    </>
+  );
+
   return (
     <li
       className="row"
       data-testid="deck-item"
       data-deck-key={deck.key}
       data-pending={deck.pending}
+      data-selected={isDesktop ? selected : undefined}
     >
-      <Link to={{ name: "deck", key: deck.key }} className="row__link" data-testid="deck-link">
-        <span>
-          <span className="row__name">{deck.name}</span>
-          <span className="row__meta">
-            <span data-testid="deck-discriminator">
-              {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
-            </span>
-            {" · "}
-            {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-            {deck.archivedAt && " · archivé"}
-            {deck.archetype && ` · ${deck.archetype}`}
-            {deck.proxyAllowed && (
-              <>
-                {" · "}
-                <span data-testid="deck-proxy-allowed-badge">proxies autorisés</span>
-              </>
-            )}
-          </span>
-          {deck.pending && (
-            <span className="row__pending" data-testid="pending-badge">
-              <ClockCountdown size={14} />
-              En attente de synchronisation
-            </span>
-          )}
-        </span>
-        <ArrowUpRight size={18} className="row__arrow" />
-      </Link>
+      {isDesktop ? (
+        <button
+          type="button"
+          className="row__link"
+          data-testid="deck-select"
+          aria-current={selected ? "true" : undefined}
+          onClick={onSelect}
+        >
+          {content}
+        </button>
+      ) : (
+        <Link to={{ name: "deck", key: deck.key }} className="row__link" data-testid="deck-link">
+          {content}
+        </Link>
+      )}
     </li>
   );
 }
 
-/** Liste des decks (lecture locale) et création. */
+/**
+ * Composition du deck prévisualisé, réduite à deux colonnes Crypte /
+ * Bibliothèque (handoff DESKTOP.md « d04 », « crypte et bibliothèque par type
+ * en deux colonnes »). Écart assumé du plan (`docs/lot5bis-plan-design.md`,
+ * « Ce que ce lot ne touche pas ») : le miroir local d'une ligne de deck ne
+ * porte pas le type de bibliothèque (Master, Action…), seulement la
+ * catégorie retrouvée dans le miroir catalogue (`useCardCategoriesById`) —
+ * donc deux colonnes par catégorie, sans regroupement par sous-type.
+ */
+function DeckCompositionColumns({ lines }: { lines: LocalDeckCard[] | undefined }) {
+  const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
+  const categories = useCardCategoriesById(cardIds);
+
+  if (lines === undefined || categories === undefined) {
+    return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+  }
+  if (lines.length === 0) {
+    return (
+      <p className="empty-state__body" data-testid="decks-detail-empty-composition">
+        Ce deck est vide.
+      </p>
+    );
+  }
+
+  const crypt: LocalDeckCard[] = [];
+  const library: LocalDeckCard[] = [];
+  for (const line of lines) {
+    (categories.get(line.cardId) === "crypt" ? crypt : library).push(line);
+  }
+
+  const column = (title: string, cards: LocalDeckCard[], testId: string) => (
+    <div>
+      <p className="kicker">{title}</p>
+      {cards.length === 0 ? (
+        <p className="hint">Aucune.</p>
+      ) : (
+        <ul className="deck-columns__list" data-testid={testId}>
+          {cards.map((line) => (
+            <li key={`${line.cardId}|${line.languageCode}|${line.cardSetId}`}>
+              {line.quantity}× {line.cardName ?? `Carte n° ${line.cardId}`}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="deck-columns" data-testid="decks-detail-columns">
+      {column("Crypte", crypt, "decks-detail-crypt")}
+      {column("Bibliothèque", library, "decks-detail-library")}
+    </div>
+  );
+}
+
+/**
+ * Panneau de droite du maître/détail bureau (DESKTOP.md « d04 ») : titre
+ * 30px (`.page-title`, déjà cette taille par défaut), verdict + quatre
+ * chiffres (`DeckLegalitySummary`, factorisé pour l'étape 11), composition en
+ * deux colonnes, puis l'action qui ouvre réellement le deck (le deckbuilder
+ * existant, `DeckDetailPage`, plein écran).
+ */
+function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
+  const lines = useLocalDeckCards(deck.key);
+
+  return (
+    <>
+      <div>
+        <h2 className="page-title" data-testid="decks-detail-title">
+          {deck.name}
+        </h2>
+        <p className="page-meta">
+          <span data-testid="decks-detail-discriminator">
+            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+          </span>
+          {" · "}
+          {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+          {deck.archivedAt && " · archivé"}
+          {deck.archetype && ` · ${deck.archetype}`}
+        </p>
+      </div>
+
+      <DeckLegalitySummary deck={deck} lines={lines} />
+
+      <div>
+        <p className="kicker">Composition</p>
+        <DeckCompositionColumns lines={lines} />
+      </div>
+
+      <button
+        type="button"
+        className="btn btn-primary"
+        data-testid="decks-detail-open"
+        aria-keyshortcuts="Enter"
+        onClick={() => navigate({ name: "deck", key: deck.key })}
+      >
+        Ouvrir le deckbuilder
+        <Kbd>↵</Kbd>
+      </button>
+    </>
+  );
+}
+
+/**
+ * Liste des decks (lecture locale) et création. Mobile (< 1024px) : liste
+ * plein écran inchangée depuis le Lot 5. Bureau (≥ 1024px, `isDesktop`) :
+ * maître/détail sur ce même écran (DESKTOP.md « d04 ») — la liste sélectionne
+ * un aperçu dans le panneau de droite au lieu de naviguer, ouvrir le deck
+ * plein écran (deckbuilder) devient une action explicite de ce panneau.
+ *
+ * Pas de route dédiée à la sélection (elle resterait « decks », pas « deck » :
+ * seul un deck réellement ouvert change de route) — juste un état local, qui
+ * retombe sur le premier deck de la liste courante quand la sélection
+ * précédente n'y figure plus (nouveau filtre, changement d'onglet, deck
+ * supprimé…).
+ */
 export function DecksPage() {
   const searchId = useId();
   const stateName = useId();
   const [state, setState] = useState<DeckListState>("active");
   const [term, setTerm] = useState("");
   const [creating, setCreating] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<DeckKey | null>(null);
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ state, q: deferred || undefined });
+  const isDesktop = useIsDesktop();
+
+  const selectedDeck = useMemo(
+    () => decks?.find((deck) => deck.key === selectedKey) ?? decks?.[0] ?? null,
+    [decks, selectedKey],
+  );
+
+  // `N` ouvre la même feuille que le bouton « Nouveau » (mobile ou bureau,
+  // handoff DESKTOP.md « d05 ») ; `↵` ouvre le deckbuilder du deck actuellement
+  // prévisualisé (bureau seulement : rien à ouvrir sans le panneau de droite,
+  // cf. `DeckDetailPanel` ci-dessus). Les deux se désactivent pendant qu'une
+  // feuille est ouverte (`!creating`) : sans cela, un `↵` frappé sur un
+  // contrôle non textuel de la feuille « Nouveau deck » (le switch proxy, par
+  // exemple, pas un `<input>`) changerait aussi la route derrière elle et la
+  // démonterait au passage (`Sheet` est un enfant React de `DecksPage`, même
+  // si son rendu est porté ailleurs par un portail) — chaque feuille garde
+  // déjà ses propres raccourcis locaux (`Sheet.tsx`, Échap et `⌘↵`), cette
+  // page ne doit pas agir derrière elle.
+  useKeyboardShortcuts(
+    [
+      { keys: ["n"], onTrigger: () => setCreating(true) },
+      {
+        keys: ["enter"],
+        onTrigger: () => {
+          if (isDesktop && selectedDeck) navigate({ name: "deck", key: selectedDeck.key });
+        },
+      },
+    ],
+    { enabled: !creating },
+  );
 
   return (
-    <div className="page page--with-floating" data-testid="decks-page">
-      <div>
-        <h2 className="page-title">Decks</h2>
-        <p className="page-meta">{decks ? plural(decks.length, "deck") : "…"} · lecture locale</p>
-      </div>
+    <div className="page page--with-floating page--decks" data-testid="decks-page">
+      {/*
+       * `.decks-grid` vaut `display: contents` par défaut (mobile, index.css) :
+       * ses enfants directs rejoignent alors le flux vertical de `.page`
+       * lui-même, exactement comme au Lot 5 — `.decks-detail` n'est de toute
+       * façon jamais monté sous 1024px (`isDesktop`), pas seulement masqué en
+       * CSS : pas d'équivalent mobile, et son verdict de légalité ne doit
+       * partir en ligne que sous la forme bureau (un seul jeu de composants
+       * pour les deux dispositions, comme l'Atelier à l'étape 5).
+       */}
+      <div className="decks-grid">
+        <div className="decks-master">
+          <div className="decks-header">
+            <div>
+              <h2 className="page-title">Decks</h2>
+              <p className="page-meta">{decks ? plural(decks.length, "deck") : "…"} · lecture locale</p>
+            </div>
+            {isDesktop && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                data-testid="decks-new-desktop"
+                aria-keyshortcuts="n"
+                onClick={() => setCreating(true)}
+              >
+                Nouveau
+                <Kbd>N</Kbd>
+              </button>
+            )}
+          </div>
 
-      <div className="search-field">
-        <MagnifyingGlass size={18} className="search-field__icon" />
-        <label htmlFor={searchId} className="sr-only">
-          Filtrer par nom
-        </label>
-        <input
-          id={searchId}
-          type="search"
-          value={term}
-          onChange={(event) => setTerm(event.target.value)}
-          autoComplete="off"
-          placeholder="Filtrer par nom"
-        />
-      </div>
-
-      <fieldset className="tabs tabs--fieldset" aria-label="Afficher">
-        {STATES.map((option) => (
-          <label key={option.value} className="tab-option">
+          <div className="search-field">
+            <MagnifyingGlass size={18} className="search-field__icon" />
+            <label htmlFor={searchId} className="sr-only">
+              Filtrer par nom
+            </label>
             <input
-              type="radio"
-              name={stateName}
-              value={option.value}
-              checked={state === option.value}
-              onChange={() => setState(option.value)}
+              id={searchId}
+              type="search"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              autoComplete="off"
+              placeholder="Filtrer par nom"
             />
-            <span className="tab-option__label">{option.label}</span>
-          </label>
-        ))}
-      </fieldset>
+          </div>
 
-      {decks === undefined ? (
-        <LoadingState />
-      ) : decks.length === 0 ? (
-        <p className="empty-state__body" data-testid="decks-empty">
-          {deferred || state !== "active"
-            ? "Aucun deck ne correspond."
-            : "Aucun deck pour l'instant. Créez-en un avec « Nouveau deck »."}
-        </p>
-      ) : (
-        <ul className="list" data-testid="deck-list">
-          {decks.map((deck) => (
-            <DeckItem key={deck.key} deck={deck} />
-          ))}
-        </ul>
-      )}
+          <fieldset className="tabs tabs--fieldset" aria-label="Afficher">
+            {STATES.map((option) => (
+              <label key={option.value} className="tab-option">
+                <input
+                  type="radio"
+                  name={stateName}
+                  value={option.value}
+                  checked={state === option.value}
+                  onChange={() => setState(option.value)}
+                />
+                <span className="tab-option__label">{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+
+          {decks === undefined ? (
+            <LoadingState />
+          ) : decks.length === 0 ? (
+            <p className="empty-state__body" data-testid="decks-empty">
+              {deferred || state !== "active"
+                ? "Aucun deck ne correspond."
+                : "Aucun deck pour l'instant. Créez-en un avec « Nouveau deck »."}
+            </p>
+          ) : (
+            <ul className="list" data-testid="deck-list">
+              {decks.map((deck) => (
+                <DeckItem
+                  key={deck.key}
+                  deck={deck}
+                  isDesktop={isDesktop}
+                  selected={selectedDeck?.key === deck.key}
+                  onSelect={() => setSelectedKey(deck.key)}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {isDesktop && (
+          <div className="decks-detail" data-testid="decks-detail">
+            {selectedDeck ? (
+              <DeckDetailPanel deck={selectedDeck} />
+            ) : (
+              <p className="empty-state__body" data-testid="decks-detail-empty">
+                Aucun deck à prévisualiser. Créez-en un avec « Nouveau ».
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="floating-actions">
         <Pill onClick={() => setCreating(true)} data-testid="deck-add">
