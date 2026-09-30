@@ -2,9 +2,10 @@ import { useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } 
 import { useApiClient } from "../../app/apiClientContext";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
-import { BackRow, Sheet } from "../../components/Sheet";
+import { BackRow, Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
 import { Stepper } from "../../components/Stepper";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { useIsDesktop } from "../../components/useIsDesktop";
 import { useConnectivity } from "../../offline/react";
 import { useVtesOffline } from "../../offline/vtes";
 import type { components } from "../../api-client/schema";
@@ -37,6 +38,7 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
   const formId = useId();
   const titleId = `${formId}-title`;
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const isDesktop = useIsDesktop();
   const [term, setTerm] = useState("");
   const deferred = useDeferredValue(term.trim());
   const [found, setFound] = useState<Found | null>(null);
@@ -65,8 +67,7 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
 
   const results = searchable && found?.term === deferred ? found.bundles : null;
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const runSubmit = async () => {
     setSaved(null);
     if (!chosen) return setInvalid("Choisissez un produit.");
     if (!Number.isInteger(count) || count < 1 || count > 1000) {
@@ -82,23 +83,38 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
     setCount(1);
   };
 
+  const onFormSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    void runSubmit();
+  };
+
   return (
     <Sheet
       titleId={titleId}
       titleRef={titleRef}
       onClose={onClose}
       variant="pushed"
+      onPrimaryAction={() => void runSubmit()}
       data-testid="bundle-deposit"
     >
-      <BackRow label="Collection" onClick={onClose} />
-      <div>
-        <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
-          Verser un produit
-        </h2>
-        <p className="page-meta">Précon ou boîte : tout son contenu entre en collection.</p>
-      </div>
+      {isDesktop ? (
+        <>
+          <SheetHeader title="Verser un produit" titleId={titleId} titleRef={titleRef} onClose={onClose} />
+          <p className="page-meta">Précon ou boîte : tout son contenu entre en collection.</p>
+        </>
+      ) : (
+        <>
+          <BackRow label="Collection" onClick={onClose} />
+          <div>
+            <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
+              Verser un produit
+            </h2>
+            <p className="page-meta">Précon ou boîte : tout son contenu entre en collection.</p>
+          </div>
+        </>
+      )}
       <form
-        onSubmit={submit}
+        onSubmit={onFormSubmit}
         noValidate
         className="sheet-form"
         aria-label="Verser un produit dans la collection"
@@ -199,11 +215,20 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
           {saved ?? "Entier entre 1 et 1000"}
         </p>
 
-        <div className="sheet-form__footer">
-          <Pill type="submit" disabled={action.pending || !chosen} data-testid="bundle-submit">
-            Verser dans la collection
-          </Pill>
-        </div>
+        {isDesktop ? (
+          <SheetFooter
+            onCancel={onClose}
+            primaryLabel="Verser dans la collection"
+            primaryDisabled={action.pending || !chosen}
+            primaryTestId="bundle-submit"
+          />
+        ) : (
+          <div className="sheet-form__footer">
+            <Pill type="submit" disabled={action.pending || !chosen} data-testid="bundle-submit">
+              Verser dans la collection
+            </Pill>
+          </div>
+        )}
       </form>
     </Sheet>
   );

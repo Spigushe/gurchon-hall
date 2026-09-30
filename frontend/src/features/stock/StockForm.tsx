@@ -2,9 +2,10 @@ import { useId, useRef, useState, type FormEvent } from "react";
 import { Trash } from "@phosphor-icons/react";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
-import { BackRow, Sheet } from "../../components/Sheet";
+import { BackRow, Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
 import { Stepper } from "../../components/Stepper";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { useIsDesktop } from "../../components/useIsDesktop";
 import { CATEGORY_LABELS, cardLabel, cardSetLabel, plural } from "../../labels";
 import { useConnectivity } from "../../offline/react";
 import { useVtesOffline, type CardRow, type LocalStockEntry } from "../../offline/vtes";
@@ -57,6 +58,7 @@ export function StockForm({
   const formId = useId();
   const titleId = `${formId}-title`;
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const isDesktop = useIsDesktop();
   const [confirming, setConfirming] = useState(false);
 
   const [chosen, setChosen] = useState<Chosen | null>(
@@ -98,8 +100,7 @@ export function StockForm({
     setSaved(null);
   };
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const runSubmit = async () => {
     setSaved(null);
     if (!chosen) return setInvalid("Choisissez une carte dans la recherche.");
     if (owned === null || owned > MAX_INT) {
@@ -131,6 +132,11 @@ export function StockForm({
     }
   };
 
+  const onFormSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    void runSubmit();
+  };
+
   const remove = async () => {
     if (!editing) return;
     const done = await action.run(() =>
@@ -149,35 +155,56 @@ export function StockForm({
       titleRef={titleRef}
       onClose={onDone}
       variant="pushed"
+      onPrimaryAction={() => void runSubmit()}
       data-testid="stock-form-sheet"
     >
-      <BackRow label="Collection" onClick={onDone} />
+      {isDesktop ? (
+        <>
+          <SheetHeader
+            kicker={editing ? "Modifier une entrée" : undefined}
+            title={
+              editing ? (
+                <span data-testid="stock-form-card">{chosen?.label}</span>
+              ) : (
+                "Ajouter à la collection"
+              )
+            }
+            titleId={titleId}
+            titleRef={titleRef}
+            onClose={onDone}
+          />
+          {editing?.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
+        </>
+      ) : (
+        <BackRow label="Collection" onClick={onDone} />
+      )}
       <form
-        onSubmit={submit}
+        onSubmit={onFormSubmit}
         noValidate
         className="sheet-form"
         data-testid="stock-form"
         aria-label={editing ? "Modifier une entrée de collection" : "Ajouter à la collection"}
       >
-        {editing ? (
-          <div>
-            <p className="kicker">Modifier une entrée</p>
-            <h2
-              id={titleId}
-              ref={titleRef}
-              tabIndex={-1}
-              className="sheet__title sheet__title--large"
-              data-testid="stock-form-card"
-            >
-              {chosen?.label}
+        {!isDesktop &&
+          (editing ? (
+            <div>
+              <p className="kicker">Modifier une entrée</p>
+              <h2
+                id={titleId}
+                ref={titleRef}
+                tabIndex={-1}
+                className="sheet__title sheet__title--large"
+                data-testid="stock-form-card"
+              >
+                {chosen?.label}
+              </h2>
+              {editing.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
+            </div>
+          ) : (
+            <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
+              Ajouter à la collection
             </h2>
-            {editing.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
-          </div>
-        ) : (
-          <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
-            Ajouter à la collection
-          </h2>
-        )}
+          ))}
 
         {!editing &&
           (chosen ? (
@@ -324,12 +351,21 @@ export function StockForm({
           {saved}
         </p>
 
-        <div className="sheet-form__footer">
-          <Pill type="submit" disabled={action.pending} data-testid="stock-form-submit">
-            {editing ? "Enregistrer" : "Ajouter à la collection"}
-          </Pill>
-          <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
-        </div>
+        {isDesktop ? (
+          <SheetFooter
+            onCancel={onDone}
+            primaryLabel={editing ? "Enregistrer" : "Ajouter à la collection"}
+            primaryDisabled={action.pending}
+            primaryTestId="stock-form-submit"
+          />
+        ) : (
+          <div className="sheet-form__footer">
+            <Pill type="submit" disabled={action.pending} data-testid="stock-form-submit">
+              {editing ? "Enregistrer" : "Ajouter à la collection"}
+            </Pill>
+            <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
+          </div>
+        )}
       </form>
     </Sheet>
   );

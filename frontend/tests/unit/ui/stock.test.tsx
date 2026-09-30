@@ -1,7 +1,20 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { createFakeServer } from "../offline/fakeServer";
 import { renderApp, setOnline } from "./harness";
+
+/**
+ * jsdom vaut 1024 par défaut (bureau) : les tests qui veulent le mobile le
+ * fixent explicitement, avant le rendu, et le remettent après coup (même
+ * convention que `tests/unit/ui/decks.test.tsx`, Lot 5bis étape 7).
+ */
+function setViewportWidth(width: number) {
+  Object.defineProperty(window, "innerWidth", { configurable: true, writable: true, value: width });
+}
+
+afterEach(() => {
+  setViewportWidth(1024);
+});
 
 /** Ouvre la feuille de saisie depuis la page Collection (le formulaire n'est plus affiché d'emblée). */
 async function openStockForm() {
@@ -277,7 +290,10 @@ describe("collection : saisie hors ligne", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Modifier Élan vital (FR)" }));
     const form = await screen.findByTestId("stock-form");
 
-    expect(within(form).getByTestId("stock-form-card")).toHaveTextContent("Élan vital");
+    // Le titre (et son testid « stock-form-card ») vit dans `SheetHeader`, hors du
+    // `<form>`, en disposition bureau (jsdom ≥ 1024px par défaut) — cf. la feuille
+    // « pied bureau/mobile » ci-dessous.
+    expect(screen.getByTestId("stock-form-card")).toHaveTextContent("Élan vital");
     expect(within(form).getByTestId("stock-form-card-set")).toBeDisabled();
     expect(within(form).getByTestId("stock-form-card-set")).toHaveValue("9");
     expect(within(form).getByRole("radio", { name: "FR" })).toBeChecked();
@@ -326,6 +342,123 @@ describe("collection : saisie hors ligne", () => {
     await runtime.engine.whenIdle();
     // Rejoué par le moteur sous une clé d'idempotence, jamais par un appel direct.
     expect(ui.requests.filter((request) => request.method === "POST")).toEqual([]);
+  });
+});
+
+describe("stock : entrée, pied bureau/mobile (Lot 5bis)", () => {
+  it(
+    "bureau (jsdom ≥ 1024px par défaut) : pied à deux actions, Annuler ferme sans écrire, " +
+      "aucun texte flottant mobile",
+    async () => {
+      const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+      await openStockForm();
+      await pickCard("elan");
+      const form = screen.getByTestId("stock-form");
+
+      expect(within(form).getByTestId("stock-form-submit")).toHaveTextContent(
+        "Ajouter à la collection",
+      );
+      expect(
+        within(form).queryByText("Enregistré sur cet appareil, envoyé au prochain réseau"),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(within(form).getByRole("button", { name: "Annuler" }));
+      expect(screen.queryByTestId("stock-form-sheet")).not.toBeInTheDocument();
+      expect(await runtime.outbox.list()).toHaveLength(0);
+    },
+  );
+
+  it("⌘↵ ajoute l'entrée à la collection, comme un clic sur le bouton primaire", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await openStockForm();
+    await pickCard("elan");
+    fireEvent.change(screen.getByLabelText("Exemplaires possédés"), { target: { value: "2" } });
+
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() => expect(screen.getByTestId("stock-entry")).toBeInTheDocument());
+    const queued = await runtime.outbox.list();
+    expect(queued).toHaveLength(1);
+    expect(queued[0].operation).toMatchObject({
+      type: "stock.upsert",
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity_owned: 2 },
+    });
+  });
+
+  it(
+    "aucune régression mobile : un seul bouton « Ajouter à la collection », pas d'Annuler, " +
+      "le texte flottant reste affiché",
+    async () => {
+      setViewportWidth(390);
+      const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+      await openStockForm();
+      await pickCard("elan");
+      const form = screen.getByTestId("stock-form");
+
+      expect(within(form).queryByRole("button", { name: "Annuler" })).not.toBeInTheDocument();
+      const submit = within(form).getByTestId("stock-form-submit");
+      expect(submit).toHaveTextContent("Ajouter à la collection");
+      expect(
+        screen.getByText("Enregistré sur cet appareil, envoyé au prochain réseau"),
+      ).toBeInTheDocument();
+
+      fireEvent.click(submit);
+      await waitFor(() => expect(screen.getByTestId("stock-entry")).toBeInTheDocument());
+      expect(await runtime.outbox.list()).toHaveLength(1);
+    },
+  );
+});
+
+describe("bundle : verser un produit, pied bureau/mobile (Lot 5bis)", () => {
+  it("bureau (jsdom ≥ 1024px par défaut) : pied à deux actions, Annuler ferme sans verser", async () => {
+    const { runtime, ui } = await renderApp({ online: true, hash: "#/collection", catalog: true });
+    ui.bundles = [
+      { id: 7, card_set_id: 1, code: "PB", name: "Précon Brujah", size: 90, release_date: null },
+    ];
+    fireEvent.click(await screen.findByTestId("bundle-open"));
+    const panel = await screen.findByTestId("bundle-deposit");
+
+    expect(within(panel).getByTestId("bundle-submit")).toHaveTextContent("Verser dans la collection");
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Annuler" }));
+    expect(screen.queryByTestId("bundle-deposit")).not.toBeInTheDocument();
+    expect(await runtime.outbox.list()).toHaveLength(0);
+  });
+
+  it("⌘↵ verse le produit, comme un clic sur le bouton primaire", async () => {
+    const { runtime, ui } = await renderApp({ online: true, hash: "#/collection", catalog: true });
+    ui.bundles = [
+      { id: 7, card_set_id: 1, code: "PB", name: "Précon Brujah", size: 90, release_date: null },
+    ];
+    fireEvent.click(await screen.findByTestId("bundle-open"));
+    const panel = await screen.findByTestId("bundle-deposit");
+
+    fireEvent.change(within(panel).getByLabelText("Rechercher un produit"), {
+      target: { value: "brujah" },
+    });
+    fireEvent.click(await within(panel).findByText("Précon Brujah (PB)"));
+
+    fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
+
+    await waitFor(() =>
+      expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("mis en file"),
+    );
+    await runtime.engine.whenIdle();
+    // Rejoué par le moteur sous une clé d'idempotence, jamais par un appel direct.
+    expect(ui.requests.filter((request) => request.method === "POST")).toEqual([]);
+  });
+
+  it("aucune régression mobile : un seul bouton « Verser dans la collection », pas d'Annuler", async () => {
+    setViewportWidth(390);
+    const { ui } = await renderApp({ online: true, hash: "#/collection", catalog: true });
+    ui.bundles = [
+      { id: 7, card_set_id: 1, code: "PB", name: "Précon Brujah", size: 90, release_date: null },
+    ];
+    fireEvent.click(await screen.findByTestId("bundle-open"));
+    const panel = await screen.findByTestId("bundle-deposit");
+
+    expect(within(panel).queryByRole("button", { name: "Annuler" })).not.toBeInTheDocument();
+    expect(within(panel).getByTestId("bundle-submit")).toHaveTextContent("Verser dans la collection");
   });
 });
 
