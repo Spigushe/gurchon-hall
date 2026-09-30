@@ -2393,3 +2393,114 @@ fieldset:disabled .chip {
     transition: background-color 200ms ease-out;
   }
 }
+
+/*
+ * — Synchronisation, disposition bureau (Lot 5bis, étape 12 ; DESKTOP.md « d06 ») —
+ * `SyncPage.tsx` : même principe que `.decks-grid`/`.decks-master` (étape 6) —
+ * `.sync-columns` vaut `display: contents` par défaut (mobile), ses enfants
+ * directs rejoignent alors le flux vertical de `.page` ; `.sync-master` porte
+ * lui-même le `gap: 26px` que `.page` donnait jusqu'ici directement à ses
+ * enfants (titre, bouton d'envoi, liste Refusées), pour un rendu mobile
+ * pixel pour pixel identique au Lot 5. `.sync-detail` n'est jamais monté sous
+ * 1024px (`SyncPage.tsx`, `isDesktop`), pas seulement masqué en CSS : pas
+ * d'équivalent mobile à la correction affichée en permanence.
+ */
+.sync-columns {
+  display: contents;
+}
+
+.sync-master {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+@media (min-width: 1024px) {
+  .sync-columns {
+    display: grid;
+    grid-template-columns: 1fr 440px;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .sync-detail {
+    background: var(--color-surface);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* Ligne active de la liste Refusées (mêmes valeurs que
+     `.decks-master .row[data-selected="true"]`, étape 6) : fond accent-900 et
+     filet accent 2px à gauche. */
+  .sync-master .row {
+    padding-left: 14px;
+    padding-right: 6px;
+    border-left: 2px solid transparent;
+  }
+
+  .sync-master .row[data-selected="true"] {
+    background: var(--color-accent-900);
+    border-left-color: var(--color-accent);
+  }
+
+  /* Liste « En attente », purement informative (pas de `.row`/sélection) :
+     lignes 40px, description à gauche, heure à droite. */
+  .sync-pending-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sync-pending-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    padding: 0 4px;
+    border-top: 1px solid var(--color-divider);
+    font-size: 13px;
+  }
+
+  .sync-pending-row:first-child {
+    border-top: none;
+  }
+
+  .sync-pending-row__time {
+    flex: none;
+    font-size: 12px;
+    color: var(--color-neutral-500);
+  }
+
+  /* `CorrectionForm` rendu nu dans `.sync-detail` (pas de `Sheet`) : mêmes
+     champs bureau que le panneau latéral (étape 3), scopés ici plutôt que
+     dupliqués sous un sélecteur différent. */
+  .sync-correction {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sync-correction .underline-field:not(textarea) {
+    min-height: 40px;
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: 0 12px;
+  }
+
+  .sync-correction .underline-field:not(textarea):focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  .sync-correction form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}

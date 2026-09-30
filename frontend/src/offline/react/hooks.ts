@@ -25,6 +25,17 @@ export function useRejectedOperations(): OutboxEntry[] | undefined {
   return useLiveQuery(querier);
 }
 
+/**
+ * Opérations en attente d'envoi, dans l'ordre de la file. Symétrique à
+ * `useRejectedOperations` (Lot 5bis, étape 12) : sert la liste « En attente »
+ * du panneau bureau de l'écran Synchronisation, purement informative.
+ */
+export function usePendingOperations(): OutboxEntry[] | undefined {
+  const { outbox } = useOfflineRuntime();
+  const querier = useCallback(() => outbox.list("pending"), [outbox]);
+  return useLiveQuery(querier);
+}
+
 /** Déclenche un rejeu manuel (bouton « Synchroniser »). */
 export function useFlush(): () => Promise<void> {
   const { engine } = useOfflineRuntime();
