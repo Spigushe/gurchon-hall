@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { hrefFor } from "../../../src/app/routes";
 import type { DeckKey } from "../../../src/offline/vtes";
 import { renderApp, setOnline, type AppOptions } from "./harness";
@@ -453,6 +453,13 @@ describe("decks : nouveau deck, pied bureau/mobile (Lot 5bis, étape 7)", () => 
 });
 
 describe("decks : composition", () => {
+  // Le picker d'ajout (`AddDeckCardForm` en feuille, pilule flottante « Ajouter
+  // des cartes ») est une présentation mobile depuis le Lot 5bis étape 11 : en
+  // bureau (largeur par défaut de jsdom), l'ajout se fait dans la colonne du
+  // Deckbuilder, sans pilule ni feuille — hors périmètre de ces tests, qui
+  // portent sur la logique de saisie elle-même, pas sur la disposition.
+  beforeEach(() => setViewportWidth(390));
+
   it("ajoute une carte de la collection au deck, hors ligne, par la file", async () => {
     const { runtime, server, key } = await withDeck({}, "Malkavien", true);
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
@@ -745,6 +752,13 @@ describe("decks : cycle de vie", () => {
 });
 
 describe("decks : légalité", () => {
+  // `DeckLegalityPanel` (verdict complet, `legality-refresh` compris) reste la
+  // vue mobile depuis le Lot 5bis étape 11 ; le bureau affiche l'équivalent
+  // compact (`DeckLegalitySummary`) dans l'en-tête du Deckbuilder, couvert par
+  // ses propres tests. Ceux-ci portent sur le verdict lui-même, pas sur la
+  // disposition qui l'affiche.
+  beforeEach(() => setViewportWidth(390));
+
   it("affiche le verdict du serveur en ligne : effectifs, groupes et motifs en clair", async () => {
     const app = await renderApp({ online: true, catalog: true });
     await withSyncedDeck(app);

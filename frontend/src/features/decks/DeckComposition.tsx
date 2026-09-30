@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClockCountdown, Trash } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { useIsDesktop } from "../../components/useIsDesktop";
 import { cardSetLabelById, plural } from "../../labels";
 import {
   useVtesOffline,
@@ -12,6 +13,92 @@ import { useCardSetOptions } from "../stock/useCardSetOptions";
 
 const cardName = (line: Pick<LocalDeckCard, "cardName" | "cardId">) =>
   line.cardName ?? `Carte n° ${line.cardId}`;
+
+const lineKey = (line: Pick<LocalDeckCard, "cardId" | "languageCode" | "cardSetId">) =>
+  `${line.cardId}|${line.languageCode}|${line.cardSetId}`;
+
+const RECENT_TIMEOUT_MS = 3000;
+
+/**
+ * Suit les lignes tout juste augmentées (quantité en hausse depuis le dernier
+ * rendu, ou ligne apparue), pour la teinte « +2 à l'instant » du Deckbuilder
+ * bureau (DESKTOP.md « d01 »). Diffing générique sur `lines`, plutôt qu'un
+ * fil dédié entre `AddDeckCardForm` (picker, colonne de droite) et cette
+ * composition (colonne de gauche) : une ligne qui change parce que le picker
+ * vient d'y ajouter des exemplaires est détectée exactement comme un clic sur
+ * le stepper de cette même liste, sans plomberie supplémentaire entre les deux
+ * composants. Le tout premier rendu (lecture initiale, `lines` passant
+ * d'`undefined` à un tableau) n'est jamais compté comme un changement.
+ *
+ * La détection compare `lines` à la valeur vue au rendu précédent **pendant
+ * le rendu** (motif « ajuster un état dérivé d'une prop qui change »,
+ * documenté par React avec un second `useState` pour la valeur précédente —
+ * jamais un `ref` : le lire ou l'écrire pendant le rendu est interdit par les
+ * règles de hooks de ce dépôt), plutôt que dans le corps d'un effet, qui
+ * appellerait `setState` de façon synchrone dès sa première ligne et
+ * déclencherait un rendu en cascade évitable. Le seul effet ci-dessous ne fait
+ * qu'armer des minuteurs (un `ref` y est légitime : plus question de rendu à
+ * ce stade), et n'appelle `setState` que depuis leur callback — jamais
+ * synchrone dans son propre corps.
+ */
+function useRecentIncreases(lines: LocalDeckCard[] | undefined): Map<string, number> {
+  const [previousLines, setPreviousLines] = useState(lines);
+  const timeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const [recent, setRecent] = useState<Map<string, number>>(new Map());
+
+  if (lines !== previousLines) {
+    const previous = previousLines;
+    setPreviousLines(lines);
+    if (lines !== undefined && previous !== undefined) {
+      const baseline = new Map(previous.map((line) => [lineKey(line), line.quantity]));
+      const increases = new Map<string, number>();
+      for (const line of lines) {
+        const key = lineKey(line);
+        const before = baseline.get(key) ?? 0;
+        if (line.quantity > before) increases.set(key, line.quantity - before);
+      }
+      if (increases.size > 0) {
+        setRecent((existing) => new Map([...existing, ...increases]));
+      }
+    }
+  }
+
+  // Un minuteur par clé actuellement affichée, réarmé à chaque changement de
+  // `recent` (nouvelle augmentation ou expiration d'une autre ligne) : une
+  // ligne qui vient de se mettre à jour repart donc avec un plein délai de
+  // `RECENT_TIMEOUT_MS`, plutôt que de garder le minuteur de son
+  // apparition précédente.
+  useEffect(() => {
+    for (const key of recent.keys()) {
+      const existingTimeout = timeoutsRef.current.get(key);
+      if (existingTimeout !== undefined) clearTimeout(existingTimeout);
+      const timeout = setTimeout(() => {
+        timeoutsRef.current.delete(key);
+        setRecent((existing) => {
+          const next = new Map(existing);
+          next.delete(key);
+          return next;
+        });
+      }, RECENT_TIMEOUT_MS);
+      timeoutsRef.current.set(key, timeout);
+    }
+    for (const [key, timeout] of timeoutsRef.current) {
+      if (!recent.has(key)) {
+        clearTimeout(timeout);
+        timeoutsRef.current.delete(key);
+      }
+    }
+  }, [recent]);
+
+  useEffect(() => {
+    const timeouts = timeoutsRef.current;
+    return () => {
+      for (const timeout of timeouts.values()) clearTimeout(timeout);
+    };
+  }, []);
+
+  return recent;
+}
 
 /**
  * Convertit des proxies de la ligne en exemplaires possédés (`actions.convertProxies`,
@@ -90,14 +177,18 @@ function CompositionRow({
   deckKey,
   line,
   locked,
+  recentDelta,
 }: {
   deckKey: DeckKey;
   line: LocalDeckCard;
   locked: boolean;
+  /** Exemplaires ajoutés à l'instant (bureau seulement), pour la teinte « +N à l'instant ». */
+  recentDelta?: number;
 }) {
   const { actions } = useVtesOffline();
   const cardSets = useCardSetOptions();
   const action = useGuardedAction();
+  const isDesktop = useIsDesktop();
   const who = `${cardName(line)} (${line.languageCode})`;
 
   // Un upsert porte l'état complet de la ligne : quantité et proxies ensemble.
@@ -113,9 +204,11 @@ function CompositionRow({
       }),
     );
 
+  const showRecent = isDesktop && Boolean(recentDelta);
+
   return (
     <li
-      className="row"
+      className={showRecent ? "row row--recent" : "row"}
       data-testid="deck-card"
       data-card-id={line.cardId}
       data-language={line.languageCode}
@@ -129,6 +222,7 @@ function CompositionRow({
           <p className="row__meta">
             {line.languageCode} · <span data-testid="deck-card-set">{cardSetLabelById(line.cardSetId, cardSets.byId)}</span>
             {line.proxyQuantity > 0 && ` · ${plural(line.proxyQuantity, "proxy", "proxies")}`}
+            {showRecent && ` · +${recentDelta} à l'instant`}
           </p>
           {line.pending && (
             <p className="row__pending" data-testid="pending-badge">
@@ -201,6 +295,10 @@ export function DeckComposition({
   /** Deck archivé : le serveur refuse toute modification. */
   locked: boolean;
 }) {
+  // Appelé avant tout retour anticipé (règle des hooks) : sans effet visible
+  // tant que `lines` est `undefined` ou vide (la map reste vide).
+  const recent = useRecentIncreases(lines);
+
   if (lines === undefined) return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
   if (lines.length === 0) {
     return (
@@ -218,10 +316,11 @@ export function DeckComposition({
       <ul className="list" data-testid="deck-cards">
         {lines.map((line) => (
           <CompositionRow
-            key={`${line.cardId}|${line.languageCode}|${line.cardSetId}`}
+            key={lineKey(line)}
             deckKey={deckKey}
             line={line}
             locked={locked}
+            recentDelta={recent.get(lineKey(line))}
           />
         ))}
       </ul>

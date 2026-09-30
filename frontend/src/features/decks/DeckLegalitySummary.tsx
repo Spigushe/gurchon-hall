@@ -26,16 +26,24 @@ import { useDeckLegality } from "./useDeckLegality";
  * verdict serveur n'a pas répondu. Groupes et cartes bannies n'ont pas
  * d'équivalent local : « indisponible » sans verdict, comme le reste de
  * `DeckLegalityPanel`.
+ *
+ * `refreshToken` (Lot 5bis, étape 11) relance la lecture du verdict sans
+ * dupliquer `useDeckLegality` : par défaut à 0 (comportement inchangé pour
+ * `DecksPage.tsx`, qui ne le passe pas), l'en-tête du Deckbuilder bureau
+ * possède son propre état local et l'incrémente depuis son bouton
+ * « Recalculer » (kbd `R`).
  */
 export function DeckLegalitySummary({
   deck,
   lines,
+  refreshToken = 0,
 }: {
   deck: LocalDeck;
   lines: LocalDeckCard[] | undefined;
+  refreshToken?: number;
 }) {
   const online = useConnectivity();
-  const outcome = useDeckLegality(deck.id, online, deck.pending ? "pending" : "synced", 0);
+  const outcome = useDeckLegality(deck.id, online, deck.pending ? "pending" : "synced", refreshToken);
 
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
   const categories = useCardCategoriesById(cardIds);

@@ -2270,3 +2270,126 @@ fieldset:disabled .chip {
     border-radius: var(--radius-sm);
   }
 }
+
+/*
+ * — Deckbuilder bureau (Lot 5bis, étape 11 ; DESKTOP.md « d01 ») —
+ * `DeckDetailPage.tsx` (`DeckView`) et `AddDeckCardForm.tsx` : composition à
+ * gauche (`DeckComposition`, inchangée), picker toujours visible à droite
+ * (`deck-builder-picker`, sans panier). Les champs bureau (inputs encadrés
+ * 40px, chips 34px) ne sont plus dans un `.sheet` ici : les mêmes règles que
+ * le panneau latéral (étape 3, plus haut dans ce fichier) sont reprises,
+ * scopées à `.deck-builder-picker`, plutôt que dupliquées sous un sélecteur
+ * différent — seule la taille des steppers diffère (32px, propre à la carte
+ * sélectionnée du picker, contre 36px dans un panneau).
+ */
+@media (min-width: 1024px) {
+  .deck-builder-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .deck-builder-header__legality {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+    text-align: right;
+  }
+
+  .deck-builder-columns {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .deck-builder-picker {
+    border-left: 1px solid var(--color-divider);
+    padding-left: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .deck-builder-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .deck-builder-picker .underline-field:not(textarea) {
+    min-height: 40px;
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    padding: 0 12px;
+  }
+
+  .deck-builder-picker .underline-field:not(textarea):focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  .deck-builder-picker .chip {
+    min-height: 34px;
+  }
+
+  /* Carte choisie, mise en avant en tête du picker (image + décompte +
+     champs + bouton « Ajouter »). */
+  .deck-card-form-selected {
+    display: flex;
+    gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .deck-card-form-selected__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .deck-card-form-selected .stepper--form .stepper__btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .deck-card-form-selected .stepper--form .stepper__value {
+    font-size: 16px;
+    width: 2.4rem;
+  }
+
+  /* Option choisie du picker (aria-current/data-selected, posés par
+     `CardPicker.tsx`), visible en plus de la carte mise en avant ci-dessus :
+     retrouver le même résultat dans la liste, sans nouveau `data-testid`. */
+  .picker__option[data-selected="true"] {
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    box-shadow: inset 2px 0 0 var(--color-accent);
+  }
+
+  .deck-builder-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    padding-top: 16px;
+    border-top: 1px solid var(--color-divider);
+  }
+
+  .deck-builder-shortcuts .kbd {
+    margin-right: 4px;
+  }
+
+  /* Ligne de composition tout juste augmentée (« +2 à l'instant »,
+     `DeckComposition.tsx`) : purement bureau, la classe n'est ajoutée que
+     sous cette forme (`useIsDesktop`), donc sans effet en dessous de 1024px
+     même si la règle ci-dessous restait chargée. */
+  .row--recent {
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    transition: background-color 200ms ease-out;
+  }
+}

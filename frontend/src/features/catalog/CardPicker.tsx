@@ -1,4 +1,4 @@
-import { useDeferredValue, useId, useMemo, useState } from "react";
+import { useDeferredValue, useId, useMemo, useState, type RefObject } from "react";
 import { CATEGORY_LABELS, cardLabel } from "../../labels";
 import { useLocalCardSearch, useLocalStock, type CardRow } from "../../offline/vtes";
 import { useCatalog } from "./catalogContext";
@@ -25,8 +25,35 @@ function details(card: CardRow, owned: number | undefined): string {
  * cumule tous les exemplaires de la carte, langues et extensions confondues
  * (Lot 5, picker fusionné du deck) : elle situe le choix, la ligne précise
  * (langue, extension) se choisit ensuite.
+ *
+ * Trois props optionnelles, ajoutées au Lot 5bis (étape 11) pour le
+ * Deckbuilder bureau, sans changer le comportement par défaut (mobile,
+ * inchangé) :
+ * - `selectedCardId` marque l'option choisie (`aria-current`, `data-selected`),
+ *   sans nouveau `data-testid` ;
+ * - `clearOnSelect` (vrai par défaut, comme avant) : à `false`, la sélection
+ *   ne vide pas le terme de recherche, pour que les résultats restent visibles
+ *   en permanence à côté de la carte choisie (handoff bureau, d01) — sur
+ *   mobile, `AddDeckCardForm` démonte ce composant après sélection, donc rien
+ *   ne change pour lui ;
+ * - `searchInputRef` expose le champ de recherche pour un focus programmatique
+ *   (raccourci `/`).
+ * Chaque option porte aussi `data-nav-item`, pour la navigation `↑↓` du
+ * Deckbuilder bureau (recherche des éléments navigables par attribut plutôt
+ * que par une liste dupliquée côté appelant) ; sans effet sur mobile, où rien
+ * n'écoute cet attribut.
  */
-export function CardPicker({ onSelect }: { onSelect: (card: CardRow) => void }) {
+export function CardPicker({
+  onSelect,
+  selectedCardId = null,
+  clearOnSelect = true,
+  searchInputRef,
+}: {
+  onSelect: (card: CardRow) => void;
+  selectedCardId?: number | null;
+  clearOnSelect?: boolean;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
+}) {
   const inputId = useId();
   const catalog = useCatalog();
   const stock = useLocalStock();
@@ -47,6 +74,7 @@ export function CardPicker({ onSelect }: { onSelect: (card: CardRow) => void }) 
       <label htmlFor={inputId}>Rechercher une carte</label>
       <input
         id={inputId}
+        ref={searchInputRef}
         type="search"
         value={term}
         onChange={(event) => setTerm(event.target.value)}
@@ -77,9 +105,12 @@ export function CardPicker({ onSelect }: { onSelect: (card: CardRow) => void }) 
                 className="picker__option"
                 data-testid="card-picker-option"
                 data-card-id={card.id}
+                data-nav-item
+                data-selected={card.id === selectedCardId ? "true" : undefined}
+                aria-current={card.id === selectedCardId ? "true" : undefined}
                 onClick={() => {
                   onSelect(card);
-                  setTerm("");
+                  if (clearOnSelect) setTerm("");
                 }}
               >
                 <span>{cardLabel(card)}</span>
