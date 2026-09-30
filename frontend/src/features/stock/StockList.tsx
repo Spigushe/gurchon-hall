@@ -445,7 +445,9 @@ export function StockList({
   onDeposit: () => void;
 }) {
   const isDesktop = useIsDesktop();
-  if (entries === undefined) return <LoadingState />;
+  if (entries === undefined) {
+    return isDesktop ? <LoadingState variant="table" groups={6} /> : <LoadingState />;
+  }
   if (entries.length === 0) {
     return filtered ? (
       <p className="empty-state__body" data-testid="stock-empty">

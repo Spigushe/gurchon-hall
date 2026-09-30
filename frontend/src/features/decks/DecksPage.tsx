@@ -485,11 +485,29 @@ export function DecksPage() {
           {decks === undefined ? (
             <LoadingState />
           ) : decks.length === 0 ? (
-            <p className="empty-state__body" data-testid="decks-empty">
-              {deferred || state !== "active"
-                ? "Aucun deck ne correspond."
-                : "Aucun deck pour l'instant. Créez-en un avec « Nouveau deck »."}
-            </p>
+            deferred || state !== "active" ? (
+              <p className="empty-state__body" data-testid="decks-empty">
+                Aucun deck ne correspond.
+              </p>
+            ) : (
+              <div className="empty-state" data-testid="decks-empty">
+                <h3 className="empty-state__title">Aucun deck</h3>
+                <p className="empty-state__body">
+                  Aucun deck pour l'instant. Créez-en un pour commencer une composition.
+                </p>
+                <div className="empty-state__actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn--pill"
+                    data-testid="decks-empty-create"
+                    onClick={() => setCreating(true)}
+                  >
+                    <Plus size={18} />
+                    Nouveau deck
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <ul className="list" data-testid="deck-list">
               {decks.map((deck) => (

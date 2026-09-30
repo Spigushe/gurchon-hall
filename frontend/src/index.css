@@ -1650,6 +1650,34 @@ fieldset:disabled .chip {
   width: 54%;
 }
 
+/* squelette de tableau (bureau, DESKTOP.md « d09 ») : lignes 42px, barres --color-neutral-900 */
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 42px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.skeleton-row .skeleton {
+  height: 12px;
+}
+
+.skeleton-row .skeleton--col-wide {
+  width: 26%;
+  flex: 2.1 1 0;
+}
+
+.skeleton-row .skeleton--col {
+  width: 14%;
+  flex: 1.3 1 0;
+}
+
+.skeleton-row .skeleton--col-narrow {
+  width: 8%;
+  flex: 0.8 1 0;
+}
+
 .loading-caption {
   font-size: 13px;
   color: var(--color-neutral-500);
