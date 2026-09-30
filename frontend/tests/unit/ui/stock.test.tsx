@@ -147,7 +147,12 @@ describe("collection : saisie hors ligne", () => {
     expect(await runtime.outbox.list()).toHaveLength(0);
   });
 
-  it("le pas +/− renvoie l'état complet : l'extension et les notes ne sont pas remis à zéro", async () => {
+  it("le pas +/− renvoie l'état complet : l'extension et les notes ne sont pas remis à zéro (mobile)", async () => {
+    // Le stepper +/− en ligne n'existe que dans la liste mobile (Lot 5) : la vue
+    // tableau bureau (Lot 5bis, étape 8) le remplace par le double-clic sur « Ex. »
+    // et la feuille « Modifier une entrée », cf. `stock.test.tsx`, describe
+    // « collection, vue tableau bureau ».
+    setViewportWidth(390);
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
     await runtime.actions.saveStock({
       cardId: 1,
@@ -517,5 +522,204 @@ describe("catalogue", () => {
       expect(server.state.requests.some((request) => request.path === "/cartes")).toBe(true),
     );
     await waitFor(() => expect(screen.getByTestId("catalog-update")).not.toBeDisabled());
+  });
+});
+
+describe("collection : vue tableau bureau (Lot 5bis, étape 8)", () => {
+  it(
+    "bureau (jsdom ≥ 1024px par défaut) : vue tableau plutôt que la liste, triée par nom " +
+      "par défaut, et trie par clic sur l'en-tête",
+    async () => {
+      const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+      await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 2 }); // Élan vital, bibliothèque
+      await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 5 }); // Theo Bell, crypte
+      await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
+
+      expect(screen.queryByTestId("stock-list")).not.toBeInTheDocument();
+      expect(screen.getByTestId("stock-table")).toBeInTheDocument();
+
+      const namesInOrder = () => screen.getAllByTestId("stock-entry-name").map((el) => el.textContent);
+      // Comparaison par unités de code, comme le reste de l'app (§11) : « T » précède « É ».
+      const initial = namesInOrder();
+      expect(initial).toEqual(["Theo Bell", "Élan vital"]);
+
+      // Reclic sur la colonne déjà active (Nom) : inverse la direction.
+      fireEvent.click(screen.getByTestId("stock-table-sort-name"));
+      await waitFor(() => expect(namesInOrder()).toEqual([...initial].reverse()));
+
+      // Tri par une autre colonne (Ex., numérique) : 2 < 5.
+      fireEvent.click(screen.getByTestId("stock-table-sort-quantity"));
+      await waitFor(() => expect(namesInOrder()).toEqual(["Élan vital", "Theo Bell"]));
+    },
+  );
+
+  it("double-clic sur Ex. ouvre l'édition en place ; ↵ valide (saveStock), Échap annule sans écrire", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantityOwned: 2,
+      notes: "foil",
+    });
+    const entry = await screen.findByTestId("stock-entry");
+
+    fireEvent.doubleClick(within(entry).getByTestId("stock-entry-quantity-cell"));
+    const input = within(entry).getByTestId("stock-table-qty-input");
+    expect(input).toHaveValue(2);
+    fireEvent.change(input, { target: { value: "5" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(within(entry).getByTestId("stock-entry-quantity")).toHaveTextContent("5"),
+    );
+    expect(within(entry).queryByTestId("stock-table-qty-input")).not.toBeInTheDocument();
+    const queued = await runtime.outbox.list();
+    expect(queued[queued.length - 1].operation).toMatchObject({
+      type: "stock.upsert",
+      // L'état complet part avec l'écriture : les notes ne sont pas remises à zéro (§11).
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity_owned: 5, notes: "foil" },
+    });
+
+    // Réouverture : Échap annule sans écrire.
+    fireEvent.doubleClick(within(entry).getByTestId("stock-entry-quantity-cell"));
+    const secondInput = within(entry).getByTestId("stock-table-qty-input");
+    fireEvent.change(secondInput, { target: { value: "9" } });
+    fireEvent.keyDown(secondInput, { key: "Escape" });
+
+    expect(within(entry).queryByTestId("stock-table-qty-input")).not.toBeInTheDocument();
+    expect(within(entry).getByTestId("stock-entry-quantity")).toHaveTextContent("5");
+    expect(await runtime.outbox.list()).toHaveLength(2); // pas d'opération de plus que la première écriture
+  });
+
+  it("aperçu flottant de l'image après 300ms de survol du nom, masqué immédiatement à la sortie", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    const entry = await screen.findByTestId("stock-entry");
+    const nameCell = within(entry).getByTestId("stock-entry-name").closest('[role="cell"]') as HTMLElement;
+
+    fireEvent.mouseEnter(nameCell);
+    expect(within(entry).queryByTestId("stock-table-preview")).not.toBeInTheDocument();
+    await waitFor(
+      () => expect(within(entry).getByTestId("stock-table-preview")).toBeInTheDocument(),
+      { timeout: 1000 },
+    );
+
+    fireEvent.mouseLeave(nameCell);
+    expect(within(entry).queryByTestId("stock-table-preview")).not.toBeInTheDocument();
+  });
+
+  it("↵ sur le nom d'une ligne (focus clavier) ouvre « Modifier une entrée » (d03)", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    const entry = await screen.findByTestId("stock-entry");
+    const nameButton = within(entry).getByRole("button", { name: "Modifier Élan vital (FR)" });
+
+    nameButton.focus();
+    fireEvent.keyDown(nameButton, { key: "Enter" });
+
+    // En édition bureau, le titre (et son testid) vit dans `SheetHeader`, hors du
+    // `<form>` (cf. le commentaire équivalent plus haut, describe « saisie hors ligne »).
+    await screen.findByTestId("stock-form");
+    expect(screen.getByTestId("stock-form-card")).toHaveTextContent("Élan vital");
+  });
+
+  it("colonne Decks : nombre de decks utilisant la carte, calcul local (aucun appel réseau)", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+    const { key } = await runtime.actions.createDeck({ name: "Malkavien", proxyAllowed: true });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 1,
+      proxyQuantity: 0,
+    });
+
+    await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
+    const rows = screen.getAllByTestId("stock-entry");
+    const forCard = (id: string) => rows.find((row) => row.getAttribute("data-card-id") === id)!;
+    await waitFor(() =>
+      expect(within(forCard("1")).getByTestId("stock-entry-decks")).toHaveTextContent("1"),
+    );
+    expect(within(forCard("3")).getByTestId("stock-entry-decks")).toHaveTextContent("0");
+  });
+
+  it("clan et capacité affichés pour une carte de crypte, tirets pour une carte de bibliothèque", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    const card = await runtime.db.cards.get(3); // Theo Bell, crypte
+    await runtime.db.cards.put({ ...card!, clanName: "Toreador", capacity: 7 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+
+    await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
+    const rows = screen.getAllByTestId("stock-entry");
+    const forCard = (id: string) => rows.find((row) => row.getAttribute("data-card-id") === id)!;
+    // La lecture du clan/capacité (`useCardsById`) est une lecture IndexedDB
+    // asynchrone distincte de `entries` : attendre qu'elle soit à jour.
+    await waitFor(() => expect(forCard("3")).toHaveTextContent("Toreador"));
+    expect(forCard("3")).toHaveTextContent("7");
+    // La bibliothèque n'a ni clan ni capacité dans le miroir (§ plan Lot 5bis) : tirets.
+    expect(forCard("1").textContent).toMatch(/—.*—/);
+  });
+
+  it(
+    "raccourcis V/N/F ouvrent Verser un produit / Ajouter une carte / Filtrer le tableau, " +
+      "désactivés derrière une feuille déjà ouverte",
+    async () => {
+      await renderApp({ online: false, hash: "#/collection", catalog: true });
+      await screen.findByTestId("stock-page");
+
+      fireEvent.keyDown(document, { key: "n" });
+      await screen.findByTestId("stock-form-sheet");
+      fireEvent.keyDown(document, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByTestId("stock-form-sheet")).not.toBeInTheDocument());
+
+      fireEvent.keyDown(document, { key: "v" });
+      await screen.findByTestId("bundle-deposit");
+      fireEvent.keyDown(document, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByTestId("bundle-deposit")).not.toBeInTheDocument());
+
+      fireEvent.keyDown(document, { key: "f" });
+      await screen.findByTestId("stock-filters-sheet");
+
+      // `N` ne doit rien ouvrir derrière la feuille de filtres déjà ouverte.
+      fireEvent.keyDown(document, { key: "n" });
+      expect(screen.queryByTestId("stock-form-sheet")).not.toBeInTheDocument();
+    },
+  );
+
+  it("en-tête bureau : boutons d'en-tête, onglets avec compteurs, sélecteur de langue inline", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 }); // bibliothèque, possédée
+    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 0 }); // crypte, proxy pur
+
+    await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
+    expect(screen.getByTestId("stock-add-desktop")).toBeInTheDocument();
+    expect(screen.getByTestId("bundle-open-desktop")).toBeInTheDocument();
+    expect(screen.getByTestId("stock-language-select-desktop")).toBeInTheDocument();
+
+    expect(screen.getByTestId("stock-tab-count-all")).toHaveTextContent("2");
+    expect(screen.getByTestId("stock-tab-count-crypt")).toHaveTextContent("1");
+    expect(screen.getByTestId("stock-tab-count-library")).toHaveTextContent("1");
+    expect(screen.getByTestId("stock-tab-count-proxy")).toHaveTextContent("1");
+
+    fireEvent.click(screen.getByTestId("stock-add-desktop"));
+    await screen.findByTestId("stock-form-sheet");
+  });
+
+  it("aucune régression mobile : liste `<ul>`, pas de tableau ni d'ajouts d'en-tête bureau (Lot 5)", async () => {
+    setViewportWidth(390);
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+
+    await screen.findByTestId("stock-entry");
+    expect(screen.getByTestId("stock-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("stock-table")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stock-add-desktop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("bundle-open-desktop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stock-language-select-desktop")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stock-tab-count-all")).not.toBeInTheDocument();
   });
 });

@@ -2098,3 +2098,175 @@ fieldset:disabled .chip {
   height: 100%;
   color: var(--color-neutral-600);
 }
+
+/*
+ * — Collection, vue tableau bureau (Lot 5bis, étape 8 ; DESKTOP.md « d02 ») —
+ * En dessous de 1024px, `StockList.tsx` garde son rendu `<ul>` du Lot 5
+ * (`.list`, `.row`) : ce bloc entier reste dans la media query, y compris
+ * `.stock-header` (le nouveau conteneur du titre ajouté dans `StockPage.tsx`
+ * reste un simple `<div>` de flux normal sous 1024px, pour ne rien changer à
+ * la largeur ou au retour à la ligne du titre — seuls `.stock-header__actions`
+ * et le sélecteur de langue, montés uniquement en bureau par `isDesktop` côté
+ * React, ont besoin d'une disposition). Les pilules flottantes mobiles
+ * (`.floating-actions`) restent montées (comme `.page--decks`) mais masquées
+ * ici : les boutons d'en-tête bureau les remplacent visuellement.
+ */
+@media (min-width: 1024px) {
+  .page--stock .floating-actions {
+    display: none;
+  }
+
+  .page--stock .filter-row {
+    align-items: center;
+  }
+
+  .stock-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .stock-header__actions {
+    display: flex;
+    gap: 12px;
+    flex: none;
+  }
+
+  .stock-header__language select {
+    min-height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 13px;
+  }
+
+  .stock-header__language select:focus-visible {
+    border-color: var(--color-accent);
+    outline: none;
+  }
+
+  .tab-option__count {
+    color: inherit;
+  }
+
+  .stock-table {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stock-table__row {
+    display: grid;
+    grid-template-columns: 2.1fr 110px 1.3fr 96px 72px 64px 64px 1.5fr;
+    gap: 16px;
+    align-items: center;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .stock-table__row--head {
+    min-height: 34px;
+  }
+
+  .stock-table__row:not(.stock-table__row--head) {
+    min-height: 42px;
+  }
+
+  .stock-table__row:not(.stock-table__row--head):hover {
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  }
+
+  .stock-table__cell {
+    font-size: 13px;
+    color: var(--color-neutral-400);
+    min-width: 0;
+    position: relative;
+  }
+
+  .stock-table__cell--head {
+    font-size: 12px;
+    color: var(--color-neutral-500);
+    text-transform: none;
+  }
+
+  .stock-table__cell--name {
+    color: var(--color-text);
+    font-family: var(--font-heading);
+    font-weight: var(--font-heading-weight);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stock-table__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .stock-table__sort:hover,
+  .stock-table__sort:focus-visible {
+    color: var(--color-text);
+  }
+
+  .stock-table__sort[aria-sort] {
+    color: var(--color-accent-200);
+  }
+
+  .stock-table__name-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .stock-table__name-btn:hover,
+  .stock-table__name-btn:focus-visible {
+    color: var(--color-accent-200);
+    outline: none;
+  }
+
+  .stock-table__qty-input {
+    width: 56px;
+    height: 30px;
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    color: var(--color-text);
+    text-align: center;
+    font: inherit;
+  }
+
+  .stock-table__cell--notes {
+    color: var(--color-neutral-500);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stock-table__ext {
+    display: block;
+    font-size: 11px;
+  }
+
+  .stock-table__preview {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    margin-top: 6px;
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-sm);
+  }
+}

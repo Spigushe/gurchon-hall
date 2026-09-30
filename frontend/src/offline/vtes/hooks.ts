@@ -7,6 +7,7 @@ import {
   readCardSets,
   readDeck,
   readDeckCards,
+  readDeckCountByCard,
   readDecks,
   readStock,
   searchCards,
@@ -75,5 +76,16 @@ export function useLocalCardSearch(query: CardQuery = {}): CardRow[] | undefined
 export function useLocalCardSets(): CardSetRow[] | undefined {
   const { db } = useVtesOffline();
   const querier = useCallback(() => readCardSets(db), [db]);
+  return useLiveQuery(querier);
+}
+
+/**
+ * Nombre de decks (tous états) utilisant chaque carte, calcul local (Lot 5bis,
+ * étape 8 : colonne « Decks » de la vue tableau bureau de la Collection).
+ * Voir `readDeckCountByCard`.
+ */
+export function useDeckCountByCardId(): Map<number, number> | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readDeckCountByCard(db), [db]);
   return useLiveQuery(querier);
 }
