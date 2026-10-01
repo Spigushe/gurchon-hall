@@ -1,18 +1,62 @@
-import { useEffect, useRef } from "react";
+import { Component, lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
 import { Cards, House, MagnifyingGlass, Stack, WarningCircle, WifiSlash } from "@phosphor-icons/react";
 import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
-import { DeckDetailPage } from "./features/decks/DeckDetailPage";
-import { DecksPage } from "./features/decks/DecksPage";
-import { HomePage } from "./features/home/HomePage";
-import { StockPage } from "./features/stock/StockPage";
-import { SyncPage } from "./features/sync/SyncPage";
 import { SyncStatusBar } from "./features/sync/SyncStatusBar";
 import { plural } from "./labels";
 import { useConnectivity, useSyncStatus } from "./offline/react";
+
+// Composants de page chargés à la demande (un chunk par route), plutôt qu'en
+// import statique : le bundle initial n'embarque alors que la coquille
+// (`App`, nav, offline) et charge la page voulue au premier affichage de sa
+// route. Le service worker précache malgré tout chaque chunk en entier dès
+// l'installation (`vite.config.ts`, `globPatterns` porte sur tous les `.js`
+// de `dist/`, qu'ils viennent d'un `import()` dynamique ou non) : l'app shell
+// reste utilisable hors ligne sans dépendre d'un chunk encore jamais chargé
+// en ligne. Exports nommés (pas de `export default`) : chaque fabrique
+// explicite le nom affiché par React DevTools / les messages d'erreur.
+const HomePage = lazy(() => import("./features/home/HomePage").then((m) => ({ default: m.HomePage })));
+const StockPage = lazy(() => import("./features/stock/StockPage").then((m) => ({ default: m.StockPage })));
+const DecksPage = lazy(() => import("./features/decks/DecksPage").then((m) => ({ default: m.DecksPage })));
+const DeckDetailPage = lazy(() =>
+  import("./features/decks/DeckDetailPage").then((m) => ({ default: m.DeckDetailPage })),
+);
+const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
+
+// Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
+// (en parallèle du tout premier rendu, pas après lui) : un `import()` d'un
+// spécificateur déjà résolu ne refait jamais de requête réseau, il rend
+// aussitôt le module déjà en cache du graphe de modules du navigateur. Ce
+// préchauffement s'exécute pendant que l'app est forcément en ligne (son tout
+// premier instant de vie) ; sans lui, une navigation vers une route jamais
+// visitée, juste après une coupure réseau survenue tôt, resterait bloquée sur
+// le fallback de `<Suspense>` : la toute première page chargée par un
+// navigateur n'est **jamais** contrôlée par son service worker (seules les
+// visites suivantes le sont, cf. spec Service Worker), donc rien ne peut
+// servir ce chunk depuis le precache tant que ce contrôle n'a pas eu lieu, et
+// couper le réseau avant cet instant ne laisse alors plus aucune source pour
+// le récupérer. Régression trouvée en vérifiant ce lot avec le vrai back
+// (`tests/e2e-real/acquisition.spec.ts`, qui coupe le réseau juste après le
+// premier chargement) : les quatre projets Playwright sans ce préchauffement
+// échouaient sur la première navigation suivant la coupure. Échecs ignorés
+// ici (`.catch(() => {})`) : un `import()` resté sans réseau du tout (app
+// ouverte hors ligne dès le départ) laisse `React.lazy` échouer à la
+// navigation réelle — ce rejet est définitif pour la durée de vie du module
+// (`React.lazy` mémorise la promesse, il ne la relance pas de lui-même), d'où
+// le filet `RouteErrorBoundary` ci-dessous plutôt qu'un simple pari sur un
+// nouvel essai inexistant.
+for (const importRoute of [
+  () => import("./features/home/HomePage"),
+  () => import("./features/stock/StockPage"),
+  () => import("./features/decks/DecksPage"),
+  () => import("./features/decks/DeckDetailPage"),
+  () => import("./features/sync/SyncPage"),
+]) {
+  importRoute().catch(() => {});
+}
 
 /** Les quatre onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
 type NavKey = "home" | "stock" | "decks" | "sync";
@@ -33,6 +77,65 @@ function navActive(route: Route): Record<NavKey, boolean> {
     decks: route.name === "decks" || route.name === "deck",
     sync: route.name === "sync",
   };
+}
+
+/**
+ * Fallback de `<Suspense>` pendant le chargement du chunk d'une page
+ * (`React.lazy`, ci-dessus). Chaque chunk est précaché par le service worker
+ * au même titre que le reste de l'app shell (`vite.config.ts`, `globPatterns`
+ * couvre tous les `.js` de `dist/`) : passé le tout premier chargement en
+ * ligne, l'affichage est quasi instantané depuis le cache. On garde donc un
+ * indicateur minimal plutôt que le squelette complet de `LoadingState` (pensé
+ * pour une lecture IndexedDB qui prend un instant perceptible, §11 Lot 5) :
+ * un squelette détaillé pour un chargement qui dure quelques millisecondes
+ * ferait plus de bruit visuel qu'il n'aiderait. `data-testid="route-loading"`
+ * sert de repère stable au banc d'essai vitest (`tests/unit/ui/harness.tsx`)
+ * pour attendre la fin du chargement du chunk sans connaître la page ciblée.
+ */
+function RouteLoading() {
+  return (
+    <div className="loading-state" aria-busy="true" aria-label="Chargement de la page" data-testid="route-loading">
+      <p className="loading-caption">Chargement…</p>
+    </div>
+  );
+}
+
+/**
+ * Filet pour l'échec d'un chunk de route (`React.lazy`, ci-dessus). Le
+ * préchauffement couvre le cas normal, mais pas celui où l'app s'ouvre déjà
+ * hors ligne (ou perd le réseau avant que le préchauffement n'ait eu le temps
+ * d'aboutir) et où l'utilisateur navigue vers une route jamais chargée : la
+ * promesse d'`import()` rejette, et `React.lazy` la **mémorise** — elle ne se
+ * relance pas d'elle-même à la navigation suivante, contrairement à ce
+ * qu'on pourrait attendre. Sans `ErrorBoundary` (aucune n'existait avant ce
+ * lot), ce rejet remonte jusqu'à React et démonte tout l'arbre : écran blanc,
+ * y compris la coquille hors-ligne que ce lot est censé garantir (CLAUDE.md
+ * §3). Ce composant garde donc un message actionnable, local à la zone de
+ * contenu, plutôt que de laisser l'erreur se propager ; recharger relance
+ * l'évaluation du module et retente les cinq chunks depuis zéro.
+ */
+class RouteErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state: { failed: boolean } = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  render(): ReactNode {
+    if (this.state.failed) {
+      return (
+        <div className="page" data-testid="route-load-error">
+          <p className="error-text" role="alert">
+            Cette page n'a pas pu être chargée. Vérifiez la connexion puis réessayez.
+          </p>
+          <button type="button" className="btn-secondary" onClick={() => window.location.reload()}>
+            Recharger
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function Page({ route }: { route: Route }) {
@@ -276,7 +379,11 @@ function App() {
         </div>
 
         <main id="contenu" ref={mainRef} tabIndex={-1}>
-          <Page route={route} />
+          <RouteErrorBoundary>
+            <Suspense fallback={<RouteLoading />}>
+              <Page route={route} />
+            </Suspense>
+          </RouteErrorBoundary>
         </main>
 
         <TabBar route={route} />
