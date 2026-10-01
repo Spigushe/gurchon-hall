@@ -1,7 +1,10 @@
-import { useDeferredValue, useId, useRef, useState } from "react";
-import { Database, DotsThree, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { useDeferredValue, useId, useMemo, useRef, useState } from "react";
+import { Database, DotsThree, Funnel, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { Kbd } from "../../components/Kbd";
 import { Pill } from "../../components/Pill";
 import { BackRow, Sheet } from "../../components/Sheet";
+import { useIsDesktop } from "../../components/useIsDesktop";
+import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { plural } from "../../labels";
 import { useLocalStock, type LocalStockEntry } from "../../offline/vtes";
 import { useCatalog } from "../catalog/catalogContext";
@@ -125,9 +128,11 @@ function StockFilterSheet({
 export function StockPage() {
   const searchId = useId();
   const filterName = useId();
+  const desktopLanguageId = useId();
   const catalog = useCatalog();
   const languages = useLanguageOptions();
   const cardSets = useCardSetOptions();
+  const isDesktop = useIsDesktop();
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [languageCode, setLanguageCode] = useState("");
@@ -148,6 +153,39 @@ export function StockPage() {
     return true;
   });
 
+  // Base sans catégorie, pour les compteurs des onglets bureau (« Toutes · 412 »,
+  // handoff « d02 ») : la requête principale ci-dessus reste inchangée (elle ne
+  // porte qu'un seul onglet à la fois), ce second appel `useLocalStock` reste
+  // local (aucun réseau) et sert uniquement d'affichage — même état, mêmes
+  // filtres (langue, extension, recherche), juste sans restreindre la catégorie.
+  const countBase = useLocalStock({
+    q: deferred || undefined,
+    languageCode: languageCode || undefined,
+    cardSetId: cardSetId ?? undefined,
+  });
+  const tabCounts = useMemo(() => {
+    if (!countBase) return undefined;
+    const passesOwned = (entry: LocalStockEntry) =>
+      (ownedFilter !== "owned" || entry.quantityOwned !== 0) &&
+      (ownedFilter !== "zero" || entry.quantityOwned === 0);
+    const passesTab = (entry: LocalStockEntry, tab: Filter) =>
+      (tab !== "crypt" || entry.category === "crypt") &&
+      (tab !== "library" || entry.category === "library") &&
+      (tab !== "proxy" || entry.quantityOwned === 0);
+    const counts: Record<Filter, number> = { all: 0, crypt: 0, library: 0, proxy: 0 };
+    for (const entry of countBase) {
+      if (!passesOwned(entry)) continue;
+      for (const option of FILTERS) {
+        if (passesTab(entry, option.value)) counts[option.value] += 1;
+      }
+    }
+    return counts;
+  }, [countBase, ownedFilter]);
+  const totalCopies = useMemo(
+    () => entries?.reduce((sum, entry) => sum + entry.quantityOwned, 0) ?? 0,
+    [entries],
+  );
+
   const [mode, setMode] = useState<"closed" | "create" | "edit">("closed");
   const [editing, setEditing] = useState<LocalStockEntry | null>(null);
   const [bundleOpen, setBundleOpen] = useState(false);
@@ -167,13 +205,63 @@ export function StockPage() {
   };
   const closeForm = () => setMode("closed");
 
+  // `N` ouvre la même feuille que le bouton d'en-tête bureau (ou la pilule
+  // flottante mobile), `V` verse un produit, `F` ouvre la feuille de filtres
+  // (même bouton que « Plus de filtres » mobile, cf. `stock-filters-open`
+  // ci-dessous). Désactivés tant qu'une feuille de cet écran est déjà ouverte
+  // — même garde que `DecksPage.tsx` (`enabled: !creating`) : une frappe
+  // derrière une feuille ouverte ne doit pas en ouvrir une seconde.
+  useKeyboardShortcuts(
+    [
+      { keys: ["n"], onTrigger: openCreate },
+      { keys: ["v"], onTrigger: () => setBundleOpen(true) },
+      { keys: ["f"], onTrigger: () => setFiltersOpen(true) },
+    ],
+    { enabled: mode === "closed" && !bundleOpen && !filtersOpen },
+  );
+
   return (
-    <div className={showActions ? "page page--with-floating" : "page"} data-testid="stock-page">
-      <div>
-        <h2 className="page-title">Collection</h2>
-        <p className="page-meta">
-          {entries ? plural(entries.length, "entrée") : "…"} · une ligne par carte, langue et extension
-        </p>
+    <div
+      className={showActions ? "page page--with-floating page--stock" : "page page--stock"}
+      data-testid="stock-page"
+    >
+      <div className="stock-header">
+        <div>
+          <h2 className="page-title">Collection</h2>
+          <p className="page-meta">
+            {entries ? plural(entries.length, "entrée") : "…"} · une ligne par carte, langue et extension
+            {isDesktop && entries && ` · ${plural(totalCopies, "exemplaire")}`}
+          </p>
+        </div>
+        {/* Bureau (handoff « d02 ») : boutons d'en-tête, kbd V/N. Sur mobile, ces
+            deux actions restent portées par la pilule flottante et le rond
+            « Verser un produit » en pied d'écran (inchangés, cf. `.floating-actions`
+            plus bas), masqués sur bureau par CSS (`index.css`, comme `.page--decks`). */}
+        {isDesktop && (
+          <div className="stock-header__actions">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              data-testid="bundle-open-desktop"
+              aria-keyshortcuts="v"
+              onClick={() => setBundleOpen(true)}
+            >
+              Verser un produit
+              <Kbd>V</Kbd>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid="stock-add-desktop"
+              aria-keyshortcuts="n"
+              onClick={openCreate}
+            >
+              <Plus size={18} />
+              Ajouter une carte
+              <Kbd>N</Kbd>
+            </button>
+          </div>
+        )}
       </div>
 
       {catalog.count === 0 && <CatalogPanel compact />}
@@ -205,18 +293,67 @@ export function StockPage() {
                 checked={filter === option.value}
                 onChange={() => setFilter(option.value)}
               />
-              <span className="tab-option__label">{option.label}</span>
+              <span className="tab-option__label">
+                {option.label}
+                {/* Compteurs bureau seulement (handoff « d02 ») : même prédicat que le
+                    filtrage de `entries` ci-dessus, appliqué à `countBase` (sans
+                    restriction de catégorie) pour afficher combien chaque onglet
+                    ramènerait — présentation seule, ni état ni requête nouveaux. */}
+                {isDesktop && tabCounts && (
+                  <span className="tab-option__count" data-testid={`stock-tab-count-${option.value}`}>
+                    {" "}
+                    · {tabCounts[option.value]}
+                  </span>
+                )}
+              </span>
             </label>
           ))}
         </fieldset>
+        {isDesktop && (
+          <div className="stock-header__language">
+            <label className="sr-only" htmlFor={desktopLanguageId}>
+              Langue
+            </label>
+            <select
+              id={desktopLanguageId}
+              className="underline-field"
+              value={languageCode}
+              onChange={(event) => setLanguageCode(event.target.value)}
+              data-testid="stock-language-select-desktop"
+            >
+              <option value="">Langue : toutes</option>
+              {languages.map((language) => (
+                <option key={language.code} value={language.code}>
+                  {language.label} ({language.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {/*
+         * Même bouton aux deux largeurs (un seul composant, cf. `docs/lot5bis-plan-design.md`
+         * § Risques) : ouvre la même `StockFilterSheet` (extension, tri-état
+         * possédé/à 0). Sur mobile, rond et muet (« Plus de filtres ») ; sur
+         * bureau, libellé « Filtrer le tableau » avec kbd `F` (handoff « d02 »,
+         * le sélecteur de langue en sort pour rejoindre l'en-tête ci-dessus).
+         */}
         <button
           type="button"
-          className="round-btn round-btn--flat"
-          aria-label="Plus de filtres"
+          className={isDesktop ? "btn btn-secondary" : "round-btn round-btn--flat"}
+          aria-label={isDesktop ? "Filtrer le tableau" : "Plus de filtres"}
+          aria-keyshortcuts={isDesktop ? "f" : undefined}
           data-testid="stock-filters-open"
           onClick={() => setFiltersOpen(true)}
         >
-          <DotsThree size={22} />
+          {isDesktop ? (
+            <>
+              <Funnel size={16} />
+              Filtrer le tableau
+              <Kbd>F</Kbd>
+            </>
+          ) : (
+            <DotsThree size={22} />
+          )}
         </button>
       </div>
       {(languageCode !== "" || cardSetId !== null || ownedFilter !== "all") && (

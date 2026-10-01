@@ -188,6 +188,43 @@ def test_explicit_zero_acquisition_behaves_like_its_absence(api, db, card):
     assert owned(db, card) is None
 
 
+def test_an_all_proxy_line_needs_no_collection_entry_for_a_card_never_owned(
+    api, db, card
+):
+    """Le cas exact du rapport d'incident (piste A1) : la carte n'a **jamais**
+    eu d'entrée de collection (pas même à 0 possédé, contrairement à la
+    fixture `proxied`), la ligne est intégralement en proxy et n'envoie même
+    pas `acquired_quantity`. Accepté, et surtout, aucune entrée n'est créée
+    pour autant (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
+    """
+    deck = make_deck(db, proxy_allowed=True)
+    db.commit()
+
+    response = api.post(f"/decks/{deck.id}/cartes", json=body(card, 3, proxy=3))
+
+    assert response.status_code == 201, response.text
+    assert response.json()["proxy_quantity"] == 3
+    assert owned(db, card) is None
+
+
+def test_an_all_proxy_line_still_needs_the_deck_to_allow_proxies(api, db, card):
+    """Contre-épreuve : même ligne, sur un deck qui n'autorise pas les proxies.
+
+    L'assouplissement d'A1 ne dispense pas de la règle déjà en place
+    (`deck.proxy_allowed`) : le refus reste un 409, et aucune entrée n'est
+    créée au passage.
+    """
+    deck = make_deck(db, proxy_allowed=False)
+    db.commit()
+
+    response = api.post(f"/decks/{deck.id}/cartes", json=body(card, 3, proxy=3))
+
+    assert response.status_code == 409
+    assert "proxy" in response.json()["detail"]
+    assert owned(db, card) is None
+    assert line_of(db, deck.id, card) is None
+
+
 def test_insufficient_copies_despite_acquisition_writes_nothing(api, db, card):
     """Atomicité : le refus d'allocation ne laisse ni entrée ni incrément."""
     deck = make_deck(db)
@@ -478,6 +515,96 @@ def test_full_conversion_lets_the_deck_drop_proxies(api, db, card, proxied):
 
     assert response.status_code == 200
     assert owned(db, card) == 3
+
+
+# --------------------------------------------------------------------------
+# `update_card` face à l'impasse d'`add_card` (docs/issues/lot4b-…, question 3)
+#
+# Avant la correction A1, `add_card` refusait (409) une ligne sans entrée de
+# collection quand `acquired_quantity` valait 0, et refusait (422) toute valeur
+# strictement positive dès lors que la ligne ne consommait aucun exemplaire réel
+# (100 % proxy) : aucune valeur ne faisait passer l'écriture pour une carte
+# absente de la collection. Depuis A1 (`docs/issues/2026-09-29-lot4b-ligne-100-
+# pourcent-proxy-refusee.md`), `deck_card` ne référence plus `card_copy` : une
+# ligne 100 % proxy est acceptée sans entrée (tests plus bas), et `update_card`
+# peut donc désormais recevoir une ligne existante sans entrée en face — ce que
+# `_check_allocation` et `_acquire` géraient déjà sans condition sur `copy`
+# (corrigé dans le même mouvement que le modèle, cf. le rapport d'incident).
+# Les tests suivants vérifient, par l'exécution, qu'aucune variante de
+# l'impasse originelle ne se reproduit par `PATCH`, y compris sur une ligne née
+# sans aucune entrée :
+#
+# 1. faire passer une ligne qui consommait du réel à 100 % proxy réussit sans
+#    toucher à l'entrée (elle existait déjà) ;
+# 2. agrandir une ligne déjà 100 % proxy réussit sans aucune acquisition (le
+#    contrôle `_check_allocation` tolère `copy` à 0 possédé, ou absent, quand
+#    le réel demandé est aussi 0) ;
+# 3. une entrée de collection encore consommée par du réel reste protégée par
+#    `/stock` (409) — mais une entrée qui ne retient plus que du proxy
+#    (`allocated_real == 0`) se supprime désormais (204) : ce n'est plus
+#    l'existence d'une ligne qui bloque, seule sa consommation réelle compte.
+# --------------------------------------------------------------------------
+
+
+def test_converting_a_fully_owned_line_to_all_proxies_keeps_the_entry_intact(
+    api, db, card
+):
+    """La ligne consommait 2 exemplaires réels ; elle en passe à 100 % proxy.
+
+    L'entrée de collection existait déjà (créée par l'acquisition initiale) :
+    aucun contrôle de collection ne se déclenche, contrairement à `add_card`
+    pour une ligne neuve sans entrée.
+    """
+    deck = make_deck(db, proxy_allowed=True)
+    db.commit()
+    created = api.post(f"/decks/{deck.id}/cartes", json=body(card, 2, acquired=2))
+    assert created.status_code == 201, created.text
+
+    response = api.patch(url(deck.id, card), json={"proxy_quantity": 2})
+
+    assert response.status_code == 200, response.text
+    assert (response.json()["quantity"], response.json()["proxy_quantity"]) == (2, 2)
+    # L'entrée reste à 2 : les exemplaires sont désormais libres, pas retirés.
+    assert owned(db, card) == 2
+
+
+def test_growing_an_all_proxy_line_needs_no_acquisition(api, db, card, proxied):
+    """Une ligne déjà 100 % proxy (fixture `proxied`, entrée à 0) s'agrandit.
+
+    Aucune valeur d'`acquired_quantity` n'est nécessaire : `_check_allocation`
+    laisse passer un réel demandé nul contre une entrée à 0 possédé, que
+    l'entrée existe ou non — `update_card` n'oppose donc pas le refus 409/422
+    qu'`add_card` oppose à une ligne neuve équivalente.
+    """
+    response = api.patch(
+        url(proxied.id, card), json={"quantity": 5, "proxy_quantity": 5}
+    )
+
+    assert response.status_code == 200, response.text
+    assert (response.json()["quantity"], response.json()["proxy_quantity"]) == (5, 5)
+    assert owned(db, card) == 0
+
+
+def test_a_stock_entry_backing_only_proxies_can_now_be_deleted(api, db, card, proxied):
+    """Renverse ce que documentait ce test avant A1.
+
+    Avant la correction, ce test affirmait le sous-cas « ligne existante sans
+    entrée » inatteignable : la FK composite de `deck_card` vers `card_copy`
+    garantissait qu'une entrée référencée par une ligne ne pouvait pas
+    disparaître. Depuis A1, `stock.delete_copy` ne compte plus que le réel
+    alloué (`allocated_real`) ; la fixture `proxied` est une ligne 100 % proxy
+    (aucun exemplaire réel consommé), donc l'entrée à 0 possédé qu'elle
+    référence se supprime désormais (204), et la ligne de deck lui survit,
+    orpheline (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
+    Le cas symétrique — une entrée encore consommée par du réel reste protégée
+    — est couvert ailleurs (`test_deck_stock_lifecycle.py`).
+    """
+    response = api.delete(f"/stock/{card.id}/EN/{card.card_set_id}")
+
+    assert response.status_code == 204
+    assert owned(db, card) is None
+    assert line_of(db, proxied.id, card) is not None
+    assert line_of(db, proxied.id, card).proxy_quantity == 3
 
 
 # --------------------------------------------------------------------------

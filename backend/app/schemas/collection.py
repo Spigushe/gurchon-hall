@@ -64,8 +64,10 @@ class CardCopyRead(ReadModel):
     )
     quantity_owned: int = Field(
         description=(
-            "Nombre d'exemplaires réellement possédés. Une entrée à 0 est valide : "
-            "c'est ainsi qu'une carte jouée uniquement en proxy entre en collection."
+            "Nombre d'exemplaires réellement possédés. Une entrée à 0 reste "
+            "valide — on garde la trace d'une carte vendue ou perdue —, mais "
+            "jouer une carte en proxy n'en crée aucune : une ligne de deck qui "
+            "ne consomme aucun exemplaire réel ne passe pas par la collection."
         )
     )
     notes: str | None = None
@@ -124,7 +126,10 @@ class DeckCardRead(ReadModel):
     card_id: int
     language_code: str
     card_set_id: int = Field(
-        description="Extension de l'entrée de collection allouée."
+        description=(
+            "Extension de l'impression jouée — celle de l'entrée de collection "
+            "allouée, quand la ligne consomme des exemplaires réels."
+        )
     )
     quantity: int
     proxy_quantity: int = Field(
@@ -140,8 +145,12 @@ ACQUIRED_QUANTITY_DESCRIPTION = (
     "déclarer qu'un proxy est remplacé par une vraie carte (baisser "
     "`proxy_quantity` d'autant). Au plus le nombre d'exemplaires réels que "
     "l'écriture ajoute à la ligne (`quantity - proxy_quantity`, moins ce que la "
-    "ligne consommait déjà), sinon 422. 0 par défaut : la carte doit alors être "
-    "déjà en collection."
+    "ligne consommait déjà), sinon 422. 0 par défaut : l'écriture prend alors "
+    "dans la collection les exemplaires réels qu'elle consomme, qui doivent y "
+    "être (sinon 409). Une ligne entièrement jouée en proxy "
+    "(`quantity == proxy_quantity`) n'en consomme aucun : elle n'a besoin ni "
+    "d'acquisition ni d'entrée de collection, seulement de `proxy_allowed` sur "
+    "le deck."
 )
 
 
@@ -175,11 +184,14 @@ class DeckCardWrite(WriteModel):
 class DeckCardCreate(DeckCardWrite):
     """Ajout d'une carte à un deck.
 
-    La carte doit être dans la collection pour la langue et l'extension
-    demandées (CLAUDE.md §11 point 2), **ou y entrer par cette écriture** :
-    `acquired_quantity` crée ou incrémente l'entrée de collection dans la même
-    transaction que la ligne (Lot 4b, `docs/lot4b-acquisition-depuis-deck.md`).
-    La vérification de disponibilité relève du service.
+    Les exemplaires réels que la ligne consomme (`quantity - proxy_quantity`)
+    doivent être dans la collection pour la langue et l'extension demandées,
+    **ou y entrer par cette écriture** : `acquired_quantity` crée ou incrémente
+    l'entrée de collection dans la même transaction que la ligne (Lot 4b,
+    `docs/lot4b-acquisition-depuis-deck.md`). Une ligne entièrement jouée en
+    proxy ne consomme rien et n'a donc pas besoin d'entrée du tout ; le deck
+    doit en revanche autoriser les proxies. La vérification de disponibilité
+    relève du service.
     """
 
     card_id: int = Field(ge=1, le=MAX_DB_INT)

@@ -1,8 +1,10 @@
 import { useId, useRef, useState, type FormEvent } from "react";
+import { Kbd } from "../../components/Kbd";
 import { Sheet, SheetHeader } from "../../components/Sheet";
 import { Stepper } from "../../components/Stepper";
 import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { useIsDesktop } from "../../components/useIsDesktop";
 import { DECK_STATUS_LABELS, REJECTION_LABELS, type DeckStatus } from "../../labels";
 import type { OutboxEntry } from "../../offline/core";
 import { useVtesOffline, type VtesOperation } from "../../offline/vtes";
@@ -16,11 +18,32 @@ const MAX_INT = 2_147_483_647;
  * Corrige une opération refusée puis la renvoie : la couche offline en crée une
  * **nouvelle**, sous une nouvelle clé d'idempotence, à la même place dans la
  * file (`outbox.reissue`). L'ancienne opération n'est jamais modifiée.
+ *
+ * Deux présentations d'une même logique de champ et de soumission, choisies
+ * par `useIsDesktop()` (Lot 5bis, étape 12, `docs/design-handoff/DESKTOP.md`
+ * « d06 »), sur le même principe que `AddDeckCardForm` (étape 11) :
+ * - mobile (< 1024px, inchangé depuis le Lot 5) : feuille plein écran
+ *   (`Sheet`), pied « Renvoyer la correction » + « Annuler » (referme la
+ *   correction inline sans rien envoyer) ;
+ * - bureau (≥ 1024px) : rendu nu dans la carte de droite de l'écran
+ *   Synchronisation (`SyncPage`), sans `Sheet` ni bouton « Annuler » — changer
+ *   de ligne sélectionnée dans la liste Refusées tient lieu d'annulation, et
+ *   `⌘↵`/`Ctrl↵` (raccourci local à `SyncPage`) soumet ce formulaire en le
+ *   retrouvant par son `data-testid`, plutôt que par un `onPrimaryAction` de
+ *   `Sheet` qui n'existe pas ici.
+ *
+ * Le `<form data-testid="correction-form">` garde le même testid dans les deux
+ * cas. Le bloc d'en-tête (description + motif du refus) n'a volontairement
+ * aucun `data-testid` : c'est déjà celui de la ligne qui l'a ouvert (mobile,
+ * `RejectedItem`) ou du résumé manuel du panneau (bureau,
+ * `RejectedDetailPanel`) qui les porte, pour ne pas dupliquer un même testid
+ * sur deux éléments visibles à la fois côté bureau.
  */
 export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => void }) {
   const { outbox } = useVtesOffline();
   const action = useGuardedAction();
   const operation = entry.operation;
+  const isDesktop = useIsDesktop();
   const formId = useId();
   const titleId = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -118,25 +141,19 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
     if (done) onDone();
   };
 
-  return (
-    <Sheet titleId={titleId} titleRef={titleRef} onClose={onDone} data-testid="correction-form-sheet">
-      <SheetHeader
-        kicker="Opération refusée"
-        title="Corriger"
-        titleId={titleId}
-        titleRef={titleRef}
-        onClose={onDone}
-      />
-      <div className="accent-block">
-        <p className="accent-block__detail">{describe(operation)}</p>
-        <p className="accent-block__detail">
-          {entry.rejection ? REJECTION_LABELS[entry.rejection.code] : "Opération refusée"}
-          {entry.rejection?.message ? ` : ${entry.rejection.message}` : ""}
-        </p>
-      </div>
+  const header = (
+    <div className="accent-block">
+      <p className="accent-block__detail">{describe(operation)}</p>
+      <p className="accent-block__detail">
+        {entry.rejection ? REJECTION_LABELS[entry.rejection.code] : "Opération refusée"}
+        {entry.rejection?.message ? ` : ${entry.rejection.message}` : ""}
+      </p>
+    </div>
+  );
 
-      <form onSubmit={submit} noValidate data-testid="correction-form" aria-label="Corriger l'opération refusée">
-        {(operation.type === "stock.upsert" ||
+  const form = (
+    <form onSubmit={submit} noValidate data-testid="correction-form" aria-label="Corriger l'opération refusée">
+      {(operation.type === "stock.upsert" ||
           operation.type === "deck_card.upsert" ||
           operation.type === "bundle.deposit") && (
           <Stepper
@@ -206,13 +223,52 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
           </p>
         )}
 
-        <button type="submit" className="pill pill--floating" disabled={action.pending} data-testid="correction-submit">
-          Renvoyer la correction
-        </button>
-        <button type="button" className="btn-text" onClick={onDone} disabled={action.pending}>
-          Annuler
-        </button>
-      </form>
+        {isDesktop ? (
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={action.pending}
+            data-testid="correction-submit"
+            aria-keyshortcuts="Meta+Enter Control+Enter"
+          >
+            Renvoyer la correction
+            <span className="sheet__primary-kbd">
+              <Kbd>⌘↵</Kbd>
+            </span>
+          </button>
+        ) : (
+          <>
+            <button type="submit" className="pill pill--floating" disabled={action.pending} data-testid="correction-submit">
+              Renvoyer la correction
+            </button>
+            <button type="button" className="btn-text" onClick={onDone} disabled={action.pending}>
+              Annuler
+            </button>
+          </>
+        )}
+    </form>
+  );
+
+  if (isDesktop) {
+    return (
+      <div className="sync-correction" data-testid="sync-correction">
+        {header}
+        {form}
+      </div>
+    );
+  }
+
+  return (
+    <Sheet titleId={titleId} titleRef={titleRef} onClose={onDone} data-testid="correction-form-sheet">
+      <SheetHeader
+        kicker="Opération refusée"
+        title="Corriger"
+        titleId={titleId}
+        titleRef={titleRef}
+        onClose={onDone}
+      />
+      {header}
+      {form}
     </Sheet>
   );
 }

@@ -147,6 +147,28 @@ export async function searchCards(db: VtesOfflineDb, query: CardQuery = {}): Pro
 }
 
 /**
+ * Nombre de decks (tous états, decks vivants seulement — un deck supprimé ne
+ * figure déjà plus dans la projection) utilisant chaque carte, tous langue et
+ * extension confondues. Calcul strictement local (Lot 5bis, étape 8, colonne
+ * « Decks » de la vue tableau de la Collection, `docs/design-handoff/DESKTOP.md`
+ * « d02 ») : lu sur la même projection que le reste de l'UI (instantané plus
+ * file), donc une carte tout juste ajoutée à un deck hors ligne compte
+ * immédiatement, sans attendre la synchronisation.
+ */
+export async function readDeckCountByCard(db: VtesOfflineDb): Promise<Map<number, number>> {
+  const { deckCards } = await readProjection(db);
+  const decksByCard = new Map<number, Set<DeckKey>>();
+  for (const [deckKey, lines] of deckCards) {
+    for (const line of lines) {
+      const decks = decksByCard.get(line.cardId) ?? new Set<DeckKey>();
+      decks.add(deckKey);
+      decksByCard.set(line.cardId, decks);
+    }
+  }
+  return new Map([...decksByCard].map(([cardId, decks]) => [cardId, decks.size]));
+}
+
+/**
  * Extensions du catalogue (miroir de `GET /extensions`), triées comme le
  * serveur : date de sortie, les extensions sans date en dernier, puis
  * abréviation (CLAUDE.md §7, Lot 4).

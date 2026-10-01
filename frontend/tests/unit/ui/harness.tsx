@@ -1,4 +1,4 @@
-import { act, cleanup, render } from "@testing-library/react";
+import { act, cleanup, render, waitForElementToBeRemoved } from "@testing-library/react";
 import createClient from "openapi-fetch";
 import { afterEach } from "vitest";
 import type { paths } from "../../../src/api-client/schema.d.ts";
@@ -111,6 +111,19 @@ export async function renderApp(options: AppOptions = {}) {
       </ApiClientContext.Provider>
     </VtesOfflineProvider>,
   );
+
+  // Les pages sont chargées à la demande (`React.lazy`, `App.tsx`) : le tout
+  // premier rendu affiche systématiquement le fallback `<Suspense>` le temps
+  // que le chunk de la route courante se résolve, même quand le module est
+  // déjà en cache (mécanique de `React.lazy`, pas de latence réseau en test).
+  // Sans cette attente, les appels synchrones `screen.getByTestId("home-page")`
+  // etc. juste après `renderApp` verraient le squelette `route-loading` au
+  // lieu du contenu de la page. On attend donc ici, une fois pour tous les
+  // tests, plutôt que d'ajouter `findBy*`/`waitFor` dans chacun.
+  const initialLoading = view.queryByTestId("route-loading");
+  if (initialLoading) {
+    await waitForElementToBeRemoved(initialLoading);
+  }
 
   /** Laisse le rejeu et le rafraîchissement en cours se terminer. */
   const settle = async () => {

@@ -55,8 +55,11 @@ export interface VtesActions {
    * `acquiredQuantity` > 0 (Lot 4b), l'entrée de collection carte × langue ×
    * extension est créée ou incrémentée en même temps ; lève
    * `AcquisitionBoundError`, sans rien mettre en file, si l'acquisition dépasse
-   * les exemplaires réels que l'écriture ajoute à la ligne. Sans acquisition,
-   * une carte absente du stock est refusée par le serveur (verdict `conflict`).
+   * les exemplaires réels que l'écriture ajoute à la ligne. L'entrée de
+   * collection n'est exigée que si la ligne consomme des exemplaires réels
+   * (`quantity > proxyQuantity`) ; sans acquisition, une carte absente du
+   * stock est alors refusée par le serveur (verdict `conflict`), mais une
+   * ligne entièrement en proxy s'écrit sans entrée ni acquisition.
    */
   saveDeckCard(deck: DeckTarget, input: DeckCardInput): Promise<Entry>;
   /**

@@ -201,8 +201,12 @@ def test_card_copy_rejects_negative_quantity(db):
 
 
 # --------------------------------------------------------------------------
-# deck_card : PK (deck_id, card_id, language_code, card_set_id, Lot 4) et FK
-# composite -> card_copy
+# deck_card : PK (deck_id, card_id, language_code, card_set_id, Lot 4). Depuis
+# le Lot 4b (piste A1,
+# docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md), la ligne
+# ne référence plus `card_copy` : ses clés étrangères visent `card_printing`
+# (carte + extension) et `language` séparément, pour permettre une ligne
+# intégralement en proxy sans entrée de collection.
 # --------------------------------------------------------------------------
 
 
@@ -216,22 +220,28 @@ def test_deck_card_primary_key_is_deck_card_and_language(db_engine):
     ]
 
 
-def test_deck_card_foreign_key_to_card_copy_is_composite(db_engine):
-    """La FK vers la collection est bien une seule contrainte à trois colonnes."""
+def test_deck_card_foreign_key_no_longer_targets_card_copy(db_engine):
+    """Depuis le Lot 4b (piste A1) : deux clés étrangères séparées.
+
+    L'impression (`card_id`, `card_set_id` -> `card_printing`) et la langue
+    (`language_code` -> `language`), plus jamais `card_copy` : une ligne
+    intégralement en proxy peut donc exister sans entrée de collection.
+    """
     foreign_keys = inspect(db_engine).get_foreign_keys("deck_card")
-    to_copy = [fk for fk in foreign_keys if fk["referred_table"] == "card_copy"]
-    assert len(to_copy) == 1
-    assert to_copy[0]["constrained_columns"] == [
-        "card_id",
-        "language_code",
-        "card_set_id",
-    ]
-    assert to_copy[0]["referred_columns"] == [
-        "card_id",
-        "language_code",
-        "card_set_id",
-    ]
-    # Pas de FK directe vers `card` : l'intégrité passe par card_copy.
+    referred = {fk["referred_table"] for fk in foreign_keys}
+    assert "card_copy" not in referred
+    assert {"card_printing", "language", "deck"} <= referred
+
+    to_printing = [fk for fk in foreign_keys if fk["referred_table"] == "card_printing"]
+    assert len(to_printing) == 1
+    assert to_printing[0]["constrained_columns"] == ["card_id", "card_set_id"]
+    assert to_printing[0]["referred_columns"] == ["card_id", "card_set_id"]
+
+    to_language = [fk for fk in foreign_keys if fk["referred_table"] == "language"]
+    assert len(to_language) == 1
+    assert to_language[0]["constrained_columns"] == ["language_code"]
+
+    # Pas de FK directe vers `card` : l'intégrité passe par `card_printing`.
     assert not [fk for fk in foreign_keys if fk["referred_table"] == "card"]
 
 
@@ -249,8 +259,13 @@ def test_deck_card_rejects_duplicate_line(db):
         run_sql(db, insert, d=deck.id, c=card.id, s=copy.card_set_id)
 
 
-def test_deck_card_rejects_card_absent_from_collection(db):
-    """Carte au catalogue, langue connue, mais aucun exemplaire déclaré."""
+def test_deck_card_no_longer_requires_a_collection_entry(db):
+    """Depuis le Lot 4b (piste A1) : carte au catalogue, langue connue, aucun
+    exemplaire déclaré — et pourtant la ligne s'écrit, même quand elle consomme
+    du réel (`proxy_quantity=0` par défaut). Le modèle ne relie plus
+    `deck_card` à `card_copy` ; c'est désormais au service (`decks.add_card`)
+    d'exiger une entrée pour une consommation réelle, pas à la base
+    (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`)."""
     add_languages(db)
     card = make_card(db)
     printing = make_printing(db, card)
@@ -264,22 +279,23 @@ def test_deck_card_rejects_card_absent_from_collection(db):
             quantity=1,
         )
     )
-    with pytest.raises(IntegrityError):
-        db.flush()
+    db.commit()
+    assert db.query(DeckCard).count() == 1
 
 
-def test_deck_card_rejects_language_missing_from_collection(db):
-    """La carte est en collection en EN seulement : la FR est refusée en deck."""
+def test_deck_card_rejects_a_language_unknown_to_the_language_table(db):
+    """La FK vers `language` reste un dernier filet : un code jamais seedé
+    (pas seulement absent de la collection) est toujours refusé."""
     add_languages(db)
     card = make_card(db)
-    copy = make_copy(db, card, "EN")
+    printing = make_printing(db, card)
     deck = make_deck(db)
     db.add(
         DeckCard(
             deck_id=deck.id,
             card_id=card.id,
-            language_code="FR",
-            card_set_id=copy.card_set_id,
+            language_code="ZZ",
+            card_set_id=printing.card_set_id,
             quantity=1,
         )
     )
@@ -287,8 +303,13 @@ def test_deck_card_rejects_language_missing_from_collection(db):
         db.flush()
 
 
-def test_deck_card_rejects_other_cards_collection_entry(db):
-    """L'entrée de collection d'une autre carte ne couvre pas celle-ci."""
+def test_deck_card_rejects_another_cards_printing(db):
+    """L'impression d'une autre carte, dans la même extension, ne couvre pas
+    celle-ci : la FK vers `card_printing` porte sur (card_id, card_set_id).
+
+    Avant le Lot 4b, ce cas était refusé via `card_copy` (aucune entrée de
+    collection pour `other`) ; il l'est toujours, mais désormais parce
+    qu'`other` n'a pas d'impression dans cette extension."""
     add_languages(db)
     owned = make_card(db, "Possédée")
     other = make_card(db, "Autre")
@@ -496,42 +517,51 @@ def test_deleted_deck_card_accepts_a_line_without_any_collection_entry(db):
     assert db.query(DeletedDeckCard).count() == 1
 
 
-def test_deleting_a_collection_entry_no_longer_trips_on_a_frozen_line(db):
-    """Une ligne vivante bloque la suppression du stock ; une ligne figée, non."""
+def test_deleting_a_collection_entry_no_longer_trips_on_a_live_or_frozen_line(db):
+    """Depuis le Lot 4b (piste A1), une ligne vivante ne bloque plus la
+    suppression du stock à la base : `deck_card` ne référence plus
+    `card_copy`. C'est `services/stock.delete_copy` qui refuse désormais, et
+    seulement si l'entrée est encore consommée par du réel
+    (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`).
+    Une ligne figée (`deleted_deck_card`), elle, n'a jamais bloqué : elle ne
+    pointait déjà pas la collection avant ce lot.
+    """
     add_languages(db)
     card = make_card(db)
     copy = make_copy(db, card, "EN", quantity_owned=2)
+    card_set_id = copy.card_set_id
     deck = make_deck(db)
     db.add(
         DeckCard(
             deck_id=deck.id,
             card_id=card.id,
             language_code="EN",
-            card_set_id=copy.card_set_id,
+            card_set_id=card_set_id,
             quantity=2,
         )
     )
     db.commit()
 
     db.delete(copy)
-    with pytest.raises(IntegrityError):
-        db.flush()
-    db.rollback()
+    db.commit()  # ne lève plus : la base ne relie plus les deux tables
+    assert db.query(CardCopy).count() == 0
+    assert db.query(DeckCard).count() == 1  # la ligne de deck survit, orpheline
 
-    # Même situation, mais la composition a été figée à la suppression du deck.
+    # Même constat côté decklist figée, qui n'a jamais référencé la collection.
     db.query(DeckCard).delete()
+    other_copy = make_copy(db, card, "FR", quantity_owned=1, card_set_id=card_set_id)
     db.add(
         DeletedDeckCard(
             deck_id=deck.id,
             card_id=card.id,
-            language_code="EN",
-            card_set_id=copy.card_set_id,
-            quantity=2,
+            language_code="FR",
+            card_set_id=card_set_id,
+            quantity=1,
         )
     )
     db.commit()
 
-    db.delete(db.get(CardCopy, (card.id, "EN", copy.card_set_id)))
+    db.delete(other_copy)
     db.commit()
 
     assert db.query(DeletedDeckCard).count() == 1

@@ -30,6 +30,7 @@ export {
   readCardSets,
   readDeck,
   readDeckCards,
+  readDeckCountByCard,
   readDecks,
   readProjection,
   readStock,
@@ -56,6 +57,7 @@ export type {
 export { VtesOfflineContext, useVtesOffline } from "./context";
 export { VtesOfflineProvider } from "./VtesOfflineProvider";
 export {
+  useDeckCountByCardId,
   useLocalCardSearch,
   useLocalCardSets,
   useLocalDeck,

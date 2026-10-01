@@ -22,8 +22,11 @@ stock au deck, et une entrée de collection est désormais identifiée par carte
 extension, de la base jusqu'à l'UI (plan dans `docs/lot4-plan-inventaire.md`). Lot 5 :
 refonte mobile de l'UI sur le design system Nocturne, picker de cartes fusionné et
 acquisition d'exemplaires depuis un deck, écran Synchronisation (plan dans
-`docs/lot5-plan-design.md`, décisions au §11). Le modèle
-compte **23 tables** et six révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+`docs/lot5-plan-design.md`, décisions au §11). Une correction prise après le Lot 5
+détache la ligne de deck de la collection : une carte entièrement jouée en proxy
+n'exige plus d'entrée de stock (septième révision `f3a91c47b2de`, diagnostic et
+conception dans `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`). Le modèle
+compte **23 tables** et sept révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
@@ -42,11 +45,23 @@ fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
 la base de développement. Vérifier la variable avant toute migration. Cette base n'est
-pas versionnée ; elle a été reconstruite le 2026-09-25 à la révision `b7e41d0c9a52`
-(la tête), avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits),
-aucune entrée de stock et aucun deck. Une base plus ancienne se remet à niveau par ce
-même `upgrade head` ; une base repartie de zéro se reconstruit par `upgrade head` suivi
-de `uv run python scripts/import_catalog.py`.
+pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
+avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
+le même jour à `f3a91c47b2de` (la tête). Elle contient aujourd'hui huit entrées de
+stock, le deck « Banu Princes » et aucune ligne de composition. Une base plus ancienne
+se remet à niveau par ce même `upgrade head` ; une base repartie de zéro se reconstruit
+par `upgrade head` suivi de `uv run python scripts/import_catalog.py`.
+
+**Piège vécu (2026-09-29)** : les deux migrations du Lot 4 (`6c9a178b7a1d`,
+`b7e41d0c9a52`) ne convertissent aucune donnée et refusent de s'exécuter
+(`RuntimeError`) si `card_copy`, `deck_card` ou `deleted_deck_card` contiennent une
+ligne (D3, `docs/lot4-plan-inventaire.md`). Une base locale restée en retard sur ces
+deux révisions à cause d'une ligne de test oubliée bloque du même coup l'import du
+catalogue : le code sur `main` lit `card_set.is_placeholder` (ajoutée par
+`b7e41d0c9a52`), absente tant que la base n'est pas à la tête, d'où une
+`OperationalError: no such column: card_set.is_placeholder` sur
+`scripts/import_catalog.py`. Remède : vider les trois tables (ou repartir d'une base
+neuve), puis `upgrade head` avant de relancer l'import.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
 `/extensions`, `/sync` — 24 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
@@ -130,7 +145,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff-mobile/, Lot 5)
+│                               design (ex. design-handoff/, Lot 5 et 5bis)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -163,6 +178,11 @@ ici comme repères, pas comme vérités arrêtées.
   (`proxy_allowed`), car elle dépend du tournoi auquel le deck est destiné et non de
   la carte ou de la collection ; le nombre de proxies reste porté par chaque ligne
   (`proxy_quantity`), avec `quantity - proxy_quantity` exemplaires réels consommés.
+  Une ligne qui n'en consomme aucun (tout en proxy) ne demande rien à la collection :
+  elle n'exige ni entrée de stock ni acquisition, seulement un deck qui autorise les
+  proxies. Un deck intégralement joué en proxy est donc légal et activable sans
+  posséder une seule carte — conséquence assumée, pas effet de bord (la légalité ne
+  regarde que la composition et le catalogue).
 - **Partie** : en général **4 à 5 joueurs** (5 = table idéale). Table directionnelle
   (proie / prédateur) → siège éventuellement pertinent à enregistrer.
 - **Score** : **1 VP** par joueur évincé ; **+1 VP** au dernier survivant ; **+0.5 VP**
@@ -205,12 +225,20 @@ Le Lot 4 en ajoute deux, sans table nouvelle : `6c9a178b7a1d` (`proxy_allowed` p
 par le mode batch et ne convertissent aucune donnée : montée comme descente refusent de
 s'exécuter (`RuntimeError`, avant toute modification) si `card_copy`, `deck_card` ou
 `deleted_deck_card` contiennent des lignes (§11, Lot 4).
+Une septième révision, `f3a91c47b2de`, détache `deck_card` de la collection : ses clés
+étrangères visent `card_printing` (carte + extension) et `language` au lieu de
+`card_copy`. Elle ne convertit aucune donnée et n'a pas de garde de vacuité — toute
+ligne en place satisfaisait déjà les nouvelles contraintes —, donc elle **s'applique sur
+une base peuplée**, et sa montée se rend même hors ligne
+(`upgrade b7e41d0c9a52:f3a91c47b2de --sql`). Sa descente, elle, refuse de tourner
+(`RuntimeError`) s'il existe une ligne tout-proxy sans entrée de collection : c'est
+exactement ce que la clé étrangère restaurée interdirait.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK et sa FK vers `card_copy` ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien) ; `deck.proxy_allowed` porte l'autorisation de proxy |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy |
 | Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
@@ -432,12 +460,17 @@ Tranchées (contexte VtES, avant Lot 1) :
    (krcg `fr` → table `language` `FR`). Non importés par choix : `rulings`,
    `name_variants`, `variants`, `legal`, `formats`.
 
-2. **Une carte doit être en collection pour être ajoutée à un deck** — la
-  composition d'un deck s'appuie donc sur le stock possédé, pas sur une liste
-  logique déconnectée. Le deck porte `proxy_allowed`, une autorisation globale
-  indiquant qu'il est compatible avec un tournoi acceptant les proxies ; cette
-  propriété ne décrit ni la carte ni l'entrée de collection. Le nombre de
-  proxies reste porté par chaque ligne (`proxy_quantity`).
+2. **Une carte doit être en collection pour qu'un deck en consomme un exemplaire
+  réel** — la composition d'un deck s'appuie donc sur le stock possédé, pas sur
+  une liste logique déconnectée. Formulation d'origine, plus stricte (« pour être
+  ajoutée à un deck »), corrigée après le Lot 5 : un deck qui autorise les proxies
+  peut jouer une carte qu'on ne possède pas, et l'exiger quand même rendait la
+  ligne tout-proxy impossible à écrire
+  (`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`). Le deck porte
+  `proxy_allowed`, une autorisation globale indiquant qu'il est compatible avec un
+  tournoi acceptant les proxies ; cette propriété ne décrit ni la carte ni l'entrée
+  de collection. Le nombre de proxies reste porté par chaque ligne
+  (`proxy_quantity`).
    Langues possibles pour une carte : **FR, ES, EN, ou autre** — les traductions
    officielles disponibles (krcg / vekn.net) sont fr et es ; « autre » reste
    possible pour les exemplaires possédés, d'où une table `language` ouverte.
@@ -448,9 +481,11 @@ Tranchées (contexte VtES, avant Lot 1) :
    l'autre.
 
 *Résolu au Lot 1* : le modèle §6 a été révisé en conséquence — catalogue
-(`card`, sans langue) distinct des exemplaires possédés (`card_copy`, par langue,
-), et composition de deck allouée depuis ces exemplaires
-(`deck_card`, FK composite vers `card_copy`).
+(`card`, sans langue) distinct des exemplaires possédés (`card_copy`, par langue),
+et composition de deck allouée depuis ces exemplaires. La clé étrangère de
+`deck_card` vers `card_copy`, qui inscrivait l'allocation dans le schéma, a été
+remplacée après le Lot 5 par une clé vers `card_printing` : c'est désormais le
+service qui exige une entrée quand la ligne consomme du réel (`f3a91c47b2de`).
 
 Tranchées pendant le Lot 1 :
 
@@ -682,13 +717,16 @@ Tranchées pendant le Lot 4 (plan et justification complète dans
   `card_printing` sert de dernier filet ; avant elle, le service rend un 404 (ou
   `not_found` par `/sync`), comme pour une langue inconnue. Un exemplaire dont on ignore
   l'extension se range sous une impression plausible, corrigée plus tard.
-- **Une carte jouée en proxy entre sous sa dernière version (D2a).** Pour une entrée à
-  0 exemplaire, l'UI prend `latest_card_set_id`, calculé une seule fois côté serveur
-  (`services/catalog.py`) : date la plus récente des occurrences de l'impression, à
-  défaut celle de l'extension, puis extension datée avant extension sans date, puis
-  abréviation par ordre alphabétique. Le miroir local stocke la valeur au lieu de la
-  recalculer, pour ne pas ouvrir d'écart entre en ligne et hors ligne comme celui de
-  `fold_text`. C'est une valeur par défaut, pas une contrainte.
+- **Une carte jouée en proxy entre sous sa dernière version (D2a).** L'UI prend
+  `latest_card_set_id`, calculé une seule fois côté serveur (`services/catalog.py`) :
+  date la plus récente des occurrences de l'impression, à défaut celle de l'extension,
+  puis extension datée avant extension sans date, puis abréviation par ordre
+  alphabétique. Le miroir local stocke la valeur au lieu de la recalculer, pour ne pas
+  ouvrir d'écart entre en ligne et hors ligne comme celui de `fold_text`. C'est une
+  valeur par défaut, pas une contrainte. La justification d'origine parlait d'une entrée
+  de collection à 0 exemplaire : depuis `f3a91c47b2de`, une ligne tout-proxy n'en crée
+  aucune, et c'est la **ligne de deck** qui a besoin de cette extension par défaut —
+  l'extension reste dans sa clé, il faut bien en choisir une.
 - **Extension tampon pour une carte sans impression (D2b, D2c).** L'import la crée au
   besoin (`is_placeholder`), la signale dans son rapport et en avertissement sans échouer,
   et la retire au rejeu une fois krcg corrigé si aucune entrée de stock ne l'utilise. C'est
@@ -723,7 +761,8 @@ Limites connues à la clôture du Lot 4 :
   tests.
 
 Tranchées pendant le Lot 5 (plan dans `docs/lot5-plan-design.md`, handoff mobile
-« 1b » dans `docs/design-handoff-mobile/`) :
+« 1b » dans `docs/design-handoff/MOBILE.md`, `docs/design-handoff-mobile/` avant le
+renommage de l'étape 15 du Lot 5bis) :
 
 - **Acquisition depuis un deck (Lot 4b, pris en cours de lot).** Une ligne de deck porte
   un nombre de copies et un compteur « déjà possédées » ; le reste est en proxy. À
@@ -733,8 +772,9 @@ Tranchées pendant le Lot 5 (plan dans `docs/lot5-plan-design.md`, handoff mobil
   (`acquired_quantity`). Pas de composition dans `DeckCreate` : `deck.create` puis un
   `deck_card.upsert` par ligne dans le même lot, reliés par `client_ref`. Pas de nouveau
   type d'opération `/sync` ni de migration. Le client ne refuse pas une carte absente du
-  stock sans acquisition : c'est le serveur qui rend `conflict`. Brief dans
-  `docs/lot4b-acquisition-depuis-deck.md`.
+  stock sans acquisition : c'est le serveur qui tranche — `conflict` s'il manque des
+  exemplaires réels, accepté si la ligne est tout en proxy (correction A1 ci-dessous).
+  Brief dans `docs/lot4b-acquisition-depuis-deck.md`.
 - **Picker fusionné, une carte à la fois.** `CardPicker` et l'ancien formulaire d'ajout
   limité au stock ne forment plus qu'un écran (`AddDeckCardForm`), qui cherche dans le
   catalogue entier. Le « panier » multi-cartes du handoff n'est pas repris.
@@ -775,6 +815,68 @@ Limites connues à la clôture du Lot 5 :
 - **La suite Playwright tourne en `Desktop Chrome` (1280 × 720)**, alors que l'UI livrée
   est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
   fixe une largeur mobile explicite avant d'en poser un.
+
+Tranchées à l'ouverture du Lot 5bis (2026-09-29), avant toute implémentation :
+
+- **Le Lot 5bis ne conçoit pas d'équivalent mobile pour ce qu'il introduit.** S'il livre
+  un écran, une action ou une interaction propre au bureau sans contrepartie sous
+  1024 px, il livre et continue : il n'a ni à ouvrir un chantier de design mobile en
+  cours de route, ni à se demander à chaque écran si le mobile suit. Rattraper ces écarts
+  est le rôle d'un lot dédié, le **Lot 5c** (`docs/lot5c-plan-design.md`), qui audite la
+  symétrie fonctionnelle une fois les deux passes livrées, **dans les deux sens** :
+  bureau vers mobile, et mobile vers bureau — le handoff bureau ne décrivant que ce qui
+  change au-delà de 1024 px, la passe peut laisser tomber sans le voir une action que le
+  mobile propose aujourd'hui.
+- **Trois verdicts possibles au Lot 5c, pas quatre** : porté, hors périmètre avec
+  justification écrite, ou renvoyé à un autre lot. Un manque présent des **deux** côtés
+  (l'écran Chercher, les données absentes du miroir : disciplines, types, coût, image par
+  impression) n'est pas une asymétrie et ne relève pas de ce lot.
+- **Ordre proposé : Lot 5bis, puis Lot 5c, puis Chercher.** Un écart de symétrie se
+  corrige plus facilement tant que les deux passes sont fraîches, et Chercher, écran neuf
+  écrit après le breakpoint, peut naître directement dans les deux dispositions au lieu
+  d'être porté ensuite. Corollaire assumé : le lot Chercher livre ses deux dispositions
+  lui-même, le Lot 5c étant un rattrapage ponctuel et non une habitude.
+
+Tranchées en correction, hors lot (2026-09-29) — **la ligne de deck se détache de la
+collection**. Diagnostic, pistes écartées et conception dans
+`docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md` (piste « A1 ») ; l'essentiel
+tient en quelques points :
+
+- **Le défaut.** Une ligne de deck entièrement jouée en proxy, pour une carte absente de
+  la collection, était **impossible à écrire** : sans `acquired_quantity`, le serveur
+  répondait « la carte n'est pas en collection » ; avec, la valeur dépassait la borne des
+  exemplaires réels ajoutés, qui vaut zéro pour une telle ligne. Aucune valeur du champ ne
+  passait. Constaté sur 19 opérations refusées du deck « Banu Princes ».
+- **La correction.** `deck_card` ne pointe plus `card_copy` : ses clés étrangères visent
+  `card_printing` (carte + extension, la même contrainte que porte `card_copy`, D2) et
+  `language`. Une ligne qui ne consomme aucun exemplaire réel ne crée et n'exige donc
+  aucune entrée de collection. `DeletedDeckCard` faisait déjà exactement cela depuis le
+  Lot 2 ; le patron était écrit, il restait à l'appliquer aux lignes vivantes.
+- **Piste écartée : l'entrée fantôme à `quantity_owned = 0`.** Elle aurait fait
+  apparaître en collection une carte qu'on ne possède pas, du seul fait qu'un deck la
+  joue en proxy. Écartée aussi l'idée de deux triggers SQLite reproduisant une clé
+  étrangère conditionnelle : du DDL invisible à SQLAlchemy et à l'autogénération
+  Alembic, donc une dette de portage vers Barrin pour un risque déjà couvert.
+- **Ce que la comptabilité du stock y perd, et ce qu'elle n'y perd pas.** L'invariant du
+  §6 tient sans modification : une ligne tout-proxy compte pour 0, et les sommes traitent
+  déjà une clé absente comme une somme vide. En revanche la base ne garantit plus qu'une
+  ligne de deck référence un exemplaire existant — ce sont les services qui le font. La
+  course « suppression d'une entrée pendant l'ajout d'une ligne réelle » devient possible
+  en écriture directe, ce qui élargit une brèche déjà documentée (§11 Lot 3, avec son
+  `xfail`) plutôt que d'en ouvrir une nouvelle ; elle reste fermée pour les lots `/sync`
+  par le verrou d'écriture.
+- **Deux conséquences à connaître.** `deck_card` devient un second endroit où vivent des
+  triplets carte × langue × extension sans entrée de collection, à côté de
+  `deleted_deck_card`. Et il n'existe plus de vue transversale « les cartes que je joue en
+  proxy » : plus aucune ligne de collection à filtrer pour ça, il faudrait une lecture
+  dérivée si le besoin se confirme.
+- **Migration.** Septième révision, `f3a91c47b2de`, sur `deck_card` seule : aucune
+  conversion, aucune garde de vacuité, applicable sur une base peuplée (§6). La table est
+  renommée puis recréée à la main plutôt que passée au mode batch d'Alembic : celui-ci
+  recopie les contraintes dans un ordre qui change d'un processus à l'autre, ce qui
+  rendrait un aller-retour comparé au texte près vert une fois sur deux (mesuré). Effet
+  de bord bienvenu : la montée se rend hors ligne, ce qu'aucune révision depuis la
+  première ne savait faire.
 
 ---
 
@@ -831,7 +933,7 @@ Limites connues à la clôture du Lot 5 :
    ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
    import rejoué sans doublon ni changement d'identifiant.
 6. **Lot 5 — Passe design mobile** — *livré, en attente de validation manuelle.* Refonte
-   de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff-mobile/`) :
+   de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff/MOBILE.md`) :
    10 écrans phone-first plus les états vides, de chargement et introuvable, sans
    changement de comportement (mêmes routes, mêmes données, même sémantique offline).
    S'y ajoute l'acquisition depuis un deck (Lot 4b, back `acquired_quantity` et couche
@@ -844,11 +946,20 @@ Limites connues à la clôture du Lot 5 :
    (panneau Application, SW *activated*, coupure réseau réelle, invite d'installation
    sur mobile). Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
-   `docs/design-handoff-mobile/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
+   `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.
+   Un **Lot 5c** (plan `docs/lot5c-plan-design.md`) suit les deux passes : il audite la
+   **symétrie fonctionnelle** entre mobile et bureau écran par écran, sur les deux
+   handoffs et les deux implémentations, puis rend pour chaque écart un verdict écrit —
+   porté dans le mode qui le manque, hors périmètre avec justification, ou renvoyé à un
+   autre lot. Il existe parce que le Lot 5bis n'a pas la charge de concevoir du mobile
+   pour ce qu'il introduit en chemin (§11) ; il ne construit aucune fonctionnalité
+   nouvelle et ne rouvre pas les manques présents des deux côtés.
    Un lot **Chercher** (écran de recherche dans le catalogue, hors ligne complet, brief
-   dans `docs/lot-chercher-brief.md`) est prévu après le Lot 5bis. Sa place par rapport
-   aux Lots 6 à 11 reste à fixer.
+   dans `docs/lot-chercher-brief.md`) vient ensuite, et livre ses deux dispositions
+   lui-même. L'ordre proposé est donc Lot 5bis, Lot 5c, Chercher, puis les Lots 6 à 11,
+   dont la numérotation ne bouge pas ; la place exacte de Chercher par rapport aux
+   Lots 6 à 11 reste à confirmer avec l'utilisateur.
 7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
   introduisant un compte et l'isolation des données par utilisateur. Prévoir les
   parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,

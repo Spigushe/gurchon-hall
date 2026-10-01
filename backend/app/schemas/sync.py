@@ -290,11 +290,13 @@ class DeckCardUpsertOperation(SyncOperationBase):
     """Place une carte dans un deck, ou remplace sa ligne.
 
     `data` porte l'état complet voulu de la ligne (`quantity`,
-    `proxy_quantity`). La carte doit être en collection dans cette langue et
-    cette extension, les exemplaires disponibles doivent suffire, et un
-    `proxy_quantity` non nul exige un deck qui autorise les proxies : sinon
-    `conflict`, comme en ligne. Une extension où la carte n'a pas été imprimée
-    est refusée (`not_found`).
+    `proxy_quantity`). Les exemplaires réels que la ligne consomme
+    (`quantity - proxy_quantity`) doivent être disponibles en collection dans
+    cette langue et cette extension, et un `proxy_quantity` non nul exige un
+    deck qui autorise les proxies : sinon `conflict`, comme en ligne. Une ligne
+    entièrement jouée en proxy ne consomme rien et n'exige aucune entrée de
+    collection. Une extension où la carte n'a pas été imprimée est refusée
+    (`not_found`).
 
     Lot 4b : `data.acquired_quantity` fait entrer des exemplaires physiques en
     collection avec la ligne (entrée créée ou incrémentée, sous le même point
