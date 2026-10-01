@@ -34,14 +34,14 @@ compte **23 tables** et sept révisions Alembic. L'arborescence du §4 existe, a
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1597 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (1609 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
 à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 364 tests),
-`npm run test:e2e` (Playwright, 47 tests sur quatre projets : à 390 × 844, 9 dans
-`chromium` et 21 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 366 tests sur 25 fichiers),
+`npm run test:e2e` (Playwright, 48 tests sur quatre projets : à 390 × 844, 9 dans
+`chromium` et 22 contre un vrai back sur base éphémère — projet `real-backend`, cf.
 `frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 14 dans
 `desktop-real-backend`),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
@@ -896,8 +896,34 @@ Limites connues à la clôture du Lot 5c :
 - **Un échec vitest isolé**, non reproduit en huit exécutions suivantes, n'a pas été
   attribué à un test. À identifier s'il revient (relancer avec la sortie complète).
 - **Refus « Deck inconnu »** observé après la suppression d'un deck qui avait des lignes
-  en attente : hors du Lot 5c, ouvert pour pwa-offline sans investigation dans
-  `docs/issues/2026-10-01-deck-inconnu-apres-suppression.md`.
+  en attente : hors du Lot 5c, ouvert pour pwa-offline dans
+  `docs/issues/2026-10-01-deck-inconnu-apres-suppression.md`. *Soldé le 2026-10-01, cf.
+  l'entrée « Tranchées en correction, hors lot (2026-10-01) » ci-dessous.*
+
+Tranchées en correction, hors lot (2026-10-01) — **un refus visant un deck supprimé
+depuis**. Diagnostic et scénario dans
+`docs/issues/2026-10-01-deck-inconnu-apres-suppression.md` :
+
+- **Le refus était légitime, le libellé fautif.** La ligne avait été refusée pour une
+  raison sans lien avec la suppression (exemplaires insuffisants, un autre appareil
+  ayant réservé l'exemplaire pendant la coupure). Le lot part dans l'ordre de saisie,
+  sans réordonnancement ni fusion : les lignes valides passent avant la suppression. Un
+  renvoi après la suppression est refusé en `conflict`, comme `POST /decks/{id}/cartes`
+  sur un deck supprimé l'aurait été en ligne (409). Aucun changement de contrat ni de
+  backend.
+- **« Deck deck inconnu » était un défaut d'assemblage côté client**
+  (`frontend/src/features/sync/useOperationLabels.ts`) : un deck créé hors ligne, puis
+  supprimé, n'est plus dans le miroir et sa création, appliquée, n'est plus en file ; il
+  ne reste qu'une `client_ref`, et le repli « deck inconnu » était préfixé par « Deck ».
+  Le libellé devient « Deck introuvable localement (supprimé ?) : … ». Le miroir ne
+  garde pas les decks supprimés, donc le nom exact n'est pas retrouvable.
+- **Pas de purge de la file à la suppression d'un deck.** Retirer les lignes d'un deck
+  qu'on supprime réécrirait la file et contredirait « la file fait foi » ; c'est inutile
+  de surcroît, puisque l'ordre de saisie fait déjà passer les lignes valides. Une ligne
+  refusée se règle par « Abandonner » sur l'écran Synchronisation.
+- **Piste non retenue, possible plus tard** : masquer « Renvoyer tel quel » quand le deck
+  visé est connu comme supprimé. Le renvoi est inoffensif (refus de même nature), donc
+  pas prioritaire.
 
 Tranchées en correction, hors lot (2026-09-29) — **la ligne de deck se détache de la
 collection**. Diagnostic, pistes écartées et conception dans

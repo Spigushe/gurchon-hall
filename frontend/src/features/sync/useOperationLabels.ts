@@ -46,20 +46,24 @@ export function useOperationDescriber(entries: readonly Entry[]) {
   return useCallback(
     (operation: VtesOperation): string => {
       const card = (id: number) => quote(cardNames?.get(id) ?? `carte n° ${id}`);
+      // Groupe nominal complet, « deck » compris : un deck absent des lectures
+      // locales (supprimé depuis, sa création appliquée n'étant plus en file) n'a
+      // ni nom ni numéro à citer, et « Deck deck inconnu » doublait le mot.
       const deck = (ref: { deck_id?: number | null; client_ref?: string | null }) => {
         const known = decks?.find((item) =>
           ref.deck_id != null ? item.id === ref.deck_id : item.clientRef === ref.client_ref,
         );
-        if (known) return quote(known.name);
+        if (known) return `deck ${quote(known.name)}`;
         const refused = entries.find(
           (entry) =>
             entry.operation.type === "deck.create" && entry.operation.client_ref === ref.client_ref,
         );
         if (refused && refused.operation.type === "deck.create") {
-          return quote(refused.operation.data.name);
+          return `deck ${quote(refused.operation.data.name)}`;
         }
-        return ref.deck_id != null ? `deck n° ${ref.deck_id}` : "deck inconnu";
+        return ref.deck_id != null ? `deck n° ${ref.deck_id}` : "deck introuvable localement (supprimé ?)";
       };
+      const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
       const set = (id: number) => cardSetLabelById(id, cardSets.byId);
       switch (operation.type) {
         case "stock.upsert": {
@@ -81,16 +85,16 @@ export function useOperationDescriber(entries: readonly Entry[]) {
           if (data.proxy_allowed === true) changes.push("autorisation des proxies");
           if (data.proxy_allowed === false) changes.push("interdiction des proxies");
           if (data.archetype !== undefined || data.notes !== undefined) changes.push("informations");
-          return `Deck ${deck(operation.deck)} : ${changes.join(", ") || "modification"}`;
+          return `${sentence(deck(operation.deck))} : ${changes.join(", ") || "modification"}`;
         }
         case "deck.delete":
-          return `Suppression du deck ${deck(operation.deck)}`;
+          return `Suppression du ${deck(operation.deck)}`;
         case "deck_card.upsert": {
           const { card_id, language_code, card_set_id, quantity, proxy_quantity = 0 } = operation.data;
-          return `Deck ${deck(operation.deck)} : ${quantity} × ${card(card_id)} (${language_code}, ${set(card_set_id)})${proxy_quantity > 0 ? `, dont ${proxy_quantity} en proxy` : ""}`;
+          return `${sentence(deck(operation.deck))} : ${quantity} × ${card(card_id)} (${language_code}, ${set(card_set_id)})${proxy_quantity > 0 ? `, dont ${proxy_quantity} en proxy` : ""}`;
         }
         case "deck_card.delete":
-          return `Deck ${deck(operation.deck)} : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
+          return `${sentence(deck(operation.deck))} : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
         case "bundle.deposit":
           return `Versement du produit n° ${operation.bundle_id} (${operation.data.language_code}, ${plural(operation.data.count ?? 1, "exemplaire")})`;
       }

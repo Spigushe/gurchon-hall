@@ -142,6 +142,50 @@ describe("opérations refusées", () => {
     expect(screen.getByTestId("sync-status")).toHaveAttribute("data-pending", "0");
   });
 
+  it("une ligne dont le deck n'est plus connu localement ne double pas le mot « deck »", async () => {
+    const app = await renderApp({ online: false, catalog: true });
+    // Référence jamais créée ici : ni deck local, ni création en file (cas d'un deck
+    // supprimé depuis, dont la création tranchée a quitté la file).
+    await app.runtime.actions.saveDeckCard("ref:00000000-0000-4000-8000-000000000000", {
+      cardId: 2,
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 3,
+    });
+    act(() => setOnline(true));
+    await openSyncPage();
+    await app.settle();
+
+    const item = screen.getByTestId("rejected-operation");
+    await waitFor(() =>
+      expect(within(item).getByTestId("rejected-description")).toHaveTextContent(
+        "Deck introuvable localement (supprimé ?) : 3 × « Œuvre » (EN, TEST — Extension de test)",
+      ),
+    );
+    expect(within(item).getByTestId("rejected-description")).not.toHaveTextContent("deck inconnu");
+  });
+
+  it("un deck désigné par son identifiant, absent du miroir, se cite par « deck n° N » (ligne et suppression)", async () => {
+    const app = await renderApp({ online: false, catalog: true });
+    await app.runtime.actions.saveDeckCard("id:77", { cardId: 2, languageCode: "EN", cardSetId: 9, quantity: 3 });
+    await app.runtime.actions.deleteDeck("id:77");
+    act(() => setOnline(true));
+    await app.settle();
+    await waitFor(() => expect(screen.getByTestId("sync-status")).toHaveAttribute("data-rejected", "2"));
+    act(() => {
+      window.location.hash = hrefFor({ name: "sync" });
+    });
+    await screen.findByTestId("rejected-operations");
+
+    const read = () => screen.getAllByTestId("rejected-description").map((node) => node.textContent ?? "");
+    await waitFor(() => {
+      expect(read()).toContain("Deck n° 77 : 3 × « Œuvre » (EN, TEST — Extension de test)");
+      expect(read()).toContain("Suppression du deck n° 77");
+    });
+    const texts = read();
+    for (const text of texts) expect(text).not.toContain("introuvable localement");
+  });
+
   it("« corriger et renvoyer » crée une nouvelle opération sous une nouvelle clé, à la même place", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
