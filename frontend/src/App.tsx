@@ -126,7 +126,7 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
 }));
 
 /**
- * Barre haute bureau (≥ 1024px, `docs/design-handoff-mobile/DESKTOP.md`) :
+ * Barre haute bureau (≥ 1024px, `docs/design-handoff/DESKTOP.md`) :
  * remplace visuellement la barre d'onglets basse (masquée par la media query
  * de `index.css`). Les deux composants restent montés en permanence — c'est
  * le CSS qui tranche laquelle s'affiche, pas React — pour ne pas dépendre

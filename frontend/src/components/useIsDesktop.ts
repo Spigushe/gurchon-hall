@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 /**
  * Seuil bureau, identique à celui d'`index.css` (`@media (min-width: 1024px)`)
- * et à `DESKTOP_BREAKPOINT_PX` de `Sheet.tsx` (`docs/design-handoff-mobile/DESKTOP.md`).
+ * et à `DESKTOP_BREAKPOINT_PX` de `Sheet.tsx` (`docs/design-handoff/DESKTOP.md`).
  *
  * Contrairement à `isDesktopViewport` de `Sheet.tsx` (relu une fois, à
  * l'ouverture d'une feuille : un redimensionnement pendant que la feuille est

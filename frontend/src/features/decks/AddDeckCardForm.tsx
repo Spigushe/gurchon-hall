@@ -53,7 +53,7 @@ interface Chosen {
  *
  * Deux présentations d'une **même** logique de champ (état, validation,
  * soumission), choisies par `useIsDesktop()` (Lot 5bis, étape 11,
- * `docs/design-handoff-mobile/DESKTOP.md` « d01 ») :
+ * `docs/design-handoff/DESKTOP.md` « d01 ») :
  * - mobile (< 1024px, inchangé depuis le Lot 5) : écran plein (`Sheet`), une
  *   carte à la fois — le picker se referme dès qu'une carte est choisie
  *   (`CardPicker` démonté, remplacé par la ligne « Carte : … · Changer ») ;

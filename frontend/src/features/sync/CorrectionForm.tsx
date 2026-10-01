@@ -20,7 +20,7 @@ const MAX_INT = 2_147_483_647;
  * file (`outbox.reissue`). L'ancienne opération n'est jamais modifiée.
  *
  * Deux présentations d'une même logique de champ et de soumission, choisies
- * par `useIsDesktop()` (Lot 5bis, étape 12, `docs/design-handoff-mobile/DESKTOP.md`
+ * par `useIsDesktop()` (Lot 5bis, étape 12, `docs/design-handoff/DESKTOP.md`
  * « d06 »), sur le même principe que `AddDeckCardForm` (étape 11) :
  * - mobile (< 1024px, inchangé depuis le Lot 5) : feuille plein écran
  *   (`Sheet`), pied « Renvoyer la correction » + « Annuler » (referme la

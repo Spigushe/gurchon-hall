@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Raccourcis clavier globaux (handoff bureau `docs/design-handoff-mobile/DESKTOP.md`,
+ * Raccourcis clavier globaux (handoff bureau `docs/design-handoff/DESKTOP.md`,
  * section « Style kbd ») : `G` puis `A/C/D/S` navigue, `?` ouvre l'aide, `Échap` ferme un
  * panneau, `⌘↵`/`Ctrl↵` valide un panneau, `/`, `N`, `V` sont des raccourcis simples.
  *

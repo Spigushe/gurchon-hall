@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 /**
  * Rendu visuel d'un raccourci clavier (« G A », « / », « ⌘↵ »…), handoff
- * bureau `docs/design-handoff-mobile/DESKTOP.md` (« Style kbd »). Purement
+ * bureau `docs/design-handoff/DESKTOP.md` (« Style kbd »). Purement
  * visuel à ce stade : l'écoute des touches est portée par
  * `useKeyboardShortcuts`, à venir à l'étape 2 du Lot 5bis.
  *

@@ -33,9 +33,9 @@ import { WEB_PORT as REAL_PORT } from "./tests/e2e-real/support/env";
 // aurait fait basculer ces deux projets en disposition bureau (barre d'onglets basse
 // absente, `nav-home`/`nav-stock`/`nav-decks` à retrouver dans la barre haute) et plus
 // personne n'aurait vérifié la non-régression mobile. 390×844 reprend la taille de
-// repère du handoff mobile « 1b » (`docs/design-handoff-mobile/README.md`, proche d'un
+// repère du handoff mobile « 1b » (`docs/design-handoff/MOBILE.md`, proche d'un
 // iPhone 12/13) ; 1440×900 reprend la référence du handoff bureau
-// (`docs/design-handoff-mobile/DESKTOP.md`).
+// (`docs/design-handoff/DESKTOP.md`).
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 const DESKTOP_VIEWPORT = { width: 1440, height: 900 };
 

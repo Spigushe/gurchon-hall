@@ -6,7 +6,7 @@ import { useVtesOffline, type CardRow } from "../../offline/vtes";
  * Cartes du catalogue (miroir local `db.cards`), par identifiant — variante de
  * `useCardCategoriesById` (`features/decks/useCardCategories.ts`) qui renvoie
  * la ligne entière plutôt que la seule catégorie : la vue tableau bureau de la
- * Collection (Lot 5bis, étape 8, `docs/design-handoff-mobile/DESKTOP.md` « d02 »)
+ * Collection (Lot 5bis, étape 8, `docs/design-handoff/DESKTOP.md` « d02 »)
  * affiche aussi le clan, la capacité et l'image KRCG d'une carte. Les
  * disciplines, le type de bibliothèque et le coût restent hors périmètre
  * (`docs/lot5bis-plan-design.md`, « Ce que ce lot ne touche pas ») : absents du

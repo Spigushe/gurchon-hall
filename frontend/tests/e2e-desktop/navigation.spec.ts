@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Navigation bureau (≥1024px, `docs/design-handoff-mobile/DESKTOP.md`), sans
+ * Navigation bureau (≥1024px, `docs/design-handoff/DESKTOP.md`), sans
  * vrai back : la barre haute et le chord clavier `G` puis une lettre
  * (Lot 5bis, étapes 1 et 2, `docs/lot5bis-plan-design.md`) ne dépendent
  * d'aucune donnée serveur — le catalogue reste absent (miroir local vide),

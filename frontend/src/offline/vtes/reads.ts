@@ -150,7 +150,7 @@ export async function searchCards(db: VtesOfflineDb, query: CardQuery = {}): Pro
  * Nombre de decks (tous états, decks vivants seulement — un deck supprimé ne
  * figure déjà plus dans la projection) utilisant chaque carte, tous langue et
  * extension confondues. Calcul strictement local (Lot 5bis, étape 8, colonne
- * « Decks » de la vue tableau de la Collection, `docs/design-handoff-mobile/DESKTOP.md`
+ * « Decks » de la vue tableau de la Collection, `docs/design-handoff/DESKTOP.md`
  * « d02 ») : lu sur la même projection que le reste de l'UI (instantané plus
  * file), donc une carte tout juste ajoutée à un deck hors ligne compte
  * immédiatement, sans attendre la synchronisation.

@@ -130,7 +130,7 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
  * boutons explicites sous la composition, comme au Lot 3 (CLAUDE.md § 11, Lot 5).
  * Seule l'action principale (« Ajouter des cartes ») est une pilule flottante.
  *
- * Bureau (≥ 1024px, Lot 5bis étape 11, `docs/design-handoff-mobile/DESKTOP.md`
+ * Bureau (≥ 1024px, Lot 5bis étape 11, `docs/design-handoff/DESKTOP.md`
  * « d01 ») : même page, même logique, deux différences de présentation
  * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 ») avec
  * le verdict compact (`DeckLegalitySummary`, factorisée pour ça) et un bouton

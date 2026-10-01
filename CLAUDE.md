@@ -145,7 +145,7 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff-mobile/, Lot 5)
+│                               design (ex. design-handoff/, Lot 5 et 5bis)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -761,7 +761,8 @@ Limites connues à la clôture du Lot 4 :
   tests.
 
 Tranchées pendant le Lot 5 (plan dans `docs/lot5-plan-design.md`, handoff mobile
-« 1b » dans `docs/design-handoff-mobile/`) :
+« 1b » dans `docs/design-handoff/MOBILE.md`, `docs/design-handoff-mobile/` avant le
+renommage de l'étape 15 du Lot 5bis) :
 
 - **Acquisition depuis un deck (Lot 4b, pris en cours de lot).** Une ligne de deck porte
   un nombre de copies et un compteur « déjà possédées » ; le reste est en proxy. À
@@ -932,7 +933,7 @@ tient en quelques points :
    ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
    import rejoué sans doublon ni changement d'identifiant.
 6. **Lot 5 — Passe design mobile** — *livré, en attente de validation manuelle.* Refonte
-   de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff-mobile/`) :
+   de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff/MOBILE.md`) :
    10 écrans phone-first plus les états vides, de chargement et introuvable, sans
    changement de comportement (mêmes routes, mêmes données, même sémantique offline).
    S'y ajoute l'acquisition depuis un deck (Lot 4b, back `acquired_quantity` et couche
@@ -945,7 +946,7 @@ tient en quelques points :
    (panneau Application, SW *activated*, coupure réseau réelle, invite d'installation
    sur mobile). Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
-   `docs/design-handoff-mobile/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
+   `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.
    Un **Lot 5c** (plan `docs/lot5c-plan-design.md`) suit les deux passes : il audite la
    **symétrie fonctionnelle** entre mobile et bureau écran par écran, sur les deux

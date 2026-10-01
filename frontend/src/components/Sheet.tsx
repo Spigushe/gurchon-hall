@@ -7,7 +7,7 @@ import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 /**
  * Feuille plein écran ou écran poussé (mobile, Lot 5) ; à partir de 1024px,
  * le même composant devient le panneau latéral bureau (Lot 5bis, étape 3,
- * `docs/design-handoff-mobile/DESKTOP.md` § « Panneau latéral ») : la
+ * `docs/design-handoff/DESKTOP.md` § « Panneau latéral ») : la
  * disposition est entièrement tranchée par la media query dans `index.css`
  * (`.sheet` sous `@media (min-width: 1024px)`), pas par un second composant —
  * principe « un seul composant » du plan du Lot 5bis.

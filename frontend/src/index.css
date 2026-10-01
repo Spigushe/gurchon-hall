@@ -1,7 +1,7 @@
 /*
  * Nocturne — feuille de tokens et de classes pour Gurchon Hall (Lot 5).
- * Valeurs reprises de `docs/design-handoff-mobile/nocturne/styles.css` et du
- * handoff `docs/design-handoff-mobile/README.md`. Système exclusivement sombre
+ * Valeurs reprises de `docs/design-handoff/nocturne/styles.css` et du
+ * handoff `docs/design-handoff/MOBILE.md`. Système exclusivement sombre
  * (décision du lot, CLAUDE.md §11) : pas de `color-scheme: light dark`, pas de
  * bloc `prefers-color-scheme`.
  */
@@ -57,7 +57,7 @@
   --page-max-width: 560px;
   --page-padding: 26px;
 
-  /* Bureau (≥ 1024px, Lot 5bis) : `docs/design-handoff-mobile/DESKTOP.md`. */
+  /* Bureau (≥ 1024px, Lot 5bis) : `docs/design-handoff/DESKTOP.md`. */
   --topbar-height: 56px;
   --page-max-width-desktop: 1200px;
   --page-padding-desktop: 32px;

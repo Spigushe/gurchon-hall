@@ -1,5 +1,11 @@
 # Lot 5bis — passe design desktop Nocturne : plan d'implémentation
 
+> **Chemin renommé à l'étape 15** : ce plan a été écrit et suivi pendant tout le lot en
+> citant `docs/design-handoff-mobile/`, chemin réel jusqu'à l'étape 15. Ce dossier
+> s'appelle maintenant `docs/design-handoff/` (`README.md` + `MOBILE.md` + `DESKTOP.md`,
+> cf. « Étape 15 » ci-dessous) ; le reste de ce document n'a pas été réécrit pour suivre
+> le renommage, comme `docs/lot5-plan-design.md` avant lui — c'est un document d'époque.
+
 Brief de mise en œuvre du handoff `docs/design-handoff-mobile/DESKTOP.md` (direction
 « 3a », système Nocturne), écrit avant toute implémentation, sur le même principe que
 `docs/lot3-sync-contrat.md` et `docs/lot5-plan-design.md` : il découpe le travail, dit

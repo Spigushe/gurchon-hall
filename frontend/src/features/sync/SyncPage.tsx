@@ -65,7 +65,7 @@ function PendingOperationsList() {
  * Détail de la synchronisation : état de la file, action manuelle, et
  * opérations refusées (déplacées ici depuis la coquille, Lot 5).
  *
- * Bureau (≥ 1024px, Lot 5bis étape 12, `docs/design-handoff-mobile/DESKTOP.md`
+ * Bureau (≥ 1024px, Lot 5bis étape 12, `docs/design-handoff/DESKTOP.md`
  * « d06 ») : grille deux colonnes (`sync-columns`, transparente en mobile
  * comme `decks-grid`, `DecksPage.tsx` étape 6) — à gauche l'état, le bouton
  * « Synchroniser maintenant » (toujours visible, désactivé hors ligne ou sans

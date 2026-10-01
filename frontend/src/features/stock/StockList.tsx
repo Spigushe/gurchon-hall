@@ -170,7 +170,7 @@ function sortValue(
 
 /**
  * Vue tableau bureau de la Collection (Lot 5bis, étape 8 ;
- * `docs/design-handoff-mobile/DESKTOP.md` « d02 »).
+ * `docs/design-handoff/DESKTOP.md` « d02 »).
  *
  * - **Tri** : état local (colonne + direction), appliqué sur les `entries`
  *   déjà lues localement — aucun second appel, la lecture reste

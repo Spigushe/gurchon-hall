@@ -1,6 +1,6 @@
 # Handoff — vue bureau (direction « 3a », centrée)
 
-Complète `README.md` (mobile, direction 1b). Mêmes tokens Nocturne, même ton, même copie
+Complète `MOBILE.md` (mobile, direction 1b). Mêmes tokens Nocturne, même ton, même copie
 française, mêmes hooks/données. Ce document décrit uniquement ce qui change à partir de
 **≥ 1024 px** de large. Référence : 1440 × 900. Fidélité : **haute**.
 
@@ -8,7 +8,7 @@ Fichiers : `Gurchon Hall Bureau.dc.html` (section **3a** ; ignorer 3b, écartée
 `TopBar.dc.html` (barre haute), `screenshots/desktop/d01…d09.png`.
 
 ## Breakpoint et gabarit
-- `< 1024px` : layout mobile du README (barre d'onglets en bas).
+- `< 1024px` : layout mobile de `MOBILE.md` (barre d'onglets en bas).
 - `≥ 1024px` : barre haute + colonne de contenu **max-width 1200px centrée**,
   padding vertical 28px (48px sur Atelier / États). En dessous de 1264px, padding
   horizontal 32px.
@@ -126,6 +126,6 @@ fond `--color-neutral-900` pendant le chargement ; hors ligne, masquer l'aperçu
 précacher toutes les images). Ajouter `static.krcg.org` à la CSP `img-src`.
 
 ## Fichiers du repo concernés
-Mêmes fichiers que le README mobile, plus : `App.tsx` (barre haute + breakpoint),
+Mêmes fichiers que `MOBILE.md`, plus : `App.tsx` (barre haute + breakpoint),
 nouveau `features/sync/SyncPage.tsx` (d06), un hook `useKeyboardShortcuts` partagé,
 un composant `SidePanel` partagé (d03, d05, d07), un composant `CardImage` (KRCG).

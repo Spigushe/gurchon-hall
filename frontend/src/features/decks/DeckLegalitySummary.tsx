@@ -7,7 +7,7 @@ import { useDeckLegality } from "./useDeckLegality";
 /**
  * Verdict de légalité + quatre chiffres (crypte, bibliothèque, groupes,
  * cartes bannies), factorisés pour être partagés par l'aperçu maître/détail
- * des Decks (Lot 5bis, étape 6, `docs/design-handoff-mobile/DESKTOP.md`
+ * des Decks (Lot 5bis, étape 6, `docs/design-handoff/DESKTOP.md`
  * « d04 ») et par le futur en-tête du Deckbuilder (étape 11) : les deux
  * écrans doivent afficher le même verdict, lu en ligne
  * (`GET /decks/{id}/legalite`, `useDeckLegality`), avec le même repli hors

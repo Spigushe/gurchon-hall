@@ -4,7 +4,7 @@ import { goToDecksDesktop, goToSyncDesktop, openAppDesktop } from "./support/nav
 
 /**
  * Synchronisation bureau à deux colonnes (Lot 5bis, étape 12,
- * `docs/design-handoff-mobile/DESKTOP.md` « d06 ») : la liste « Refusées »
+ * `docs/design-handoff/DESKTOP.md` « d06 ») : la liste « Refusées »
  * devient sélectionnable, et la correction de l'entrée choisie s'affiche dans
  * le panneau de droite (`sync-detail`), sans jamais ouvrir de feuille. Deux
  * refus distincts (deux decks archivés pendant que l'appareil est hors ligne,

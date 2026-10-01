@@ -4,7 +4,7 @@ import { goToDecksDesktop, openAppDesktop } from "./support/nav";
 
 /**
  * Deckbuilder bureau à deux colonnes (Lot 5bis, étape 11,
- * `docs/design-handoff-mobile/DESKTOP.md` « d01 ») : le picker fusionné reste
+ * `docs/design-handoff/DESKTOP.md` « d01 ») : le picker fusionné reste
  * **toujours visible** dans la colonne de droite (`deck-builder-picker`),
  * sans jamais passer par la feuille plein écran du mobile
  * (`deck-card-form-sheet`) — c'est la seule différence de comportement avec
