@@ -137,10 +137,10 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
  * « Recalculer » (kbd `R`) à droite, et la composition rejoint le picker
  * toujours visible d'`AddDeckCardForm` dans une grille à deux colonnes
  * (`deck-builder-columns`) au lieu de la pilule flottante + feuille pleine
- * du mobile. `DeckLegalityPanel` (verdict complet, `issues` compris) reste la
- * vue mobile uniquement : le handoff bureau ne demande que les quatre chiffres
- * compacts dans l'en-tête, pas le détail complet (Lot 5c auditera cet écart
- * si besoin, CLAUDE.md § 11 Lot 5bis).
+ * du mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
+ * bureau, le résumé de l'en-tête porte aussi le détail (`detailed`, Lot 5c
+ * étape 1 : motifs, cartes bannies, alertes), sur la même lecture unique du
+ * verdict.
  */
 function DeckView({ deck }: { deck: LocalDeck }) {
   const { actions } = useVtesOffline();
@@ -197,7 +197,12 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             </p>
           </div>
           <div className="deck-builder-header__legality">
-            <DeckLegalitySummary deck={deck} lines={lines} refreshToken={legalityRefreshToken} />
+            <DeckLegalitySummary
+              deck={deck}
+              lines={lines}
+              refreshToken={legalityRefreshToken}
+              detailed
+            />
             <button
               type="button"
               className="btn btn-secondary"

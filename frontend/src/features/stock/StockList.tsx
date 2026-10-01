@@ -4,8 +4,14 @@ import { CardImage } from "../../components/CardImage";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
-import { CATEGORY_LABELS, cardSetLabelById, stockEntryLabel } from "../../labels";
-import { useDeckCountByCardId, useVtesOffline, type LocalStockEntry } from "../../offline/vtes";
+import { CATEGORY_LABELS, cardSetLabelById, plural, stockEntryLabel } from "../../labels";
+import { useDeckCountByCardId, useVtesOffline, type CardRow, type LocalStockEntry } from "../../offline/vtes";
+import {
+  STOCK_SORT_COLUMNS,
+  sortStockEntries,
+  type StockSortColumn,
+  type StockSortDir,
+} from "./stockSort";
 import { useCardSetOptions } from "./useCardSetOptions";
 import { useCardsById } from "./useCardsById";
 
@@ -14,7 +20,10 @@ import { useCardsById } from "./useCardsById";
  * (où vivent aussi la suppression et les notes), le pas − / + écrit tout de suite
  * dans la file, sans attendre le réseau.
  *
- * Rendu mobile (< 1024px) : inchangé depuis le Lot 5. La vue tableau bureau
+ * Rendu mobile (< 1024px) : la méta reprend, depuis le Lot 5c (étape 3), le
+ * clan, la capacité et le nombre de decks que le tableau bureau montrait déjà
+ * (mêmes lectures locales, `useCardsById` et `useDeckCountByCardId`, faites une
+ * fois par `StockList`). La vue tableau bureau
  * (`StockTable`, ci-dessous) est un composant distinct plutôt qu'une simple
  * variante CSS, parce que l'interaction y change réellement (tri, édition en
  * place, aperçu au survol, sélection clavier) — même principe que le
@@ -23,9 +32,13 @@ import { useCardsById } from "./useCardsById";
  */
 function StockRow({
   entry,
+  card,
+  deckCount,
   onEdit,
 }: {
   entry: LocalStockEntry;
+  card: CardRow | undefined;
+  deckCount: number;
   onEdit: (entry: LocalStockEntry) => void;
 }) {
   const { actions } = useVtesOffline();
@@ -67,11 +80,29 @@ function StockRow({
         </span>
         <span className="row__meta">
           {entry.category && `${CATEGORY_LABELS[entry.category]} · `}
+          {card?.clanName && (
+            <>
+              <span data-testid="stock-entry-clan">{card.clanName}</span>
+              {" · "}
+            </>
+          )}
+          {entry.category === "crypt" && card?.capacity != null && (
+            <>
+              <span data-testid="stock-entry-capacity">cap. {card.capacity}</span>
+              {" · "}
+            </>
+          )}
           {entry.languageCode}
           {" · "}
           <span data-testid="stock-entry-card-set">
             {cardSetLabelById(entry.cardSetId, cardSets.byId)}
           </span>
+          {deckCount > 0 && (
+            <>
+              {" · "}
+              <span data-testid="stock-entry-decks">dans {plural(deckCount, "deck")}</span>
+            </>
+          )}
         </span>
         {entry.notes && <span className="row__meta">{entry.notes}</span>}
         {entry.pending && (
@@ -114,68 +145,17 @@ function StockRow({
   );
 }
 
-type SortColumn = "name" | "type" | "clan" | "capacity" | "language" | "quantity" | "decks" | "notes";
-type SortDir = "asc" | "desc";
-
-const TABLE_COLUMNS: Array<{ key: SortColumn; label: string }> = [
-  { key: "name", label: "Nom" },
-  { key: "type", label: "Type" },
-  { key: "clan", label: "Clan / discipline" },
-  { key: "capacity", label: "Cap. / coût" },
-  { key: "language", label: "Langue" },
-  { key: "quantity", label: "Ex." },
-  { key: "decks", label: "Decks" },
-  { key: "notes", label: "Notes" },
-];
-
-/** Comparaison par unités de code, comme le reste de l'app (`offline/vtes/reads.ts`). */
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-
 const pairKeyOf = (entry: Pick<LocalStockEntry, "cardId" | "languageCode" | "cardSetId">) =>
   `${entry.cardId}|${entry.languageCode}|${entry.cardSetId}`;
-
-/**
- * Clé de tri d'une ligne pour une colonne donnée. Les colonnes absentes du
- * miroir (type de bibliothèque, disciplines, coût) sont hors périmètre
- * (`docs/lot5bis-plan-design.md`, « Ce que ce lot ne touche pas ») : « Type »
- * retombe sur la catégorie Crypte/Bibliothèque déjà connue, « Cap./coût »
- * reste vide pour la bibliothèque.
- */
-function sortValue(
-  entry: LocalStockEntry,
-  column: SortColumn,
-  cardsById: ReturnType<typeof useCardsById>,
-  deckCounts: ReturnType<typeof useDeckCountByCardId>,
-): string | number {
-  const card = cardsById?.get(entry.cardId);
-  switch (column) {
-    case "name":
-      return entry.cardName ?? "";
-    case "type":
-      return entry.category ? CATEGORY_LABELS[entry.category] : "";
-    case "clan":
-      return card?.clanName ?? "";
-    case "capacity":
-      return entry.category === "crypt" ? (card?.capacity ?? -1) : -1;
-    case "language":
-      return entry.languageCode;
-    case "quantity":
-      return entry.quantityOwned;
-    case "decks":
-      return deckCounts?.get(entry.cardId) ?? 0;
-    case "notes":
-      return entry.notes ?? "";
-  }
-}
 
 /**
  * Vue tableau bureau de la Collection (Lot 5bis, étape 8 ;
  * `docs/design-handoff/DESKTOP.md` « d02 »).
  *
- * - **Tri** : état local (colonne + direction), appliqué sur les `entries`
- *   déjà lues localement — aucun second appel, la lecture reste
- *   `useLocalStock` côté page ; ce composant ne fait que réordonner ce
- *   qu'il reçoit.
+ * - **Tri** : colonne + direction tenues par `StockPage` (partagées avec la
+ *   feuille de filtres mobile, Lot 5c étape 3), appliquées par `StockList` avec
+ *   la fonction pure de `stockSort.ts` — ce composant reçoit les `entries` déjà
+ *   triées et ne fait que porter les en-têtes cliquables.
  * - **« Decks »** : nombre de decks utilisant la carte, lu sur la même
  *   projection locale que le reste de l'UI (`useDeckCountByCardId`, qui
  *   réutilise `readProjection`/`project` — pas une deuxième façon de lire
@@ -203,23 +183,32 @@ function sortValue(
  */
 function StockTable({
   entries,
+  cardsById,
+  deckCounts,
+  sortColumn,
+  sortDir,
+  onToggleSort,
   onEdit,
 }: {
   entries: LocalStockEntry[];
+  cardsById: Map<number, CardRow> | undefined;
+  deckCounts: Map<number, number> | undefined;
+  sortColumn: StockSortColumn;
+  sortDir: StockSortDir;
+  onToggleSort: (column: StockSortColumn) => void;
   onEdit: (entry: LocalStockEntry) => void;
 }) {
   const { actions } = useVtesOffline();
   const cardSets = useCardSetOptions();
-  const cardIds = useMemo(() => entries.map((entry) => entry.cardId), [entries]);
-  const cardsById = useCardsById(cardIds);
-  const deckCounts = useDeckCountByCardId();
   const action = useGuardedAction();
 
-  const [sortColumn, setSortColumn] = useState<SortColumn>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [editing, setEditing] = useState<{ key: string; value: string } | null>(null);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  // Clé de la ligne dont la cellule « Ex. » doit reprendre le focus une fois l'édition
+  // refermée : l'`<input>` disparaît au rendu, le focus retomberait sinon sur `<body>`.
+  const refocusKey = useRef<string | null>(null);
 
   useEffect(
     () => () => {
@@ -228,24 +217,14 @@ function StockTable({
     [],
   );
 
-  const toggleSort = (column: SortColumn) => {
-    if (column === sortColumn) {
-      setSortDir((dir) => (dir === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(column);
-      setSortDir("asc");
-    }
-  };
-
-  const sorted = useMemo(() => {
-    const dir = sortDir === "asc" ? 1 : -1;
-    return [...entries].sort((a, b) => {
-      const va = sortValue(a, sortColumn, cardsById, deckCounts);
-      const vb = sortValue(b, sortColumn, cardsById, deckCounts);
-      const cmp = typeof va === "number" && typeof vb === "number" ? va - vb : compare(String(va), String(vb));
-      return dir * cmp;
-    });
-  }, [entries, sortColumn, sortDir, cardsById, deckCounts]);
+  useEffect(() => {
+    if (editing !== null || refocusKey.current === null) return;
+    const key = refocusKey.current;
+    refocusKey.current = null;
+    tableRef.current
+      ?.querySelectorAll<HTMLElement>("[data-qty-cell]")
+      .forEach((cell) => cell.dataset.qtyCell === key && cell.focus());
+  }, [editing]);
 
   const scheduleHover = (key: string) => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current);
@@ -262,6 +241,11 @@ function StockTable({
   const startEdit = (entry: LocalStockEntry) =>
     setEditing({ key: pairKeyOf(entry), value: String(entry.quantityOwned) });
 
+  const stopEdit = (key: string) => {
+    refocusKey.current = key;
+    setEditing(null);
+  };
+
   const commitEdit = async (entry: LocalStockEntry) => {
     if (!editing) return;
     const parsed = Number(editing.value);
@@ -275,14 +259,14 @@ function StockTable({
         notes: entry.notes,
       }),
     );
-    if (done) setEditing(null);
+    if (done) stopEdit(pairKeyOf(entry));
   };
 
   return (
-    <div className="stock-table" role="table" aria-label="Collection" data-testid="stock-table">
+    <div className="stock-table" role="table" aria-label="Collection" data-testid="stock-table" ref={tableRef}>
       <div role="rowgroup">
         <div className="stock-table__row stock-table__row--head" role="row">
-          {TABLE_COLUMNS.map((column) => {
+          {STOCK_SORT_COLUMNS.map((column) => {
             const active = sortColumn === column.key;
             return (
               <div key={column.key} className="stock-table__cell stock-table__cell--head" role="columnheader">
@@ -291,7 +275,7 @@ function StockTable({
                   className="stock-table__sort"
                   data-testid={`stock-table-sort-${column.key}`}
                   aria-sort={active ? (sortDir === "asc" ? "ascending" : "descending") : undefined}
-                  onClick={() => toggleSort(column.key)}
+                  onClick={() => onToggleSort(column.key)}
                 >
                   {column.label}
                   {active &&
@@ -307,7 +291,7 @@ function StockTable({
         </div>
       </div>
       <div role="rowgroup">
-        {sorted.map((entry) => {
+        {entries.map((entry) => {
           const rowKey = pairKeyOf(entry);
           const card = cardsById?.get(entry.cardId);
           const name = stockEntryLabel(entry);
@@ -330,6 +314,11 @@ function StockTable({
                 role="cell"
                 onMouseEnter={() => scheduleHover(rowKey)}
                 onMouseLeave={cancelHover}
+                // Au clavier aussi (Lot 5c, étape 7) : l'aperçu apparaît dès que le nom
+                // prend le focus, sans délai (il n'y a pas de survol à confirmer), et part
+                // au blur. `onFocus`/`onBlur` de React remontent, comme `focusin`/`focusout`.
+                onFocus={() => setPreviewKey(rowKey)}
+                onBlur={cancelHover}
               >
                 <button
                   type="button"
@@ -376,7 +365,21 @@ function StockTable({
                 className="stock-table__cell stock-table__cell--qty"
                 role="cell"
                 data-testid="stock-entry-quantity-cell"
+                data-qty-cell={rowKey}
+                // Atteignable au clavier (Lot 5c, étape 7) : `Tab` focalise la cellule,
+                // `↵` ouvre le même champ que le double-clic, `Échap` l'annule (géré par
+                // l'`<input>` ci-dessous, qui rend ensuite le focus à la cellule). Seul
+                // l'événement de la cellule elle-même compte : les frappes de l'`<input>`
+                // remontent jusqu'ici et ne doivent pas rouvrir l'édition.
+                tabIndex={0}
+                aria-keyshortcuts="Enter"
                 onDoubleClick={() => startEdit(entry)}
+                onKeyDown={(event) => {
+                  if (event.target === event.currentTarget && event.key === "Enter" && !isEditing) {
+                    event.preventDefault();
+                    startEdit(entry);
+                  }
+                }}
               >
                 {isEditing ? (
                   <input
@@ -396,7 +399,7 @@ function StockTable({
                         void commitEdit(entry);
                       } else if (event.key === "Escape") {
                         event.preventDefault();
-                        setEditing(null);
+                        stopEdit(rowKey);
                       }
                     }}
                     onBlur={() =>
@@ -433,6 +436,9 @@ function StockTable({
 export function StockList({
   entries,
   filtered,
+  sortColumn,
+  sortDir,
+  onToggleSort,
   onEdit,
   onAdd,
   onDeposit,
@@ -440,15 +446,30 @@ export function StockList({
   entries: LocalStockEntry[] | undefined;
   /** Vrai quand une recherche ou un filtre est actif (message de liste vide différent). */
   filtered: boolean;
+  /** Tri courant, tenu par la page : un seul état pour le tableau et la feuille de filtres. */
+  sortColumn: StockSortColumn;
+  sortDir: StockSortDir;
+  /** Clic sur un en-tête du tableau : même colonne, inverse le sens ; autre colonne, croissant. */
+  onToggleSort: (column: StockSortColumn) => void;
   onEdit: (entry: LocalStockEntry) => void;
   onAdd: () => void;
   onDeposit: () => void;
 }) {
   const isDesktop = useIsDesktop();
-  if (entries === undefined) {
+  // Lectures locales faites une fois pour les deux dispositions : le tri et la
+  // méta des lignes (clan, capacité, nombre de decks) s'appuient dessus.
+  const cardIds = useMemo(() => (entries ?? []).map((entry) => entry.cardId), [entries]);
+  const cardsById = useCardsById(cardIds);
+  const deckCounts = useDeckCountByCardId();
+  const sorted = useMemo(
+    () => (entries ? sortStockEntries(entries, sortColumn, sortDir, { cards: cardsById, deckCounts }) : undefined),
+    [entries, sortColumn, sortDir, cardsById, deckCounts],
+  );
+
+  if (sorted === undefined) {
     return isDesktop ? <LoadingState variant="table" groups={6} /> : <LoadingState />;
   }
-  if (entries.length === 0) {
+  if (sorted.length === 0) {
     return filtered ? (
       <p className="empty-state__body" data-testid="stock-empty">
         Aucune entrée ne correspond à cette recherche.
@@ -478,15 +499,27 @@ export function StockList({
   }
 
   if (isDesktop) {
-    return <StockTable entries={entries} onEdit={onEdit} />;
+    return (
+      <StockTable
+        entries={sorted}
+        cardsById={cardsById}
+        deckCounts={deckCounts}
+        sortColumn={sortColumn}
+        sortDir={sortDir}
+        onToggleSort={onToggleSort}
+        onEdit={onEdit}
+      />
+    );
   }
 
   return (
     <ul className="list" data-testid="stock-list">
-      {entries.map((entry) => (
+      {sorted.map((entry) => (
         <StockRow
-          key={`${entry.cardId}|${entry.languageCode}|${entry.cardSetId}`}
+          key={pairKeyOf(entry)}
           entry={entry}
+          card={cardsById?.get(entry.cardId)}
+          deckCount={deckCounts?.get(entry.cardId) ?? 0}
           onEdit={onEdit}
         />
       ))}

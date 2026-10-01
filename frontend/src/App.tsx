@@ -143,9 +143,9 @@ function Page({ route }: { route: Route }) {
     case "home":
       return <HomePage />;
     case "stock":
-      return <StockPage />;
+      return <StockPage intent={route.intent} />;
     case "decks":
-      return <DecksPage />;
+      return <DecksPage intent={route.intent} />;
     case "deck":
       return <DeckDetailPage key={route.key} deckKey={route.key} />;
     case "sync":
@@ -241,10 +241,9 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
  * touches (`G` puis `A/C/D/S`) est câblée dans `App` via `useKeyboardShortcuts`
  * (étape 2 du Lot 5bis, `docs/lot5bis-plan-design.md`), pas ici, pour que la
  * navigation clavier fonctionne quel que soit l'écran affiché et pas seulement quand
- * `TopBar` a le focus. Le champ de recherche global est, lui, toujours un gabarit
- * visuel pour l'instant : sa délégation vers la recherche de l'écran courant
- * (§ « Ce que ce lot ne touche pas » du plan) suppose des écrans bureau qui
- * n'existent pas encore.
+ * `TopBar` a le focus. Le champ de recherche global n'est plus rendu
+ * (Lot 5c, étape 6) : il reviendra avec l'écran Chercher
+ * (`docs/lot-chercher-brief.md`).
  */
 function TopBar({ route }: { route: Route }) {
   const status = useSyncStatus();
@@ -292,11 +291,13 @@ function TopBar({ route }: { route: Route }) {
               {problems.join(" · ")}
             </Link>
           )}
-          <div className="topbar__search">
-            <MagnifyingGlass size={14} className="topbar__search-icon" />
-            <input type="search" placeholder="Rechercher" aria-label="Recherche" aria-keyshortcuts="/" />
-            <Kbd>/</Kbd>
-          </div>
+          {/*
+           * Champ de recherche global retiré du rendu (Lot 5c, étape 6) : inerte
+           * (ne délégait à aucune recherche), il promettait un `/` qui ne menait
+           * nulle part. Il revient avec l'écran Chercher, qui le repointera
+           * (`docs/lot-chercher-brief.md`). Le `/` du picker du deckbuilder
+           * (`AddDeckCardForm`) reste, lui, fonctionnel.
+           */}
         </div>
       </div>
     </header>

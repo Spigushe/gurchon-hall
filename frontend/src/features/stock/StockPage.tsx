@@ -1,5 +1,6 @@
-import { useDeferredValue, useId, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Database, DotsThree, Funnel, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { consumeIntent, type StockIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { Pill } from "../../components/Pill";
 import { BackRow, Sheet } from "../../components/Sheet";
@@ -12,6 +13,12 @@ import { CatalogPanel } from "../catalog/CatalogPanel";
 import { BundleDeposit } from "./BundleDeposit";
 import { StockForm } from "./StockForm";
 import { StockList } from "./StockList";
+import {
+  DEFAULT_STOCK_SORT,
+  STOCK_SORT_COLUMNS,
+  type StockSortColumn,
+  type StockSortDir,
+} from "./stockSort";
 import { useCardSetOptions } from "./useCardSetOptions";
 import { useLanguageOptions, type LanguageOption } from "./useLanguageOptions";
 
@@ -25,6 +32,11 @@ const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "proxy", label: "Proxy" },
 ];
 
+const SORT_DIRECTIONS: Array<{ value: StockSortDir; label: string }> = [
+  { value: "asc", label: "Croissant" },
+  { value: "desc", label: "Décroissant" },
+];
+
 const OWNED_FILTERS: Array<{ value: OwnedFilter; label: string }> = [
   { value: "all", label: "Toutes" },
   { value: "owned", label: "Possédées" },
@@ -35,7 +47,9 @@ const OWNED_FILTERS: Array<{ value: OwnedFilter; label: string }> = [
  * Feuille de filtres (handoff : la langue quitte la page et passe dans un menu
  * débordant). Étendue au Lot 5 avec l'extension (Lot 4) et un tri-état de
  * possession, en plus de la langue : le handoff ne dessine que la langue,
- * les deux autres sont un ajout de ce lot (CLAUDE.md § 11, Lot 5).
+ * les deux autres sont un ajout de ce lot (CLAUDE.md § 11, Lot 5). Le Lot 5c
+ * (étape 3) y ajoute le tri (critère + sens) : même état que les en-têtes du
+ * tableau bureau, donc le même ordre aux deux largeurs.
  */
 function StockFilterSheet({
   languageCode,
@@ -46,6 +60,9 @@ function StockFilterSheet({
   onCardSetChange,
   ownedFilter,
   onOwnedFilterChange,
+  sortColumn,
+  sortDir,
+  onSortChange,
   onClose,
 }: {
   languageCode: string;
@@ -56,10 +73,14 @@ function StockFilterSheet({
   onCardSetChange: (id: number | null) => void;
   ownedFilter: OwnedFilter;
   onOwnedFilterChange: (value: OwnedFilter) => void;
+  sortColumn: StockSortColumn;
+  sortDir: StockSortDir;
+  onSortChange: (column: StockSortColumn, dir: StockSortDir) => void;
   onClose: () => void;
 }) {
   const id = useId();
   const ownedName = useId();
+  const sortDirName = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
   return (
     <Sheet titleId={`${id}-title`} titleRef={titleRef} onClose={onClose} variant="pushed" data-testid="stock-filters-sheet">
@@ -115,6 +136,36 @@ function StockFilterSheet({
           </label>
         ))}
       </fieldset>
+      <div className="field">
+        <label htmlFor={`${id}-sort`}>Trier par</label>
+        <select
+          id={`${id}-sort`}
+          className="underline-field"
+          value={sortColumn}
+          onChange={(event) => onSortChange(event.target.value as StockSortColumn, sortDir)}
+          data-testid="stock-sort-column"
+        >
+          {STOCK_SORT_COLUMNS.map((column) => (
+            <option key={column.key} value={column.key}>
+              {column.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <fieldset className="tabs tabs--fieldset" aria-label="Sens du tri" data-testid="stock-sort-dir">
+        {SORT_DIRECTIONS.map((option) => (
+          <label key={option.value} className="tab-option">
+            <input
+              type="radio"
+              name={sortDirName}
+              value={option.value}
+              checked={sortDir === option.value}
+              onChange={() => onSortChange(sortColumn, option.value)}
+            />
+            <span className="tab-option__label">{option.label}</span>
+          </label>
+        ))}
+      </fieldset>
       <div className="sheet-form__footer">
         <Pill onClick={onClose} data-testid="stock-filters-done">
           Terminé
@@ -125,7 +176,7 @@ function StockFilterSheet({
 }
 
 /** Collection : une ligne par carte, langue et extension ; saisie et lecture locales. */
-export function StockPage() {
+export function StockPage({ intent }: { intent?: StockIntent } = {}) {
   const searchId = useId();
   const filterName = useId();
   const desktopLanguageId = useId();
@@ -138,6 +189,14 @@ export function StockPage() {
   const [languageCode, setLanguageCode] = useState("");
   const [cardSetId, setCardSetId] = useState<number | null>(null);
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
+  // Tri : un seul état pour les en-têtes du tableau bureau et la feuille de filtres.
+  const [sort, setSort] = useState(DEFAULT_STOCK_SORT);
+  const toggleSort = (column: StockSortColumn) =>
+    setSort((current) =>
+      column === current.column
+        ? { column, dir: current.dir === "asc" ? "desc" : "asc" }
+        : { column, dir: "asc" },
+    );
   const deferred = useDeferredValue(term.trim());
   const category = filter === "crypt" || filter === "library" ? filter : undefined;
   const rawEntries = useLocalStock({
@@ -205,6 +264,26 @@ export function StockPage() {
   };
   const closeForm = () => setMode("closed");
 
+  // Intention portée par l'adresse (`#/collection?action=ajouter|verser`, raccourcis
+  // de l'Atelier) : ouvre la feuille annoncée, puis retire l'intention de
+  // l'adresse (`consumeIntent`) pour qu'un rechargement ou un retour arrière ne la
+  // rouvre pas. L'ouverture est décidée au rendu, quand la valeur de `intent`
+  // change (état dérivé, pas d'`setState` dans un effet) : un nouveau rendu avec
+  // la même valeur ne la rejoue pas. L'effet, lui, ne touche que l'adresse.
+  const [seenIntent, setSeenIntent] = useState<StockIntent | undefined>(undefined);
+  if (intent !== seenIntent) {
+    setSeenIntent(intent);
+    if (intent === "add") {
+      setEditing(null);
+      setMode("create");
+    } else if (intent === "bundle") {
+      setBundleOpen(true);
+    }
+  }
+  useEffect(() => {
+    if (intent) consumeIntent({ name: "stock", intent });
+  }, [intent]);
+
   // `N` ouvre la même feuille que le bouton d'en-tête bureau (ou la pilule
   // flottante mobile), `V` verse un produit, `F` ouvre la feuille de filtres
   // (même bouton que « Plus de filtres » mobile, cf. `stock-filters-open`
@@ -230,7 +309,12 @@ export function StockPage() {
           <h2 className="page-title">Collection</h2>
           <p className="page-meta">
             {entries ? plural(entries.length, "entrée") : "…"} · une ligne par carte, langue et extension
-            {isDesktop && entries && ` · ${plural(totalCopies, "exemplaire")}`}
+            {entries && (
+              <>
+                {" · "}
+                <span data-testid="stock-total-copies">{plural(totalCopies, "exemplaire")}</span>
+              </>
+            )}
           </p>
         </div>
         {/* Bureau (handoff « d02 ») : boutons d'en-tête, kbd V/N. Sur mobile, ces
@@ -295,11 +379,12 @@ export function StockPage() {
               />
               <span className="tab-option__label">
                 {option.label}
-                {/* Compteurs bureau seulement (handoff « d02 ») : même prédicat que le
-                    filtrage de `entries` ci-dessus, appliqué à `countBase` (sans
-                    restriction de catégorie) pour afficher combien chaque onglet
-                    ramènerait — présentation seule, ni état ni requête nouveaux. */}
-                {isDesktop && tabCounts && (
+                {/* Compteurs (handoff « d02 », étendus au mobile au Lot 5c étape 3) :
+                    même prédicat que le filtrage de `entries` ci-dessus, appliqué à
+                    `countBase` (sans restriction de catégorie) pour afficher combien
+                    chaque onglet ramènerait — présentation seule, ni état ni requête
+                    nouveaux. */}
+                {tabCounts && (
                   <span className="tab-option__count" data-testid={`stock-tab-count-${option.value}`}>
                     {" "}
                     · {tabCounts[option.value]}
@@ -371,6 +456,9 @@ export function StockPage() {
       <StockList
         entries={entries}
         filtered={isFiltered}
+        sortColumn={sort.column}
+        sortDir={sort.dir}
+        onToggleSort={toggleSort}
         onEdit={openEdit}
         onAdd={openCreate}
         onDeposit={() => setBundleOpen(true)}
@@ -390,6 +478,9 @@ export function StockPage() {
           onCardSetChange={setCardSetId}
           ownedFilter={ownedFilter}
           onOwnedFilterChange={setOwnedFilter}
+          sortColumn={sort.column}
+          sortDir={sort.dir}
+          onSortChange={(column, dir) => setSort({ column, dir })}
           onClose={() => setFiltersOpen(false)}
         />
       )}

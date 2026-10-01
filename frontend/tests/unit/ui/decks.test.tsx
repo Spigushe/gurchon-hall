@@ -832,3 +832,158 @@ describe("decks : légalité", () => {
     );
   });
 });
+
+describe("decks : légalité détaillée au bureau (Lot 5c, étape 1)", () => {
+  // jsdom vaut 1024 par défaut : bureau. Le détail vit sous `DeckLegalitySummary`,
+  // dans l'en-tête du Deckbuilder, sur la lecture unique du verdict.
+  const requestsForLegality = (app: App) =>
+    app.ui.requests.filter((request) => request.path.endsWith("/legalite"));
+
+  it("affiche motifs, cartes bannies et pas encore légales dans l'en-tête, avec une seule lecture", async () => {
+    const app = await renderApp({ online: true, catalog: true });
+    app.ui.legality = {
+      status: 200,
+      body: {
+        ...LEGALITY,
+        banned_cards: [{ id: 7, name: "Théo Bannie" }],
+        not_yet_legal_cards: [{ id: 8, name: "Future Carte" }],
+      },
+    };
+    await withSyncedDeck(app);
+
+    const issues = await screen.findByTestId("legality-issues");
+    expect(issues).toHaveTextContent("minimum 12");
+    expect(screen.getByTestId("legality-banned-names")).toHaveTextContent("Théo Bannie");
+    expect(screen.getByTestId("legality-not-yet-legal-names")).toHaveTextContent("Future Carte");
+    // Brouillon illégal : note, mais pas d'alerte.
+    expect(screen.getByTestId("legality-draft-note")).toBeInTheDocument();
+    expect(screen.queryByTestId("legality-active-illegal")).not.toBeInTheDocument();
+    // Le résumé compact reste en place, et le mobile n'est pas rendu en double.
+    expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent("Deck illégal");
+    expect(screen.queryByTestId("legality-panel")).not.toBeInTheDocument();
+
+    // « Recalculer » relance l'unique lecture : une requête de plus, pas deux
+    // (le détail ne rappelle pas `useDeckLegality`).
+    const before = requestsForLegality(app).length;
+    fireEvent.click(screen.getByTestId("deck-legality-refresh"));
+    await waitFor(() => expect(requestsForLegality(app)).toHaveLength(before + 1));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(requestsForLegality(app)).toHaveLength(before + 1);
+  });
+
+  it("signale un deck actif devenu illégal et le verdict d'une version non synchronisée", async () => {
+    const app = await renderApp({ online: true, catalog: true });
+    const key = await withSyncedDeck(app);
+    app.ui.legality = { status: 200, body: LEGALITY };
+    app.server.next.status = 503;
+    await act(async () => {
+      await app.runtime.actions.updateDeck(key, { status: "active" });
+      await app.runtime.engine.whenIdle();
+    });
+
+    expect(await screen.findByTestId("legality-active-illegal")).toHaveTextContent(
+      "actif mais n'est plus légal",
+    );
+    expect(screen.getByTestId("legality-stale")).toBeInTheDocument();
+  });
+
+  it("dit que le verdict est indisponible hors ligne, ou en erreur", async () => {
+    const app = await renderApp({ online: true, catalog: true });
+    app.ui.legality = { status: 409, body: { detail: "Deck supprimé : composition figée." } };
+    await withSyncedDeck(app);
+    expect(await screen.findByTestId("legality-error")).toHaveTextContent("Deck supprimé");
+
+    act(() => setOnline(false));
+    expect(await screen.findByTestId("legality-unavailable")).toHaveTextContent(
+      "indisponible hors ligne",
+    );
+    expect(screen.queryByTestId("legality-error")).not.toBeInTheDocument();
+  });
+
+  it("dit que le verdict n'existe pas encore pour un deck créé hors ligne (bureau)", async () => {
+    await withDeck();
+    expect(screen.getByTestId("legality-unavailable")).toHaveTextContent(
+      "n'existe pas encore côté serveur",
+    );
+  });
+});
+
+describe("decks : picker, symétrie mobile / bureau (Lot 5c, étape 4)", () => {
+  it("mobile : le bloc de la carte choisie dit combien d'exemplaires sont déjà dans le deck", async () => {
+    setViewportWidth(390);
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 2,
+    });
+    await screen.findByTestId("deck-card");
+
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-in-deck")).toHaveTextContent("Dans le deck : 2"),
+    );
+
+    // Une langue sans ligne : zéro.
+    fireEvent.click(within(form).getByRole("radio", { name: "EN" }));
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-in-deck")).toHaveTextContent("Dans le deck : 0"),
+    );
+  });
+
+  it("bureau : un bouton « Changer » vide la sélection, comme Échap", async () => {
+    await withDeck({}, "Malkavien", true);
+    const form = await screen.findByTestId("deck-card-form");
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    expect(await screen.findByTestId("deck-card-form-selected")).toHaveTextContent("Élan vital");
+
+    fireEvent.click(screen.getByTestId("deck-card-form-clear"));
+    expect(screen.queryByTestId("deck-card-form-selected")).not.toBeInTheDocument();
+
+    // Et Échap fait toujours la même chose.
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    await screen.findByTestId("deck-card-form-selected");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("deck-card-form-selected")).not.toBeInTheDocument());
+  });
+});
+
+describe("decks : raccourci Entrée (Lot 5c, étape 7)", () => {
+  it("bureau : Entrée sur un contrôle interactif l'active au lieu d'ouvrir le deckbuilder", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await runtime.actions.createDeck({ name: "Assamite" });
+    await runtime.actions.createDeck({ name: "Brujah" });
+    await screen.findByTestId("decks-detail-title");
+
+    const select = screen.getAllByTestId("deck-select")[1];
+    select.focus();
+    // Entrée sur le bouton : le navigateur le ferait cliquer ; le raccourci ne doit pas
+    // confisquer la touche (pas de preventDefault) ni changer de route.
+    expect(fireEvent.keyDown(select, { key: "Enter" })).toBe(true);
+    expect(window.location.hash).toBe("#/decks");
+    expect(screen.queryByTestId("deck-page")).not.toBeInTheDocument();
+
+    // Hors contrôle (le document, comme avant), le raccourci ouvre le deck prévisualisé.
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(await screen.findByTestId("deck-page")).toBeInTheDocument();
+  });
+
+  it("mobile : Entrée n'est pas écouté (aucun panneau à ouvrir, la touche garde son effet)", async () => {
+    setViewportWidth(390);
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    await runtime.actions.createDeck({ name: "Gangrel" });
+    await screen.findByTestId("deck-item");
+
+    expect(fireEvent.keyDown(document, { key: "Enter" })).toBe(true); // pas de preventDefault
+    expect(window.location.hash).toBe("#/decks");
+
+    // `N` reste actif aux deux largeurs.
+    fireEvent.keyDown(document, { key: "n" });
+    expect(await screen.findByTestId("deck-form-sheet")).toBeInTheDocument();
+  });
+});

@@ -1,7 +1,7 @@
-import { useDeferredValue, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRight, ClockCountdown, MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
-import { navigate } from "../../app/routes";
+import { consumeIntent, navigate, type DecksIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
@@ -9,7 +9,7 @@ import { Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
 import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
-import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
+import { isInteractiveTarget, useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { DECK_STATUS_LABELS, plural } from "../../labels";
 import {
   useLocalDeckCards,
@@ -380,7 +380,7 @@ function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
  * précédente n'y figure plus (nouveau filtre, changement d'onglet, deck
  * supprimé…).
  */
-export function DecksPage() {
+export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   const searchId = useId();
   const stateName = useId();
   const [state, setState] = useState<DeckListState>("active");
@@ -390,6 +390,20 @@ export function DecksPage() {
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ state, q: deferred || undefined });
   const isDesktop = useIsDesktop();
+
+  // Intention portée par l'adresse (`#/decks?action=nouveau`, raccourci de
+  // l'Atelier) : ouvre « Nouveau deck », puis retire l'intention de l'adresse
+  // (`consumeIntent`, voir `app/routes.ts`) — un rechargement ou un retour arrière
+  // ne rouvre pas la feuille. Ouverture décidée au rendu (état dérivé), l'effet ne
+  // touche que l'adresse.
+  const [seenIntent, setSeenIntent] = useState<DecksIntent | undefined>(undefined);
+  if (intent !== seenIntent) {
+    setSeenIntent(intent);
+    if (intent === "new") setCreating(true);
+  }
+  useEffect(() => {
+    if (intent) consumeIntent({ name: "decks", intent });
+  }, [intent]);
 
   const selectedDeck = useMemo(
     () => decks?.find((deck) => deck.key === selectedKey) ?? decks?.[0] ?? null,
@@ -407,17 +421,24 @@ export function DecksPage() {
   // si son rendu est porté ailleurs par un portail) — chaque feuille garde
   // déjà ses propres raccourcis locaux (`Sheet.tsx`, Échap et `⌘↵`), cette
   // page ne doit pas agir derrière elle.
+  //
+  // `↵` (Lot 5c, étape 7) n'est écouté qu'au bureau et laisse la main aux contrôles
+  // interactifs (bouton, lien, champ, onglet…) : sur un bouton focalisé, l'`Entrée`
+  // l'active au lieu d'être confisquée par ce raccourci (qui appelait
+  // `preventDefault`). `ignoreTarget` est propre à ce binding, l'ordre
+  // `preventDefault` / `onTrigger` du hook reste le même pour tous les autres.
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], { enabled: !creating });
   useKeyboardShortcuts(
     [
-      { keys: ["n"], onTrigger: () => setCreating(true) },
       {
         keys: ["enter"],
+        ignoreTarget: isInteractiveTarget,
         onTrigger: () => {
-          if (isDesktop && selectedDeck) navigate({ name: "deck", key: selectedDeck.key });
+          if (selectedDeck) navigate({ name: "deck", key: selectedDeck.key });
         },
       },
     ],
-    { enabled: !creating },
+    { enabled: isDesktop && !creating },
   );
 
   return (

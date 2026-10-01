@@ -436,3 +436,50 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
     expect(app.server.state.deckCards).toHaveLength(1);
   });
 });
+
+/**
+ * Lot 5c, étape 2 : symétrie de l'écran Synchronisation. Mobile : lien de
+ * l'alerte pour tout motif et liste En attente ; bureau : date de saisie des
+ * refus.
+ */
+describe("Lot 5c étape 2 : synchronisation aux deux largeurs", () => {
+  it("mobile : l'alerte hors ligne avec file mène à l'écran Synchronisation, qui liste l'attente", async () => {
+    const app = await renderApp({ online: false, catalog: true });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+
+    const alert = await screen.findByTestId("sync-alert");
+    expect(alert).toHaveTextContent("Hors ligne");
+    const link = within(alert).getByTestId("sync-alert-link");
+    expect(link).toHaveTextContent("Voir la synchronisation");
+    expect(link).not.toHaveTextContent("Corriger");
+
+    fireEvent.click(link);
+    const list = await screen.findByTestId("sync-pending-list");
+    expect(within(list).getByTestId("pending-operation")).toBeInTheDocument();
+    expect(screen.queryByTestId("sync-columns")).not.toBeInTheDocument(); // colonne unique
+  });
+
+  it("mobile : le libellé « Corriger maintenant → » reste pour des refus", async () => {
+    const app = await renderApp({ online: false, catalog: true });
+    await refusedDeckCard(app);
+    act(() => {
+      window.location.hash = hrefFor({ name: "home" });
+    });
+    const alert = await screen.findByTestId("sync-alert");
+    expect(within(alert).getByTestId("sync-alert-link")).toHaveTextContent("Corriger maintenant");
+  });
+
+  it("bureau : la ligne refusée et le panneau de détail portent « Saisie du … »", async () => {
+    setViewportWidth(1024);
+    const app = await renderApp({ online: false, catalog: true });
+    await refusedDeckCard(app);
+
+    const rejected = (await app.runtime.outbox.list("rejected"))[0];
+    const date = new Date(rejected.recordedAt).toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+    expect(screen.getByTestId("rejected-recorded-at")).toHaveTextContent(`Saisie du ${date}`);
+    expect(screen.getByTestId("sync-detail-recorded-at")).toHaveTextContent(`Saisie du ${date}`);
+  });
+});

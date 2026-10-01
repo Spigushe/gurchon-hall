@@ -507,39 +507,9 @@ footer.shell-footer {
   white-space: nowrap;
 }
 
-.topbar__search {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  width: 280px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-neutral-500);
-}
-
-.topbar__search:focus-within {
-  box-shadow: inset 0 0 0 1px var(--color-accent);
-}
-
-.topbar__search-icon {
-  flex: none;
-  color: var(--color-neutral-500);
-}
-
-.topbar__search input {
-  border: none;
-  background: none;
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.topbar__search input::placeholder {
-  color: var(--color-neutral-500);
-}
+/* Champ de recherche global de la barre haute retiré du rendu au Lot 5c (étape 6) :
+   ses règles (`.topbar__search*`) n'étaient référencées nulle part ailleurs. Il reviendra
+   avec l'écran Chercher (`docs/lot-chercher-brief.md`). */
 
 /* — kbd (raccourcis visibles, DESKTOP.md « Style kbd ») — */
 .kbd {
@@ -1532,6 +1502,38 @@ fieldset:disabled .chip {
   padding-inline: 0;
 }
 
+/* Liste « En attente », purement informative (pas de `.row`/sélection) :
+   lignes 40px, description à gauche, heure à droite. Hors media query :
+   rendue aux deux largeurs (Lot 5c, étape 2). */
+.sync-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sync-pending-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 0 4px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 13px;
+}
+
+.sync-pending-row:first-child {
+  border-top: none;
+}
+
+.sync-pending-row__time {
+  flex: none;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
 .quote-block {
   border-left: 2px solid var(--color-divider);
   padding-left: 14px;
@@ -1842,6 +1844,16 @@ fieldset:disabled .chip {
   font-weight: var(--font-heading-weight);
 }
 
+/* Discriminant et statut sous le nom (Lot 5c, étape 5). */
+.home-deck-row__meta {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
 .home-deck-row__counts,
 .home-deck-row__legality {
   font-size: 12px;
@@ -2002,6 +2014,12 @@ fieldset:disabled .chip {
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+}
+
+/* Compteurs d'onglets aussi au mobile (Lot 5c, étape 3) : l'onglet ne passe
+   pas à la ligne, la rangée défile. */
+.filter-row .tab-option__label {
+  white-space: nowrap;
 }
 
 .round-btn--flat {
@@ -2265,6 +2283,13 @@ fieldset:disabled .chip {
     outline: none;
   }
 
+  /* Cellule « Ex. » atteignable au clavier (Lot 5c, étape 7) : anneau de focus visible. */
+  .stock-table__cell--qty:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+  }
+
   .stock-table__qty-input {
     width: 56px;
     height: 30px;
@@ -2326,6 +2351,14 @@ fieldset:disabled .chip {
     text-align: right;
   }
 
+  /* Détail du verdict sous les quatre chiffres (Lot 5c, étape 1) : texte
+     courant, aligné à gauche malgré l'en-tête aligné à droite. */
+  .deck-legality-details {
+    max-width: 380px;
+    margin-left: auto;
+    text-align: left;
+  }
+
   .deck-builder-columns {
     display: grid;
     grid-template-columns: 7fr 5fr;
@@ -2370,6 +2403,14 @@ fieldset:disabled .chip {
     gap: 16px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--color-divider);
+  }
+
+  /* Nom de la carte choisie + « Changer » (Lot 5c, étape 4). */
+  .deck-card-form-selected__title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .deck-card-form-selected__body {
@@ -2472,37 +2513,6 @@ fieldset:disabled .chip {
   .sync-master .row[data-selected="true"] {
     background: var(--color-accent-900);
     border-left-color: var(--color-accent);
-  }
-
-  /* Liste « En attente », purement informative (pas de `.row`/sélection) :
-     lignes 40px, description à gauche, heure à droite. */
-  .sync-pending-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .sync-pending-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 40px;
-    padding: 0 4px;
-    border-top: 1px solid var(--color-divider);
-    font-size: 13px;
-  }
-
-  .sync-pending-row:first-child {
-    border-top: none;
-  }
-
-  .sync-pending-row__time {
-    flex: none;
-    font-size: 12px;
-    color: var(--color-neutral-500);
   }
 
   /* `CorrectionForm` rendu nu dans `.sync-detail` (pas de `Sheet`) : mêmes

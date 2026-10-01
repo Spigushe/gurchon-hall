@@ -97,16 +97,24 @@ describe("<App /> : coquille", () => {
       expect(window.location.hash).toBe("");
     });
 
-    it("reste inactif quand le focus est dans un champ de saisie (recherche de la barre haute)", async () => {
-      await renderApp({ online: false });
+    // Adapté au Lot 5c (étape 6) : le champ de recherche de la barre haute, qui servait de
+    // champ de saisie à ce test, n'est plus rendu ; la même garantie se vérifie dans la
+    // recherche de la Collection.
+    it("reste inactif quand le focus est dans un champ de saisie (recherche de la Collection)", async () => {
+      await renderApp({ online: false, hash: "#/collection" });
 
-      const search = screen.getByRole("searchbox", { name: "Recherche" });
+      const search = await screen.findByTestId("stock-search");
       search.focus();
       fireEvent.keyDown(search, { key: "g" });
-      fireEvent.keyDown(search, { key: "c" });
+      fireEvent.keyDown(search, { key: "d" });
 
-      expect(screen.getByTestId("home-page")).toBeInTheDocument();
-      expect(window.location.hash).toBe("");
+      expect(screen.getByTestId("stock-page")).toBeInTheDocument();
+      expect(window.location.hash).toBe("#/collection");
+    });
+
+    it("n'affiche plus de champ de recherche global dans la barre haute", async () => {
+      await renderApp({ online: false });
+      expect(screen.queryByRole("searchbox", { name: "Recherche" })).not.toBeInTheDocument();
     });
   });
 });

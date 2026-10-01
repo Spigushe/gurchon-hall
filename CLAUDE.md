@@ -4,8 +4,8 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5 livrés** (Lot 5 en attente de la vérification manuelle
-PWA, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
+**État actuel** : **Lots 0 à 5, 5bis et 5c livrés** (Lot 5 en attente de la vérification
+manuelle PWA, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
 React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -22,7 +22,10 @@ stock au deck, et une entrée de collection est désormais identifiée par carte
 extension, de la base jusqu'à l'UI (plan dans `docs/lot4-plan-inventaire.md`). Lot 5 :
 refonte mobile de l'UI sur le design system Nocturne, picker de cartes fusionné et
 acquisition d'exemplaires depuis un deck, écran Synchronisation (plan dans
-`docs/lot5-plan-design.md`, décisions au §11). Une correction prise après le Lot 5
+`docs/lot5-plan-design.md`, décisions au §11). Lot 5bis : passe bureau au-delà de
+1024 px (handoff `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`).
+Lot 5c : audit de symétrie fonctionnelle entre mobile et bureau, puis portage des écarts
+(table d'écarts et verdicts dans `docs/lot5c-plan-design.md`). Une correction prise après le Lot 5
 détache la ligne de deck de la collection : une carte entièrement jouée en proxy
 n'exige plus d'entrée de stock (septième révision `f3a91c47b2de`, diagnostic et
 conception dans `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`). Le modèle
@@ -36,9 +39,11 @@ Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|te
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
 à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 247 tests),
-`npm run test:e2e` (Playwright, 25 tests : 9 dans le projet `chromium` et 16 contre un
-vrai back sur base éphémère — projet `real-backend`, cf. `frontend/tests/e2e-real/`),
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 364 tests),
+`npm run test:e2e` (Playwright, 47 tests sur quatre projets : à 390 × 844, 9 dans
+`chromium` et 21 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 14 dans
+`desktop-real-backend`),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
@@ -788,8 +793,10 @@ renommage de l'étape 15 du Lot 5bis) :
 - **Decks** : le sous-titre « N decks » compte la liste filtrée, pas le total ; le
   switch « Proxies autorisés » reste dans la feuille « Nouveau deck ».
 - **Catalogue** : `CatalogPanel` reste accessible en forme compacte au pied de l'Atelier
-  (retirer l'action de mise à jour aurait été un changement de comportement), en forme
-  pleine sur la Collection quand le catalogue local est vide.
+  (retirer l'action de mise à jour aurait été un changement de comportement), et sur la
+  Collection quand le catalogue local est vide. *Corrigé au Lot 5c* : ce texte disait
+  « en forme pleine » sur la Collection ; les deux usages sont aujourd'hui compacts, et la
+  forme pleine n'est plus rendue nulle part.
 - **Thème et shell** : app uniquement sombre (le mode clair a été retiré), police Inter
   auto-hébergée (`@fontsource/inter`) et précachée (`woff2` ajouté aux `globPatterns`),
   couleurs du manifeste alignées sur le fond Nocturne (`#161826`), icônes
@@ -797,8 +804,7 @@ renommage de l'étape 15 du Lot 5bis) :
 - **Écarts au handoff mobile, actés** : pas de proxy par entrée de stock (propriété du
   deck depuis le Lot 4) ; extension intégrée à la feuille d'entrée (sélecteur, désactivé
   en modification), ce qui solde la limite « le handoff ne connaît pas l'extension » du
-  Lot 4 ; méta de ligne de collection « Catégorie · langue · extension » (le miroir n'a ni
-  clan ni capacité) ; langue non modifiable sur une entrée existante (elle fait partie de
+  Lot 4 ; méta de ligne de collection « Catégorie · langue · extension » ; langue non modifiable sur une entrée existante (elle fait partie de
   la clé) ; puces de langue EN/FR/ES/Autre partagées ; « proxies autorisés » et
   « archivé » rendus en texte dans la méta d'une ligne de deck, sans badge.
 - **Écran « Chercher » reporté** à un lot à part, hors ligne complet sur un miroir
@@ -836,6 +842,62 @@ Tranchées à l'ouverture du Lot 5bis (2026-09-29), avant toute implémentation 
   écrit après le breakpoint, peut naître directement dans les deux dispositions au lieu
   d'être porté ensuite. Corollaire assumé : le lot Chercher livre ses deux dispositions
   lui-même, le Lot 5c étant un rattrapage ponctuel et non une habitude.
+
+Tranchées pendant le Lot 5c (2026-10-01 ; table d'écarts complète, avec un verdict par
+ligne, dans `docs/lot5c-plan-design.md`) :
+
+- **Portés vers le mobile** : un lien vers l'écran Synchronisation dans l'alerte de
+  l'Atelier quel que soit le motif (avant, seulement en cas de refus : hors ligne ou
+  serveur injoignable, l'écran était inatteignable) ; la liste des opérations en
+  attente ; clan, capacité et « dans N decks » dans la méta d'une ligne de collection ;
+  compteurs d'onglets et total d'exemplaires ; tri de la collection, dans la feuille de
+  filtres, par la même fonction pure que le tableau bureau (`stockSort.ts`) ;
+  « Dans le deck : N » dans le picker ; comptes crypte et bibliothèque dans les decks en
+  cours de l'Atelier.
+- **Portés vers le bureau** : le détail de la légalité dans le deckbuilder (motifs,
+  noms des cartes bannies et pas encore légales, alerte « deck actif illégal », note
+  brouillon, modifications non synchronisées), seul écart où le bureau perdait une
+  information métier ; la date de saisie d'une opération refusée ; un bouton
+  « Changer » pour vider la carte choisie du picker, seule action qui n'était
+  atteignable qu'au clavier ; discriminant et statut dans le tableau de l'Atelier.
+- **Correction d'une note du Lot 5** : la méta d'une ligne de collection mobile n'avait
+  pas clan et capacité au motif que « le miroir n'a ni clan ni capacité ». C'était faux
+  à la clôture du Lot 5bis (`CardRow.clanName` et `capacity` existent) ; l'écart est
+  porté.
+- **Hors périmètre, justifiés** (à ne pas rouvrir comme des oublis) : les raccourcis
+  clavier, puisqu'un téléphone n'a pas de clavier à écouter et que chaque raccourci a
+  un bouton équivalent ; la disposition maître/détail des Decks, sans place utile sous
+  1024 px, l'ouverture d'un deck existant aux deux largeurs ; les steppers −/+ de la
+  collection mobile contre l'édition en place du bureau, la même action restant
+  atteignable des deux côtés ; le retour « +N à l'instant » du bureau, le mobile ayant
+  le sien ; les raccourcis de l'Atelier bureau, que le mobile remplace par la tab bar
+  et les boutons flottants ; le verdict de légalité dans l'Atelier mobile, qui coûterait
+  un appel serveur par deck.
+- **Renvoyés au lot Chercher** : l'image de carte (`CardImage`, aperçu au survol et
+  image de la carte choisie), y compris sa forme statique dans le picker mobile ; le
+  champ de recherche global de la barre haute, qui ne faisait rien (ni filtre ni focus
+  par `/`) et qui est **masqué** jusqu'à ce que Chercher le rétablisse.
+- **Reliquat du Lot 5bis** : la légende des raccourcis `?`, annoncée par le handoff
+  bureau, n'a été livrée dans aucun mode. Pas de lot dédié.
+- **Défauts corrigés en passant** : `Entrée` sur la page Decks n'est plus écoutée qu'au
+  bureau et jamais sur un contrôle interactif (option `ignoreTarget` de
+  `useKeyboardShortcuts`, comportement par défaut inchangé) ; les raccourcis de
+  l'Atelier ouvrent la feuille annoncée par une **intention dans la route à hash**
+  (`#/collection?action=ajouter|verser`, `#/decks?action=nouveau`), consommée une seule
+  fois par `history.replaceState` — elle reste côté client et ne touche pas le service
+  worker ; la quantité du tableau de la collection s'édite au clavier, et l'aperçu
+  d'image s'ouvre aussi au focus.
+- **`data-testid`** : 193 identifiants statiques distincts à la clôture (176 avant le
+  lot, au même mode de comptage ; 252 mentions sur 24 fichiers avant le lot en comptage
+  brut). Aucun n'a disparu ; ce recensement sert de repère de non-régression.
+
+Limites connues à la clôture du Lot 5c :
+
+- **Un échec vitest isolé**, non reproduit en huit exécutions suivantes, n'a pas été
+  attribué à un test. À identifier s'il revient (relancer avec la sortie complète).
+- **Refus « Deck inconnu »** observé après la suppression d'un deck qui avait des lignes
+  en attente : hors du Lot 5c, ouvert pour pwa-offline sans investigation dans
+  `docs/issues/2026-10-01-deck-inconnu-apres-suppression.md`.
 
 Tranchées en correction, hors lot (2026-09-29) — **la ligne de deck se détache de la
 collection**. Diagnostic, pistes écartées et conception dans
@@ -948,7 +1010,12 @@ tient en quelques points :
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
    `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.
-   Un **Lot 5c** (plan `docs/lot5c-plan-design.md`) suit les deux passes : il audite la
+   Le Lot 5bis est *livré* (PR #17).
+   Le **Lot 5c** est *livré* : audit fait, chaque écart tranché, les écarts portés
+   implémentés et couverts chacun par un e2e à la largeur où il manquait ; 364 tests
+   vitest et 47 tests Playwright passent (9 `chromium`, 21 `real-backend`, 3 `desktop`,
+   14 `desktop-real-backend`). Verdicts au §11, table dans `docs/lot5c-plan-design.md`.
+   Son objet, pour mémoire : il suit les deux passes et audite la
    **symétrie fonctionnelle** entre mobile et bureau écran par écran, sur les deux
    handoffs et les deux implémentations, puis rend pour chaque écart un verdict écrit —
    porté dans le mode qui le manque, hors périmètre avec justification, ou renvoyé à un

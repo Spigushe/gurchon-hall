@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useKeyboardShortcuts, type ShortcutBinding } from "../../../src/components/useKeyboardShortcuts";
+import {
+  isInteractiveTarget,
+  useKeyboardShortcuts,
+  type ShortcutBinding,
+} from "../../../src/components/useKeyboardShortcuts";
 
 /** Frappe une touche simple (pas de modificateur) sur `document`. */
 function press(key: string) {
@@ -16,6 +20,10 @@ function Harness({ bindings, enabled }: { bindings: ShortcutBinding[]; enabled?:
   return (
     <div>
       <input aria-label="champ de saisie" />
+      <button type="button">bouton</button>
+      <a href="#/x">lien</a>
+      <div role="tab" tabIndex={0}>onglet</div>
+      <p>texte</p>
     </div>
   );
 }
@@ -143,5 +151,53 @@ describe("useKeyboardShortcuts", () => {
     render(<Harness bindings={[{ keys: ["g", "a"], onTrigger: vi.fn() }]} />);
 
     expect(() => press("Escape")).not.toThrow();
+  });
+});
+
+describe("useKeyboardShortcuts : option `ignoreTarget` (Lot 5c, étape 7)", () => {
+  it("par défaut, un raccourci agit et confisque la touche, y compris sur un bouton (comportement inchangé)", () => {
+    const onTrigger = vi.fn();
+    render(<Harness bindings={[{ keys: ["enter"], onTrigger }]} />);
+
+    const notPrevented = fireEvent.keyDown(screen.getByRole("button", { name: "bouton" }), { key: "Enter" });
+
+    expect(onTrigger).toHaveBeenCalledTimes(1);
+    expect(notPrevented).toBe(false); // preventDefault a bien été appelé
+  });
+
+  it("ignore la frappe quand le prédicat rend vrai : ni onTrigger ni preventDefault", () => {
+    const onTrigger = vi.fn();
+    render(<Harness bindings={[{ keys: ["enter"], onTrigger, ignoreTarget: isInteractiveTarget }]} />);
+
+    for (const target of [
+      screen.getByRole("button", { name: "bouton" }),
+      screen.getByRole("link", { name: "lien" }),
+      screen.getByRole("tab", { name: "onglet" }),
+      screen.getByLabelText("champ de saisie"),
+    ]) {
+      expect(fireEvent.keyDown(target, { key: "Enter" })).toBe(true); // la touche garde son effet natif
+    }
+    expect(onTrigger).not.toHaveBeenCalled();
+  });
+
+  it("agit encore sur le document et sur un texte non interactif", () => {
+    const onTrigger = vi.fn();
+    render(<Harness bindings={[{ keys: ["enter"], onTrigger, ignoreTarget: isInteractiveTarget }]} />);
+
+    fireEvent.keyDown(document, { key: "Enter" });
+    fireEvent.keyDown(screen.getByText("texte"), { key: "Enter" });
+
+    expect(onTrigger).toHaveBeenCalledTimes(2);
+  });
+
+  it("isInteractiveTarget : un élément focalisé à la main l'est, pas un tabindex=-1", () => {
+    const focusable = document.createElement("div");
+    focusable.tabIndex = 0;
+    const programmatic = document.createElement("main");
+    programmatic.tabIndex = -1;
+    expect(isInteractiveTarget(focusable)).toBe(true);
+    expect(isInteractiveTarget(programmatic)).toBe(false);
+    expect(isInteractiveTarget(null)).toBe(false);
+    expect(isInteractiveTarget(document)).toBe(false);
   });
 });

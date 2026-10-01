@@ -79,6 +79,9 @@ function RejectedItem({
               {rejection ? REJECTION_LABELS[rejection.code] : "Opération refusée"}
               {rejection?.message ? ` : ${rejection.message}` : ""}
             </p>
+            <p className="row__meta" data-testid="rejected-recorded-at">
+              Saisie du {formatDateTime(entry.recordedAt)}
+            </p>
           </span>
         </button>
       </li>
@@ -330,6 +333,9 @@ export function RejectedDetailPanel({
   const correctable = isCorrectable(entry.operation);
   return (
     <div data-testid="sync-detail-content">
+      <p className="row__meta" data-testid="sync-detail-recorded-at">
+        Saisie du {formatDateTime(entry.recordedAt)}
+      </p>
       {correctable ? (
         <CorrectionForm entry={entry} onDone={onCorrected} />
       ) : (

@@ -1,7 +1,7 @@
-import { useMemo } from "react";
 import { useConnectivity } from "../../offline/react";
 import type { LocalDeck, LocalDeckCard } from "../../offline/vtes";
-import { useCardCategoriesById } from "./useCardCategories";
+import { DeckLegalityDetails } from "./DeckLegalityDetails";
+import { useLocalDeckCounts } from "./useLocalDeckCounts";
 import { useDeckLegality } from "./useDeckLegality";
 
 /**
@@ -32,32 +32,28 @@ import { useDeckLegality } from "./useDeckLegality";
  * `DecksPage.tsx`, qui ne le passe pas), l'en-tête du Deckbuilder bureau
  * possède son propre état local et l'incrémente depuis son bouton
  * « Recalculer » (kbd `R`).
+ *
+ * `detailed` (Lot 5c, étape 1) ajoute sous les quatre chiffres le détail que le
+ * mobile montre dans `DeckLegalityPanel` (`DeckLegalityDetails` : motifs,
+ * noms des cartes bannies, alerte deck actif illégal, avertissement de
+ * version, états indisponible / erreur). Le détail réutilise le verdict
+ * déjà lu ici : aucune seconde lecture réseau.
  */
 export function DeckLegalitySummary({
   deck,
   lines,
   refreshToken = 0,
+  detailed = false,
 }: {
   deck: LocalDeck;
   lines: LocalDeckCard[] | undefined;
   refreshToken?: number;
+  detailed?: boolean;
 }) {
   const online = useConnectivity();
   const outcome = useDeckLegality(deck.id, online, deck.pending ? "pending" : "synced", refreshToken);
 
-  const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
-  const categories = useCardCategoriesById(cardIds);
-  const localCounts = useMemo(() => {
-    if (lines === undefined || categories === undefined) return null;
-    let crypt = 0;
-    let library = 0;
-    for (const line of lines) {
-      const category = categories.get(line.cardId);
-      if (category === "crypt") crypt += line.quantity;
-      else if (category === "library") library += line.quantity;
-    }
-    return { crypt, library };
-  }, [lines, categories]);
+  const localCounts = useLocalDeckCounts(lines);
 
   const ready = outcome?.kind === "ready" ? outcome.legality : null;
 
@@ -117,6 +113,7 @@ export function DeckLegalitySummary({
           <span className="facts__value">{bannedValue}</span>
         </li>
       </ul>
+      {detailed && <DeckLegalityDetails deck={deck} online={online} outcome={outcome} />}
     </div>
   );
 }

@@ -5,9 +5,10 @@ import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { CATEGORY_LABELS, DECK_STATUS_LABELS, formatTime, plural } from "../../labels";
 import { useConnectivity, useFlush, useSyncStatus } from "../../offline/react";
-import { useLocalDecks, useLocalStock, type LocalDeck } from "../../offline/vtes";
+import { useLocalDeckCards, useLocalDecks, useLocalStock, type LocalDeck } from "../../offline/vtes";
 import { CatalogPanel } from "../catalog/CatalogPanel";
 import { useDeckLegality, type LegalityOutcome } from "../decks/useDeckLegality";
+import { useLocalDeckCounts } from "../decks/useLocalDeckCounts";
 
 const TODAY = new Date().toLocaleDateString("fr-FR", {
   weekday: "long",
@@ -38,11 +39,16 @@ function SyncAlert() {
   return (
     <div className="sync-alert" data-testid="sync-alert">
       <p className="sync-alert__title">{title}</p>
-      {status.rejected > 0 && (
-        <Link to={{ name: "sync" }} className="btn-ghost" data-testid="sync-alert-link">
-          Corriger maintenant →
-        </Link>
-      )}
+      {/*
+       * Un seul lien, quel que soit le motif de l'alerte (Lot 5c, étape 2) :
+       * l'écran Synchronisation est le seul endroit où l'on voit la file en
+       * attente, sur mobile qui n'a pas d'onglet dédié. Même testid dans les
+       * deux cas — un seul point d'accroche pour les tests, le libellé seul
+       * change (« Corriger » n'a de sens que s'il y a des refus).
+       */}
+      <Link to={{ name: "sync" }} className="btn-ghost" data-testid="sync-alert-link">
+        {status.rejected > 0 ? "Corriger maintenant →" : "Voir la synchronisation →"}
+      </Link>
       {status.online && status.pending > 0 && (
         <button
           type="button"
@@ -102,7 +108,19 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
       className="home-deck-row"
       data-testid="home-deck-row"
     >
-      <span className="home-deck-row__name">{deck.name}</span>
+      <span className="home-deck-row__name">
+        {deck.name}
+        {/* Discriminant et statut sous le nom (Lot 5c, étape 5), comme la liste mobile. */}
+        <span className="home-deck-row__meta" data-testid="home-deck-row-meta">
+          <span data-testid="home-deck-row-discriminator">
+            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+          </span>
+          {" · "}
+          <span data-testid="home-deck-row-status" data-status={deck.status}>
+            {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+          </span>
+        </span>
+      </span>
       <span className="home-deck-row__counts" data-testid="home-deck-row-counts">
         {display.counts}
       </span>
@@ -115,6 +133,41 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
       </span>
       <ArrowUpRight size={18} className="home-deck-row__arrow" />
     </Link>
+  );
+}
+
+/**
+ * Ligne de la liste « En cours » mobile : nom, puis discriminant, statut,
+ * archétype et — depuis le Lot 5c (étape 5) — les comptes crypte / bibliothèque
+ * du bureau. Comptes **locaux** (composition du miroir croisée avec la catégorie
+ * du catalogue, `useLocalDeckCounts`) : pas de verdict de légalité ici, qui
+ * demanderait un appel serveur par deck et reste propre au tableau bureau.
+ */
+function HomeDeckListItem({ deck }: { deck: LocalDeck }) {
+  const lines = useLocalDeckCards(deck.key);
+  const counts = useLocalDeckCounts(lines);
+
+  return (
+    <li className="row" key={deck.key}>
+      <Link to={{ name: "deck", key: deck.key }} className="row__link">
+        <span>
+          <span className="row__name">{deck.name}</span>
+          <p className="row__meta">
+            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"} ·{" "}
+            {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+            {deck.archetype ? ` · ${deck.archetype}` : ""}
+            {counts && (
+              <span data-testid="home-deck-counts">
+                {" · "}
+                {counts.crypt} {CATEGORY_LABELS.crypt.toLowerCase()} · {counts.library}{" "}
+                {CATEGORY_LABELS.library.toLowerCase()}
+              </span>
+            )}
+          </p>
+        </span>
+        <ArrowUpRight size={18} className="row__arrow" />
+      </Link>
+    </li>
   );
 }
 
@@ -178,19 +231,7 @@ export function HomePage() {
               ) : (
                 <ul className="list">
                   {decks.map((deck) => (
-                    <li className="row" key={deck.key}>
-                      <Link to={{ name: "deck", key: deck.key }} className="row__link">
-                        <span>
-                          <span className="row__name">{deck.name}</span>
-                          <p className="row__meta">
-                            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"} ·{" "}
-                            {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-                            {deck.archetype ? ` · ${deck.archetype}` : ""}
-                          </p>
-                        </span>
-                        <ArrowUpRight size={18} className="row__arrow" />
-                      </Link>
-                    </li>
+                    <HomeDeckListItem key={deck.key} deck={deck} />
                   ))}
                 </ul>
               )}
@@ -205,12 +246,14 @@ export function HomePage() {
          * colonne sans changer de contenu, seul `.home-shortcuts` est propre
          * au bureau et masqué en dessous de 1024px (index.css) — aucun
          * équivalent mobile ne lui correspond, ce qui est assumé (plan du Lot
-         * 5bis, « Pas de conception mobile en cours de route »).
+         * 5bis, « Pas de conception mobile en cours de route »). Chaque raccourci
+         * ouvre la feuille annoncée à l'arrivée (intention dans le hash, Lot 5c
+         * étape 5, consommée une fois — voir `app/routes.ts`).
          */}
         <div className="home-aside">
           <div className="home-shortcuts" data-testid="home-shortcuts">
             <Link
-              to={{ name: "decks" }}
+              to={{ name: "decks", intent: "new" }}
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-deck"
             >
@@ -218,7 +261,7 @@ export function HomePage() {
               Nouveau deck
             </Link>
             <Link
-              to={{ name: "stock" }}
+              to={{ name: "stock", intent: "add" }}
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-stock"
             >
@@ -226,7 +269,7 @@ export function HomePage() {
               Ajouter une carte
             </Link>
             <Link
-              to={{ name: "stock" }}
+              to={{ name: "stock", intent: "bundle" }}
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-bundle"
             >

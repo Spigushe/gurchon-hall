@@ -32,11 +32,10 @@ function usePendingVtesOperations(): Entry[] | undefined {
 const NO_ENTRIES: Entry[] = [];
 
 /**
- * Liste « En attente » du panneau bureau (DESKTOP.md « d06 ») : purement
- * informative, sans sélection ni action — contrairement à la liste Refusées,
- * une opération en attente n'a rien à corriger. Nouvelle (aucun équivalent
- * mobile aujourd'hui, cf. CLAUDE.md § 11 Lot 5bis « pas de conception mobile
- * en cours de route » : ce manque, s'il se confirme, relève du Lot 5c).
+ * Liste « En attente » (DESKTOP.md « d06 ») : purement informative, sans
+ * sélection ni action — contrairement à la liste Refusées, une opération en
+ * attente n'a rien à corriger. Rendue aux deux largeurs depuis le Lot 5c
+ * (étape 2) : en mobile, en colonne unique, sous la liste Refusées.
  */
 function PendingOperationsList() {
   const entries = usePendingVtesOperations();
@@ -187,7 +186,7 @@ export function SyncPage() {
             onSelect={setSelectedOperationId}
           />
 
-          {isDesktop && <PendingOperationsList />}
+          <PendingOperationsList />
         </div>
 
         {isDesktop && (

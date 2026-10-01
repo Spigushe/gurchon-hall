@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderApp, setOnline } from "./harness";
 
@@ -126,9 +126,108 @@ describe("Atelier : tableau « En cours » bureau (d08, Lot 5bis étape 5)", () 
 
     expect(screen.getByTestId("home-page")).toHaveClass("page--atelier");
     const shortcuts = screen.getByTestId("home-shortcuts");
-    expect(within(shortcuts).getByTestId("home-shortcut-deck")).toHaveAttribute("href", "#/decks");
-    expect(within(shortcuts).getByTestId("home-shortcut-stock")).toHaveAttribute("href", "#/collection");
-    expect(within(shortcuts).getByTestId("home-shortcut-bundle")).toHaveAttribute("href", "#/collection");
+    // Adapté au Lot 5c (étape 5) : les raccourcis portent désormais une intention
+    // d'ouverture dans le hash (la feuille annoncée s'ouvre à l'arrivée) ; la route
+    // reste la même (écart D2 de l'audit).
+    expect(within(shortcuts).getByTestId("home-shortcut-deck")).toHaveAttribute("href", "#/decks?action=nouveau");
+    expect(within(shortcuts).getByTestId("home-shortcut-stock")).toHaveAttribute(
+      "href",
+      "#/collection?action=ajouter",
+    );
+    expect(within(shortcuts).getByTestId("home-shortcut-bundle")).toHaveAttribute(
+      "href",
+      "#/collection?action=verser",
+    );
     expect(screen.getByTestId("catalog-panel")).toBeInTheDocument();
+  });
+});
+
+describe("Atelier : symétrie mobile / bureau (Lot 5c, étape 5)", () => {
+  async function withComposedDeck() {
+    const app = await renderApp({ online: false, catalog: true });
+    const { key } = await app.runtime.actions.createDeck({ name: "Tremere", proxyAllowed: true });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 1, // Élan vital, bibliothèque
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 3,
+      proxyQuantity: 3,
+    });
+    await app.runtime.actions.saveDeckCard(key, {
+      cardId: 3, // Theo Bell, crypte
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 2,
+    });
+    return app;
+  }
+
+  it("mobile : la liste « En cours » affiche les comptes crypte / bibliothèque, calculés localement", async () => {
+    setViewportWidth(390);
+    const app = await withComposedDeck();
+    const counts = await screen.findByTestId("home-deck-counts");
+    await waitFor(() => expect(counts).toHaveTextContent("2 crypte · 3 bibliothèque"));
+    // Aucun verdict de légalité ni appel serveur : comptes purement locaux.
+    expect(screen.queryByTestId("home-deck-row-legality")).not.toBeInTheDocument();
+    expect(app.ui.requests).toEqual([]);
+  });
+
+  it("bureau : discriminant et statut sous le nom dans le tableau « En cours »", async () => {
+    setViewportWidth(1440);
+    await withComposedDeck();
+    const row = await screen.findByTestId("home-deck-row");
+    expect(within(row).getByTestId("home-deck-row-discriminator")).toHaveTextContent("numéro à l'attribution");
+    expect(within(row).getByTestId("home-deck-row-status")).toHaveTextContent("brouillon");
+    expect(within(row).getByTestId("home-deck-row-status")).toHaveAttribute("data-status", "draft");
+  });
+
+  it("raccourci « Ajouter une carte » : ouvre la feuille de saisie, une seule fois", async () => {
+    setViewportWidth(1440);
+    await renderApp({ online: false, catalog: true });
+    fireEvent.click(screen.getByTestId("home-shortcut-stock"));
+
+    expect(await screen.findByTestId("stock-form-sheet")).toBeInTheDocument();
+    // Consommée : l'adresse est redevenue nue, sans nouvelle entrée d'historique.
+    await waitFor(() => expect(window.location.hash).toBe("#/collection"));
+
+    // Quitter puis revenir à l'écran (retour arrière, rechargement) ne rouvre rien.
+    act(() => {
+      window.location.hash = "#/";
+    });
+    await screen.findByTestId("home-page");
+    act(() => {
+      window.location.hash = "#/collection";
+    });
+    await screen.findByTestId("stock-page");
+    expect(screen.queryByTestId("stock-form-sheet")).not.toBeInTheDocument();
+  });
+
+  it("raccourci « Verser un produit » : ouvre la feuille de versement", async () => {
+    setViewportWidth(1440);
+    await renderApp({ online: false, catalog: true });
+    fireEvent.click(screen.getByTestId("home-shortcut-bundle"));
+    expect(await screen.findByTestId("bundle-deposit")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.hash).toBe("#/collection"));
+    expect(screen.queryByTestId("stock-form-sheet")).not.toBeInTheDocument();
+  });
+
+  it("raccourci « Nouveau deck » : ouvre la feuille de création, une seule fois", async () => {
+    setViewportWidth(1440);
+    await renderApp({ online: false, catalog: true });
+    fireEvent.click(screen.getByTestId("home-shortcut-deck"));
+    expect(await screen.findByTestId("deck-form-sheet")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.hash).toBe("#/decks"));
+
+    // Fermer la feuille ne la rouvre pas (l'intention est consommée).
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("deck-form-sheet")).not.toBeInTheDocument());
+  });
+
+  it("un rechargement de l'adresse à intention rouvre la feuille une fois, pas en boucle", async () => {
+    setViewportWidth(1440);
+    await renderApp({ online: false, catalog: true, hash: "#/decks?action=nouveau" });
+    expect(await screen.findByTestId("deck-form-sheet")).toBeInTheDocument();
+    await waitFor(() => expect(window.location.hash).toBe("#/decks"));
   });
 });

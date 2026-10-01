@@ -40,6 +40,43 @@ export interface ShortcutBinding {
    * avec la frappe normale. Faux par défaut.
    */
   allowInEditableTarget?: boolean;
+  /**
+   * Prédicat d'ignorance, évalué sur la cible de la frappe : s'il rend vrai, le binding
+   * n'est pas candidat — ni `preventDefault`, ni `onTrigger`, et le comportement natif de
+   * la touche (une `Entrée` sur un bouton, par exemple) reste intact. Absent par défaut :
+   * le comportement des bindings existants ne change pas. Voir `isInteractiveTarget`.
+   */
+  ignoreTarget?: (target: EventTarget | null) => boolean;
+}
+
+const INTERACTIVE_SELECTOR = [
+  "button",
+  "a[href]",
+  "input",
+  "select",
+  "textarea",
+  "summary",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[tabindex]:not([tabindex='-1'])",
+  "[role='button']",
+  "[role='link']",
+  "[role='tab']",
+  "[role='menuitem']",
+  "[role='checkbox']",
+  "[role='radio']",
+  "[role='switch']",
+  "[role='option']",
+].join(",");
+
+/**
+ * Vrai quand la cible est (ou se trouve dans) un contrôle interactif : bouton, lien,
+ * champ, `<select>`, onglet, ou tout élément rendu focalisable à la main. À passer comme
+ * `ignoreTarget` à un raccourci qui ne doit pas voler la touche à ces contrôles (`Entrée`).
+ * Une cible qui n'est pas un élément (`document`) ou le `body` n'en est pas un.
+ */
+export function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.closest(INTERACTIVE_SELECTOR) !== null;
 }
 
 const DEFAULT_CHORD_TIMEOUT_MS = 600;
@@ -119,8 +156,9 @@ export function useKeyboardShortcuts(
     };
 
     /** Cherche une correspondance exacte ou un préfixe pour `candidate`, filtré par contexte. */
-    const match = (candidate: ShortcutToken[], editable: boolean) => {
-      const eligible = (binding: ShortcutBinding) => !editable || binding.allowInEditableTarget === true;
+    const match = (candidate: ShortcutToken[], editable: boolean, target: EventTarget | null) => {
+      const eligible = (binding: ShortcutBinding) =>
+        (!editable || binding.allowInEditableTarget === true) && !binding.ignoreTarget?.(target);
       const exact = bindingsRef.current.find((b) => eligible(b) && sameSequence(b.keys, candidate));
       if (exact) return { kind: "exact" as const, binding: exact };
       const isPrefix = bindingsRef.current.some(
@@ -136,7 +174,7 @@ export function useKeyboardShortcuts(
       const editable = isEditableTarget(event.target);
 
       const candidate = [...pending, token];
-      const result = match(candidate, editable);
+      const result = match(candidate, editable, event.target);
 
       if (result.kind === "exact") {
         event.preventDefault();
@@ -154,7 +192,7 @@ export function useKeyboardShortcuts(
       // nouvelle séquence à elle seule (ex. un `G` tapé juste après un chord avorté).
       clearPending();
       if (candidate.length === 1) return; // déjà tenté ci-dessus avec pending vide
-      const solo = match([token], editable);
+      const solo = match([token], editable, event.target);
       if (solo.kind === "exact") {
         event.preventDefault();
         solo.binding.onTrigger(event);

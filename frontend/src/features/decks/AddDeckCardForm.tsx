@@ -102,10 +102,10 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
   const proxyQuantity = copies - possessed;
   const acquired = available === undefined ? 0 : Math.max(0, possessed - available);
 
-  // Quantité déjà présente dans ce deck pour ce triplet exact (bureau
-  // seulement, « dans le deck N » du handoff) : purement informatif, ne
-  // change rien à `copies` (qui repart toujours de 1 à chaque nouvelle
-  // sélection, comme sur mobile).
+  // Quantité déjà présente dans ce deck pour ce triplet exact (« dans le deck N »
+  // du handoff bureau, repris sur mobile au Lot 5c étape 4) : purement
+  // informatif, ne change rien à `copies` (qui repart toujours de 1 à chaque
+  // nouvelle sélection).
   const inDeck = useMemo(() => {
     if (!chosen || effectiveCardSetId === null) return 0;
     return (
@@ -320,7 +320,20 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
             <div className="deck-card-form-selected" data-testid="deck-card-form-selected">
               <CardImage src={chosen.imageUrl} alt={chosen.label} size="sm" />
               <div className="deck-card-form-selected__body">
-                <p className="row__name">{chosen.label}</p>
+                <div className="deck-card-form-selected__title">
+                  <p className="row__name">{chosen.label}</p>
+                  {/* Même geste que « Changer » du mobile ; `Échap` fait la même chose. */}
+                  <button
+                    type="button"
+                    className="btn-text"
+                    aria-keyshortcuts="Escape"
+                    data-testid="deck-card-form-clear"
+                    onClick={clearChosen}
+                  >
+                    Changer
+                    <Kbd>Échap</Kbd>
+                  </button>
+                </div>
                 <p className="hint">
                   {CATEGORY_LABELS[chosen.category]} · en collection{" "}
                   {available === undefined ? "…" : available} · dans le deck {inDeck}
@@ -392,6 +405,11 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
           </div>
         ) : (
           <CardPicker onSelect={pick} />
+        )}
+        {chosen && (
+          <p className="hint" data-testid="deck-card-form-in-deck">
+            Dans le deck : {inDeck}
+          </p>
         )}
 
         {chosen && (

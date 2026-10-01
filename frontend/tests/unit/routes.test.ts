@@ -35,6 +35,25 @@ describe("routes clientes", () => {
     expect(parseHash("#/inconnu")).toEqual({ name: "not-found" });
   });
 
+  it("porte une intention d'ouverture dans la query du hash, et fait l'aller-retour", () => {
+    const withIntent: Route[] = [
+      { name: "stock", intent: "add" },
+      { name: "stock", intent: "bundle" },
+      { name: "decks", intent: "new" },
+    ];
+    for (const route of withIntent) {
+      const href = hrefFor(route);
+      expect(new URL(href, "http://localhost/").pathname).toBe("/");
+      expect(parseHash(href)).toEqual(route);
+    }
+    expect(hrefFor({ name: "stock", intent: "add" })).toBe("#/collection?action=ajouter");
+    expect(hrefFor({ name: "decks", intent: "new" })).toBe("#/decks?action=nouveau");
+    // Une action inconnue ou posée sur le mauvais écran est ignorée.
+    expect(parseHash("#/collection?action=nouveau")).toEqual({ name: "stock" });
+    expect(parseHash("#/decks?action=ajouter")).toEqual({ name: "decks" });
+    expect(parseHash("#/collection?action=constructor")).toEqual({ name: "stock" });
+  });
+
   it("tolère l'adresse vide, la barre finale et une query", () => {
     expect(parseHash("")).toEqual({ name: "home" });
     expect(parseHash("#")).toEqual({ name: "home" });

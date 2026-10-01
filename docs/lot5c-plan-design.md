@@ -200,3 +200,78 @@ cadrage de portée ci-dessus (le Lot 5bis ne conçoit pas de mobile pour ce qu'i
 introduit) y figure déjà, parce qu'il engage le lot en cours et pas seulement celui-ci.
 Le reste — table d'écarts, verdicts, ordre définitif par rapport au lot Chercher — y
 migrera à la clôture.
+
+## Résultat de l'audit (2026-10-01)
+
+L'audit a été mené sur les quatre sources prévues : frontend-react a lu les composants
+et les media queries, qa-tests a joué un parcours Playwright aux deux largeurs et a
+comparé les éléments interactifs et les `data-testid` visibles. Les verdicts ont été
+validés par l'utilisateur le même jour. Plusieurs pistes du brief se sont révélées
+fausses : la feuille de filtres, la pilule « Ajouter une carte » et le bouton « Verser
+un produit » avaient tous une forme bureau, et aucune action n'était atteignable
+uniquement au clavier, à une exception près (n° 12). Le champ de recherche global, lui,
+ne déléguait à rien : il était entièrement inerte.
+
+### Table d'écarts
+
+| # | Écran, fonctionnalité | Présent en | Manquait en | Verdict |
+| --- | --- | --- | --- | --- |
+| 1 | Accès à l'écran Synchronisation hors refus (hors ligne avec file, serveur injoignable) | bureau | mobile | porté : l'alerte de l'Atelier porte toujours un lien |
+| 2 | Liste des opérations en attente | bureau | mobile | porté |
+| 3 | Clan et capacité dans une ligne de collection | bureau | mobile | porté ; la justification du Lot 5 (« le miroir n'a ni clan ni capacité ») était fausse |
+| 4 | Tri de la collection | bureau | mobile | porté, dans la feuille de filtres, même fonction de tri qu'au bureau |
+| 5 | Nombre de decks utilisant la carte | bureau | mobile | porté |
+| 6 | Compteurs d'onglets et total d'exemplaires | bureau | mobile | porté |
+| 7 | « Dans le deck : N » dans le picker | bureau | mobile | porté |
+| 8 | Image de carte (`CardImage`) : aperçu au survol, image de la carte choisie | bureau | mobile | renvoyé au lot Chercher, qui traite l'image par impression ; rien n'est porté ici, pas même l'image statique du picker |
+| 9 | Raccourcis de l'Atelier (« Nouveau deck », « Ajouter une carte », « Verser un produit ») | bureau | mobile | hors périmètre : le mobile atteint les mêmes feuilles par la tab bar et les boutons flottants |
+| 10 | Volet d'aperçu de la liste des decks (maître/détail) | bureau | mobile | hors périmètre : une disposition maître/détail n'a pas de place sous 1024 px, et « ouvrir le deck » existe aux deux largeurs |
+| 11 | Raccourcis clavier | bureau | mobile | hors périmètre : un téléphone n'a pas de clavier à écouter, et chaque raccourci a un bouton équivalent |
+| 12 | Vider la carte choisie dans le picker (seulement par `Échap`) | mobile (« Changer ») | bureau | porté : bouton « Changer » au bureau |
+| 13 | Retour « +N à l'instant » sur une ligne de deck | bureau | mobile | hors périmètre : le mobile a son propre retour (« ajouté au deck ») |
+| 14 | Détail de la légalité (motifs, noms des cartes bannies et pas encore légales, alerte « deck actif illégal », note brouillon, modifications non synchronisées) | mobile | bureau | porté ; c'était le seul écart où le bureau perdait une information métier |
+| 15 | Date de saisie d'une opération refusée | mobile | bureau | porté |
+| 16 | Steppers −/+ sur une ligne de collection | mobile | bureau | hors périmètre : l'action reste atteignable par la feuille de modification et par l'édition en place (double-clic, et clavier depuis ce lot) |
+| 17 | Atelier, decks en cours : comptes (b) ; discriminant et statut (c) ; verdict de légalité (a) | les deux, en partie | les deux, en partie | (b) porté en mobile ; (c) porté au bureau ; (a) hors périmètre en mobile, car il coûterait un appel serveur par deck |
+| — | Champ de recherche global de la barre haute, inerte | bureau | mobile | renvoyé au lot Chercher ; masqué d'ici là plutôt que laissé visible sans effet |
+| — | Légende des raccourcis `?` | aucun | aucun | manque commun, inscrit comme reliquat du Lot 5bis ; pas de lot dédié |
+
+Manques communs aux deux modes, hors de ce lot : l'écran Chercher ; les données
+absentes du miroir (disciplines, types, coût, image par impression) ; le menu overflow
+du détail de deck et le panier du picker, jamais livrés ; le bloc « Utilisée dans »
+de la feuille d'entrée ; l'état vide de l'Atelier quand aucun deck n'est en cours.
+
+### Défauts corrigés en passant
+
+- **D1** : `Entrée` sur la page Decks interceptait la touche sur tous les boutons et
+  ouvrait le deck sélectionné. Elle n'est plus écoutée qu'au bureau, et jamais sur un
+  contrôle interactif (option `ignoreTarget` de `useKeyboardShortcuts`, comportement
+  par défaut inchangé).
+- **D2** : les raccourcis de l'Atelier ne faisaient que naviguer. Ils ouvrent désormais
+  la feuille annoncée, par une intention portée dans la route à hash
+  (`#/collection?action=ajouter`, `?action=verser`, `#/decks?action=nouveau`),
+  consommée une seule fois par `history.replaceState` : ni un rechargement ni un retour
+  arrière ne rouvrent la feuille.
+- **D3** : la quantité du tableau de la collection s'édite au clavier, et l'aperçu
+  d'image s'ouvre aussi au focus.
+- **D4**, non traité : un refus « Deck inconnu » observé après la suppression d'un deck
+  qui avait des lignes en attente. Ouvert pour pwa-offline dans
+  `docs/issues/2026-10-01-deck-inconnu-apres-suppression.md`.
+
+### Clôture
+
+Le portage a suivi le découpage validé : état de référence (qa-tests), sept étapes de
+code (frontend-react), revue offline sans défaut (pwa-offline), tests à la largeur
+manquante et non-régression (qa-tests).
+
+- vitest : 364 tests (321 avant le lot) ;
+- Playwright : 47 tests (32 avant le lot) — `chromium` 9, `real-backend` 21,
+  `desktop` 3, `desktop-real-backend` 14. Les quinze nouveaux sont dans
+  `frontend/tests/e2e-real/lot5c-symetrie.spec.ts` (390 px) et
+  `frontend/tests/e2e-desktop-real/lot5c-symetrie.spec.ts` (1440 px) : un par écart
+  porté, à la largeur où il manquait ;
+- `data-testid` : 193 identifiants statiques distincts, contre 176 avant le lot ;
+  aucun n'a disparu ;
+- aucun test existant supprimé ni renommé ; trois tests vitest adaptés parce que le
+  comportement voulu a changé (compteurs d'onglets visibles en mobile, liens des
+  raccourcis de l'Atelier, champ de recherche retiré).
