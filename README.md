@@ -70,6 +70,27 @@ accepte les requêtes venant de ces deux origines. Ports personnalisables via
 `-BackendPort`/`-FrontendPort` (`run.ps1`) ou les variables d'environnement
 `BACKEND_PORT`/`FRONTEND_PORT` (`run.sh`).
 
+### Première connexion (comptes, Lot 6)
+
+Depuis le Lot 6, toute route métier exige une session : au premier lancement,
+l'application affiche un mur de connexion. Deux cas, selon la base utilisée :
+
+- **Base de développement existante** (`backend/vtes.db`, celle qui contient la
+  vraie collection) : une fois migrée (`uv run alembic upgrade head`), ses
+  données appartiennent au compte historique (`id = 1`), dont le mot de passe
+  est volontairement inutilisable tant qu'il n'a pas été réclamé. Le réclamer
+  avec une vraie adresse, un nom et un mot de passe (voir
+  `docs/deploiement.md` et `backend/scripts/manage_accounts.py`) :
+
+  ```bash
+  uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>
+  ```
+
+- **Base neuve** (migrée puis vide, ou après `scripts/import_catalog.py` sans
+  stock ni deck) : l'inscription est ouverte, un simple `POST /inscription`
+  (formulaire « Créer un compte » du mur de connexion) suffit à créer un
+  compte utilisable aussitôt.
+
 ### Comment le frontend atteint le backend en dev
 
 Le projet retient les **appels directs vers l'origine du backend**, ouverts
@@ -192,6 +213,37 @@ Chrome DevTools et/ou un test d'installation sur téléphone :
   provisionne Let's Encrypt automatiquement) devant `uvicorn` côté backend et
   devant les fichiers statiques du frontend.
 
+## Variables d'environnement
+
+Le backend lit ses options directement dans l'environnement du processus
+(`os.getenv`, pas de fichier `.env` chargé automatiquement — aucune dépendance
+du projet ne le fait). `backend/.env.example` documente chaque variable avec sa
+valeur par défaut et son usage ; pour s'en servir, exporter la variable voulue
+avant de lancer une commande (`export X=...` en bash, `$env:X = "..."` en
+PowerShell) plutôt que de s'attendre à ce qu'un fichier soit lu tout seul.
+Résumé :
+
+- `DATABASE_URL` : URL SQLAlchemy de la base (défaut `backend/vtes.db`).
+- `BACKEND_CORS_ORIGINS` : origines autorisées, séparées par des virgules (voir
+  plus haut).
+- `SESSION_COOKIE_SECURE` (Lot 6, défaut vrai) : attribut `Secure` du cookie de
+  session. Un repère, pas une certitude, est documenté dans
+  `backend/.env.example` et dans `docs/lot6-plan-comptes.md` : Chrome et
+  Firefox sont réputés accepter un cookie `Secure` sur `http://localhost`, mais
+  ce point reste marqué « à vérifier » sur les versions réellement en usage. Si
+  une connexion semble réussir (`POST /connexion` rend 200 avec un
+  `Set-Cookie`) mais qu'un appel suivant rend quand même 401, mettre cette
+  variable à `false` en développement local sur `http://localhost` est le
+  premier réflexe. Hors `localhost`, HTTPS est de toute façon requis pour la
+  PWA (voir plus bas) : garder la valeur par défaut en production.
+- `ARGON2_MEMORY_COST_KIB`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` (Lot 6,
+  défauts 65536 / 3 / 4, alignés sur barrins-project) : coûts du hachage
+  Argon2id des mots de passe. La CI les abaisse (voir plus bas) ; le
+  développement local et la production gardent les défauts.
+- `LOGIN_RATE_LIMIT`, `SIGNUP_RATE_LIMIT` (Lot 6, défaut `5/minute` chacune) :
+  débit autorisé pour `POST /connexion` et `POST /inscription`, par adresse IP,
+  en mémoire du processus (`slowapi`).
+
 ## Intégration continue
 
 `.github/workflows/ci.yml` définit deux jobs, sur push/PR vers `main` :
@@ -212,9 +264,32 @@ natif `uv` (pas `pip`) pour `backend/uv.lock`, l'écosystème `npm` pour
 `frontend/package-lock.json`, et l'écosystème `github-actions` pour les
 workflows.
 
+**Coûts Argon2 réduits en CI (Lot 6)** : `.github/workflows/ci.yml` positionne
+`ARGON2_MEMORY_COST_KIB=8192` et `ARGON2_TIME_COST=1` au niveau du workflow
+(donc pour les deux jobs, y compris le vrai back lancé par les e2e
+`real-backend`). Sans cela, la suite `pytest` est passée de quelques minutes à
+8 min 26 s une fois l'authentification posée : la quasi-totalité des tests
+passe maintenant par un hachage Argon2 à coût plein (65536 KiB, time_cost=3),
+puisqu'aucun test ne surcharge ces variables aujourd'hui
+(`backend/tests/conftest.py`). Les valeurs choisies restent au-dessus d'un
+minimum dérisoire (le mécanisme Argon2 reste réellement exercé, pas contourné)
+; le développement local et la production gardent les défauts documentés dans
+`backend/.env.example`. Si la durée de la suite pytest redevient gênante, une
+autre option, non retenue ici, serait qu'une fixture pytest surcharge ces
+variables directement (hors du périmètre DevOps : relève de qa-tests ou
+backend-fastapi, cf. `backend/tests/conftest.py`).
+
 Ce fichier est présent dans le dépôt mais n'a pas encore été poussé sur
 GitHub ni activé côté organisation : à committer et pousser explicitement
 quand la CI doit démarrer.
+
+## Déploiement
+
+`docs/deploiement.md` fixe l'ordre à respecter pour une mise en service (Lot 6,
+comptes) : migrer, réclamer le compte historique par CLI, puis seulement
+ouvrir l'application. Le Lot 11 (CLAUDE.md §12) détaillera le reste
+(hébergement, HTTPS, playbook Ansible) ; cette note ne couvre que l'ordre des
+opérations et les variables d'environnement liées aux comptes et à la PWA.
 
 ## Portage vers Barrin (aperçu)
 
