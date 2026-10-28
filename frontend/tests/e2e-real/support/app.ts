@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { TEST_ACCOUNT } from "./backend";
 
 /**
  * Gestes de l'interface partagés par les scénarios contre le vrai back. Tout
@@ -9,9 +10,28 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 export const syncStatus = (page: Page): Locator => page.getByTestId("sync-status");
 
-/** Ouvre l'app, attend l'app shell puis le service worker contrôlant la page. */
+/**
+ * Connexion par l'UI avec `TEST_ACCOUNT` (Lot 6), si le mur de connexion
+ * (`AuthGate`, mode `"gate"`) est affiché. Un navigateur neuf (contexte frais,
+ * donc `localStorage` vide) l'affiche toujours à la première navigation ; un
+ * second onglet du même contexte, ou un rechargement après connexion, ne le
+ * montre plus (`active-account-id` déjà posé) — ce helper ne fait alors rien.
+ */
+export async function logInAsTestAccount(page: Page): Promise<void> {
+  const gate = page.getByTestId("auth-screen");
+  const heading = page.getByRole("heading", { name: "Gurchon Hall" });
+  await expect(gate.or(heading)).toBeVisible();
+  if (!(await gate.isVisible())) return;
+  await gate.getByTestId("login-email").fill(TEST_ACCOUNT.email);
+  await gate.getByTestId("login-password").fill(TEST_ACCOUNT.password);
+  await gate.getByTestId("login-submit").click();
+  await expect(gate).toHaveCount(0);
+}
+
+/** Ouvre l'app, se connecte si nécessaire, attend l'app shell. */
 export async function openApp(page: Page, hash = ""): Promise<void> {
   await page.goto(`/${hash}`);
+  await logInAsTestAccount(page);
   await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
 }
 
@@ -331,22 +351,40 @@ interface OutboxRow {
   type: string;
 }
 
-/** Contenu brut de la file IndexedDB, dans l'ordre de saisie (lecture seule, sans passer par l'app). */
+/**
+ * Contenu brut de la file IndexedDB, dans l'ordre de saisie (lecture seule,
+ * sans passer par l'app). Depuis le Lot 6, la base n'est plus nommée
+ * `gurchon-hall-offline` mais `gurchon-hall-offline-u<id>` (une base par
+ * compte, `dbNameForAccount`) : on la retrouve par motif, l'identifiant du
+ * compte de test n'étant pas garanti stable d'une base modèle à l'autre.
+ */
 export async function readOutbox(page: Page): Promise<OutboxRow[]> {
   return page.evaluate(
     () =>
       new Promise<OutboxRow[]>((resolve, reject) => {
-        const opening = indexedDB.open("gurchon-hall-offline");
-        opening.onerror = () => reject(opening.error);
-        opening.onsuccess = () => {
-          const db = opening.result;
-          const all = db.transaction("outbox", "readonly").objectStore("outbox").getAll();
-          all.onerror = () => reject(all.error);
-          all.onsuccess = () => {
-            db.close();
-            resolve((all.result as OutboxRow[]).sort((a, b) => a.rank - b.rank));
-          };
-        };
+        indexedDB
+          .databases()
+          .then((entries) => {
+            const name = entries
+              .map((entry) => entry.name)
+              .find((candidate): candidate is string => !!candidate && /^gurchon-hall-offline-u\d+$/.test(candidate));
+            if (!name) {
+              resolve([]);
+              return;
+            }
+            const opening = indexedDB.open(name);
+            opening.onerror = () => reject(opening.error);
+            opening.onsuccess = () => {
+              const db = opening.result;
+              const all = db.transaction("outbox", "readonly").objectStore("outbox").getAll();
+              all.onerror = () => reject(all.error);
+              all.onsuccess = () => {
+                db.close();
+                resolve((all.result as OutboxRow[]).sort((a, b) => a.rank - b.rank));
+              };
+            };
+          })
+          .catch(reject);
       }),
   );
 }

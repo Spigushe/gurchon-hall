@@ -1,11 +1,14 @@
 import { expect, test } from "@playwright/test";
+import { openAppMocked } from "../e2e/support/mockAuth";
 
 /**
  * Navigation bureau (≥1024px, `docs/design-handoff/DESKTOP.md`), sans
  * vrai back : la barre haute et le chord clavier `G` puis une lettre
  * (Lot 5bis, étapes 1 et 2, `docs/lot5bis-plan-design.md`) ne dépendent
  * d'aucune donnée serveur — le catalogue reste absent (miroir local vide),
- * sans effet sur ces écrans.
+ * sans effet sur ces écrans. Le mur de connexion (Lot 6, `AuthGate`) est
+ * contourné par `openAppMocked` (`POST /connexion` simulé, cf. ce module) :
+ * ce projet n'a aucun back à authentifier.
  *
  * Miroir bureau de `tests/e2e/` : mêmes garanties (aucune écriture, aucun
  * réseau), sans reprendre les scénarios offline propres au mobile (déjà
@@ -13,7 +16,7 @@ import { expect, test } from "@playwright/test";
  */
 test.describe("navigation bureau", () => {
   test("clic sur un onglet de la barre haute change d'écran", async ({ page }) => {
-    await page.goto("/");
+    await openAppMocked(page);
     await expect(page.getByTestId("home-page")).toBeVisible();
     await expect(page.getByTestId("topnav-home")).toHaveAttribute("aria-current", "page");
 
@@ -34,7 +37,7 @@ test.describe("navigation bureau", () => {
   });
 
   test("le chord clavier G puis une lettre navigue comme la barre haute", async ({ page }) => {
-    await page.goto("/");
+    await openAppMocked(page);
     await expect(page.getByTestId("home-page")).toBeVisible();
 
     await page.keyboard.press("g");
