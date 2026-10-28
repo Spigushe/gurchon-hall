@@ -17,12 +17,27 @@ from app.models import (
     Language,
     PrintOccurrence,
 )
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from app.models.enums import UserRole
+from tests.auth_helpers import log_in, make_account
+from tests.helpers import (
+    add_languages,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
 
 MAX_INT = 2**31 - 1
 HUGE = 99999999999999999999
 
 LINE = {"quantity": 1}
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ces tests portent sur la
+    robustesse de l'API, pas sur l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 # --- Bornes des identifiants -------------------------------------------------
@@ -225,6 +240,11 @@ def test_create_stock_entry_race_is_409(api, world, monkeypatch):
 def test_create_language_race_is_409(api, db, monkeypatch):
     add_languages(db, "EN")
     db.commit()
+    # Compte distinct de celui que la fixture `api` a déjà ouvert (même
+    # adresse par défaut que `authenticated_api`, qui collisionnerait) :
+    # celui-ci a seul besoin du rôle `admin`, réservé à `POST /langues`.
+    make_account(db, email="admin@example.com", username="admin", role=UserRole.ADMIN)
+    log_in(api, "admin@example.com")
     hide_from_get(monkeypatch, Language)
 
     response = api.post("/langues", json={"code": "EN", "label": "Anglais"})

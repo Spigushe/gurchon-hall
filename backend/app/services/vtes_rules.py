@@ -1,7 +1,7 @@
 """Règles métier VtES — fonctions pures, sans base ni HTTP (skill `regles-vtes`).
 
 Périmètre : la légalité d'un deck (CLAUDE.md §5). Les règles de score (VP, Game
-Win) et de tournoi arrivent avec le Lot 4.
+Win) et de tournoi arrivent avec le Lot 7.
 
 Cinq règles :
 

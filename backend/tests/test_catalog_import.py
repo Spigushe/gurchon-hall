@@ -35,7 +35,7 @@ from app.models import (
 )
 from app.services import decks
 from app.services.catalog_import import _date_or_none, import_catalog
-from tests.helpers import add_languages
+from tests.helpers import add_languages, default_user_id, login_default_account
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -326,6 +326,7 @@ def test_placeholder_card_is_kept_and_flagged_to_reassign_when_stock_uses_it(
     add_languages(db, "EN")
     db.add(
         CardCopy(
+            user_id=default_user_id(db),
             card_id=ghost.id,
             language_code="EN",
             card_set_id=placeholder_set_id,
@@ -364,12 +365,16 @@ def test_placeholder_card_is_kept_when_an_all_proxy_deck_line_uses_it(db, krcg):
     ghost = card_by_name(db, "Fantome Sans Extension")
     placeholder_set_id = ghost.printings[0].card_set_id
     add_languages(db, "EN")
-    deck = Deck(name="Tout proxy", discriminator="0001", proxy_allowed=True)
+    user_id = default_user_id(db)
+    deck = Deck(
+        user_id=user_id, name="Tout proxy", discriminator="0001", proxy_allowed=True
+    )
     db.add(deck)
     db.flush()
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=user_id,
             card_id=ghost.id,
             language_code="EN",
             card_set_id=placeholder_set_id,
@@ -578,17 +583,20 @@ def test_an_imported_legal_date_drives_the_deck_legality(api, db, krcg):
     )
     import_catalog(db, vtes, expansions)
     add_languages(db, "EN")
+    login_default_account(api, db)
+    user_id = default_user_id(db)
     aabbt = card_by_name(db, "Aabbt Kindred")
     card_set_id = aabbt.printings[0].card_set_id
     db.add(
         CardCopy(
+            user_id=user_id,
             card_id=aabbt.id,
             language_code="EN",
             card_set_id=card_set_id,
             quantity_owned=12,
         )
     )
-    deck = Deck(name="Futur", discriminator="0001")
+    deck = Deck(user_id=user_id, name="Futur", discriminator="0001")
     db.add(deck)
     db.commit()
     added = api.post(
@@ -602,8 +610,8 @@ def test_an_imported_legal_date_drives_the_deck_legality(api, db, krcg):
     )
     assert added.status_code == 201
 
-    eve = decks.get_legality(db, deck.id, on=date(2098, 12, 31))
-    day = decks.get_legality(db, deck.id, on=date(2099, 1, 1))
+    eve = decks.get_legality(db, user_id, deck.id, on=date(2098, 12, 31))
+    day = decks.get_legality(db, user_id, deck.id, on=date(2099, 1, 1))
 
     assert [c.name for c in eve.not_yet_legal_cards] == ["Aabbt Kindred"]
     assert eve.is_legal is False

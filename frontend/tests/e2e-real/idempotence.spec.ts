@@ -200,12 +200,20 @@ test("503 avec Retry-After : rien n'est perdu, le même lot repart après le dé
     if (posts.length === 0) {
       posts.push({ at: Date.now(), ids, status: 503 });
       // Un serveur bien configuré : `Retry-After` est exposé au navigateur (CORS).
+      // `access-control-allow-credentials` est indispensable ici : le client envoie
+      // `credentials: "include"` (Lot 6, cookie de session) et l'origine déclarée
+      // n'est pas `*`, donc sans cet en-tête le navigateur bloque la réponse entière
+      // (pas seulement l'en-tête Retry-After) — `fetch` lève, le transport retombe
+      // sur le backoff par défaut sans jamais voir `retry-after`. Le vrai back
+      // (`backend/app/main.py`, `allow_credentials=True`) l'envoie toujours ; seul
+      // ce mock l'avait oublié.
       return route.fulfill({
         status: 503,
         headers: {
           "content-type": "application/json",
           "retry-after": "3",
           "access-control-allow-origin": WEB_ORIGIN,
+          "access-control-allow-credentials": "true",
           "access-control-expose-headers": "Retry-After",
         },
         body: JSON.stringify({

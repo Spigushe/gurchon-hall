@@ -19,6 +19,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
   const count = useLiveQuery(countQuery);
   const [status, setStatus] = useState<CatalogState["status"]>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [authRequired, setAuthRequired] = useState(false);
   const running = useRef(false);
 
   const update = useCallback(async () => {
@@ -32,12 +33,22 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       const report = await refresh({ catalog: true });
       if (report.refreshed.includes("catalog")) {
         setStatus("idle");
+        setAuthRequired(false);
+      } else if (report.authRequired) {
+        // Lot 6 : un 401, pas une panne. Rien n'a bougé (le miroir n'a pas été
+        // vidé avant d'avoir tout relu, `runtime.ts`) : ce n'est pas une
+        // erreur à afficher en rouge, juste une reconnexion à proposer
+        // (`CatalogPanel`).
+        setStatus("idle");
+        setAuthRequired(true);
       } else {
         setStatus("error");
+        setAuthRequired(false);
         setError(report.errors.join(" ; ") || "Le catalogue n'a pas pu être téléchargé.");
       }
     } catch (failure) {
       setStatus("error");
+      setAuthRequired(false);
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       running.current = false;
@@ -56,6 +67,9 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     }
   }, [online, count, update]);
 
-  const value = useMemo(() => ({ count, status, error, update }), [count, status, error, update]);
+  const value = useMemo(
+    () => ({ count, status, error, authRequired, update }),
+    [count, status, error, authRequired, update],
+  );
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }

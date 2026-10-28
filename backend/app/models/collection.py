@@ -28,10 +28,21 @@ Trois idées, dans l'ordre où elles s'empilent :
    decklist figée ne doit même pas retenir l'impression tampon de l'import
    (décision D2c).
 
+**Propriétaire (Lot 6).** `card_copy`, `deck` et `deck_card` portent un
+`user_id` : une collection et des decks appartiennent à un compte. La clé de
+`card_copy` commence par lui, si bien que deux comptes possèdent chacun leur
+entrée pour la même carte, langue et extension. `deck_card` en garde une copie,
+contrainte par sa clé étrangère composite vers `deck (id, user_id)` : la ligne
+ne peut pas appartenir à un autre compte que son deck, et la correspondance
+ligne de deck ↔ entrée de collection redevient une égalité de quatre colonnes
+(`user_id`, carte, langue, extension) des deux côtés. `deleted_deck_card` n'en
+a pas besoin : elle ne réserve rien et ne se lit qu'à travers son deck.
+
 Ce que le schéma ne dit **pas**, et qui reste du ressort des services de
-validation du Lot 2 (skill `regles-vtes`) : la somme des exemplaires alloués à
-travers tous les decks ne doit pas dépasser `quantity_owned + proxies`, et un
-deck doit respecter crypt ≥ 12 / library 60–90.
+validation (skill `regles-vtes`) : pour chaque compte et chaque entrée de sa
+collection, la somme des exemplaires réels alloués par les decks vivants **de
+ce compte** ne dépasse pas `quantity_owned` ; un deck doit respecter les cinq
+règles de légalité du §5.
 """
 
 from datetime import date, datetime
@@ -48,6 +59,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.models.account import UserAccount
 from app.models.base import Base, TimestampMixin
 from app.models.catalog import Card, CardPrinting
 from app.models.enums import DeckStatus, enum_column
@@ -58,10 +70,13 @@ from app.models.types import UtcDateTime
 class CardCopy(Base):
     """Exemplaires possédés d'une carte, dans une langue, pour une impression.
 
-    Clé : (carte, langue, extension) — décision D1 du Lot 4. Pas de clé
-    technique : le client hors ligne désigne une entrée par des valeurs qu'il
-    connaît déjà, et les chemins restent lisibles
-    (`/stock/{card_id}/{language_code}/{card_set_id}`).
+    Clé : (compte, carte, langue, extension) — décision D1 du Lot 4, élargie
+    par le propriétaire au Lot 6. Pas de clé technique : le client hors ligne
+    désigne une entrée par des valeurs qu'il connaît déjà, et les chemins
+    restent lisibles (`/stock/{card_id}/{language_code}/{card_set_id}`) — le
+    compte vient de la session, jamais de l'URL. `user_id` est en **tête** de
+    la clé : toute lecture de la collection filtre d'abord sur le compte, et la
+    clé primaire sert alors d'index.
 
     La clé étrangère composite vers `card_printing` (`card_id`, `card_set_id`),
     adossée à l'unicité `uq_card_printing_card_id_card_set_id`, fait refuser
@@ -81,6 +96,10 @@ class CardCopy(Base):
         CheckConstraint("quantity_owned >= 0", name="quantity_owned_positive"),
     )
 
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("user_account.id"),
+        primary_key=True,
+    )
     card_id: Mapped[int] = mapped_column(ForeignKey("card.id"), primary_key=True)
     language_code: Mapped[str] = mapped_column(
         ForeignKey("language.code"),
@@ -113,16 +132,23 @@ class CardCopy(Base):
     # deck peut vivre sans entrée (tout-proxy), donc la base ne relie plus les
     # deux tables. Conséquence à connaître : supprimer une entrée encore allouée
     # n'est plus refusé par la base, c'est `services/stock.py` qui le refuse, et
-    # seulement si un exemplaire réel est consommé.
+    # seulement si un exemplaire réel est consommé. La jointure porte aussi sur
+    # le compte (Lot 6) : sans lui, les decks d'un compte compteraient contre la
+    # collection d'un autre.
     deck_allocations: Mapped[list[DeckCard]] = relationship(
         primaryjoin=(
-            "and_(CardCopy.card_id == DeckCard.card_id, "
+            "and_(CardCopy.user_id == DeckCard.user_id, "
+            "CardCopy.card_id == DeckCard.card_id, "
             "CardCopy.language_code == DeckCard.language_code, "
             "CardCopy.card_set_id == DeckCard.card_set_id)"
         ),
-        foreign_keys="[DeckCard.card_id, DeckCard.language_code, DeckCard.card_set_id]",
+        foreign_keys=(
+            "[DeckCard.user_id, DeckCard.card_id, DeckCard.language_code, "
+            "DeckCard.card_set_id]"
+        ),
         viewonly=True,
     )
+    user: Mapped[UserAccount] = relationship(viewonly=True)
 
 
 class Deck(Base, TimestampMixin):
@@ -143,14 +169,27 @@ class Deck(Base, TimestampMixin):
     n'oblige un joueur à inventer un nom neuf à chaque itération d'un même
     archétype. Ce qui les distingue est un discriminant de quatre chiffres,
     tiré par le serveur à la création (« Malkavien 2022#8561 », comme un pseudo
-    Discord). Le couple (nom, discriminant) est unique sur **tous** les decks,
-    supprimés compris : un deck supprimé garde donc son identité d'affichage,
-    et rien ne la réattribue.
+    Discord). Le couple (nom, discriminant) est unique parmi **tous les decks
+    d'un même compte**, supprimés compris (Lot 6, D2) : un deck supprimé garde
+    son identité d'affichage, et rien ne la réattribue dans ce compte. Deux
+    comptes peuvent avoir chacun leur « Banu Princes#1234 » : l'identité
+    d'affichage d'un deck n'est plus globale.
+
+    `uq_deck_id_user_id` est redondante avec la clé primaire en logique, mais
+    SQLite exige une clé unique déclarée pour qu'une clé étrangère composite la
+    vise : c'est la cible de `deck_card` et de `participation`, qui garantit
+    qu'une ligne de deck ou une participation appartient au compte du deck.
     """
 
     __tablename__ = "deck"
     __table_args__ = (
-        UniqueConstraint("name", "discriminator", name="uq_deck_name_discriminator"),
+        UniqueConstraint(
+            "user_id",
+            "name",
+            "discriminator",
+            name="uq_deck_user_id_name_discriminator",
+        ),
+        UniqueConstraint("id", "user_id", name="uq_deck_id_user_id"),
         # Quatre chiffres, zéros initiaux compris, « 0000 » exclu. `GLOB` est
         # propre à SQLite (équivalent Postgres : `discriminator ~ '^[0-9]{4}$'`)
         # ; la contrainte serait à retraduire lors d'un éventuel portage.
@@ -162,6 +201,7 @@ class Deck(Base, TimestampMixin):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
     name: Mapped[str] = mapped_column(String(120))
     # Tiré par le service, jamais fourni par le client, et stable au renommage.
     discriminator: Mapped[str] = mapped_column(String(4))
@@ -212,12 +252,27 @@ class DeckCard(Base):
     l'impression du catalogue (`card_printing`, sur carte + extension — la
     même contrainte que porte `card_copy`, décision D2 du Lot 4) et la langue.
     Ce qui reste du ressort du service : une ligne qui consomme un exemplaire
-    réel exige une entrée de collection suffisante, et la somme des
-    consommations ne dépasse pas ce qui est possédé (`services/stock.py`).
+    réel exige une entrée de collection **du même compte**, suffisante, et la
+    somme des consommations ne dépasse pas ce qui est possédé
+    (`services/stock.py`).
+
+    **`user_id` est une copie de celui du deck** (Lot 6). Tant que la ligne
+    pointait `card_copy`, la base reliait d'elle-même le deck et l'exemplaire
+    consommé ; depuis `f3a91c47b2de`, seule l'égalité des clés les relie. Avec
+    le compte sur la ligne, cette égalité porte sur quatre colonnes servies par
+    un index, sans jointure vers `deck` à chaque somme — et la clé étrangère
+    composite vers `deck (id, user_id)` interdit que la copie diverge du deck.
+    Ajoutée par la relation `Deck.cards`, une ligne reçoit les deux colonnes de
+    son deck.
     """
 
     __tablename__ = "deck_card"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["deck_id", "user_id"],
+            ["deck.id", "deck.user_id"],
+            ondelete="CASCADE",
+        ),
         ForeignKeyConstraint(
             ["card_id", "card_set_id"],
             ["card_printing.card_id", "card_printing.card_set_id"],
@@ -229,22 +284,20 @@ class DeckCard(Base):
         ),
         # « Quels decks consomment cet exemplaire ? » est la requête centrale
         # de la réconciliation stock ↔ decks : la PK commence par `deck_id` et
-        # ne la sert pas. Étendu à l'extension au Lot 4 : l'index couvre la clé
-        # entière de `card_copy`, dans l'ordre de sa clé primaire. Il reste utile
-        # sans la clé étrangère : c'est par lui que le service retrouve les
-        # lignes de deck adossées à une entrée de collection.
+        # ne la sert pas. L'index couvre la clé entière de `card_copy`, dans
+        # l'ordre de sa clé primaire — extension comprise depuis le Lot 4,
+        # compte en tête depuis le Lot 6. C'est par lui que le service retrouve
+        # les lignes de deck adossées à une entrée de collection.
         Index(
-            "ix_deck_card_card_id_language_code_card_set_id",
+            "ix_deck_card_user_id_card_id_language_code_card_set_id",
+            "user_id",
             "card_id",
             "language_code",
             "card_set_id",
         ),
     )
 
-    deck_id: Mapped[int] = mapped_column(
-        ForeignKey("deck.id", ondelete="CASCADE"),
-        primary_key=True,
-    )
+    deck_id: Mapped[int] = mapped_column(primary_key=True)
     card_id: Mapped[int] = mapped_column(primary_key=True)
     language_code: Mapped[str] = mapped_column(
         String(8),
@@ -252,6 +305,10 @@ class DeckCard(Base):
         primary_key=True,
     )
     card_set_id: Mapped[int] = mapped_column(primary_key=True)
+    # Hors de la clé primaire : `deck_id` désigne déjà un seul compte. Pas de
+    # clé étrangère simple vers `user_account` : la composite vers `deck`
+    # l'implique, puisque `deck.user_id` en porte une.
+    user_id: Mapped[int] = mapped_column()
     quantity: Mapped[int] = mapped_column(default=1)
     proxy_quantity: Mapped[int] = mapped_column(default=0)
 
@@ -262,11 +319,15 @@ class DeckCard(Base):
     # d'où un type facultatif. Même patron que `CardCopy.printing`.
     card_copy: Mapped[CardCopy | None] = relationship(
         primaryjoin=(
-            "and_(DeckCard.card_id == CardCopy.card_id, "
+            "and_(DeckCard.user_id == CardCopy.user_id, "
+            "DeckCard.card_id == CardCopy.card_id, "
             "DeckCard.language_code == CardCopy.language_code, "
             "DeckCard.card_set_id == CardCopy.card_set_id)"
         ),
-        foreign_keys="[DeckCard.card_id, DeckCard.language_code, DeckCard.card_set_id]",
+        foreign_keys=(
+            "[DeckCard.user_id, DeckCard.card_id, DeckCard.language_code, "
+            "DeckCard.card_set_id]"
+        ),
         viewonly=True,
     )
     # Raccourci de lecture vers le catalogue. Pas de clé étrangère directe vers

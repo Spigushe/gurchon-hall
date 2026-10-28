@@ -2,18 +2,29 @@
 
 Chemins en français, comme au §7 du CLAUDE.md ; noms de schémas et d'opérations
 en anglais technique.
+
+Les lectures sont publiques (Lot 6, P5) : le catalogue est partagé, en lecture
+seule, et le miroir local doit pouvoir le charger avant la première connexion.
+Deux écritures exigent une session : le versement d'un produit, qui va dans la
+collection du compte, et l'ajout d'une langue, réservé au rôle `admin` parce
+que la table est commune à tous les comptes (P4).
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
-from app.models import CardCategory
+from app.models import CardCategory, UserRole
 from app.routers.common import (
     CONFLICT,
+    FORBIDDEN_ORIGIN,
+    FORBIDDEN_ROLE_OR_ORIGIN,
     MAX_DB_INT,
     NOT_FOUND,
+    UNAUTHENTICATED,
+    CurrentUser,
     DbSession,
     PathId,
     QueryId,
+    require_role,
 )
 from app.schemas.catalog import BundleContentRead, CardListItem, CardRead
 from app.schemas.collection import BundleDeposit, CardCopyRead
@@ -114,17 +125,20 @@ def get_bundle(bundle_id: PathId, db: DbSession):
     operation_id="depositBundle",
     summary="Verser un produit dans la collection",
     description=(
-        "Ajoute le contenu du produit au stock, dans la langue indiquée et "
-        "sous l'extension du produit. Les quantités s'additionnent à "
+        "Ajoute le contenu du produit à la collection du compte, dans la "
+        "langue indiquée et sous l'extension du produit. Le produit est "
+        "partagé, le versement est privé. Les quantités s'additionnent à "
         "l'existant. Non idempotent : deux appels versent deux produits. 409 "
         "si le produit est sans contenu connu, ou si le total d'une entrée "
         "dépasserait le plafond (2147483647) : aucune entrée n'est alors "
         "modifiée."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**UNAUTHENTICATED, **FORBIDDEN_ORIGIN, **NOT_FOUND, **CONFLICT},
 )
-def deposit_bundle(bundle_id: PathId, payload: BundleDeposit, db: DbSession):
-    return stock.deposit_bundle(db, bundle_id, payload)
+def deposit_bundle(
+    bundle_id: PathId, payload: BundleDeposit, db: DbSession, user: CurrentUser
+):
+    return stock.deposit_bundle(db, user.id, bundle_id, payload)
 
 
 @router.get(
@@ -143,7 +157,13 @@ def list_languages(db: DbSession):
     status_code=201,
     operation_id="createLanguage",
     summary="Ajouter une langue",
-    responses={**CONFLICT},
+    description=(
+        "Réservé au rôle `admin` : la liste des langues est commune à tous les "
+        "comptes, une langue ajoutée apparaît chez chacun. 401 sans session, "
+        "403 pour un compte `user`."
+    ),
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+    responses={**UNAUTHENTICATED, **FORBIDDEN_ROLE_OR_ORIGIN, **CONFLICT},
 )
 def create_language(payload: LanguageCreate, db: DbSession):
     return catalog.create_language(db, payload)

@@ -55,8 +55,10 @@ from app.models import (
     Venue,
 )
 from app.models.base import utcnow
+from tests.auth_helpers import make_account
 from tests.helpers import (
     add_languages,
+    default_user_id,
     make_card,
     make_copy,
     make_deck,
@@ -64,6 +66,7 @@ from tests.helpers import (
     make_player,
     make_printing,
     make_tournament,
+    make_venue,
 )
 
 
@@ -101,7 +104,14 @@ def test_foreign_key_is_really_enforced(db):
 
 def test_card_copy_primary_key_is_card_and_language(db_engine):
     columns = inspect(db_engine).get_pk_constraint("card_copy")
-    assert columns["constrained_columns"] == ["card_id", "language_code", "card_set_id"]
+    # `user_id` en tête de la clé (Lot 6, D1 du Lot 4 élargie) : deux comptes
+    # possèdent chacun leur entrée pour la même carte, langue et extension.
+    assert columns["constrained_columns"] == [
+        "user_id",
+        "card_id",
+        "language_code",
+        "card_set_id",
+    ]
 
 
 def test_card_copy_rejects_duplicate_card_and_language(db):
@@ -111,8 +121,9 @@ def test_card_copy_rejects_duplicate_card_and_language(db):
     with pytest.raises(IntegrityError):
         run_sql(
             db,
-            "INSERT INTO card_copy (card_id, language_code, card_set_id,"
-            " quantity_owned) VALUES (:c, 'EN', :s, 2)",
+            "INSERT INTO card_copy (user_id, card_id, language_code, card_set_id,"
+            " quantity_owned) VALUES (:u, :c, 'EN', :s, 2)",
+            u=copy.user_id,
             c=card.id,
             s=copy.card_set_id,
         )
@@ -140,7 +151,12 @@ def test_card_copy_requires_existing_card(db):
     db.add(card_set)
     db.flush()
     db.add(
-        CardCopy(card_id=424242, language_code="EN", card_set_id=card_set.id)
+        CardCopy(
+            user_id=default_user_id(db),
+            card_id=424242,
+            language_code="EN",
+            card_set_id=card_set.id,
+        )
     )
     with pytest.raises(IntegrityError):
         db.flush()
@@ -153,7 +169,10 @@ def test_card_copy_requires_existing_language(db):
     printing = make_printing(db, card)
     db.add(
         CardCopy(
-            card_id=card.id, language_code="ZZ", card_set_id=printing.card_set_id
+            user_id=default_user_id(db),
+            card_id=card.id,
+            language_code="ZZ",
+            card_set_id=printing.card_set_id,
         )
     )
     with pytest.raises(IntegrityError):
@@ -169,7 +188,14 @@ def test_card_copy_requires_a_real_printing(db):
     card_set = CardSet(abbrev="TS")
     db.add(card_set)
     db.flush()
-    db.add(CardCopy(card_id=card.id, language_code="EN", card_set_id=card_set.id))
+    db.add(
+        CardCopy(
+            user_id=default_user_id(db),
+            card_id=card.id,
+            language_code="EN",
+            card_set_id=card_set.id,
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -190,6 +216,7 @@ def test_card_copy_rejects_negative_quantity(db):
     printing = make_printing(db, card)
     db.add(
         CardCopy(
+            user_id=default_user_id(db),
             card_id=card.id,
             language_code="EN",
             card_set_id=printing.card_set_id,
@@ -251,12 +278,12 @@ def test_deck_card_rejects_duplicate_line(db):
     copy = make_copy(db, card, "EN", quantity_owned=4)
     deck = make_deck(db)
     insert = (
-        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
-        " quantity, proxy_quantity) VALUES (:d, :c, 'EN', :s, 1, 0)"
+        "INSERT INTO deck_card (deck_id, user_id, card_id, language_code, card_set_id,"
+        " quantity, proxy_quantity) VALUES (:d, :u, :c, 'EN', :s, 1, 0)"
     )
-    run_sql(db, insert, d=deck.id, c=card.id, s=copy.card_set_id)
+    run_sql(db, insert, d=deck.id, u=deck.user_id, c=card.id, s=copy.card_set_id)
     with pytest.raises(IntegrityError):
-        run_sql(db, insert, d=deck.id, c=card.id, s=copy.card_set_id)
+        run_sql(db, insert, d=deck.id, u=deck.user_id, c=card.id, s=copy.card_set_id)
 
 
 def test_deck_card_no_longer_requires_a_collection_entry(db):
@@ -273,6 +300,7 @@ def test_deck_card_no_longer_requires_a_collection_entry(db):
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=printing.card_set_id,
@@ -293,6 +321,7 @@ def test_deck_card_rejects_a_language_unknown_to_the_language_table(db):
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="ZZ",
             card_set_id=printing.card_set_id,
@@ -318,6 +347,7 @@ def test_deck_card_rejects_another_cards_printing(db):
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=other.id,
             language_code="EN",
             card_set_id=copy.card_set_id,
@@ -335,6 +365,7 @@ def test_deck_card_requires_existing_deck(db):
     db.add(
         DeckCard(
             deck_id=777,
+            user_id=default_user_id(db),
             card_id=card.id,
             language_code="EN",
             card_set_id=copy.card_set_id,
@@ -357,6 +388,7 @@ def test_deck_card_accepts_same_card_in_two_languages(db):
         [
             DeckCard(
                 deck_id=deck.id,
+                user_id=deck.user_id,
                 card_id=card.id,
                 language_code="EN",
                 card_set_id=printing.card_set_id,
@@ -364,6 +396,7 @@ def test_deck_card_accepts_same_card_in_two_languages(db):
             ),
             DeckCard(
                 deck_id=deck.id,
+                user_id=deck.user_id,
                 card_id=card.id,
                 language_code="FR",
                 card_set_id=printing.card_set_id,
@@ -383,6 +416,7 @@ def test_deck_card_accepts_proxy_line_backed_by_a_proxy_only_copy(db):
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="FR",
             card_set_id=copy.card_set_id,
@@ -402,6 +436,7 @@ def test_same_card_can_be_in_several_decks(db):
         [
             DeckCard(
                 deck_id=first.id,
+                user_id=first.user_id,
                 card_id=card.id,
                 language_code="EN",
                 card_set_id=copy.card_set_id,
@@ -409,6 +444,7 @@ def test_same_card_can_be_in_several_decks(db):
             ),
             DeckCard(
                 deck_id=second.id,
+                user_id=second.user_id,
                 card_id=card.id,
                 language_code="EN",
                 card_set_id=copy.card_set_id,
@@ -436,6 +472,7 @@ def test_deck_card_check_rejects_invalid_quantities(db, quantity, proxy_quantity
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=copy.card_set_id,
@@ -459,6 +496,7 @@ def test_deck_card_check_accepts_boundary_quantities(db, quantity, proxy_quantit
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=copy.card_set_id,
@@ -534,6 +572,7 @@ def test_deleting_a_collection_entry_no_longer_trips_on_a_live_or_frozen_line(db
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=card_set_id,
@@ -702,8 +741,15 @@ def test_game_accepts_two_or_more_players(db, player_count):
 )
 def test_participation_check_rejects_out_of_range(db, field, value):
     game = make_game(db)
-    player = make_player(db)
-    db.add(Participation(game_id=game.id, player_id=player.id, **{field: value}))
+    player = make_player(db, user_id=game.user_id)
+    db.add(
+        Participation(
+            game_id=game.id,
+            user_id=game.user_id,
+            player_id=player.id,
+            **{field: value},
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -714,9 +760,13 @@ def test_participation_check_rejects_out_of_range(db, field, value):
 )
 def test_participation_accepts_boundaries_and_half_points(db, victory_points, seat):
     game = make_game(db)
-    player = make_player(db)
+    player = make_player(db, user_id=game.user_id)
     participation = Participation(
-        game_id=game.id, player_id=player.id, victory_points=victory_points, seat=seat
+        game_id=game.id,
+        user_id=game.user_id,
+        player_id=player.id,
+        victory_points=victory_points,
+        seat=seat,
     )
     db.add(participation)
     db.commit()
@@ -831,8 +881,11 @@ def test_enum_column_has_a_named_check_constraint(
 def test_enum_column_rejects_invalid_value_in_database(
     db, table, column, constraint, enum, base, bogus
 ):
+    row = {**base, column: bogus}
+    if table in ("deck", "tournament", "game"):
+        row["user_id"] = default_user_id(db)
     with pytest.raises(IntegrityError) as excinfo:
-        insert_row(db, table, {**base, column: bogus})
+        insert_row(db, table, row)
     assert "CHECK" in str(excinfo.value)
 
 
@@ -850,6 +903,8 @@ def test_enum_column_accepts_every_member_value(
             row["vekn_id"] = index + 1
         if table == "deck":
             row["name"] = f"deck-{index}"
+        if table in ("deck", "tournament", "game"):
+            row["user_id"] = default_user_id(db)
         insert_row(db, table, row)
 
 
@@ -1000,22 +1055,27 @@ def test_player_name_is_unique(db):
 @pytest.mark.parametrize(
     "model",
     [
-        pytest.param(lambda: Clan(name="Ventrue"), id="clan.name"),
-        pytest.param(lambda: Discipline(name="Dominate"), id="discipline.name"),
-        pytest.param(lambda: Sect(name="Camarilla"), id="sect.name"),
-        pytest.param(lambda: CardType(name="Action"), id="card_type.name"),
-        pytest.param(lambda: CardSet(abbrev="FN"), id="card_set.abbrev"),
-        pytest.param(lambda: Venue(name="Club"), id="venue.name"),
+        pytest.param(lambda user_id: Clan(name="Ventrue"), id="clan.name"),
+        pytest.param(lambda user_id: Discipline(name="Dominate"), id="discipline.name"),
+        pytest.param(lambda user_id: Sect(name="Camarilla"), id="sect.name"),
+        pytest.param(lambda user_id: CardType(name="Action"), id="card_type.name"),
+        pytest.param(lambda user_id: CardSet(abbrev="FN"), id="card_set.abbrev"),
         pytest.param(
-            lambda: Deck(name="Grinder", discriminator="8561"),
+            lambda user_id: Venue(user_id=user_id, name="Club"), id="venue.name"
+        ),
+        pytest.param(
+            lambda user_id: Deck(
+                user_id=user_id, name="Grinder", discriminator="8561"
+            ),
             id="deck.name_discriminator",
         ),
     ],
 )
 def test_natural_keys_are_unique(db, model):
-    db.add(model())
+    user_id = default_user_id(db)
+    db.add(model(user_id))
     db.flush()
-    db.add(model())
+    db.add(model(user_id))
     with pytest.raises(IntegrityError):
         db.flush()
 
@@ -1052,7 +1112,11 @@ def test_an_archived_deck_also_keeps_its_pair(db):
 
 
 def test_deck_name_uniqueness_is_a_plain_unique_constraint(db_engine):
-    """Plus d'index partiel : une contrainte ordinaire sur le couple."""
+    """Plus d'index partiel : une contrainte ordinaire sur le triplet.
+
+    Lot 6, D2 : l'unicité (nom, discriminant) est devenue (compte, nom,
+    discriminant) — deux comptes peuvent chacun avoir un « Grinder#8561 ».
+    """
     inspector = inspect(db_engine)
     indexes = {ix["name"] for ix in inspector.get_indexes("deck")}
     assert "uq_deck_name_not_deleted" not in indexes
@@ -1060,7 +1124,10 @@ def test_deck_name_uniqueness_is_a_plain_unique_constraint(db_engine):
         tuple(uq["column_names"]): uq["name"]
         for uq in inspector.get_unique_constraints("deck")
     }
-    assert uniques == {("name", "discriminator"): "uq_deck_name_discriminator"}
+    assert uniques == {
+        ("user_id", "name", "discriminator"): "uq_deck_user_id_name_discriminator",
+        ("id", "user_id"): "uq_deck_id_user_id",
+    }
 
 
 def test_deck_requires_a_discriminator(db):
@@ -1080,7 +1147,9 @@ def test_deck_accepts_four_digit_discriminators(db, value):
     "value", ["", "1", "42", "00042", "abcd", "004a", "12 4", "0000", " 001"]
 )
 def test_deck_refuses_anything_but_four_digits(db, value):
-    db.add(Deck(name="Grinder", discriminator=value))
+    db.add(
+        Deck(user_id=default_user_id(db), name="Grinder", discriminator=value)
+    )
     with pytest.raises(IntegrityError) as excinfo:
         db.flush()
     assert "CHECK" in str(excinfo.value)
@@ -1264,30 +1333,51 @@ def test_printing_occurrence_accepts_the_three_shapes(db):
 
 def test_participation_player_is_unique_per_game(db):
     game, player = make_game(db), make_player(db)
-    db.add(Participation(game_id=game.id, player_id=player.id))
+    db.add(Participation(game_id=game.id, user_id=game.user_id, player_id=player.id))
     db.flush()
-    db.add(Participation(game_id=game.id, player_id=player.id))
+    db.add(Participation(game_id=game.id, user_id=game.user_id, player_id=player.id))
     with pytest.raises(IntegrityError):
         db.flush()
 
 
 def test_participation_seat_is_unique_per_game(db):
     game = make_game(db)
-    first, second = make_player(db, "A"), make_player(db, "B")
-    db.add(Participation(game_id=game.id, player_id=first.id, seat=2))
+    first, second = (
+        make_player(db, "A", user_id=game.user_id),
+        make_player(db, "B", user_id=game.user_id),
+    )
+    db.add(
+        Participation(
+            game_id=game.id, user_id=game.user_id, player_id=first.id, seat=2
+        )
+    )
     db.flush()
-    db.add(Participation(game_id=game.id, player_id=second.id, seat=2))
+    db.add(
+        Participation(
+            game_id=game.id, user_id=game.user_id, player_id=second.id, seat=2
+        )
+    )
     with pytest.raises(IntegrityError):
         db.flush()
 
 
 def test_participation_same_seat_and_player_across_games_is_fine(db):
     first_game, second_game = make_game(db), make_game(db)
-    player = make_player(db)
+    player = make_player(db, user_id=first_game.user_id)
     db.add_all(
         [
-            Participation(game_id=first_game.id, player_id=player.id, seat=2),
-            Participation(game_id=second_game.id, player_id=player.id, seat=2),
+            Participation(
+                game_id=first_game.id,
+                user_id=first_game.user_id,
+                player_id=player.id,
+                seat=2,
+            ),
+            Participation(
+                game_id=second_game.id,
+                user_id=second_game.user_id,
+                player_id=player.id,
+                seat=2,
+            ),
         ]
     )
     db.flush()
@@ -1298,7 +1388,11 @@ def test_participation_seat_may_stay_unknown_for_several_players(db):
     game = make_game(db)
     db.add_all(
         [
-            Participation(game_id=game.id, player_id=make_player(db, f"J{i}").id)
+            Participation(
+                game_id=game.id,
+                user_id=game.user_id,
+                player_id=make_player(db, f"J{i}", user_id=game.user_id).id,
+            )
             for i in range(4)
         ]
     )
@@ -1362,8 +1456,11 @@ def test_participation_requires_game_and_player(db):
 
 def test_adversary_participation_may_be_almost_empty(db):
     """§11.3 : pour un adversaire, ni deck, ni VP, ni GW, ni siège."""
-    game, player = make_game(db), make_player(db, "Adversaire")
-    participation = Participation(game_id=game.id, player_id=player.id)
+    game = make_game(db)
+    player = make_player(db, "Adversaire", user_id=game.user_id)
+    participation = Participation(
+        game_id=game.id, user_id=game.user_id, player_id=player.id
+    )
     db.add(participation)
     db.commit()
     db.refresh(participation)
@@ -1461,6 +1558,92 @@ def test_card_translation_is_unique_per_card_and_language(db):
     db.add(CardTranslation(card_id=card.id, language_code="FR", name="Deux"))
     with pytest.raises(IntegrityError):
         db.flush()
+
+
+# --------------------------------------------------------------------------
+# Lot 6 : FK composites entre tables du Lot 7, par compte
+# --------------------------------------------------------------------------
+#
+# Pas de routes pour ces tables avant le Lot 7 (CLAUDE.md §12) : la seule
+# façon d'éprouver ces contraintes est un test de modèle, comme demandé par
+# `docs/lot6-plan-comptes.md` (étape A3, « tables du Lot 7 »). Chaque FK
+# composite vise `(x.id, x.user_id)` : associer une ligne au compte A tout en
+# pointant une ressource du compte B doit être refusé par la base elle-même,
+# indépendamment de tout service.
+
+
+def _second_account_id(db) -> int:
+    return make_account(
+        db, email="autre-compte@example.com", username="autre-compte"
+    ).id
+
+
+def test_participation_deck_fk_rejects_deck_of_another_account(db):
+    """CLAUDE.md §11 (Lot 6) : une participation ne peut pas pointer le deck
+    d'un autre compte."""
+    other_user_id = _second_account_id(db)
+    other_deck = make_deck(db, user_id=other_user_id)
+    game = make_game(db)
+    player = make_player(db, user_id=game.user_id)
+    db.add(
+        Participation(
+            game_id=game.id,
+            user_id=game.user_id,
+            player_id=player.id,
+            deck_id=other_deck.id,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_participation_player_fk_rejects_player_of_another_account(db):
+    other_user_id = _second_account_id(db)
+    other_player = make_player(db, user_id=other_user_id)
+    game = make_game(db)
+    db.add(
+        Participation(game_id=game.id, user_id=game.user_id, player_id=other_player.id)
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_participation_game_fk_rejects_game_of_another_account(db):
+    """`user_id` de la participation ne peut pas différer de celui de sa partie :
+    la FK composite vise `(game.id, game.user_id)`."""
+    other_user_id = _second_account_id(db)
+    game = make_game(db)  # compte par défaut
+    player = make_player(db, user_id=other_user_id)
+    db.add(
+        Participation(
+            game_id=game.id,
+            user_id=other_user_id,
+            player_id=player.id,
+        )
+    )
+    with pytest.raises(IntegrityError):
+        db.flush()
+
+
+def test_game_tournament_fk_rejects_tournament_of_another_account(db):
+    other_user_id = _second_account_id(db)
+    other_tournament = make_tournament(db, user_id=other_user_id)
+    with pytest.raises(IntegrityError):
+        make_game(db, tournament_id=other_tournament.id)
+
+
+def test_game_venue_fk_rejects_venue_of_another_account(db):
+    other_user_id = _second_account_id(db)
+    other_venue = make_venue(db, user_id=other_user_id)
+    with pytest.raises(IntegrityError):
+        make_game(db, venue_id=other_venue.id)
+
+
+def test_tournament_venue_fk_rejects_venue_of_another_account(db):
+    other_user_id = _second_account_id(db)
+    other_venue = make_venue(db, user_id=other_user_id)
+    with pytest.raises(IntegrityError):
+        make_tournament(db, venue_id=other_venue.id)
 
 
 def test_link_tables_reject_duplicates(db):

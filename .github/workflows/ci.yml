@@ -19,6 +19,23 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Coûts Argon2id réduits pour la CI (Lot 6, docs/lot6-plan-comptes.md §P1,
+# backend/app/services/auth.py) : la suite pytest est passée de quelques
+# minutes à ~8 min 26 s une fois l'authentification posée, la quasi-totalité
+# des tests passant désormais par un hachage Argon2 à coût plein (65536 KiB,
+# time_cost=3). Décision DevOps (CLAUDE.md §11 à reporter) : abaisser le coût
+# en CI (8192 KiB, time_cost=1) plutôt que d'accepter la durée telle quelle —
+# les valeurs restent au-dessus d'un minimum dérisoire pour continuer
+# d'exercer le mécanisme Argon2 lui-même (temps de hachage non nul, mémoire
+# non triviale), elles ne le contournent pas. Ne change rien à la production
+# ni au développement local (backend/.env.example documente les deux jeux de
+# valeurs) : seul ce workflow positionne ces variables. S'applique aux deux
+# jobs, le job frontend démarrant aussi un vrai back (e2e `real-backend`) qui
+# hache un mot de passe à la création du compte de test et à chaque connexion.
+env:
+  ARGON2_MEMORY_COST_KIB: "8192"
+  ARGON2_TIME_COST: "1"
+
 jobs:
   backend:
     name: Backend (FastAPI / pytest / contrat OpenAPI)

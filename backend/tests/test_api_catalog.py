@@ -5,7 +5,9 @@ from pathlib import Path
 
 import pytest
 
+from app.models.enums import UserRole
 from app.services.catalog_import import import_catalog
+from tests.auth_helpers import authenticated_api
 from tests.helpers import add_languages, make_card
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -172,6 +174,7 @@ def test_languages_are_listed_in_display_order(api, db):
 def test_create_language_normalizes_the_code(api, db):
     add_languages(db, "EN")
     db.commit()
+    authenticated_api(api, db, role=UserRole.ADMIN)
 
     created = api.post("/langues", json={"code": "de", "label": "Allemand"})
 
@@ -190,6 +193,7 @@ def test_create_language_refuses_a_blank_code_and_creates_nothing(api, db):
     """
     add_languages(db, "EN")
     db.commit()
+    authenticated_api(api, db, role=UserRole.ADMIN)
     before = [lang["code"] for lang in api.get("/langues").json()]
 
     for blank in ("   ", "\t", "\n", "   "):
@@ -204,6 +208,7 @@ def test_create_language_trims_the_code_before_normalizing(api, db):
     """« ␣de␣ » collé depuis une page devient « DE », pas un doublon à part."""
     add_languages(db, "EN")
     db.commit()
+    authenticated_api(api, db, role=UserRole.ADMIN)
 
     created = api.post("/langues", json={"code": "  de  ", "label": "Allemand"})
 

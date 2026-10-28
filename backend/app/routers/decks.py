@@ -1,9 +1,22 @@
-"""Decks et composition : `/decks`, `/decks/{id}/cartes`, légalité."""
+"""Decks et composition : `/decks`, `/decks/{id}/cartes`, légalité.
+
+Depuis le Lot 6, toutes les routes exigent une session et ne voient que les
+decks du compte. Un deck d'un autre compte, vivant ou supprimé, rend 404 sur
+toutes les routes, `/legalite` comprise, avec le message d'un deck inexistant.
+"""
 
 from fastapi import APIRouter, Response
 
 from app.models import DeckStatus
-from app.routers.common import CONFLICT, NOT_FOUND, DbSession, PathId
+from app.routers.common import (
+    CONFLICT,
+    FORBIDDEN_ORIGIN,
+    NOT_FOUND,
+    UNAUTHENTICATED,
+    CurrentUser,
+    DbSession,
+    PathId,
+)
 from app.schemas.collection import (
     DeckCardCreate,
     DeckCardRead,
@@ -17,7 +30,11 @@ from app.schemas.collection import (
 )
 from app.services import decks
 
-router = APIRouter(prefix="/decks", tags=["decks"])
+router = APIRouter(
+    prefix="/decks",
+    tags=["decks"],
+    responses=UNAUTHENTICATED,
+)
 
 
 @router.get(
@@ -35,11 +52,12 @@ router = APIRouter(prefix="/decks", tags=["decks"])
 )
 def list_decks(
     db: DbSession,
+    user: CurrentUser,
     status: DeckStatus | None = None,
     q: str | None = None,
     state: DeckListState = DeckListState.ACTIVE,
 ):
-    return decks.list_decks(db, status=status, q=q, state=state)
+    return decks.list_decks(db, user.id, status=status, q=q, state=state)
 
 
 @router.post(
@@ -56,10 +74,10 @@ def list_decks(
         "l'activer. 409 aussi si aucun discriminant libre ne peut être attribué "
         "au nom (espace saturé, ou écritures concurrentes répétées)."
     ),
-    responses={**CONFLICT},
+    responses={**CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def create_deck(payload: DeckCreate, db: DbSession):
-    return decks.create_deck(db, payload)
+def create_deck(payload: DeckCreate, db: DbSession, user: CurrentUser):
+    return decks.create_deck(db, user.id, payload)
 
 
 @router.get(
@@ -75,8 +93,8 @@ def create_deck(payload: DeckCreate, db: DbSession):
     ),
     responses={**NOT_FOUND},
 )
-def get_deck(deck_id: PathId, db: DbSession):
-    return decks.get_deck_detail(db, deck_id)
+def get_deck(deck_id: PathId, db: DbSession, user: CurrentUser):
+    return decks.get_deck_detail(db, user.id, deck_id)
 
 
 @router.patch(
@@ -96,10 +114,12 @@ def get_deck(deck_id: PathId, db: DbSession):
         "sauf si le couple (nom, discriminant) est déjà pris : un autre est alors "
         "tiré. Un deck supprimé n'est plus modifiable (409)."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def update_deck(deck_id: PathId, payload: DeckUpdate, db: DbSession):
-    return decks.update_deck(db, deck_id, payload)
+def update_deck(
+    deck_id: PathId, payload: DeckUpdate, db: DbSession, user: CurrentUser
+):
+    return decks.update_deck(db, user.id, deck_id, payload)
 
 
 @router.delete(
@@ -115,10 +135,10 @@ def update_deck(deck_id: PathId, payload: DeckUpdate, db: DbSession):
         "participations restent en base. Le deck n'apparaît plus dans aucune "
         "liste mais reste lisible par `GET /decks/{id}`."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def delete_deck(deck_id: PathId, db: DbSession):
-    decks.delete_deck(db, deck_id)
+def delete_deck(deck_id: PathId, db: DbSession, user: CurrentUser):
+    decks.delete_deck(db, user.id, deck_id)
     return Response(status_code=204)
 
 
@@ -135,8 +155,8 @@ def delete_deck(deck_id: PathId, db: DbSession):
     ),
     responses={**NOT_FOUND, **CONFLICT},
 )
-def get_deck_legality(deck_id: PathId, db: DbSession):
-    return decks.get_legality(db, deck_id)
+def get_deck_legality(deck_id: PathId, db: DbSession, user: CurrentUser):
+    return decks.get_legality(db, user.id, deck_id)
 
 
 @router.post(
@@ -158,10 +178,12 @@ def get_deck_legality(deck_id: PathId, db: DbSession):
         "`quantity - proxy_quantity`). Aussi 409 si le deck est archivé ou "
         "supprimé. 404 si la carte n'a pas été imprimée dans cette extension."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def add_deck_card(deck_id: PathId, payload: DeckCardCreate, db: DbSession):
-    return decks.add_card(db, deck_id, payload)
+def add_deck_card(
+    deck_id: PathId, payload: DeckCardCreate, db: DbSession, user: CurrentUser
+):
+    return decks.add_card(db, user.id, deck_id, payload)
 
 
 @router.patch(
@@ -179,7 +201,7 @@ def add_deck_card(deck_id: PathId, payload: DeckCardCreate, db: DbSession):
         "`{\"proxy_quantity\": p - n, \"acquired_quantity\": n}`. Rejouer ce "
         "`PATCH` à l'identique rend un 422, jamais un double comptage."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
 def update_deck_card(
     deck_id: PathId,
@@ -188,9 +210,10 @@ def update_deck_card(
     card_set_id: PathId,
     payload: DeckCardUpdate,
     db: DbSession,
+    user: CurrentUser,
 ):
     return decks.update_card(
-        db, deck_id, card_id, language_code, card_set_id, payload
+        db, user.id, deck_id, card_id, language_code, card_set_id, payload
     )
 
 
@@ -200,7 +223,7 @@ def update_deck_card(
     operation_id="removeDeckCard",
     summary="Retire une carte du deck",
     description="Un deck archivé ou supprimé n'est pas modifiable (409).",
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
 def remove_deck_card(
     deck_id: PathId,
@@ -208,6 +231,7 @@ def remove_deck_card(
     language_code: str,
     card_set_id: PathId,
     db: DbSession,
+    user: CurrentUser,
 ):
-    decks.remove_card(db, deck_id, card_id, language_code, card_set_id)
+    decks.remove_card(db, user.id, deck_id, card_id, language_code, card_set_id)
     return Response(status_code=204)

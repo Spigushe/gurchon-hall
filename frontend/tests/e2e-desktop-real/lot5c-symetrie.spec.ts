@@ -206,7 +206,8 @@ test.describe("D2 : les raccourcis de l'Atelier ouvrent la feuille annoncée", (
   });
 });
 
-test("la barre haute n'a plus de champ de recherche global (Lot 5c, étape 6)", async ({ page }) => {
+test("la barre haute n'a plus de champ de recherche global (Lot 5c, étape 6)", async ({ page, api }) => {
+  void api; // démarre le vrai back : sans lui la connexion échoue (ERR_CONNECTION_REFUSED)
   await openAppDesktop(page);
   await expect(page.getByTestId("topnav-home")).toBeVisible();
   await expect(page.locator("header").getByRole("searchbox")).toHaveCount(0);

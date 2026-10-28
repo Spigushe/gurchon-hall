@@ -1,4 +1,4 @@
-import { liveQuery } from "dexie";
+import Dexie, { liveQuery } from "dexie";
 import { afterEach, describe, expect, it } from "vitest";
 import { createVtesOffline, type VtesOfflineRuntime } from "../../../src/offline/vtes/runtime";
 import { readDeck, readDeckCards, readDecks, readStock } from "../../../src/offline/vtes/reads";
@@ -225,6 +225,88 @@ describe("indisponibilité du serveur", () => {
     expect(await runtime.outbox.counts()).toMatchObject({ pending: 1, rejected: 0 });
     expect(clock.active()).toHaveLength(1);
     expect(clock.active()[0].delayMs).toBe(1000);
+  });
+});
+
+describe("pause d'authentification (401, Lot 6)", () => {
+  it("un 401 sur /sync met le rejeu en pause, file intacte, pas de nouvel essai programmé", async () => {
+    const { server, runtime, clock } = await boot({ online: false });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
+    const { key } = await runtime.actions.createDeck({ name: "Gangrel" });
+
+    server.next.status = 401;
+    const summary = await runtime.engine.flush();
+
+    expect(summary.result).toBe("paused");
+    expect(runtime.engine.getStatus().authRequired).toBe(true);
+    expect(clock.active()).toHaveLength(0); // aucun backoff programmé, contrairement à un 503
+    const stuck = await runtime.outbox.list();
+    expect(stuck.every((entry) => entry.state === "pending")).toBe(true);
+    expect(stuck).toHaveLength(2); // rien n'est refusé ni sorti de la file
+    expect(await readDeck(runtime.db, key)).toMatchObject({ pending: true }); // toujours lisible localement
+  });
+
+  it("resumeAfterAuthentication() rejoue la file dès que la session redevient valide", async () => {
+    const { server, runtime } = await boot({ online: false });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
+    server.next.status = 401;
+    await runtime.engine.flush();
+    expect(runtime.engine.getStatus().authRequired).toBe(true);
+
+    const summary = await runtime.engine.resumeAfterAuthentication();
+    expect(summary).toMatchObject({ result: "drained", applied: 1 });
+    expect(runtime.engine.getStatus().authRequired).toBe(false);
+    expect(await runtime.outbox.list()).toEqual([]);
+    expect(server.state.stock.get(`1|EN|${CARD_SET_ID}`)?.quantity_owned).toBe(1);
+  });
+
+  it("un 401 au rafraîchissement laisse les miroirs intacts et le signale par authRequired, pas par errors", async () => {
+    const { server, runtime } = await boot();
+    server.state.stock.set(`1|EN|${CARD_SET_ID}`, {
+      card_id: 1, language_code: "EN", card_set_id: CARD_SET_ID, quantity_owned: 2, notes: null,
+    });
+    await runtime.refresh();
+    expect(await runtime.db.stock.count()).toBe(1);
+
+    server.state.stock.clear();
+    server.next.getStatus = 401;
+    const report = await runtime.refresh();
+
+    expect(report.complete).toBe(false);
+    expect(report.authRequired).toBe(true);
+    expect(report.errors).toEqual([]); // pas affiché comme une erreur de lecture ordinaire
+    expect(await runtime.db.stock.count()).toBe(1); // ancien instantané conservé, rien n'a bougé
+  });
+});
+
+describe("purge à la déconnexion (D3, Lot 6)", () => {
+  it("supprime la base IndexedDB en entier : miroirs, file, settled, refs", async () => {
+    const dbName = freshDbName("purge");
+    const { server, runtime } = await boot({ dbName });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
+    await runtime.refresh();
+    expect(await runtime.db.outbox.count()).toBeGreaterThan(0);
+
+    await runtime.purge();
+    runtimes.splice(runtimes.indexOf(runtime), 1); // déjà fermé par purge(), rien à arrêter en afterEach
+
+    expect(await Dexie.exists(dbName)).toBe(false);
+    expect(server.state.requests.some((request) => request.path === "/deconnexion")).toBe(false); // hors de ce périmètre : purge() ne parle jamais au serveur
+  });
+
+  it("ne touche à rien d'autre : une seconde base nommée différemment survit", async () => {
+    const survivorName = freshDbName("survivor");
+    const purgedName = freshDbName("purged");
+    const survivor = await boot({ dbName: survivorName });
+    const toPurge = await boot({ dbName: purgedName });
+    await survivor.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: CARD_SET_ID, quantityOwned: 1 });
+
+    await toPurge.runtime.purge();
+    runtimes.splice(runtimes.indexOf(toPurge.runtime), 1);
+
+    expect(await Dexie.exists(purgedName)).toBe(false);
+    expect(await Dexie.exists(survivorName)).toBe(true);
+    expect(await survivor.runtime.outbox.counts()).toMatchObject({ pending: 1 });
   });
 });
 

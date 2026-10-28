@@ -53,6 +53,7 @@ from app.schemas.play import (
 from app.schemas.reference import LanguageCreate, VenueCreate, VenueUpdate
 from tests.helpers import (
     add_languages,
+    default_user_id,
     make_card,
     make_copy,
     make_deck,
@@ -627,10 +628,14 @@ def test_create_defaults_match_the_model_defaults(db):
     Le discriminant s'ajoute à la charge utile : c'est le service qui le tire,
     le client ne le fournit jamais (cf. `DeckCreate`).
     """
-    deck = Deck(discriminator="0001", **DeckCreate(name="D").model_dump())
+    user_id = default_user_id(db)
+    deck = Deck(
+        user_id=user_id, discriminator="0001", **DeckCreate(name="D").model_dump()
+    )
     db.add(deck)
     tournament = Tournament(
-        **TournamentCreate(name="T", start_date=date(2026, 1, 1)).model_dump()
+        user_id=user_id,
+        **TournamentCreate(name="T", start_date=date(2026, 1, 1)).model_dump(),
     )
     db.add(tournament)
     db.flush()
@@ -803,6 +808,7 @@ def test_deck_card_rules_agree_between_schema_and_database(db, quantity, proxy, 
     db.add(
         DeckCard(
             deck_id=deck.id,
+            user_id=deck.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=copy.card_set_id,
@@ -1000,7 +1006,8 @@ def test_participation_bounds_agree_between_schema_and_database(
     db, field, value, valid
 ):
     """Valeur limite acceptée par le schéma = acceptée par la base, et inversement."""
-    game, player = make_game(db), make_player(db)
+    game = make_game(db)
+    player = make_player(db, user_id=game.user_id)
 
     try:
         ParticipationCreate(player_id=player.id, **{field: value})
@@ -1008,7 +1015,11 @@ def test_participation_bounds_agree_between_schema_and_database(
     except ValidationError:
         schema_accepts = False
 
-    db.add(Participation(game_id=game.id, player_id=player.id, **{field: value}))
+    db.add(
+        Participation(
+            game_id=game.id, user_id=game.user_id, player_id=player.id, **{field: value}
+        )
+    )
     try:
         db.flush()
         database_accepts = True

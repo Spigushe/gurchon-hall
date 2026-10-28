@@ -118,6 +118,37 @@ class RoundType(StrEnum):
     FINAL = "final"
 
 
+class UserRole(StrEnum):
+    """Rôle d'un compte, par niveau d'accès croissant (Lot 6, décision P4).
+
+    Patron repris de barrins-project (`apps/barrins_api/app/core/roles.py`) :
+    une `StrEnum` dont chaque membre a un **niveau**, et toute autorisation se
+    décide en comparant des niveaux (`role.level >= minimum.level`), jamais des
+    noms. Deux niveaux seulement ici — les intermédiaires de Barrin
+    (`moderator`, `ml_developer`) n'ont pas d'usage dans le pilote —, mais un
+    rôle intermédiaire pourra s'insérer plus tard en renumérotant `level`,
+    sans toucher aux dépendances qui comparent.
+
+    Dans ce lot, `admin` ne sert qu'à `POST /langues`. Le rôle n'est jamais
+    fourni par le client : le serveur pose `user` à l'inscription, et seul le
+    script `manage_accounts.py set-role` le change.
+    """
+
+    USER = "user"
+    ADMIN = "admin"
+
+    @property
+    def level(self) -> int:
+        """Niveau d'accès du rôle : 1 pour `user`, 2 pour `admin`."""
+        return _ROLE_LEVELS[self]
+
+
+_ROLE_LEVELS: dict[UserRole, int] = {
+    UserRole.USER: 1,
+    UserRole.ADMIN: 2,
+}
+
+
 class SyncOperationType(StrEnum):
     """Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).
 

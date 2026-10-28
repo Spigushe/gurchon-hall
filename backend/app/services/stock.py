@@ -23,6 +23,15 @@ et leurs lignes vivantes n'existent plus. `allocated_real` et
 collection n'est retenue que par des decks vivants (archivés compris) : la
 supprimer n'est jamais bloquée par un deck supprimé.
 
+**Portée par compte (Lot 6).** Toute fonction de ce module prend `user_id` en
+paramètre obligatoire, **sans valeur par défaut** : un oubli doit échouer au
+typage, pas compter globalement (CLAUDE.md §11, `docs/lot6-plan-comptes.md`,
+risques). La comptabilité du stock est reformulée par compte : la somme des
+exemplaires réels alloués par les decks vivants **de ce compte** ne dépasse pas
+`quantity_owned` de ce compte — jamais les decks d'un autre compte dans la
+somme, et le message d'un 409 ne révèle jamais ce qu'un autre compte possède ou
+joue (`DeckCard.user_id`, copie de celui du deck, cf. `app.models.collection`).
+
 **Limite connue (reportée au Lot 3, `/sync`)** : la comptabilité du stock est un
 « vérifier puis écrire » non atomique. Deux requêtes concurrentes peuvent
 chacune constater assez d'exemplaires disponibles et, ensemble, sur-allouer une
@@ -52,16 +61,18 @@ from app.services.text_search import contains_folded
 
 def allocated_real(
     db: Session,
+    user_id: int,
     card_id: int,
     language_code: str,
     card_set_id: int,
     *,
     excluding_deck_id: int | None = None,
 ) -> int:
-    """Exemplaires réels (hors proxies) déjà pris par les decks vivants."""
+    """Exemplaires réels (hors proxies) déjà pris par les decks vivants du compte."""
     stmt = select(
         func.coalesce(func.sum(DeckCard.quantity - DeckCard.proxy_quantity), 0)
     ).where(
+        DeckCard.user_id == user_id,
         DeckCard.card_id == card_id,
         DeckCard.language_code == language_code,
         DeckCard.card_set_id == card_set_id,
@@ -72,10 +83,11 @@ def allocated_real(
 
 
 def proxies_allocated(
-    db: Session, card_id: int, language_code: str, card_set_id: int
+    db: Session, user_id: int, card_id: int, language_code: str, card_set_id: int
 ) -> int:
-    """Proxies présents dans les decks vivants pour cette entrée."""
+    """Proxies présents dans les decks vivants du compte pour cette entrée."""
     stmt = select(func.coalesce(func.sum(DeckCard.proxy_quantity), 0)).where(
+        DeckCard.user_id == user_id,
         DeckCard.card_id == card_id,
         DeckCard.language_code == language_code,
         DeckCard.card_set_id == card_set_id,
@@ -85,6 +97,7 @@ def proxies_allocated(
 
 def list_stock(
     db: Session,
+    user_id: int,
     *,
     language_code: str | None = None,
     card_set_id: int | None = None,
@@ -96,6 +109,7 @@ def list_stock(
     stmt = (
         select(CardCopy)
         .join(Card, Card.id == CardCopy.card_id)
+        .where(CardCopy.user_id == user_id)
         .options(joinedload(CardCopy.card).joinedload(Card.clan))
     )
     if language_code:
@@ -122,12 +136,13 @@ def list_stock(
 
 
 def get_copy(
-    db: Session, card_id: int, language_code: str, card_set_id: int
+    db: Session, user_id: int, card_id: int, language_code: str, card_set_id: int
 ) -> CardCopy:
     code = catalog.normalize_language_code(language_code)
     copy = db.scalars(
         select(CardCopy)
         .where(
+            CardCopy.user_id == user_id,
             CardCopy.card_id == card_id,
             CardCopy.language_code == code,
             CardCopy.card_set_id == card_set_id,
@@ -142,18 +157,20 @@ def get_copy(
     return copy
 
 
-def create_copy(db: Session, payload: CardCopyCreate) -> CardCopy:
+def create_copy(db: Session, user_id: int, payload: CardCopyCreate) -> CardCopy:
     code = catalog.normalize_language_code(payload.language_code)
     if db.get(Card, payload.card_id) is None:
         raise NotFoundError(f"Carte {payload.card_id} introuvable.")
     catalog.get_language(db, code)
     catalog.get_printing(db, payload.card_id, payload.card_set_id)
-    if db.get(CardCopy, (payload.card_id, code, payload.card_set_id)) is not None:
+    copy_key = (user_id, payload.card_id, code, payload.card_set_id)
+    if db.get(CardCopy, copy_key) is not None:
         raise ConflictError(
             f"La carte {payload.card_id} est déjà en collection en {code} : "
             "modifier l'entrée existante."
         )
     copy = CardCopy(
+        user_id=user_id,
         card_id=payload.card_id,
         language_code=code,
         card_set_id=payload.card_set_id,
@@ -164,21 +181,22 @@ def create_copy(db: Session, payload: CardCopyCreate) -> CardCopy:
     commit_or_conflict(
         db, f"La carte {payload.card_id} est déjà en collection en {code}."
     )
-    return get_copy(db, copy.card_id, code, copy.card_set_id)
+    return get_copy(db, user_id, copy.card_id, code, copy.card_set_id)
 
 
 def update_copy(
     db: Session,
+    user_id: int,
     card_id: int,
     language_code: str,
     card_set_id: int,
     payload: CardCopyUpdate,
 ) -> CardCopy:
-    copy = get_copy(db, card_id, language_code, card_set_id)
+    copy = get_copy(db, user_id, card_id, language_code, card_set_id)
     changes = payload.model_dump(exclude_unset=True)
 
     if "quantity_owned" in changes:
-        used = allocated_real(db, card_id, copy.language_code, card_set_id)
+        used = allocated_real(db, user_id, card_id, copy.language_code, card_set_id)
         if changes["quantity_owned"] < used:
             raise ConflictError(
                 f"{used} exemplaire(s) sont alloués à des decks : impossible de "
@@ -191,9 +209,10 @@ def update_copy(
 
 
 def delete_copy(
-    db: Session, card_id: int, language_code: str, card_set_id: int
+    db: Session, user_id: int, card_id: int, language_code: str, card_set_id: int
 ) -> None:
-    """Supprime une entrée, sauf si un deck vivant en consomme un exemplaire réel.
+    """Supprime une entrée, sauf si un deck vivant du compte en consomme un
+    exemplaire réel.
 
     Depuis le Lot 4b
     (piste A1, `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`),
@@ -204,8 +223,8 @@ def delete_copy(
     compte. Sans ça, une ligne née sans entrée empêcherait malgré tout la
     disparition d'une entrée qu'elle ne réserve pas.
     """
-    copy = get_copy(db, card_id, language_code, card_set_id)
-    allocated = allocated_real(db, card_id, copy.language_code, card_set_id)
+    copy = get_copy(db, user_id, card_id, language_code, card_set_id)
+    allocated = allocated_real(db, user_id, card_id, copy.language_code, card_set_id)
     if allocated:
         raise ConflictError(
             f"{allocated} exemplaire(s) réel(s) sont alloués par des ligne(s) "
@@ -218,9 +237,10 @@ def delete_copy(
 
 
 def deposit_bundle(
-    db: Session, bundle_id: int, payload: BundleDeposit
+    db: Session, user_id: int, bundle_id: int, payload: BundleDeposit
 ) -> list[CardCopy]:
-    """Verse le contenu d'un produit dans la collection, dans la langue donnée.
+    """Verse le contenu d'un produit dans la collection du compte, dans la langue
+    donnée.
 
     Additionne au stock existant (créant les entrées manquantes), en une seule
     transaction. **Non idempotent** : rejouer l'appel ajoute le produit une
@@ -250,6 +270,7 @@ def deposit_bundle(
         for copy in db.scalars(
             select(CardCopy)
             .where(
+                CardCopy.user_id == user_id,
                 CardCopy.card_id.in_([card.id for card, _ in contents]),
                 CardCopy.language_code == code,
                 CardCopy.card_set_id == card_set_id,
@@ -275,6 +296,7 @@ def deposit_bundle(
         if copy is None:
             # `card` (clan préchargé par `bundle_contents`) sert à la réponse.
             copy = CardCopy(
+                user_id=user_id,
                 card_id=card.id,
                 card=card,
                 language_code=code,

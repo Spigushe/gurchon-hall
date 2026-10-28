@@ -8,6 +8,17 @@ export type {
   VtesOfflineRuntime,
 } from "./runtime";
 export {
+  dbNameForAccount,
+  forgetActiveAccountId,
+  readActiveAccountId,
+  readLocalAccount,
+  rememberActiveAccountId,
+  saveLocalAccount,
+} from "./account";
+export type { LocalAccount } from "./account";
+export { LEGACY_DB_NAME, adoptLegacyDatabase, hasPendingLegacyOperations } from "./legacy";
+export type { LegacyAdoption } from "./legacy";
+export {
   DEFAULT_DB_NAME,
   VtesOfflineDb,
   VTES_STORES_V1,
@@ -38,6 +49,7 @@ export {
 } from "./reads";
 export type { CardQuery, DeckListState, DeckQuery, StockQuery } from "./reads";
 export {
+  RefreshAuthError,
   refreshCardSets,
   refreshCatalog,
   refreshDecks,

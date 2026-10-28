@@ -16,7 +16,13 @@ pilote et sur les règles VtES.
 - Back : pytest (unités, services, conformité au contrat).
 - Front : vitest + Testing Library.
 - E2E : Playwright, incluant les **scénarios offline** (coupure réseau, saisie
-  hors-ligne, retour réseau + synchronisation, idempotence).
+  hors-ligne, retour réseau + synchronisation, idempotence). Quatre projets :
+  `chromium` et `real-backend` à 390 × 844, `desktop` et `desktop-real-backend`
+  à 1440 × 900 ; les projets `*-real-backend` tournent contre un vrai back sur
+  base éphémère. Un run n'est vert qu'avec le bon nombre de tests (sous
+  OneDrive, Playwright peut ignorer des fichiers sans prévenir, §11 Lot 4).
+- Isolation entre comptes (Lot 6) : toute nouvelle route entre dans la matrice
+  d'autorisation (`backend/tests/test_lot6_authorization_matrix.py`).
 - Vérifier chaque **règle VtES** par un test dédié (légalité deck, VP/GW,
   contrainte tournoi mono-deck). Ne pas « tester vrai » une règle marquée
   « [à confirmer] » : la tester comme paramétrable et signaler.

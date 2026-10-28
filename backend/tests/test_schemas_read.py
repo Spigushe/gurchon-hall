@@ -74,7 +74,13 @@ from app.schemas.reference import (
     VenueRead,
 )
 from app.services import catalog
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    make_card,
+    make_copy,
+    make_deck,
+)
 
 # --------------------------------------------------------------------------
 # Tables de référence
@@ -116,7 +122,7 @@ def test_reference_reads(db, world):
 def test_reference_optional_columns_map_to_none(db):
     clan, venue, card_set = (
         Clan(name="Sans abrév."),
-        Venue(name="Lieu"),
+        Venue(user_id=default_user_id(db), name="Lieu"),
         CardSet(abbrev="X"),
     )
     db.add_all([clan, venue, card_set])
@@ -350,6 +356,7 @@ def test_deck_detail_read_keeps_one_line_per_language(db, world):
     db.add(
         DeckCard(
             deck_id=world.deck.id,
+            user_id=world.deck.user_id,
             card_id=world.card.id,
             language_code="FR",
             card_set_id=world.printing.card_set_id,
@@ -609,23 +616,29 @@ READ_PAIRS = [
     pytest.param(
         Card, CardRead, set(), {"card_set_ids", "latest_card_set_id"}, id="Card"
     ),
-    pytest.param(CardCopy, CardCopyRead, set(), set(), id="CardCopy"),
+    # `user_id` (Lot 6) : le compte vient de la session, jamais du client ni
+    # d'une réponse — omis de toutes les lectures de données privées.
+    pytest.param(CardCopy, CardCopyRead, {"user_id"}, set(), id="CardCopy"),
     # `deleted_at` compris : un deck supprimé reste lisible par identifiant, et
     # c'est ce champ qui dit au front qu'il est en lecture seule.
-    pytest.param(Deck, DeckRead, set(), set(), id="Deck"),
+    pytest.param(Deck, DeckRead, {"user_id"}, set(), id="Deck"),
     # `deck_id` est porté par le deck parent dans `DeckDetailRead.cards`.
-    pytest.param(DeckCard, DeckCardRead, {"deck_id"}, set(), id="DeckCard"),
-    pytest.param(Player, PlayerRead, set(), set(), id="Player"),
-    pytest.param(Game, GameRead, set(), set(), id="Game"),
-    pytest.param(Tournament, TournamentRead, set(), set(), id="Tournament"),
-    pytest.param(Participation, ParticipationRead, set(), set(), id="Participation"),
+    pytest.param(
+        DeckCard, DeckCardRead, {"deck_id", "user_id"}, set(), id="DeckCard"
+    ),
+    pytest.param(Player, PlayerRead, {"user_id"}, set(), id="Player"),
+    pytest.param(Game, GameRead, {"user_id"}, set(), id="Game"),
+    pytest.param(Tournament, TournamentRead, {"user_id"}, set(), id="Tournament"),
+    pytest.param(
+        Participation, ParticipationRead, {"user_id"}, set(), id="Participation"
+    ),
     pytest.param(Language, LanguageRead, set(), set(), id="Language"),
     pytest.param(Clan, ClanRead, set(), set(), id="Clan"),
     pytest.param(Discipline, DisciplineRead, set(), set(), id="Discipline"),
     pytest.param(Sect, SectRead, set(), set(), id="Sect"),
     pytest.param(CardType, CardTypeRead, set(), set(), id="CardType"),
     pytest.param(CardSet, CardSetRead, set(), set(), id="CardSet"),
-    pytest.param(Venue, VenueRead, set(), set(), id="Venue"),
+    pytest.param(Venue, VenueRead, {"user_id"}, set(), id="Venue"),
     # `card_id` est porté par la carte parente dans `CardRead.translations`.
     pytest.param(
         CardTranslation,

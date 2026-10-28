@@ -24,9 +24,16 @@ from datetime import date, timedelta
 import pytest
 
 from app.services import decks, stock
-from tests.helpers import make_card, make_copy
+from tests.helpers import login_default_account, make_card, make_copy
 from tests.test_deck_legality_audit import DAY, LIBRARY, build, crypt, library
 from tests.test_sync_service import op, sync_batch
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module rejoue des règles VtES
+    déjà testées en ligne, à travers `/sync`."""
+    return login_default_account(api, db)
 
 
 @pytest.fixture
@@ -338,7 +345,7 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
             data={"proxy_allowed": True},
         ),
     )
-    assert stock.allocated_real(db, card.id, "EN", card_set_id) == 0
+    assert stock.allocated_real(db, world.user_id, card.id, "EN", card_set_id) == 0
 
     result = sync_batch(
         api,
@@ -369,7 +376,7 @@ def test_a_proxy_consumes_no_owned_copy_through_the_queue(api, db, world):
     assert [r["outcome"] for r in result["results"]] == ["applied", "rejected"]
     assert "insuffisants" in result["results"][1]["error"]["message"]
     db.expire_all()
-    assert stock.allocated_real(db, card.id, "EN", card_set_id) == 4
+    assert stock.allocated_real(db, world.user_id, card.id, "EN", card_set_id) == 4
 
 
 def test_a_stock_entry_used_by_a_deck_cannot_be_removed_through_the_queue(

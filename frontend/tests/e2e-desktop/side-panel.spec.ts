@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openAppMocked } from "../e2e/support/mockAuth";
 
 /**
  * Panneau latéral bureau (`Sheet` en disposition ≥1024px, Lot 5bis étape 3,
@@ -6,11 +7,12 @@ import { expect, test } from "@playwright/test";
  * déclencheur, fond `inert` pendant l'ouverture. Sans vrai back : la feuille
  * « Nouveau deck » s'ouvre et se referme sans jamais valider (Échap, pas de
  * clic sur « Créer »), donc aucune écriture ne part en file et aucun backend
- * n'est nécessaire.
+ * n'est nécessaire pour la feuille elle-même — seul le mur de connexion
+ * (Lot 6, `AuthGate`) est contourné par `openAppMocked`.
  */
 test.describe("panneau latéral bureau", () => {
   test("focus piégé, retour du focus et fond inerte pendant l'ouverture", async ({ page }) => {
-    await page.goto("/#/decks");
+    await openAppMocked(page, "/#/decks");
     await expect(page.getByTestId("decks-page")).toBeVisible();
 
     const opener = page.getByTestId("decks-new-desktop");

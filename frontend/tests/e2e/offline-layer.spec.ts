@@ -6,9 +6,16 @@ import { fileURLToPath } from "node:url";
 /**
  * Ce qui est propre à la couche offline (Lot 3) et ne se vérifie que dans un
  * vrai navigateur : le service worker laisse les routes de l'API tranquilles,
- * et la base IndexedDB de l'application existe avec le schéma attendu, y
- * compris hors ligne. Le scénario complet (saisie, coupure, rejeu, conflit)
+ * même hors ligne. Le scénario complet (saisie, coupure, rejeu, conflit)
  * relève de la QA.
+ *
+ * Lot 6 : la base IndexedDB de la file n'existe plus sans compte actif
+ * (`AuthGate` n'ouvre un runtime offline — et donc une base Dexie — qu'après
+ * une connexion réussie, cf. `src/features/auth/AuthGate.tsx`). Ce projet
+ * (`chromium`) n'a aucun back à authentifier : la vérification du schéma de
+ * la base (nom par compte, magasins, version Dexie ×10) a donc été déplacée
+ * contre le vrai back, où une connexion est possible
+ * (`tests/e2e-real/offline-db-schema.spec.ts`).
  */
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -16,7 +23,10 @@ const DIST_DIR = path.resolve(currentDir, "../../dist");
 
 async function controlledByServiceWorker(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
+  // Sans compte connu sur l'appareil et sans back dans ce projet, `AuthGate`
+  // affiche le mur de connexion (Lot 6) à la place de `<App/>` : c'est lui qui
+  // matérialise ici l'app shell précaché (cf. `offline-app-shell.spec.ts`).
+  await expect(page.getByTestId("auth-screen")).toBeVisible();
   await page.evaluate(async () => {
     await navigator.serviceWorker.ready;
   });
@@ -69,73 +79,7 @@ test.describe("couche offline dans le navigateur", () => {
     await context.setOffline(false);
   });
 
-  test("la base IndexedDB de la file existe avec son schéma, y compris après rechargement hors ligne", async ({
-    page,
-    context,
-  }) => {
-    await controlledByServiceWorker(page);
-    await context.setOffline(true);
-    await page.reload();
-    await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
-
-    const schema = await page.evaluate(
-      () =>
-        new Promise<{
-          version: number;
-          stores: Record<string, { keyPath: unknown; indexes: Record<string, boolean> }>;
-        }>((resolve, reject) => {
-          // Dexie ouvre la base à la première lecture (reprise de la file au démarrage) :
-          // on attend qu'elle existe plutôt que de la créer nous-mêmes.
-          const started = Date.now();
-          const tryOpen = async () => {
-            const names = (await indexedDB.databases()).map((database) => database.name);
-            if (!names.includes("gurchon-hall-offline")) {
-              if (Date.now() - started > 10_000) return reject(new Error("base absente"));
-              return setTimeout(tryOpen, 100);
-            }
-            const request = indexedDB.open("gurchon-hall-offline");
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-              const db = request.result;
-              const stores: Record<string, { keyPath: unknown; indexes: Record<string, boolean> }> = {};
-              const tx = db.transaction([...db.objectStoreNames], "readonly");
-              for (const name of db.objectStoreNames) {
-                const store = tx.objectStore(name);
-                stores[name] = {
-                  keyPath: store.keyPath,
-                  indexes: Object.fromEntries(
-                    [...store.indexNames].map((index) => [index, store.index(index).unique]),
-                  ),
-                };
-              }
-              // Dexie multiplie la version par 10 : la version 4 du schéma (Lot 4, extension
-              // dans la clé de `stock` et `deckCards`, cf. `offline/vtes/db.ts`) est 40 côté IndexedDB.
-              const version = db.version;
-              db.close();
-              resolve({ version, stores });
-            };
-          };
-          void tryOpen();
-        }),
-    );
-
-    expect(schema.version).toBe(40);
-    expect(Object.keys(schema.stores).sort()).toEqual(
-      ["cardSets", "cards", "deckCards", "decks", "languages", "meta", "outbox", "refs", "settled", "stock"].sort(),
-    );
-    expect(schema.stores.outbox.keyPath).toBe("operationId");
-    expect(schema.stores.outbox.indexes.rank).toBe(true); // rang unique : l'ordre de la file
-    expect(schema.stores.refs.keyPath).toBe("ref");
-    expect(schema.stores.settled.keyPath).toBe("seq"); // opérations tranchées, clé auto-incrémentée
-    // Identité carte × langue × extension (Lot 4) : l'extension entre dans la clé.
-    expect(schema.stores.stock.keyPath).toEqual(["cardId", "languageCode", "cardSetId"]);
-    expect(schema.stores.deckCards.keyPath).toEqual([
-      "deckId",
-      "cardId",
-      "languageCode",
-      "cardSetId",
-    ]);
-
-    await context.setOffline(false);
-  });
+  // La vérification du schéma de la base IndexedDB (magasins, version Dexie)
+  // vit désormais dans `tests/e2e-real/offline-db-schema.spec.ts` : elle exige
+  // un compte connecté (Lot 6), donc un back réel, absent de ce projet.
 });

@@ -22,9 +22,24 @@ from sqlalchemy import select, text
 from app.models import CardCategory, CardCopy, DeckCard
 from app.schemas.base import MAX_DB_INT
 from app.schemas.sync import SyncRequest, fingerprint
-from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+    make_printing,
+)
 
 RECORDED_AT = "2026-09-25T20:00:00+02:00"
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste l'acquisition
+    depuis un deck, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 # --------------------------------------------------------------------------
@@ -125,6 +140,7 @@ def test_acquiring_increments_an_existing_entry(api, db, card):
     db.add(
         DeckCard(
             deck_id=other.id,
+            user_id=other.user_id,
             card_id=card.id,
             language_code="EN",
             card_set_id=card.card_set_id,
@@ -451,7 +467,9 @@ def test_converting_more_than_the_proxies_removed_is_invalid(api, db, card, prox
 
 def test_partial_conversion_may_draw_on_free_stock(api, db, card, proxied):
     """Deux proxies retirés : un exemplaire acquis, l'autre pris au stock libre."""
-    db.get(CardCopy, (card.id, "EN", card.card_set_id)).quantity_owned = 1
+    db.get(
+        CardCopy, (default_user_id(db), card.id, "EN", card.card_set_id)
+    ).quantity_owned = 1
     db.commit()
 
     response = api.patch(
@@ -497,7 +515,9 @@ def test_conversion_on_an_archived_deck_is_refused(api, db, card, proxied):
 
 
 def test_conversion_ceiling_is_a_conflict(api, db, card, proxied):
-    db.get(CardCopy, (card.id, "EN", card.card_set_id)).quantity_owned = MAX_DB_INT
+    db.get(
+        CardCopy, (default_user_id(db), card.id, "EN", card.card_set_id)
+    ).quantity_owned = MAX_DB_INT
     db.commit()
 
     response = api.patch(

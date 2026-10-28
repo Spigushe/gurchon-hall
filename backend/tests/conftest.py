@@ -16,18 +16,44 @@ Depuis le Lot 1, la base de test est isolée par test (cf. skill tests-backend,
   table), pour les tests qui ont besoin d'un graphe d'objets déjà relié.
 
 Jamais la vraie base (`backend/vtes.db`) : `DATABASE_URL` n'est pas consulté.
+
+Lot 6 : `SESSION_COOKIE_SECURE` est forcée à faux **avant** tout import de
+`app.*`, donc avant que `app.routers.common` ne lise la variable (une fois, au
+chargement du module, cf. `_session_cookie_secure`). `TestClient` parle en
+`http://testserver`, jamais en HTTPS : un cookie `Secure` ne serait réémis par
+le pot de cookies d'`httpx` sur aucune requête suivante, et toute route
+protégée semblerait rendre 401 juste après une connexion réussie. Même choix
+qu'en développement (repli documenté dans `app.routers.common`), pour la même
+raison.
 """
 
-import shutil
+import os
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+os.environ.setdefault("SESSION_COOKIE_SECURE", "false")
 
-from app.db.session import create_app_engine, get_session
-from app.main import app
-from app.models import Base
-from tests.helpers import populate_world
+import shutil  # noqa: E402
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
+
+from app.db.session import create_app_engine, get_session  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models import Base  # noqa: E402
+from app.services.rate_limit import limiter  # noqa: E402
+from tests.helpers import populate_world  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter() -> None:
+    """Vide les compteurs en mémoire de `slowapi` entre deux tests (Lot 6).
+
+    Sans cette remise à zéro, des tests sans rapport entre eux qui appellent
+    `POST /connexion` ou `POST /inscription` partageraient la même fenêtre de
+    débit (même adresse cliente sous `TestClient`) et finiraient par recevoir
+    un 429 à cause du cumul des appels précédents.
+    """
+    limiter.reset()
 
 
 @pytest.fixture
@@ -89,3 +115,35 @@ def api(db_engine):
 def world(db):
     """Graphe d'objets déjà persisté, cf. `tests.helpers.populate_world`."""
     return populate_world(db)
+
+
+@pytest.fixture
+def api_client_factory(db_engine):
+    """Fabrique de `TestClient` indépendants, sur la **même** base jetable
+    que `db` / `api` (Lot 6).
+
+    `api` suffit à un test à un seul compte : son `TestClient` garde le
+    cookie de session posé par `POST /connexion` d'un appel à l'autre, comme
+    un navigateur. Un test d'**isolation entre deux comptes** (étape A3,
+    `docs/lot6-plan-comptes.md`) a besoin de deux pots de cookies distincts
+    sur la même base ; `api_client_factory()` en crée un nouveau à chaque
+    appel, sans toucher à `app.dependency_overrides` une deuxième fois (déjà
+    posé par cette fixture, idempotent).
+    """
+
+    def override_session():
+        with Session(db_engine, autoflush=False, expire_on_commit=False) as session:
+            yield session
+
+    app.dependency_overrides[get_session] = override_session
+    clients: list[TestClient] = []
+
+    def _make() -> TestClient:
+        test_client = TestClient(app)
+        clients.append(test_client)
+        return test_client
+
+    yield _make
+    for test_client in clients:
+        test_client.close()
+    app.dependency_overrides.clear()

@@ -25,17 +25,18 @@ de repérer une rupture involontaire.
 
 ## Régénérer
 
-Depuis `backend/`, avec l'environnement Python du projet actif :
+Depuis `backend/` :
 
 ```
-python scripts/export_openapi.py
+uv run python scripts/export_openapi.py
 ```
 
 Le script importe l'application FastAPI, sérialise son schéma OpenAPI et écrit
 `contracts/openapi.json` à la racine du dépôt. Il accepte aussi `--check`, qui ne
 réécrit rien et sort en erreur si le fichier versionné ne correspond plus à
-l'application : c'est la vérification à brancher en CI pour empêcher le contrat
-de dériver du code.
+l'application. Cette vérification tourne en CI (étape dédiée du job backend), dans
+`scripts/run.ps1 test` / `run.sh test`, et dans un test pytest
+(`backend/tests/test_openapi_contract.py`).
 
 ## Côté front
 
@@ -62,9 +63,10 @@ npm run generate:client
 qui exécute `openapi-typescript ../contracts/openapi.json -o ./src/api-client/schema.d.ts --default-non-nullable false`
 et écrit les types dans `frontend/src/api-client/schema.d.ts`. Le wrapper
 `frontend/src/api-client/client.ts` instancie `openapi-fetch` avec le type
-`paths` généré et une `baseUrl` configurable via `VITE_API_BASE_URL` (par
+`paths` généré, une `baseUrl` configurable via `VITE_API_BASE_URL` (par
 défaut `http://localhost:8000`, le port de dev du backend, cf.
-`scripts/dev.ps1` / `scripts/dev.sh`).
+`scripts/run.ps1 dev` / `scripts/run.sh dev`) et `credentials: "include"`,
+pour que le cookie de session parte avec chaque requête (Lot 6).
 
 **Politique de commit de `schema.d.ts`** : versionné dans git, pour la même
 raison qu'`openapi.json` l'est (cf. plus haut) — le diff du fichier généré dans
@@ -74,20 +76,29 @@ vérifier. Générer ce fichier est déterministe (même entrée → même sorti
 vérifié en relançant `npm run generate:client` deux fois de suite sans diff) et
 rapide (pas d'appel réseau, pas de build), donc committer n'introduit pas de
 risque de dérive silencieuse : toute divergence entre `openapi.json` et
-`schema.d.ts` versionnés serait visible comme un diff non regénéré, repérable
-en CI en rejouant la commande et en comparant (même logique que le `--check`
-d'`export_openapi.py` côté back). Le fichier est néanmoins marqué comme généré
+`schema.d.ts` versionnés fait échouer un test vitest
+(`frontend/tests/unit/api-client/schema-sync.test.ts`), qui joue côté front le
+rôle du `--check` d'`export_openapi.py` côté back. Le fichier est néanmoins marqué comme généré
 (en-tête « Do not make direct changes ») et exclu du lint applicatif
 (`eslint.config.js`, `globalIgnores`) : jamais modifié à la main, jamais
 retouché pour satisfaire une règle de style.
 
-## État actuel (Lot 2)
+## État actuel (Lot 6)
 
-L'API expose `GET /health` et les ressources du Lot 2 : catalogue (`/cartes`,
-`/bundles`, `/langues`), collection (`/stock`) et decks (`/decks`, avec leur
-composition et leur légalité). La liste des routes et des règles d'erreur est au §7
-de `CLAUDE.md`. Les parties, tournois et la synchronisation (`/sync`) arrivent aux
-lots suivants.
+Le contrat compte 28 opérations sur 20 chemins : `GET /health` ; le catalogue
+(`/cartes`, `/extensions`, `/bundles`, `/langues`) ; la collection (`/stock`, une
+entrée par carte, langue et extension) ; les decks (`/decks`, avec leur composition
+et leur légalité) ; `POST /sync`, qui reçoit la file d'opérations hors ligne
+(brief dans `docs/lot3-sync-contrat.md`) ; et les comptes (`/inscription`,
+`/connexion`, `/deconnexion`, `/moi`). La liste des routes et des règles d'erreur
+est au §7 de `CLAUDE.md`. Les parties et tournois (`/joueurs`, `/tournois`,
+`/parties`) arrivent au Lot 7.
+
+Depuis le Lot 6, toute route hors catalogue et authentification exige une session,
+déclarée au contrat comme schéma de sécurité `sessionCookie` (`apiKey` en cookie).
+Sans session, la réponse est un 401 avant tout autre contrôle ; une ressource d'un
+autre compte rend 404, avec le même message qu'un identifiant inexistant. Aucun
+corps ne porte de `user_id` : le propriétaire vient de la session.
 
 Un deck se retire en deux temps. Archiver n'est pas une route à part : c'est un
 `PATCH /decks/{id}` avec `{"archived": true}`, et `false` fait l'inverse. La liste
@@ -112,8 +123,10 @@ Trois conventions à connaître en lisant le contrat :
   (`2026-09-19T17:47:27Z`). Jamais d'heure locale, jamais de chaîne sans fuseau :
   le front la passe à `new Date()` sans la corriger, et la file de synchronisation
   du Lot 3 peut comparer deux horodatages sans les interpréter ;
-- les 404 et 409 portent le schéma `ErrorResponse` (`{"detail": "…"}`) ; les 422
-  gardent le format standard de FastAPI (`HTTPValidationError`), y compris ceux que
-  le service produit pour une règle qui dépend de l'état des données ;
+- les 401, 403, 404, 409, 429 et 503 portent le schéma `ErrorResponse`
+  (`{"detail": "…"}`) ; les 422 gardent le format standard de FastAPI
+  (`HTTPValidationError`), y compris ceux que le service produit pour une règle qui
+  dépend de l'état des données. `POST /sync` ne rend jamais 404 ni 409 : un refus y
+  est un verdict dans le corps d'une 200 ;
 - chaque opération a un `operationId` en camelCase anglais (`listCards`,
   `addDeckCard`…), qu'un test fige : le renommer casserait les appels du client.

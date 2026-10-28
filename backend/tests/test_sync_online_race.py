@@ -33,8 +33,24 @@ from app.db.session import get_session
 from app.main import app
 from app.models import CardCategory
 from app.services import decks, stock
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.auth_helpers import DEFAULT_PASSWORD, log_in
+from tests.helpers import (
+    DEFAULT_ACCOUNT_EMAIL,
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
 from tests.test_sync_service import op, sync_batch
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ces tests portent sur la course
+    entre une route en ligne et un lot, pas sur l'authentification."""
+    return login_default_account(api, db)
 
 
 @pytest.mark.xfail(
@@ -115,7 +131,8 @@ def test_the_stock_accounting_race_between_a_route_and_a_batch_is_open(api, db):
     assert result["outcome"] == "applied"
     db.expire_all()
     # L'invariant voulu : jamais plus d'exemplaires alloués que possédés.
-    assert stock.allocated_real(db, card_id, "EN", card_set_id) <= 3
+    user_id = default_user_id(db)
+    assert stock.allocated_real(db, user_id, card_id, "EN", card_set_id) <= 3
 
 
 def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, db):
@@ -127,6 +144,7 @@ def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, d
     add_languages(db, "EN", "FR")
     card = make_card(db, "Rare Copy", CardCategory.LIBRARY)
     copy = make_copy(db, card, "EN", quantity_owned=3)
+    user_id = default_user_id(db)
     db.commit()
     card_id = card.id
     card_set_id = copy.card_set_id
@@ -140,6 +158,7 @@ def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, d
     app.dependency_overrides[get_session] = session_on_impatient
     try:
         with TestClient(app) as client:
+            log_in(client, DEFAULT_ACCOUNT_EMAIL, DEFAULT_PASSWORD)
             with serialized_writes(db_engine):  # un lot est en cours
                 started = time.perf_counter()
                 with pytest.raises(OperationalError, match="database is locked"):
@@ -147,7 +166,10 @@ def test_an_online_write_meeting_a_batch_fails_with_a_500_not_a_503(db_engine, d
                 waited = time.perf_counter() - started
             # Le verrou est rendu : la même écriture passe, rien n'avait été écrit.
             db.expire_all()
-            assert stock.get_copy(db, card_id, "EN", card_set_id).quantity_owned == 3
+            assert (
+                stock.get_copy(db, user_id, card_id, "EN", card_set_id).quantity_owned
+                == 3
+            )
             assert client.patch(url, json={"quantity_owned": 9}).status_code == 200
         assert waited >= 0.1  # il a attendu le délai du pilote avant d'échouer
     finally:

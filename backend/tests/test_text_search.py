@@ -14,7 +14,20 @@ from app.db.folding import fold_text
 from app.db.session import create_app_engine
 from app.models import Bundle, CardSet
 from app.services.text_search import like_pattern
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import (
+    add_languages,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la recherche
+    `q`, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 # --- La fonction de normalisation --------------------------------------------
 

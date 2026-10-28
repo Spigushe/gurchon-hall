@@ -24,6 +24,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/inscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Créer un compte
+         * @description Inscription ouverte, sans vérification d'adresse : le compte est actif aussitôt, avec le rôle `user` (aucun champ `role` n'est accepté, tout champ inconnu rend 422), et la session est ouverte dans la même réponse. L'adresse est ramenée en minuscules. 409 si l'adresse ou le nom d'utilisateur est déjà pris. Limité en débit par adresse IP (429).
+         */
+        post: operations["signUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/connexion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ouvrir une session
+         * @description Vérifie l'adresse et le mot de passe, puis pose le cookie de session (échéance fixe de 14 jours). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).
+         */
+        post: operations["logIn"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/deconnexion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fermer la session
+         * @description Supprime la session du cookie côté serveur et efface le cookie. Rend 204 dans tous les cas, même sans cookie ou avec une session déjà expirée ou révoquée : la déconnexion est idempotente.
+         */
+        post: operations["logOut"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Compte de la session */
+        get: operations["readCurrentUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cartes": {
         parameters: {
             query?: never;
@@ -129,7 +206,7 @@ export interface paths {
         put?: never;
         /**
          * Verser un produit dans la collection
-         * @description Ajoute le contenu du produit au stock, dans la langue indiquée et sous l'extension du produit. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.
+         * @description Ajoute le contenu du produit à la collection du compte, dans la langue indiquée et sous l'extension du produit. Le produit est partagé, le versement est privé. Les quantités s'additionnent à l'existant. Non idempotent : deux appels versent deux produits. 409 si le produit est sans contenu connu, ou si le total d'une entrée dépasserait le plafond (2147483647) : aucune entrée n'est alors modifiée.
          */
         post: operations["depositBundle"];
         delete?: never;
@@ -148,7 +225,10 @@ export interface paths {
         /** Langues d'exemplaires */
         get: operations["listLanguages"];
         put?: never;
-        /** Ajouter une langue */
+        /**
+         * Ajouter une langue
+         * @description Réservé au rôle `admin` : la liste des langues est commune à tous les comptes, une langue ajoutée apparaît chez chacun. 401 sans session, 403 pour un compte `user`.
+         */
         post: operations["createLanguage"];
         delete?: never;
         options?: never;
@@ -329,7 +409,7 @@ export interface paths {
         put?: never;
         /**
          * Rejoue un lot d'écritures faites hors ligne
-         * @description Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Le seul autre code est un 503 transitoire, quand une écriture concurrente tient la base — rien n'a alors été appliqué, et le lot se renvoie à l'identique.
+         * @description Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Clés d'idempotence et références client sont propres au compte de la session : celles d'un autre compte n'existent pas. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Un 401 (session absente ou expirée, vérifiée avant le lot) et un 503 transitoire (une écriture concurrente tient la base) disent la même chose : rien n'a été appliqué, et le lot se renvoie à l'identique, après reconnexion pour le premier.
          */
         post: operations["syncOperations"];
         delete?: never;
@@ -1715,6 +1795,101 @@ export interface components {
              */
             results: components["schemas"]["SyncOperationResult"][];
         };
+        /**
+         * UserLogIn
+         * @description Corps de `POST /connexion`.
+         *
+         *     Une adresse inconnue et un mauvais mot de passe rendent le même 401, au
+         *     même coût (P1) : rien dans ce schéma ne doit permettre de les distinguer,
+         *     d'où l'absence de règle de complexité sur le mot de passe.
+         */
+        UserLogIn: {
+            /**
+             * Email
+             * Format: email
+             * @description Adresse e-mail, identifiant de connexion. Comparée sans tenir compte de la casse : le serveur la ramène en minuscules.
+             */
+            email: string;
+            /**
+             * Password
+             * @description Mot de passe du compte, tel quel. Seule la longueur est bornée : la règle de complexité ne s'applique qu'au choix d'un mot de passe.
+             */
+            password: string;
+        };
+        /**
+         * UserRead
+         * @description Le compte de la session : `GET /moi`, et la réponse d'une inscription ou
+         *     d'une connexion réussie.
+         *
+         *     Jamais d'empreinte de mot de passe ni de jeton. `email` est une chaîne et
+         *     non un `EmailStr` en sortie : l'adresse provisoire du compte historique
+         *     (domaine `.invalid`) doit pouvoir être relue telle quelle avant que
+         *     `claim-legacy` ne la remplace.
+         */
+        UserRead: {
+            /** Id */
+            id: number;
+            /**
+             * Email
+             * @description Adresse e-mail, en minuscules.
+             */
+            email: string;
+            /** Username */
+            username: string;
+            /** @description Rôle du compte. `admin` ouvre `POST /langues` ; aucune route ne le modifie. */
+            role: components["schemas"]["UserRole"];
+            /**
+             * Created At
+             * Format: date-time
+             * @description Création du compte, en UTC.
+             */
+            created_at: string;
+        };
+        /**
+         * UserRole
+         * @description Rôle d'un compte, par niveau d'accès croissant (Lot 6, décision P4).
+         *
+         *     Patron repris de barrins-project (`apps/barrins_api/app/core/roles.py`) :
+         *     une `StrEnum` dont chaque membre a un **niveau**, et toute autorisation se
+         *     décide en comparant des niveaux (`role.level >= minimum.level`), jamais des
+         *     noms. Deux niveaux seulement ici — les intermédiaires de Barrin
+         *     (`moderator`, `ml_developer`) n'ont pas d'usage dans le pilote —, mais un
+         *     rôle intermédiaire pourra s'insérer plus tard en renumérotant `level`,
+         *     sans toucher aux dépendances qui comparent.
+         *
+         *     Dans ce lot, `admin` ne sert qu'à `POST /langues`. Le rôle n'est jamais
+         *     fourni par le client : le serveur pose `user` à l'inscription, et seul le
+         *     script `manage_accounts.py set-role` le change.
+         * @enum {string}
+         */
+        UserRole: "user" | "admin";
+        /**
+         * UserSignUp
+         * @description Corps de `POST /inscription`.
+         *
+         *     Pas de champ `role` : le serveur pose `user` lui-même (P2), et
+         *     `extra="forbid"` (hérité de `WriteModel`) fait d'un `role` envoyé — comme
+         *     de tout champ inconnu — un 422 explicite plutôt qu'une valeur ignorée en
+         *     silence. Même défense que le `UserSignup` de Barrin.
+         */
+        UserSignUp: {
+            /**
+             * Email
+             * Format: email
+             * @description Adresse e-mail, identifiant de connexion. Comparée sans tenir compte de la casse : le serveur la ramène en minuscules.
+             */
+            email: string;
+            /**
+             * Username
+             * @description De 3 à 32 caractères : lettres non accentuées, chiffres, tiret ou tiret bas.
+             */
+            username: string;
+            /**
+             * Password
+             * @description Au moins 12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole ; 128 au plus.
+             */
+            password: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -1753,6 +1928,192 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    signUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserSignUp"];
+            };
+        };
+        responses: {
+            /** @description Compte créé, session ouverte. */
+            201: {
+                headers: {
+                    /** @description Cookie de session (`__Host-gurchon_session`), `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age` égal à la durée restante de la session. Le jeton ne circule que là, jamais dans un corps. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`. */
+            429: {
+                headers: {
+                    /** @description Délai avant une nouvelle tentative, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    logIn: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserLogIn"];
+            };
+        };
+        responses: {
+            /** @description Session ouverte. */
+            200: {
+                headers: {
+                    /** @description Cookie de session (`__Host-gurchon_session`), `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/`, `Max-Age` égal à la durée restante de la session. Le jeton ne circule que là, jamais dans un corps. */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Identifiants invalides (sans dire lequel). */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`. */
+            429: {
+                headers: {
+                    /** @description Délai avant une nouvelle tentative, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    logOut: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session fermée (ou déjà absente). */
+            204: {
+                headers: {
+                    /** @description Efface le cookie de session (`Max-Age=0`). */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -1948,6 +2309,24 @@ export interface operations {
                     "application/json": components["schemas"]["CardCopyRead"][];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2019,6 +2398,24 @@ export interface operations {
                     "application/json": components["schemas"]["LanguageRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Droits insuffisants (rôle `admin` requis), ou en-tête `Origin` étranger aux origines autorisées. Porte sur la route, jamais sur une ressource. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Conflit avec l'état des données (doublon, stock, règle). */
             409: {
                 headers: {
@@ -2064,6 +2461,15 @@ export interface operations {
                     "application/json": components["schemas"]["CardCopyRead"][];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2095,6 +2501,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CardCopyRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Ressource introuvable. */
@@ -2148,6 +2572,15 @@ export interface operations {
                     "application/json": components["schemas"]["CardCopyRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2187,6 +2620,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Ressource introuvable. */
             404: {
@@ -2243,6 +2694,24 @@ export interface operations {
                     "application/json": components["schemas"]["CardCopyRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2294,6 +2763,15 @@ export interface operations {
                     "application/json": components["schemas"]["DeckRead"][];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2325,6 +2803,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Conflit avec l'état des données (doublon, stock, règle). */
@@ -2367,6 +2863,15 @@ export interface operations {
                     "application/json": components["schemas"]["DeckDetailRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2404,6 +2909,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Ressource introuvable. */
             404: {
@@ -2458,6 +2981,24 @@ export interface operations {
                     "application/json": components["schemas"]["DeckRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2505,6 +3046,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckLegality"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Ressource introuvable. */
@@ -2560,6 +3110,24 @@ export interface operations {
                     "application/json": components["schemas"]["DeckCardRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2609,6 +3177,24 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Ressource introuvable. */
             404: {
@@ -2666,6 +3252,24 @@ export interface operations {
                     "application/json": components["schemas"]["DeckCardRead"];
                 };
             };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Ressource introuvable. */
             404: {
                 headers: {
@@ -2715,6 +3319,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncResult"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */

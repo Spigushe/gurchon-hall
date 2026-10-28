@@ -10,9 +10,11 @@ Découpage :
 * `catalog`   — le catalogue VEKN, identité de carte sans langue ;
 * `collection`— la collection possédée (langue, proxy) et les decks ;
 * `play`      — joueurs, parties, tournois, participations ;
-* `sync`      — journal d'idempotence de la file hors ligne (`POST /sync`).
+* `sync`      — journal d'idempotence de la file hors ligne (`POST /sync`) ;
+* `account`   — comptes et sessions (Lot 6), propriétaires de tout le reste.
 """
 
+from app.models.account import AuthSession, UserAccount
 from app.models.base import Base, TimestampMixin
 from app.models.catalog import (
     Card,
@@ -36,6 +38,7 @@ from app.models.enums import (
     SyncOperationType,
     SyncResourceKind,
     TournamentFormat,
+    UserRole,
 )
 from app.models.play import Game, Participation, Player, Tournament
 from app.models.reference import (
@@ -51,6 +54,7 @@ from app.models.reference import (
 from app.models.sync import SyncOperation
 
 __all__ = [
+    "AuthSession",
     "Base",
     "Bundle",
     "Card",
@@ -87,5 +91,7 @@ __all__ = [
     "TimestampMixin",
     "TournamentFormat",
     "Tournament",
+    "UserAccount",
+    "UserRole",
     "Venue",
 ]

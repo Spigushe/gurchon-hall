@@ -16,11 +16,25 @@ from app.models import (
     CardPrintingOccurrence,
     PrintOccurrence,
 )
-from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
+from tests.helpers import (
+    add_languages,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+    make_printing,
+)
 
 MAX_INT = 2**31 - 1
 HUGE = 99999999999999999999
 STATES = ("live", "archived", "deleted", "unknown")
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la matrice
+    d'état des decks, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def add_line(

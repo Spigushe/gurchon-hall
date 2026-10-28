@@ -23,19 +23,27 @@ Les colonnes suffisent à reconstituer la réponse d'origine
 (`app.schemas.sync.SyncOperationResult`) sans rien recalculer : c'est la
 définition même d'un journal d'idempotence — on rend ce qu'on avait rendu.
 
+**Propriétaire (Lot 6).** Chaque ligne porte le `user_id` du compte dont la
+session a envoyé le lot. L'idempotence et les références client sont **par
+compte** : la clé est (`user_id`, `operation_id`), et une `client_ref` n'est
+réservée qu'à l'intérieur d'un compte. Une `operation_id` déjà utilisée par un
+autre compte est donc neuve pour celui-ci — ni `replayed` (qui rendrait le
+verdict d'un autre), ni `mismatched_replay` (qui révélerait que la clé existe
+ailleurs).
+
 **Aucune clé étrangère**, volontairement, alors que les autres tables en sont
 tissées. Un journal est en ajout seul : il décrit ce qui s'est passé, pas ce qui
 existe. Le lier aux ressources qu'il mentionne le rendrait dépendant de leur
 cycle de vie (un jour, une purge des decks), et le couplerait au schéma métier
 alors que toute la mécanique doit pouvoir être portée telle quelle sur
-barrins-project (CLAUDE.md §1). Les colonnes `deck_id`, `card_id`,
+barrins-project (CLAUDE.md §1). Les colonnes `user_id`, `deck_id`, `card_id`,
 `language_code`, `card_set_id` et `bundle_id` sont donc des identifiants, pas
-des relations.
+des relations — `user_id` compris, par le même principe.
 """
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Index, String, Text, text
+from sqlalchemy import CheckConstraint, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, utcnow
@@ -55,8 +63,8 @@ HASH_LENGTH = 64
 # Référence libre tirée par le client ; un UUID est attendu, sans obligation.
 CLIENT_REF_LENGTH = 64
 
-# Une référence client ne désigne qu'un objet, mais seulement parmi les
-# opérations **appliquées** : une création refusée laisse sa trace au journal
+# Une référence client ne désigne qu'un objet d'un compte, mais seulement parmi
+# les opérations **appliquées** : une création refusée laisse sa trace au journal
 # sans bloquer la reprise de la même référence par une seconde tentative
 # corrigée (qui porte, elle, un autre `operation_id`). C'est aussi la condition
 # que la résolution `client_ref` → `deck_id` doit filtrer.
@@ -68,8 +76,11 @@ class SyncOperation(Base):
 
     __tablename__ = "sync_operation"
     __table_args__ = (
+        # Clé d'idempotence, par compte (Lot 6).
+        UniqueConstraint("user_id", "operation_id"),
         Index(
             "ux_sync_operation_client_ref",
+            "user_id",
             "client_ref",
             unique=True,
             sqlite_where=_APPLIED_CLIENT_REF,
@@ -92,8 +103,12 @@ class SyncOperation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # --- Identité de l'opération -------------------------------------------
-    operation_id: Mapped[str] = mapped_column(String(UUID_LENGTH), unique=True)
-    """Clé d'idempotence, tirée par le client (UUID) et jamais réutilisée."""
+    user_id: Mapped[int] = mapped_column()
+    """Compte de la session qui a envoyé le lot. Un identifiant, pas une
+    relation : le journal n'a aucune clé étrangère (cf. docstring du module)."""
+    operation_id: Mapped[str] = mapped_column(String(UUID_LENGTH))
+    """Clé d'idempotence, tirée par le client (UUID) et jamais réutilisée.
+    Unique **par compte**, avec `user_id` (Lot 6)."""
     batch_id: Mapped[str] = mapped_column(String(UUID_LENGTH))
     """Requête `/sync` qui a tranché l'opération — posé par le serveur.
 

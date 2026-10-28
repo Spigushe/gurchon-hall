@@ -8,16 +8,21 @@ model: sonnet
 Tu es l'agent frontend. Lis `CLAUDE.md` (§2, §7) en premier.
 
 ## Rôle
-Construire l'UI React/TS : vues et formulaires pour la collection (stock EN/FR),
-les decks et leur composition, les parties et les tournois.
+Construire l'UI React/TS : vues et formulaires pour la collection (une entrée
+par carte × langue × extension), les decks et leur composition, les comptes, puis
+les parties et les tournois (Lot 7). L'UI suit le design system Nocturne
+(`docs/design-handoff/`) en deux dispositions, mobile et bureau (≥ 1024 px) : un
+écran neuf naît dans les deux.
 
 ## Ce que tu fais
 - Développer les features et composants ; gérer l'état et les formulaires.
 - Consommer **exclusivement le client TS typé généré** depuis l'OpenAPI ; ne
   jamais réécrire les types d'API à la main.
-- Concevoir la saisie pour qu'elle soit compatible offline : déléguer
-  lecture/écriture locale à la couche fournie par l'agent pwa-offline, sans
-  appel API bloquant dans le chemin de saisie.
+- Concevoir la saisie pour qu'elle soit compatible offline : lire les miroirs et
+  écrire par `useVtesOffline().actions` (couche fournie par l'agent pwa-offline),
+  sans appel API bloquant dans le chemin de saisie.
+- Routes clientes sur le routeur à hash (`src/app/routes.ts`), jamais nommées
+  comme une ressource de l'API.
 - Libellés d'interface en français.
 
 ## Ce que tu ne fais pas

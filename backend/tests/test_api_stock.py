@@ -1,6 +1,23 @@
 """API `/stock` et versement de produits (`POST /bundles/{id}/stock`)."""
 
-from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
+import pytest
+
+from tests.helpers import (
+    add_languages,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+    make_printing,
+)
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module n'exerce pas les
+    routes d'authentification elles-mêmes, il a seulement besoin d'un compte
+    pour franchir le contrôle de session désormais exigé par `/stock`."""
+    return login_default_account(api, db)
 
 
 def entry(api, card_id, code="EN", *, card_set_id):
@@ -375,10 +392,12 @@ def test_deposit_bundle_does_not_touch_the_same_card_under_another_extension(
     assert elsewhere.json()["quantity_owned"] == 5
 
 
-def test_deposit_bundle_creates_missing_entries(api, world):
+def test_deposit_bundle_creates_missing_entries(api, world, db):
     # Aucune entrée en ES : elle doit être créée, avec le contenu du produit.
-    add = api.post("/langues", json={"code": "ES", "label": "Espagnol"})
-    assert add.status_code == 201
+    # `POST /langues` est réservé au rôle `admin` (Lot 6) : hors du périmètre
+    # de ce test, on pose la langue directement, comme le ferait la migration.
+    add_languages(db, "ES")
+    db.commit()
 
     response = api.post(
         f"/bundles/{world.bundle.id}/stock", json={"language_code": "ES"}

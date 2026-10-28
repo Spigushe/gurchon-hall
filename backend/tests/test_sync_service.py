@@ -26,9 +26,16 @@ from app.models.enums import SyncOperationStatus
 from app.schemas.sync import SyncRequest
 from app.services import stock, sync
 from app.services.errors import InvalidRequestError
-from tests.helpers import make_card, make_copy, make_printing
+from tests.helpers import login_default_account, make_card, make_copy, make_printing
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la sémantique de
+    `/sync`, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def op(type_: str, **fields) -> dict:
@@ -974,7 +981,10 @@ def test_the_deck_lifecycle_goes_through_the_queue(api, db, world):
     assert api.get(f"/decks/{world.deck.id}").json()["deleted_at"] is not None
     # Le deck supprimé a rendu ses exemplaires : le stock n'est plus retenu.
     assert (
-        stock.allocated_real(db, world.card.id, "EN", world.printing.card_set_id) == 0
+        stock.allocated_real(
+            db, world.user_id, world.card.id, "EN", world.printing.card_set_id
+        )
+        == 0
     )
 
 
@@ -1015,8 +1025,8 @@ def test_an_unexpected_error_cancels_the_whole_batch_and_its_journal(
     """Pas un verdict : rien n'est journalisé, tout est défait, le lot se rejoue."""
     real = stock.deposit_bundle
 
-    def deposit_then_crash(session, bundle_id, payload):
-        real(session, bundle_id, payload)  # écrit, puis…
+    def deposit_then_crash(session, user_id, bundle_id, payload):
+        real(session, user_id, bundle_id, payload)  # écrit, puis…
         raise RuntimeError("panne")
 
     monkeypatch.setattr(stock, "deposit_bundle", deposit_then_crash)
@@ -1029,7 +1039,7 @@ def test_an_unexpected_error_cancels_the_whole_batch_and_its_journal(
         ),
     )
     with pytest.raises(RuntimeError):
-        sync.apply_batch(db_engine, request)
+        sync.apply_batch(db_engine, request, world.user_id)
 
     assert owned(db, spare.id) == 3
     assert owned(db, world.card.id, "FR") == 0
@@ -1037,7 +1047,7 @@ def test_an_unexpected_error_cancels_the_whole_batch_and_its_journal(
 
     # Le même lot, renvoyé une fois la panne passée, s'applique entièrement.
     monkeypatch.setattr(stock, "deposit_bundle", real)
-    result = sync.apply_batch(db_engine, request)
+    result = sync.apply_batch(db_engine, request, world.user_id)
     assert (result.applied, result.replayed, result.rejected) == (2, 0, 0)
     assert owned(db, spare.id) == 9
     assert owned(db, world.card.id, "FR") == 2
@@ -1109,4 +1119,7 @@ def test_no_operation_leaves_a_deck_card_without_its_stock(api, db, world, spare
         select(func.count()).select_from(DeckCard).where(DeckCard.card_id == spare.id)
     )
     assert lines == 3  # 3 exemplaires possédés : le 4e deck est refusé
-    assert stock.allocated_real(db, spare.id, "EN", spare.card_set_id) == 3
+    allocated = stock.allocated_real(
+        db, world.user_id, spare.id, "EN", spare.card_set_id
+    )
+    assert allocated == 3

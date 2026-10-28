@@ -51,11 +51,20 @@ test.describe("app shell hors-ligne", () => {
     context,
     baseURL,
   }) => {
+    // Ce projet (`chromium`, sans API réelle, CLAUDE.md §12) n'a aucun back à
+    // authentifier : sur un contexte neuf (`localStorage` vide), `AuthGate`
+    // affiche donc toujours le mur de connexion (Lot 6, mode "gate") plutôt
+    // que la coquille `<App/>`. C'est lui, désormais, qui matérialise l'« app
+    // shell » du critère 1 du pilote (CLAUDE.md §3) : il n'attend ni session
+    // ni réseau pour s'afficher, et c'est ce qu'on vérifie ici. Le scénario
+    // avec compte (coquille `<App/>`, indicateur réseau du `shell-bar`) est
+    // couvert hors ligne contre le vrai back par `tests/e2e-real/journey.spec.ts`.
+
     // 1) Premier chargement, en ligne : le service worker s'enregistre et
     //    précache l'app shell. `serviceWorker.ready` ne se résout qu'une
     //    fois le worker actif pour ce scope.
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
+    await expect(page.getByTestId("auth-screen")).toBeVisible();
 
     await page.evaluate(async () => {
       await navigator.serviceWorker.ready;
@@ -80,18 +89,15 @@ test.describe("app shell hors-ligne", () => {
     expect(navigationResponse.fromServiceWorker()).toBe(true);
     expect(navigationResponse.ok()).toBe(true);
 
-    // L'app shell reste affiché malgré la coupure réseau.
-    await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
-    await expect(
-      page.getByText(
-        "Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour l'expérience hors-ligne (PWA).",
-      ),
-    ).toBeVisible();
+    // Le mur de connexion reste affiché malgré la coupure réseau : l'app
+    // shell est bien servie par le service worker.
+    await expect(page.getByTestId("auth-screen")).toBeVisible();
 
-    // Bonus de cohérence : l'indicateur réseau de l'app (testé isolément
-    // côté vitest, tests/unit/App.test.tsx) reflète bien la coupure simulée
-    // par Playwright.
-    await expect(page.getByRole("status")).toHaveText("Hors ligne");
+    // Bonus de cohérence : le formulaire de connexion (nécessairement en
+    // ligne, Lot 6 § « D — écrans ») détecte lui aussi la coupure simulée par
+    // Playwright, par le même mécanisme que l'indicateur réseau de `<App/>`
+    // (testé isolément côté vitest).
+    await expect(page.getByTestId("login-offline-hint")).toBeVisible();
 
     await context.setOffline(false);
   });

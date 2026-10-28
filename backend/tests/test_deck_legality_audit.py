@@ -11,10 +11,24 @@ import pytest
 
 from app.models import CardCategory
 from app.services import decks
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
 
 DAY = date(2026, 6, 15)
 LIBRARY = CardCategory.LIBRARY
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la légalité des
+    decks, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 @pytest.fixture
@@ -93,9 +107,10 @@ def issue_starting_with(body, prefix):
 def test_ban_boundary_is_inclusive_on_the_ban_day(api, db, offset, banned):
     deck = build(api, db, crypt(banned_on=DAY), library())
 
-    result = decks.get_legality(db, deck.id, on=DAY + timedelta(days=offset))
+    on = DAY + timedelta(days=offset)
+    result = decks.get_legality(db, default_user_id(db), deck.id, on=on)
 
-    assert result.evaluated_on == DAY + timedelta(days=offset)
+    assert result.evaluated_on == on
     assert [c.name for c in result.banned_cards] == (["Vampire"] if banned else [])
     assert result.is_legal is (not banned)
     assert result.not_yet_legal_cards == []
@@ -108,7 +123,8 @@ def test_ban_boundary_is_inclusive_on_the_ban_day(api, db, offset, banned):
 def test_legality_boundary_is_inclusive_on_the_legal_day(api, db, offset, early):
     deck = build(api, db, crypt(legal_from=DAY), library())
 
-    result = decks.get_legality(db, deck.id, on=DAY + timedelta(days=offset))
+    on = DAY + timedelta(days=offset)
+    result = decks.get_legality(db, default_user_id(db), deck.id, on=on)
 
     early_names = [c.name for c in result.not_yet_legal_cards]
     assert early_names == (["Vampire"] if early else [])
@@ -134,7 +150,8 @@ def test_a_card_with_both_dates_follows_the_timeline(api, db, offset, banned, ea
         library(),
     )
 
-    result = decks.get_legality(db, deck.id, on=DAY + timedelta(days=offset))
+    on = DAY + timedelta(days=offset)
+    result = decks.get_legality(db, default_user_id(db), deck.id, on=on)
 
     assert bool(result.banned_cards) is banned
     assert bool(result.not_yet_legal_cards) is early
@@ -145,17 +162,19 @@ def test_a_card_without_any_date_is_legal_at_any_date(api, db):
     deck = legal_deck(api, db)
 
     for on in (date(1990, 1, 1), DAY, date(2999, 12, 31)):
-        result = decks.get_legality(db, deck.id, on=on)
+        result = decks.get_legality(db, default_user_id(db), deck.id, on=on)
         assert result.is_legal is True, on
         assert (result.banned_cards, result.not_yet_legal_cards) == ([], [])
 
 
 def test_the_verdict_can_be_replayed_at_two_dates_on_the_same_deck(api, db):
     deck = build(api, db, crypt(banned_on=DAY), library())
+    uid = default_user_id(db)
+    the_day_before = DAY - timedelta(days=1)
 
-    before = decks.get_legality(db, deck.id, on=DAY - timedelta(days=1))
-    after = decks.get_legality(db, deck.id, on=DAY)
-    again = decks.get_legality(db, deck.id, on=DAY - timedelta(days=1))
+    before = decks.get_legality(db, uid, deck.id, on=the_day_before)
+    after = decks.get_legality(db, uid, deck.id, on=DAY)
+    again = decks.get_legality(db, uid, deck.id, on=the_day_before)
 
     assert (before.is_legal, after.is_legal, again.is_legal) == (True, False, True)
 
@@ -195,7 +214,7 @@ def test_the_base_variant_is_designated_when_only_it_is_banned(api, db):
         library(),
     )
 
-    body = decks.get_legality(db, deck.id, on=DAY).model_dump()
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY).model_dump()
 
     (card,) = body["banned_cards"]
     assert (card["group_code"], card["advanced"]) == ("G2", False)
@@ -212,7 +231,7 @@ def test_only_the_banned_group_variant_is_designated(api, db):
         library(),
     )
 
-    body = decks.get_legality(db, deck.id, on=DAY).model_dump()
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY).model_dump()
 
     assert [c["group_code"] for c in body["banned_cards"]] == ["G2"]
     issue = issue_starting_with(body, "Carte(s) bannie")
@@ -229,7 +248,10 @@ def test_only_the_early_variant_is_designated_as_not_yet_legal(api, db):
         library(),
     )
 
-    body = decks.get_legality(db, deck.id, on=DAY - timedelta(days=1)).model_dump()
+    verdict = decks.get_legality(
+        db, default_user_id(db), deck.id, on=DAY - timedelta(days=1)
+    )
+    body = verdict.model_dump()
 
     (card,) = body["not_yet_legal_cards"]
     assert (card["group_code"], card["advanced"]) == ("G2", True)
@@ -246,7 +268,7 @@ def test_both_variants_are_designated_when_both_are_banned(api, db):
         library(),
     )
 
-    body = decks.get_legality(db, deck.id, on=DAY).model_dump()
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY).model_dump()
 
     assert [(c["group_code"], c["advanced"]) for c in body["banned_cards"]] == [
         ("G2", False),
@@ -261,7 +283,7 @@ def test_two_distinct_same_name_cards_only_the_banned_one_is_reported(api, db):
     fine = library("Doublon", 1)
     deck = build(api, db, crypt(), library(), banned, fine)
 
-    body = decks.get_legality(db, deck.id, on=DAY).model_dump()
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY).model_dump()
 
     assert len(body["banned_cards"]) == 1
 
@@ -271,7 +293,7 @@ def test_two_distinct_same_name_cards_only_the_early_one_is_reported(api, db):
     fine = library("Doublon", 1)
     deck = build(api, db, crypt(), library(), early, fine)
 
-    body = decks.get_legality(db, deck.id, on=DAY).model_dump()
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY).model_dump()
 
     assert len(body["not_yet_legal_cards"]) == 1
 
@@ -297,7 +319,7 @@ def test_a_banned_card_in_two_printings_is_reported_once(api, db):
     added_book = add_line(api, deck.id, book.id, book_copy.card_set_id, quantity=60)
     assert added_book.status_code == 201
 
-    body = decks.get_legality(db, deck.id, on=DAY)
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY)
 
     # Les deux lignes (deux extensions différentes) s'additionnent bien.
     assert body.crypt_count == 12
@@ -311,7 +333,7 @@ def test_same_name_cards_count_separately_in_the_deck_sizes(api, db):
         api, db, crypt("Homonyme", 6, "G1"), crypt("Homonyme", 6, "G1"), library()
     )
 
-    body = decks.get_legality(db, deck.id, on=DAY)
+    body = decks.get_legality(db, default_user_id(db), deck.id, on=DAY)
 
     assert body.crypt_count == 12
     assert body.is_legal is True
@@ -337,7 +359,7 @@ def test_proxies_count_in_the_deck_sizes(api, db):
     )
     assert added_book.status_code == 201
 
-    result = decks.get_legality(db, deck.id, on=DAY)
+    result = decks.get_legality(db, default_user_id(db), deck.id, on=DAY)
 
     assert (result.crypt_count, result.library_count) == (12, 60)
     assert result.is_legal is True

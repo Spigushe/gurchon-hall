@@ -4,6 +4,17 @@ Décisions du 2026-09-25. Le Lot 5 laisse l'onglet Chercher désactivé, sans é
 lot le remplace par une page qui parcourt le catalogue et permet d'ajouter les cartes
 au deck, à la collection, ou aux deux.
 
+> **État au 2026-10-28 : non commencé.** Le Lot 6 est passé avant lui (D0 de
+> `docs/lot6-plan-comptes.md`) ; sa place par rapport aux Lots 7 à 11 reste à
+> confirmer avec l'utilisateur (CLAUDE.md §12). Venu après le breakpoint bureau, il
+> livre lui-même ses deux dispositions, mobile et bureau. Le Lot 5c lui a renvoyé
+> deux points : l'image de carte (`CardImage` : aperçu au survol, image de la carte
+> choisie, y compris sa forme statique dans le picker mobile) et le champ de
+> recherche global de la barre haute bureau, masqué jusqu'à ce que ce lot le
+> rétablisse (`docs/lot5c-plan-design.md`). Les routes qu'il ajoute passent par une
+> session, comme toute route hors catalogue depuis le Lot 6 ; `GET /cartes`, elle,
+> reste publique.
+
 ## Décisions
 
 - **Hors ligne complet.** Tous les filtres tournent sur le miroir local, comme la

@@ -4,6 +4,8 @@ import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
+import { AccountMenu } from "./features/auth/AccountMenu";
+import { ReconnectBanner } from "./features/auth/ReconnectBanner";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
 import { SyncStatusBar } from "./features/sync/SyncStatusBar";
 import { plural } from "./labels";
@@ -363,14 +365,24 @@ function App() {
         {/* Sous 1024px, seule barre de chrome au-dessus du contenu : marque + statut de
             connexion. À partir de 1024px, `TopBar` porte déjà la marque (index.css masque
             `.shell-bar__brand`) ; `role="status"` reste ici, unique dans le DOM aux deux
-            largeurs plutôt que dupliqué dans `TopBar`. */}
+            largeurs plutôt que dupliqué dans `TopBar`. Le compte courant et la
+            déconnexion (`AccountMenu`, Lot 6) partagent cette même barre, pour la
+            même raison : un seul endroit à rendre aux deux largeurs plutôt qu'une
+            copie dans `TopBar`. */}
         <div className="shell-bar">
           <h1 className="shell-bar__brand">Gurchon Hall</h1>
+          <AccountMenu />
           <p className="shell-bar__status" role="status" data-online={online}>
             {!online && <WifiSlash size={14} weight="fill" />}
             {online ? "En ligne" : "Hors ligne"}
           </p>
         </div>
+
+        {/* Bandeau de reconnexion (Lot 6) : visible sur toutes les pages, pas
+            bloquant (la file peut rester utilisable hors ligne pendant ce
+            temps, P3). Ne s'affiche que si le moteur est en pause faute
+            d'authentification ; rend `null` sinon. */}
+        <ReconnectBanner />
 
         {/* Toujours monté (identifiant unique dans le DOM), visuellement masqué :
             l'état de synchronisation détaillé vit désormais sur la page dédiée

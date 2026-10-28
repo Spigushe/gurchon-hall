@@ -9,6 +9,7 @@ Deux angles distincts, cf. CLAUDE.md §7 et §10 (contract-first) :
   que personne ne le remarque.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -54,13 +55,21 @@ def test_committed_contract_matches_app_openapi():
     de la logique de comparaison, cf. contracts/README.md) plutôt que de la
     réimplémenter ici. Doit échouer explicitement si un schéma Pydantic ou une
     route change sans que le contrat versionné soit régénéré.
+
+    Le contrat versionné est généré avec `SESSION_COOKIE_SECURE` à sa valeur
+    par défaut (vrai, cf. `app.routers.common`) : le sous-processus reçoit un
+    environnement qui le force, pour ne pas dépendre du repli de test posé par
+    `tests/conftest.py` (Lot 6), qui ne vaut que pour `TestClient` et changerait
+    le nom du cookie de session déclaré dans le schéma.
     """
+    env = {**os.environ, "SESSION_COOKIE_SECURE": "true"}
     result = subprocess.run(
         [sys.executable, str(EXPORT_SCRIPT), "--check"],
         cwd=BACKEND_DIR,
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
     assert result.returncode == 0, (
@@ -74,6 +83,10 @@ def test_committed_contract_matches_app_openapi():
 
 EXPECTED_OPERATIONS = {
     ("get", "/health"): "getHealth",
+    ("post", "/inscription"): "signUp",
+    ("post", "/connexion"): "logIn",
+    ("post", "/deconnexion"): "logOut",
+    ("get", "/moi"): "readCurrentUser",
     ("get", "/cartes"): "listCards",
     ("get", "/cartes/{card_id}"): "getCard",
     ("get", "/bundles"): "listBundles",

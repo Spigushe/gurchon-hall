@@ -4,9 +4,9 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis et 5c livrés** (Lot 5 en attente de la vérification
-manuelle PWA, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
-React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
+**État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (vérification manuelle de la
+PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, §12). Lot 0 : squelette
+monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
 catalogue krcg, routes catalogue / stock / decks, légalité de deck (cinq règles),
@@ -28,20 +28,27 @@ Lot 5c : audit de symétrie fonctionnelle entre mobile et bureau, puis portage d
 (table d'écarts et verdicts dans `docs/lot5c-plan-design.md`). Une correction prise après le Lot 5
 détache la ligne de deck de la collection : une carte entièrement jouée en proxy
 n'exige plus d'entrée de stock (septième révision `f3a91c47b2de`, diagnostic et
-conception dans `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`). Le modèle
-compte **23 tables** et sept révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+conception dans `docs/issues/2026-09-29-lot4b-ligne-100-pourcent-proxy-refusee.md`). Lot 6 :
+comptes (inscription ouverte, connexion, déconnexion, session serveur de 14 jours dans un
+cookie `HttpOnly`), un propriétaire sur chaque donnée privée, cloisonnement de l'API
+(404 pour la ressource d'un autre compte) et du client (une base IndexedDB par compte,
+pause du moteur de sync sur 401, purge à la déconnexion) ; les données existantes sont
+rattachées à un compte historique (plan dans `docs/lot6-plan-comptes.md`, décisions au
+§11). Le modèle compte **25 tables** et neuf révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1609 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (1719 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
-à lancer une fois la base migrée).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 366 tests sur 25 fichiers),
-`npm run test:e2e` (Playwright, 48 tests sur quatre projets : à 390 × 844, 9 dans
-`chromium` et 22 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+à lancer une fois la base migrée),
+`uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions>`
+(comptes, Lot 6 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 416 tests sur 30 fichiers),
+`npm run test:e2e` (Playwright, 51 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 26 contre un vrai back sur base éphémère — projet `real-backend`, cf.
 `frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 14 dans
 `desktop-real-backend`),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
@@ -52,8 +59,22 @@ fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 la base de développement. Vérifier la variable avant toute migration. Cette base n'est
 pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
 avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
-le même jour à `f3a91c47b2de` (la tête). Elle contient aujourd'hui huit entrées de
-stock, le deck « Banu Princes » et aucune ligne de composition. Une base plus ancienne
+le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (la tête, Lot 6),
+après un essai sur une copie ; la sauvegarde d'avant migration est conservée dans
+`backend/vtes.db.pre-lot6-20261002-201755.bak`. Elle contient la vraie collection de
+l'utilisateur : 28 entrées de stock, le deck « Banu Princes » et ses 20 lignes, 58
+opérations au journal de sync, toutes au compte historique (`user_account.id = 1`,
+rôle `admin`). Les disponibilités du stock ont été comparées ligne à ligne avant et
+après : identiques. Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
+(`manage_accounts.py claim-legacy`) : il porte désormais une vraie adresse, un nom et
+un mot de passe, à la place de l'adresse provisoire
+`compte-historique@gurchon-hall.invalid` et du mot de passe inutilisable posés par la
+migration. Sur toute autre base migrée à la tête, la réclamation reste à faire avant
+d'ouvrir l'application, depuis `backend/` :
+`uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>`
+(les deux options sont obligatoires ; saisie interactive du mot de passe), sans quoi
+personne ne peut se connecter pour accéder à ces données ni rejouer les files des
+appareils existants (elles attendent sans dommage). Une base plus ancienne
 se remet à niveau par ce même `upgrade head` ; une base repartie de zéro se reconstruit
 par `upgrade head` suivi de `uv run python scripts/import_catalog.py`.
 
@@ -69,10 +90,14 @@ catalogue : le code sur `main` lit `card_set.is_placeholder` (ajoutée par
 neuve), puis `upgrade head` avant de relancer l'import.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
-`/extensions`, `/sync` — 24 opérations au contrat, détail au §7. Aucune route `/joueurs`, `/tournois`,
+`/extensions`, `/sync`, et depuis le Lot 6 `/inscription`, `/connexion`, `/deconnexion`,
+`/moi` — 28 opérations au contrat, détail au §7. Hors catalogue et authentification,
+toute route exige une session. Aucune route `/joueurs`, `/tournois`,
 `/parties`, `/participations` : elles viennent au Lot 7. Une UI métier de consultation
 et de saisie existe pour la collection et les decks (`frontend/src/features/`,
-routeur à hash `/#/...`) ; aucune UI joueurs/tournois/parties avant le Lot 7.
+routeur à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion,
+inscription, compte, déconnexion), mobile et bureau ; aucune UI joueurs/tournois/parties
+avant le Lot 7.
 
 ---
 
@@ -103,7 +128,7 @@ plus fiable.
 | PWA | **vite-plugin-pwa** (Workbox) | manifest + service worker |
 | Stockage client | **IndexedDB** (via Dexie) | données locales + file d'attente offline |
 | Back | **FastAPI + Pydantic v2** | contrat OpenAPI généré |
-| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | pilote mono-utilisateur aujourd'hui ; modèle multi-utilisateur à prévoir ; migration Postgres possible plus tard |
+| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | multi-utilisateur depuis le Lot 6 (un propriétaire sur chaque donnée privée) ; migration Postgres possible plus tard |
 | Client API | **client TS typé généré** depuis l'OpenAPI | contract-first, pas de types réécrits à la main |
 
 > Versions précises à figer au démarrage (lockfiles). Ne pas épingler ici des
@@ -149,8 +174,10 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  ├─ src/ (features, components, api-client généré, offline/)
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
-├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff/, Lot 5 et 5bis)
+├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md), handoffs de
+│                               design (design-handoff/, Lot 5 et 5bis), fiches
+│                               d'incident (issues/), références QA (qa-baselines/)
+│                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -203,7 +230,13 @@ ici comme repères, pas comme vérités arrêtées.
 - **Langues** : stock compté séparément par langue — **FR**, **EN**, **ES** ou
   « autre » (`XX`) —, la liste restant ouverte puisque `language` est une table et
   non un enum. Toute entrée de collection porte un code de langue, jamais vide.
-  L'identité d'une carte (nom, règles, clan…) est indépendante de la langue.
+  L'identité d'une carte (nom, règles, clan…) est indépendante de la langue. La table
+  étant partagée entre comptes, l'ajout d'une langue est réservé au rôle `admin`
+  depuis le Lot 6 (§7).
+
+Le Lot 6 ne change aucune de ces règles : la légalité porte sur la composition et le
+catalogue, qui est commun à tous les comptes. Seule la portée de la comptabilité du
+stock et de l'identité d'un deck devient « par compte » (§6).
 
 Ces règles métier sont la responsabilité de l'agent **architecte-contrat** (skill
 `regles-vtes`).
@@ -221,7 +254,7 @@ Le Lot 2 passe 2 l'a étendu par deux révisions, à la suite de la révision in
 `a59a3613de12` : `de3b00e38c8d` (archivage et suppression logique des decks) puis
 `5dc50e3c1701` (discriminant de deck, decklist figée, `card.legal_from`, statuts).
 Le Lot 3 ajoute une quatrième révision, `8cc70f4bbbcc` : la table `sync_operation`,
-journal d'idempotence de `/sync` (§7, §11). Le modèle compte désormais **23 tables**.
+journal d'idempotence de `/sync` (§7, §11), ce qui porte le modèle à 23 tables.
 Cette révision ne touche qu'une table neuve, sans mode batch, et se rejoue hors ligne
 (`upgrade 5dc50e3c1701:8cc70f4bbbcc --sql`), contrairement aux deux précédentes.
 Le Lot 4 en ajoute deux, sans table nouvelle : `6c9a178b7a1d` (`proxy_allowed` passe de
@@ -238,19 +271,38 @@ une base peuplée**, et sa montée se rend même hors ligne
 (`upgrade b7e41d0c9a52:f3a91c47b2de --sql`). Sa descente, elle, refuse de tourner
 (`RuntimeError`) s'il existe une ligne tout-proxy sans entrée de collection : c'est
 exactement ce que la clé étrangère restaurée interdirait.
+Le Lot 6 ajoute les huitième et neuvième révisions. `32d62f354d89` (R8, « comptes et
+sessions ») crée `user_account` et `auth_session` et insère le compte historique
+(`id = 1`, rôle `admin`, mot de passe inutilisable `!`), sans toucher aux tables
+existantes. `89695b77ef45` (R9, « propriétaire sur les données ») pose `user_id` sur
+neuf tables et **convertit les données** : chaque ligne existante est rattachée au
+compte `1` par une valeur constante, tables vides comprises, sans garde de vacuité.
+C'est la première révision du projet qui réécrit des données métier (D5 du plan, §11
+Lot 6). Comme `f3a91c47b2de`, les tables sont renommées puis recréées à la main, hors
+mode batch, et la montée des deux révisions se rend hors ligne (`--sql`). Les
+descentes refusent de tourner (`RuntimeError`, avant toute modification) dès qu'il
+existe un autre compte que le compte historique (R8) ou une ligne qui lui appartient
+(R9) : en pratique, on ne redescend pas sous le Lot 6 avec un second compte. Le modèle
+compte **25 tables**.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
-| Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
+| Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé). Révoquer une session, c'est supprimer sa ligne |
+| Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy |
-| Pratique | `player`, `tournament`, `game`, `participation` | un seul « Moi » (index unique partiel) ; `participation.game_win` stocké mais non calculé |
-| Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme) |
+| Pratique | `player`, `tournament`, `game`, `participation` | encore vides, mais déjà munies de leur `user_id` (Lot 6, D7) pour que le Lot 7 n'ait aucune migration de propriété à écrire ; un seul « Moi » **par compte** (index unique partiel sur `user_id` où `is_me`) ; nom de joueur unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `participation.game_win` stocké mais non calculé |
+| Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
 **Identité et cycle de vie d'un deck** (passe 2) : `deck.name` n'est plus unique ; il
 est accompagné d'un `discriminator` de quatre chiffres (« 0001 » à « 9999 », le format
 est garanti par un CHECK), tiré par le serveur, et c'est le couple (nom, discriminant)
-qui est unique — sur **tous** les decks, supprimés compris. Deux horodatages UTC portent
+qui est unique parmi **tous les decks d'un même compte**, supprimés compris (Lot 6, D2 ;
+au Lot 2, l'unicité valait sur toute la base). Le serveur tire le discriminant parmi
+ceux que le compte n'a pas encore pris pour ce nom, et le 409 d'épuisement des 9999
+discriminants ne compte que les decks du compte. Deux comptes peuvent donc avoir chacun
+un « Banu Princes#1234 » : un deck ne se désigne plus de façon univoque sans son
+propriétaire, à garder en tête pour l'import VDB (Lot 9). Deux horodatages UTC portent
 le cycle de vie, indépendamment du statut : `archived_at` (rangé) et `deleted_at`
 (supprimé logiquement). `DeckStatus` se réduit donc à `draft` et `active` : « rangé »
 et « supprimé » sont des dates, pas des statuts, et désarchiver n'oblige pas à deviner
@@ -279,11 +331,17 @@ l'expose pas, il reste dans le texte de carte).
 colonne) → en logique de service + tests :
 
 - deck légal, les cinq règles du §5 — *fait au Lot 2* (`services/vtes_rules.py`) ;
-- comptabilité du stock : la somme des exemplaires réels (`quantity - proxy_quantity`)
-  alloués à travers les decks vivants ne dépasse pas `quantity_owned`, entrée par entrée
-  (carte × langue × extension) — *fait au Lot 2, par impression au Lot 4*
-  (`services/stock.py`) ;
-- tournoi mono-deck → toutes mes participations pointent le même deck ;
+- comptabilité du stock : pour **chaque compte** et chaque entrée de sa collection
+  (carte × langue × extension), la somme des exemplaires réels
+  (`quantity - proxy_quantity`) alloués par les decks vivants **de ce compte**
+  (archivés compris) ne dépasse pas `quantity_owned`. Une ligne de deck qui consomme au
+  moins un exemplaire réel exige une entrée du même compte ; les decks d'un autre
+  compte n'entrent jamais dans la somme, ni dans le message d'un 409 — *fait au Lot 2,
+  par impression au Lot 4, par compte au Lot 6* (`services/stock.py`, où toutes les
+  fonctions de comptabilité prennent le compte en paramètre obligatoire, sans valeur par
+  défaut, pour qu'un oubli échoue au typage au lieu de compter globalement) ;
+- tournoi mono-deck → toutes mes participations pointent le même deck, « mes »
+  désignant le joueur `is_me` du compte propriétaire du tournoi (Lot 6) ;
 - cohérence VP/GW **[à confirmer]** ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
 
@@ -300,16 +358,20 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 à 4 (chemins en français, `operationId` en anglais camelCase),
-24 opérations sur 16 chemins :
+Livré aux Lots 2 à 6 (chemins en français, `operationId` en anglais camelCase),
+28 opérations sur 20 chemins :
 
 | Route | Rôle |
 | --- | --- |
+| `POST /inscription` (`signUp`) | Lot 6. Crée un compte (`email`, `username`, `password`), actif aussitôt, rôle `user` posé par le serveur (un `role` envoyé rend 422, comme tout champ inconnu), et ouvre la session : 201 `UserRead` + `Set-Cookie` ; 409 adresse ou nom déjà pris ; 429 + `Retry-After` |
+| `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour une adresse inconnue et un mauvais mot de passe ; 429 + `Retry-After` |
+| `POST /deconnexion` (`logOut`) | Lot 6. Supprime la session courante et efface le cookie ; 204 toujours, même sans session valide |
+| `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`) ; 401 sans session |
 | `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule ; chaque carte porte `card_set_ids` (ses impressions) et `latest_card_set_id` (sa dernière version, §11 Lot 4) |
 | `GET /extensions` | liste des extensions du catalogue, marqueur `is_placeholder` compris (Lot 4) |
 | `GET /bundles`, `GET /bundles/{id}` | produits et leur contenu (carte × exemplaires) |
 | `POST /bundles/{id}/stock` | verse le contenu d'un produit dans le stock (`language_code`, `count`), chaque carte sous l'extension du produit ; 409 si un total dépasserait le plafond entier |
-| `GET/POST /langues` | liste ouverte des langues |
+| `GET/POST /langues` | liste ouverte des langues ; lecture publique, ajout réservé au rôle `admin` (403 pour un compte `user`, Lot 6) |
 | `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}/{card_set_id}` | collection, une entrée par carte, langue et extension ; filtre `card_set_id` sur la liste ; 404 pour une extension où la carte n'a pas été imprimée |
 | `GET /decks` | liste filtrée par `state` (`active` par défaut, `archived`, `all`), `status` et `q` ; tri nom puis discriminant. Les decks supprimés n'y figurent jamais |
 | `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client |
@@ -317,7 +379,7 @@ Livré aux Lots 2 à 4 (chemins en français, `operationId` en anglais camelCase
 | `PATCH /decks/{id}` | modification partielle, `proxy_allowed` compris (409 s'il est retiré à un deck qui joue des proxies), et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
-| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck, chaque ligne allouée depuis une entrée de stock précise |
+| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck ; une ligne qui consomme au moins un exemplaire réel est allouée depuis l'entrée de stock du même triplet, une ligne entièrement en proxy n'en exige aucune (`f3a91c47b2de`) |
 | `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
@@ -328,6 +390,36 @@ format standard de FastAPI, y compris ceux que le service produit lui-même. `PO
 n'utilise jamais 404 ni 409 : un refus est un verdict dans le corps d'une 200, et un 503
 (`ErrorResponse` + en-tête `Retry-After`, exposé en CORS) signale que rien n'a été
 appliqué faute d'avoir obtenu le verrou d'écriture — le lot se renvoie alors à l'identique.
+
+**Authentification et cloisonnement (Lot 6).** Sont publics `/health`, le catalogue en
+lecture (`GET /cartes…`, `/extensions`, `/bundles…`, `GET /langues`) et les trois
+routes `POST /inscription`, `/connexion`, `/deconnexion`. **Toute autre route exige une
+session** : `/stock…`, `/decks…`, `POST /bundles/{id}/stock`, `POST /sync`, `GET /moi`,
+`POST /langues`. La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
+(`__Host-gurchon_session` ; `gurchon_session` si `SESSION_COOKIE_SECURE` est coupé),
+déclaré au contrat comme schéma de sécurité `apiKey` en cookie ; le jeton n'apparaît
+jamais dans un corps de réponse. Les contrôles se font dans cet ordre et rendent :
+
+- **401** (`ErrorResponse`) sans session, ou pour une session inconnue, expirée ou
+  supprimée. Il passe avant tout : sans session, `/decks/999999` rend 401, pas 404.
+- **404, jamais 403**, pour une ressource d'un autre compte, avec le même message que
+  pour un identifiant inexistant (« Deck 12 introuvable. »). Les listes ne montrent que
+  les données du compte. Aucun chemin n'a changé et aucun corps ne porte de `user_id` :
+  le propriétaire vient de la session, et un `user_id` envoyé rend 422.
+- **403** dans deux cas seulement, qui ne portent sur aucune ressource et ne révèlent
+  donc rien : un compte `user` sur `POST /langues` (« Droits insuffisants. »), et une
+  écriture (`POST`, `PATCH`, `DELETE`) dont l'en-tête `Origin` n'est pas dans
+  `BACKEND_CORS_ORIGINS`.
+
+Toute réponse authentifiée porte `Cache-Control: private, no-store`, pour que le cache
+HTTP du navigateur ne resserve pas les données d'un compte à un autre. CORS passe en
+`allow_credentials`, avec la liste fermée d'origines. Côté `POST /sync`, la session est
+vérifiée une fois, avant le verrou ; un 401 signifie, comme le 503, que rien n'a été
+appliqué. L'idempotence et les références client sont par compte : une `operation_id`
+ou une `client_ref` déjà utilisée par un autre compte se comporte comme une clé neuve
+ou une référence inconnue (`not_found`), jamais comme un `replayed` ou un
+`mismatched_replay`. Les huit types d'opérations ne changent pas ; section « Lot 6 »
+dans `docs/lot3-sync-contrat.md`.
 
 Conventions du contrat, posées en passe 2 et valables pour toute ressource à venir :
 
@@ -342,7 +434,10 @@ Conventions du contrat, posées en passe 2 et valables pour toute ressource à v
   à `MAX_DB_INT` (2³¹ − 1) et les identifiants valent au moins 1 ; au-delà, le client
   reçoit un 422 au lieu d'une erreur du pilote de base. Les noms et les codes de langue
   obligatoires sont rognés de leurs espaces de bord puis refusés s'ils sont vides
-  (`RequiredText`).
+  (`RequiredText`). Depuis le Lot 6, l'adresse est validée (`EmailStr`, 320 caractères
+  au plus) et le mot de passe, jamais rogné, fait de 12 à 128 caractères avec une
+  minuscule, une majuscule, un chiffre et un symbole : la borne haute refuse une entrée
+  démesurée avant qu'Argon2 ne la hache.
 - **Recherche `q` insensible à la casse et aux accents** sur les quatre routes qui
   l'acceptent (`/cartes`, `/bundles`, `/stock`, `/decks`) : « elan », « ÉLAN » et
   « élan » trouvent « Élan vital ». Détail au §11.
@@ -377,8 +472,8 @@ Total : 1 chef d'orchestre + 6 agents spécialisés.
 
 ## 9. Skills fondamentales
 
-Skills = modules `SKILL.md` réutilisables dans `.claude/skills/`. À **créer** pour
-le projet (sauf `ecriture-naturelle`, déjà existante côté utilisateur). Chaque
+Skills = modules `SKILL.md` réutilisables dans `.claude/skills/`, tous créés dans le
+dépôt (sauf `ecriture-naturelle`, qui existe côté utilisateur et non dans le dépôt). Chaque
 skill a un **agent propriétaire** (owner) et des **agents consommateurs**.
 
 | Skill | Rôle | Owner | Consommateurs |
@@ -550,6 +645,9 @@ Tranchées pendant le Lot 2, passe 2 :
   après vingt essais, ou si les 9999 discriminants d'un nom sont pris. Renommer conserve le
   discriminant, sauf collision. L'unicité (nom, discriminant) vaut sur **tous** les decks,
   supprimés compris : rien ne réattribue l'identité d'affichage d'un deck disparu.
+  *Remplacé au Lot 6 (D2)* : l'unicité vaut désormais parmi les decks d'un même compte,
+  supprimés compris, et le tirage comme le 409 d'épuisement ne regardent que ce compte
+  (§6, §11 Lot 6).
 - **Archivage, puis suppression logique**. Un deck s'archive par
   `PATCH /decks/{id}` `{"archived": true}` — opération idempotente, qui garde la date
   d'origine si on la rejoue ; `false` le sort de l'archive et remet `archived_at` à NULL.
@@ -817,10 +915,13 @@ Limites connues à la clôture du Lot 5 :
 - **Vérification PWA manuelle non faite** : le contrôle automatisé
   (`scripts/check-pwa-installability.mjs`) passe, mais le panneau Application de Chrome
   DevTools, la coupure réseau réelle et l'invite d'installation sur mobile restent à
-  vérifier à la main, comme au Lot 0.
+  vérifier à la main, comme au Lot 0. *Soldé le 2026-10-28* : les trois points ont été
+  vérifiés à la main.
 - **La suite Playwright tourne en `Desktop Chrome` (1280 × 720)**, alors que l'UI livrée
   est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
-  fixe une largeur mobile explicite avant d'en poser un.
+  fixe une largeur mobile explicite avant d'en poser un. *Soldé au Lot 5bis* : les
+  projets mobiles tournent à 390 × 844, les projets bureau à 1440 × 900
+  (`frontend/playwright.config.ts`).
 
 Tranchées à l'ouverture du Lot 5bis (2026-09-29), avant toute implémentation :
 
@@ -966,22 +1067,156 @@ tient en quelques points :
   de bord bienvenu : la montée se rend hors ligne, ce qu'aucune révision depuis la
   première ne savait faire.
 
+Tranchées pendant le Lot 6 (décisions prises le 2026-10-01 ; plan, justifications et
+points d'interprétation dans `docs/lot6-plan-comptes.md`, qui fait foi pour le détail) :
+
+- **Ordre des lots (D0).** Le Lot 6 a démarré juste après le Lot 5c, **avant** le lot
+  Chercher, qui reste reporté. Écart assumé à l'ordre proposé à l'ouverture du Lot 5bis
+  (5c, Chercher, Lot 6), noté comme un fait. Venu après le breakpoint bureau, le Lot 6 a
+  livré ses écrans dans les deux dispositions et ne laisse rien à un lot de symétrie.
+- **Une session serveur unique, pas de JWT (D1, P3).** Un jeton opaque de 32 octets dans
+  un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, dont seule l'empreinte SHA-256 est en
+  base (`auth_session`) : une copie de `vtes.db` ne donne aucune session utilisable.
+  Durée **14 jours fixes** à compter de la connexion, jamais repoussée ; une requête
+  authentifiée n'écrit donc rien et n'attend pas le verrou d'écriture. Révoquer, c'est
+  supprimer la ligne, avec effet immédiat. Pas de paire access/refresh : un JWT aurait
+  porté la validité dans le jeton et demandé une liste noire pour révoquer, sans rien
+  gagner sur une application à une seule API.
+- **Hachage et protection de la connexion, alignés sur barrins-project (P1).** Argon2id
+  par `argon2-cffi`, coûts de Barrin surchargeables (`ARGON2_MEMORY_COST_KIB`,
+  `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), `needs_rehash` à chaque connexion réussie.
+  Une vérification factice (`dummy_verify`) égalise le temps de réponse d'une adresse
+  inconnue, et un seul message 401 couvre les deux cas. Limitation de débit `slowapi`
+  par IP sur `POST /connexion` et `POST /inscription` (`LOGIN_RATE_LIMIT`,
+  `SIGNUP_RATE_LIMIT`, 5 par minute par défaut). En CI, les coûts Argon2 sont abaissés
+  pour la vitesse de la suite pytest, presque tous les tests passant désormais par un
+  hachage.
+- **Périmètre du compte (P2).** L'adresse e-mail est l'identifiant de connexion, un nom
+  d'utilisateur séparé sert de handle public. Inscription ouverte, sans invitation ni
+  vérification d'e-mail : le compte est actif et la session ouverte dès la réponse. Le
+  serveur pose le rôle `user` lui-même. Oracle accepté : un 409 « adresse déjà
+  utilisée » révèle qu'un compte existe, ce qui est inhérent à une inscription ouverte.
+  Pas de changement de mot de passe par l'API, pas de suppression de compte :
+  réinitialisation, rôles et sessions passent par `backend/scripts/manage_accounts.py`
+  (`set-password` révoque toutes les sessions du compte).
+- **Rôle à deux niveaux, `user` et `admin` (P4).** `StrEnum` avec une propriété
+  `.level` et une dépendance fabriquée `require_role(min_role)`, comme chez Barrin, pour
+  qu'un niveau intermédiaire puisse s'insérer plus tard. Il ne sert qu'à réserver
+  `POST /langues`, la table `language` étant partagée. Aucune route ne modifie un rôle :
+  un second administrateur se crée par `set-role`.
+- **Partagé ou privé (P5).** Le catalogue, les extensions, les produits et les langues
+  restent partagés et lisibles sans session. Collection, decks, journal de sync, et
+  `venue`, sont privés à chaque compte : un lieu est une saisie de l'utilisateur, pas une
+  référence publique.
+- **Discriminant de deck unique par compte (D2)**, et non plus sur toute la base :
+  reformulation de la règle du Lot 2 passe 2 ci-dessus, détail au §6. Avec une unicité
+  globale, les decks d'un compte auraient pu épuiser les 9999 discriminants d'un nom
+  chez un autre, et le 409 serait devenu un oracle.
+- **Comptabilité du stock par compte** : nouvelle formulation au §6. Une somme restée
+  globale aurait laissé les decks de B empêcher A de baisser sa quantité, et le message
+  du 409 aurait révélé à A ce que B joue.
+- **Les données existantes sont converties, pas refusées (D5).** Le Lot 4 refusait de
+  migrer des tables non vides parce qu'il n'y avait rien à convertir et qu'un
+  rattachement à une extension aurait exigé une heuristique ; ici la base contient la
+  vraie collection et chaque ligne n'a qu'un seul propriétaire possible, si bien que la
+  conversion se réduit à un `UPDATE` à valeur constante. C'est aussi le modèle que
+  Barrin suivra pour son propre passage au multi-utilisateur sur une base en service.
+  Le journal `sync_operation` est converti comme le reste, sans quoi une opération déjà
+  tranchée qui attend encore dans une file (réponse perdue) serait réappliquée.
+- **Un compte historique reçoit ces données (D6)** : `id = 1`, rôle `admin`, adresse
+  `compte-historique@gurchon-hall.invalid` (domaine réservé), mot de passe inutilisable.
+  Il se réclame par `manage_accounts.py claim-legacy`, jamais par la première
+  inscription, qui aurait sinon hérité de la collection. La migration ne connaît aucun
+  secret et se rejoue à l'identique partout.
+- **Propriétaire posé dès maintenant sur les tables du Lot 7 (D7)** : `player`,
+  `tournament`, `game`, `participation` et `venue`, encore vides, ont leur `user_id`.
+  Le Lot 7 n'aura aucune migration de propriété à écrire et ses routes naîtront scopées.
+- **Côté client, une base IndexedDB par compte** (`gurchon-hall-offline-u<id>`, par
+  l'option `dbName` du runtime). Si la session de A expire et que B se connecte sur le
+  même navigateur, la file de A dort dans la base de A et n'est jamais envoyée sous la
+  session de B. La base d'avant le Lot 6 n'est adoptée par aucun compte d'office : à la
+  première connexion, l'application propose de rattacher ses opérations en file, qui
+  sont recopiées sans modification (mêmes clés, mêmes empreintes, un rejeu reste un
+  rejeu). Le client garde une copie non secrète du dernier `GET /moi` pour savoir, hors
+  ligne, qui est connecté.
+- **401 = pause du moteur de sync.** Le transport gagne un état `unauthenticated`,
+  générique et donc réutilisable par Barrin. Le moteur se met en pause (statut
+  `auth_required`) : pas de backoff, **jamais de bissection**, **jamais de refus
+  local**, aucune opération ne sort de la file ; le rejeu reprend après une connexion
+  réussie. Les rafraîchissements de miroir qui reçoivent un 401 gardent les miroirs
+  tels quels. Hors ligne, la session ne compte pas : l'application lit et saisit comme
+  avant. Un 401 constaté avec une file non vide laisse l'application ouverte avec un
+  bandeau de reconnexion ; avec une file vide, il affiche l'écran de connexion sans
+  purger la base locale.
+- **Déconnexion : avertir, puis purger sur confirmation (D3).** Si la file contient des
+  opérations non tranchées, en attente ou refusées, la déconnexion en donne le nombre et
+  prévient qu'elles seront perdues. Sur confirmation, `POST /deconnexion` part d'abord,
+  puis la base IndexedDB du compte est supprimée en entier (miroirs, file, `settled`,
+  correspondances `client_ref`) ; sans confirmation, rien ne bouge. La déconnexion est
+  **refusée hors ligne** : le cookie étant `HttpOnly`, le client ne peut ni l'effacer ni
+  faire supprimer la session, et purger la base en le laissant en place renverrait au
+  retour du réseau des requêtes sous le compte précédent. Le precache du service worker
+  ne contient que la coquille et n'est pas purgé. C'est la seule purge de la file que le
+  projet s'autorise, et elle est demandée explicitement par l'utilisateur ; elle ne
+  contredit pas la décision du 2026-10-01 de ne pas purger la file à la suppression
+  d'un deck.
+- **Ordre de mise en service** : migrer, puis réclamer le compte historique, **avant**
+  d'ouvrir l'application. Migration et réclamation faites le 2026-10-02 sur
+  `backend/vtes.db` (en-tête de ce fichier).
+
+Limites connues à la clôture du Lot 6 :
+
+- **Le verrou d'écriture de `/sync` reste global à la base SQLite**, limite acceptée :
+  le lot d'un compte fait attendre celui d'un autre, au pire jusqu'au 503 +
+  `Retry-After` après 5 s (environ une seconde pour un lot plein de 200). Les invariants
+  étant tous par compte, un portage Postgres pourrait prendre un verrou consultatif par
+  compte (`pg_advisory_xact_lock(user_id)`). La course entre un lot et une écriture en
+  ligne (§11 Lot 3, `xfail` de `test_sync_online_race.py`) reste ouverte, sans
+  s'élargir entre comptes puisque deux comptes ne partagent aucune ligne écrite.
+- **Flakiness vitest résiduelle, même nature qu'au Lot 5c, pas une régression du
+  Lot 6** : deux exécutions de la suite complète sur quatre ont vu échouer un test,
+  chaque fois différent et sans rapport avec l'authentification, sans reproduction en
+  isolation. Toujours à attribuer s'il revient.
+- **Cookie `Secure` sur `http://localhost`** : Chrome et Firefox sont documentés comme
+  l'acceptant ; *vérifié à la main le 2026-10-28* sur le navigateur en usage (connexion
+  puis application utilisable, sans 401 sur `GET /moi`). Un autre navigateur ou une
+  autre version pourrait se comporter autrement. Symptôme d'un refus : connexion
+  réussie puis 401 immédiat sur `GET /moi`. Repli :
+  `SESSION_COOKIE_SECURE=false` en développement local (`backend/.env.example`). Mélanger
+  `localhost` et `127.0.0.1` casse aussi la session sans message (deux sites distincts).
+- **Limitation de débit en mémoire du processus** : compteurs remis à zéro au
+  redémarrage et non partagés entre processus, acceptable pour un uvicorn à un seul
+  processus ; derrière le proxy de Barrin, l'IP viendra de `X-Forwarded-For`, à
+  configurer au Lot 11.
+- **Identifiants séquentiels sur toute la base** : un compte peut estimer le nombre total
+  de decks créés en regardant croître les siens. Rien d'autre n'en découle, tout
+  identifiant étranger rendant 404.
+- **Les descentes de R8 et R9 sont bloquées dès qu'un second compte existe** (§6). Les
+  formes de migration écrites à la main (renommage puis copie) et les FK composites
+  sont propres à SQLite et seraient à réécrire pour Postgres.
+- **Tests de référence** : la matrice d'autorisation complète, route par route, est dans
+  `backend/tests/test_lot6_authorization_matrix.py` (401 sans session, 404 pour un autre
+  compte, 403 de rôle sur `POST /langues`, isolation de `/sync`) ; les tests d'isolation
+  ciblés de l'étape A3 restent dans `backend/tests/test_lot6_isolation.py`, de portée
+  plus réduite ; les trois scénarios de bout en bout sont dans
+  `frontend/tests/e2e-real/lot6-comptes.spec.ts`.
+
 ---
 
 ## 12. Roadmap
 
-1. **Lot 0 — Squelette + PWA minimale** — *livré, en attente de validation manuelle.*
+1. **Lot 0 — Squelette + PWA minimale** — *livré.*
    Monorepo, FastAPI `/health`, React+Vite, manifest + service worker, tests
-   automatisés (pytest, vitest, Playwright offline), CI. Reste à confirmer à la main
-   dans Chrome DevTools : panneau Application (manifest sans avertissement, SW
-   *activated*), coupure réseau réelle, prompt d'installation sur mobile via HTTPS.
+   automatisés (pytest, vitest, Playwright offline), CI. Vérifié à la main le
+   2026-10-28 : panneau Application de Chrome DevTools (manifest sans avertissement,
+   SW *activated*), coupure réseau réelle, invite d'installation sur mobile.
 2. **Lot 1 — Contrat & modèle** — *livré.* Dettes de tooling soldées
    (uv + `uv.lock`, ruff, ESLint, scripts unifiés), modèle de 21 tables à l'époque (22
    depuis le Lot 2), migration initiale, schémas Pydantic, chaîne de génération du client
    TS. Aucune route ajoutée :
    le contrat reste limité à `/health`. CI (`astral-sh/setup-uv`, ruff, ESLint, tests)
-   vérifiée verte au premier push. Reste à confirmer : le premier run réel de
-   Dependabot en mode `uv` (onglet Dependabot du dépôt).
+   vérifiée verte au premier push. Dependabot en mode `uv` est confirmé : il ouvre des
+   PR sur `backend/uv.lock` (branches `dependabot/uv/backend/…`).
 3. **Lot 2 — CRUD** — *livré, passes 1 et 2 (back et contrat, sans UI).* Import du
    catalogue krcg (rejouable, cf. §11.1), stock par langue, decks + composition, versement
    d'un bundle dans le stock ; en passe 2, légalité de deck complète (les cinq règles du
@@ -1020,7 +1255,7 @@ tient en quelques points :
    scénario contre le vrai back : deux impressions de la même carte et langue saisies hors
    ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
    import rejoué sans doublon ni changement d'identifiant.
-6. **Lot 5 — Passe design mobile** — *livré, en attente de validation manuelle.* Refonte
+6. **Lot 5 — Passe design mobile** — *livré.* Refonte
    de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff/MOBILE.md`) :
    10 écrans phone-first plus les états vides, de chargement et introuvable, sans
    changement de comportement (mêmes routes, mêmes données, même sémantique offline).
@@ -1030,9 +1265,9 @@ tient en quelques points :
    et 25 tests Playwright passent (9 `chromium`, 16 `real-backend`, décompte vérifié par
    fichier, par `--list` et à l'exécution), dont un nouveau scénario contre le vrai back :
    un deck monté hors ligne avec acquisition totale puis partielle. Le contrôle
-   automatisé d'installabilité passe ; reste à confirmer à la main dans Chrome DevTools
-   (panneau Application, SW *activated*, coupure réseau réelle, invite d'installation
-   sur mobile). Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
+   automatisé d'installabilité passe, et la vérification à la main (panneau
+   Application, SW *activated*, coupure réseau réelle, invite d'installation sur
+   mobile) a été faite le 2026-10-28. Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
    `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.
@@ -1050,18 +1285,35 @@ tient en quelques points :
    nouvelle et ne rouvre pas les manques présents des deux côtés.
    Un lot **Chercher** (écran de recherche dans le catalogue, hors ligne complet, brief
    dans `docs/lot-chercher-brief.md`) vient ensuite, et livre ses deux dispositions
-   lui-même. L'ordre proposé est donc Lot 5bis, Lot 5c, Chercher, puis les Lots 6 à 11,
-   dont la numérotation ne bouge pas ; la place exacte de Chercher par rapport aux
-   Lots 6 à 11 reste à confirmer avec l'utilisateur.
-7. **Lot 6 — Comptes et multi-utilisateur** : sortir du pilote mono-utilisateur en
-  introduisant un compte et l'isolation des données par utilisateur. Prévoir les
-  parcours `signup`, `login` et `logout`/`logoff`, la gestion de session ou de jetons,
-  le hachage des secrets, les routes d'authentification, la protection de toutes les
-  ressources métier et les migrations des données existantes vers un propriétaire.
-  Le cache PWA, IndexedDB, la file `/sync`, les clés d'idempotence, le changement de
-  compte et la déconnexion devront empêcher toute fuite de données entre utilisateurs;
-  les tests devront couvrir autorisation, expiration de session, séparation des
-  inventaires et synchronisation après reconnexion.
+   lui-même. L'ordre proposé était Lot 5bis, Lot 5c, Chercher, puis les Lots 6 à 11,
+   dont la numérotation ne bouge pas. Dans les faits, le Lot 6 est passé avant Chercher
+   (D0 de `docs/lot6-plan-comptes.md`, §11) ; Chercher reste reporté, et sa place par
+   rapport aux Lots 7 à 11 reste à confirmer avec l'utilisateur.
+7. **Lot 6 — Comptes et multi-utilisateur** — *livré* (PR #39). Le pilote sort
+   du mono-utilisateur : comptes (inscription ouverte, connexion, déconnexion, `GET /moi`), session serveur de 14 jours fixes dans
+   un cookie `HttpOnly` (empreinte seule en base), hachage Argon2id et limitation de
+   débit alignés sur Barrin, rôle `user`/`admin` réservant `POST /langues`. Deux
+   révisions, `32d62f354d89` (comptes et sessions) et `89695b77ef45` (propriétaire sur
+   neuf tables, données existantes converties vers le compte historique) : 25 tables,
+   neuf révisions. Contrat à 28 opérations, toute route métier sous session, 404 pour
+   la ressource d'un autre compte ; discriminant de deck et comptabilité du stock par
+   compte ; propriétaire déjà posé sur les tables du Lot 7. Côté client : une base
+   IndexedDB par compte, adoption sur confirmation de la base d'avant le lot, pause du
+   moteur de sync sur 401, déconnexion en ligne seulement avec avertissement puis
+   purge, écrans de compte en mobile et en bureau. Plan dans
+   `docs/lot6-plan-comptes.md`, décisions et limites au §11. 1719 tests backend passent
+   (2 `xfail` assumés, `ruff check` propre), dont les 28 de la matrice d'autorisation
+   (`backend/tests/test_lot6_authorization_matrix.py`) ; 416 tests vitest sur 30
+   fichiers (avec une flakiness résiduelle déjà connue au Lot 5c, §11), lint et
+   `tsc` propres ; 51 tests Playwright (8 `chromium`, 26 `real-backend`, 3 `desktop`,
+   14 `desktop-real-backend`, contre 47 à la clôture du Lot 5c), dont trois scénarios
+   de comptes contre le vrai back : session révoquée pendant une coupure, deux comptes
+   successifs dans le même navigateur, déconnexion avec file non vide. Migration
+   appliquée le 2026-10-02 sur `backend/vtes.db` après un essai sur copie : 28 entrées
+   de stock, 1 deck, 20 lignes de composition et 58 opérations de journal rattachées au
+   compte `1`, disponibilités du stock identiques avant et après, sauvegarde dans
+   `backend/vtes.db.pre-lot6-20261002-201755.bak`. Compte historique réclamé par
+   l'utilisateur le même jour (`manage_accounts.py claim-legacy`).
 8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
 9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
 10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
