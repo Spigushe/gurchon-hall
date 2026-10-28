@@ -34,9 +34,11 @@ d'API généré. `vtes/runtime.ts` est le seul fichier qui assemble le tout.
 - `core/settled.ts` : les opérations tranchées en attente de rafraîchissement
   (`lastSettledSeq`, `readSettled`, `pruneSettled`).
 - `core/syncEngine.ts` : le moteur. `start`, `stop`, `flush`, `getStatus`,
-  `subscribe`, `whenIdle`, `whenDrained`.
+  `subscribe`, `whenIdle`, `whenDrained`, `resumeAfterAuthentication` (Lot 6,
+  cf. « Pause d'authentification » plus bas).
 - `core/foldText.ts` : `foldText` et `containsFolded`, le repli casse et accents.
-- `core/types.ts` : `SyncTransport`, `SyncVerdict`, `OutboxEntry`.
+- `core/types.ts` : `SyncTransport`, `SyncVerdict`, `OutboxEntry`, `TransportResult`
+  (dont l'état `unauthenticated`, Lot 6).
 - `react/` : `OfflineProvider`, `useSyncStatus`, `useConnectivity`,
   `useRejectedOperations`, `useFlush`, `useLiveQuery`.
 - `apiRoutes.ts` : la liste des préfixes de l'API. À adapter, c'est le seul endroit.
@@ -57,7 +59,13 @@ suit le même protocole, rien d'autre n'est à écrire dans `core/`.
 - `vtes/refresh.ts` : rafraîchissement des miroirs depuis les `GET`.
 - `vtes/languages.ts` : le repli sur `XX`.
 - `vtes/runtime.ts` : `createVtesOffline()`, qui assemble base, file, moteur et
-  actions.
+  actions, et expose `purge()` (Lot 6).
+- `vtes/account.ts` : identité locale d'un compte — `dbNameForAccount`,
+  `saveLocalAccount`/`readLocalAccount` (copie du dernier `GET /moi` dans la
+  base du compte), `rememberActiveAccountId`/`readActiveAccountId`/
+  `forgetActiveAccountId` (pointeur hors base, cf. « Multi-compte » plus bas).
+- `vtes/legacy.ts` : adoption de la base d'avant les comptes —
+  `hasPendingLegacyOperations`, `adoptLegacyDatabase`.
 
 Pour porter la couche : recopier `core/`, `react/`, `apiRoutes.ts` et
 `tools/`, puis écrire un `vtes/` équivalent (schéma Dexie, constructeurs
@@ -210,12 +218,194 @@ faut, sans jamais le raccourcir. L'événement `online` relance tout de suite.
 isoler l'opération mal formée. Elle est refusée localement (`invalid_request`), les
 autres passent.
 
+**Un 401 met le rejeu en pause, il ne le rend pas indisponible (Lot 6).** Voir
+« Multi-compte et pause d'authentification » plus bas pour le détail : contrairement
+au 422, aucune bissection (un 401 ne désigne aucune opération) ; contrairement à un
+503, aucun backoff programmé. Le lot entier reste `pending`, intact, jusqu'à un appel
+explicite de `resumeAfterAuthentication()`.
+
 **L'ordre est celui de la saisie.** La file n'est jamais réordonnée ni compactée ; les
 lots sont de 200 opérations au plus.
 
 **Le deck créé hors ligne garde la même clé.** `LocalDeck.key` vaut `ref:<uuid>` pour
 un deck créé sans réseau, avant comme après sa synchronisation. La correspondance
 référence vers `deck_id` est dans la table `refs`, qui survit aux redémarrages.
+
+## Multi-compte et pause d'authentification (Lot 6)
+
+Le pilote sort du mono-utilisateur : une session côté serveur (cookie `HttpOnly`,
+14 jours fixes, `docs/lot6-plan-comptes.md`), un compte par donnée privée. Ce que la
+couche offline en tient, dans l'ordre où l'étape D (écrans, hors de ce paquet) en a
+besoin.
+
+### Pause sur 401, pas indisponibilité
+
+`TransportResult` (`core/types.ts`) porte un état `unauthenticated` à côté de `ok`,
+`invalid` et `unavailable`. `vtes/transport.ts` le rend sur un 401 de `POST /sync`
+(pas de session, expirée ou révoquée). Le moteur (`core/syncEngine.ts`) le traite comme
+une **pause**, pas comme une panne transitoire :
+
+- **aucune bissection** : un 401 ne désigne aucune opération en particulier,
+  contrairement à un 422 ;
+- **aucun backoff, aucune minuterie programmée** : contrairement à un 503, rien ne se
+  reprogramme tout seul ;
+- **aucun refus local, aucune purge** : tout le lot reste `pending`, sous ses clés,
+  exactement comme avant l'envoi ;
+- **aucun nouvel essai automatique** tant que la pause tient : ni l'événement `online`,
+  ni le retour au premier plan, ni une nouvelle saisie ne relancent l'envoi (ils le
+  feraient tourner en boucle contre le même 401, en silence). Un `flush()` **manuel**
+  tente quand même, comme hors ligne — un attribut d'appel explicite, pas d'un
+  déclencheur automatique.
+
+`engine.getStatus().authRequired` (donc `useSyncStatus().authRequired`, déjà généralisé)
+dit à l'UI qu'une reconnexion est nécessaire. La reprise se fait par
+`engine.resumeAfterAuthentication()` : lève la pause puis tente un envoi, exactement
+comme `flush()` (c'est littéralement la même chose, sous un nom explicite pour l'appelant).
+Si la session est encore invalide, le transport répond de nouveau `unauthenticated` et le
+lot repart en pause, intact. **Point d'entrée pour l'étape D** : appeler cette méthode une
+fois la reconnexion (`POST /connexion`) confirmée.
+
+`vtes/refresh.ts` distingue le même cas sur un `GET` : `unwrap()` lève `RefreshAuthError`
+(sous-classe de l'erreur de lecture ordinaire) sur un 401, et `runtime.ts` la convertit en
+`RefreshReport.authRequired = true` plutôt que de l'ajouter à `errors` — le miroir
+concerné n'a pas bougé (l'écriture n'a lieu qu'après avoir tout lu avec succès), ce n'est
+donc ni une perte de données ni une erreur de lecture au sens où `CatalogProvider` et le
+reste de l'UI l'affichent aujourd'hui (voir « Point ouvert pour l'étape D » ci-dessous).
+
+**Le cœur ne sait rien de plus.** `core/syncEngine.ts` et `core/types.ts` ne connaissent
+ni compte ni cookie : `unauthenticated`/`authRequired` signalent seulement qu'un envoi est
+suspendu faute d'authentification. C'est ce qui rend le mécanisme réutilisable tel quel
+pour Barrin, à condition que son API réponde aussi 401 pour signaler une session absente
+ou expirée sur `/sync`.
+
+**Consommé côté étape D.** `features/catalog/CatalogProvider.tsx` distingue désormais
+`authRequired` de `errors` (un 401 pendant un rafraîchissement n'est plus affiché comme
+une panne générique) ; `features/auth/AuthWatcher.tsx` et `ReconnectBanner.tsx` lisent
+`useSyncStatus().authRequired` pour, respectivement, faire passer l'écran en mur de
+connexion quand la file est vide et afficher un bandeau non bloquant sinon ;
+`features/auth/AuthGate.tsx` appelle `engine.resumeAfterAuthentication()` après une
+reconnexion réussie. Ces fichiers sont hors du périmètre de ce paquet (`offline/`) et de
+l'étape C : vérifiés ici seulement pour s'assurer que l'API exposée (`authRequired`,
+`resumeAfterAuthentication`, `RefreshReport.authRequired`) est bien celle qu'ils
+consomment, pas relus pour leur propre compte.
+
+### Une base IndexedDB par compte
+
+`vtes/account.ts` :
+
+- `dbNameForAccount(userId)` rend `gurchon-hall-offline-u<id>` ; `createVtesOffline({
+  dbName })` l'utilise directement (l'option existait déjà, elle n'attendait que d'être
+  branchée à un nom par compte).
+- `saveLocalAccount(db, account)` / `readLocalAccount(db)` : copie non secrète du dernier
+  `GET /moi` (`id`, `email`, `username`, `role` — jamais de jeton ni d'empreinte, le
+  cookie `HttpOnly` n'est ni lisible ni nécessaire ici), écrite **dans la base du
+  compte** (table `meta`). Permet d'afficher « connecté en tant que X » hors ligne, sans
+  réseau.
+- `rememberActiveAccountId(userId)` / `readActiveAccountId()` / `forgetActiveAccountId()` :
+  un pointeur **hors de toute base IndexedDB** (en `localStorage`) vers le compte actif
+  sur cet appareil. Nécessaire pour résoudre l'œuf et la poule : `dbName` doit être connu
+  *avant* d'ouvrir une base, donc avant de pouvoir y lire quoi que ce soit. Un identifiant
+  de compte n'est pas secret (CLAUDE.md § 11, Lot 6 accepte déjà les identifiants
+  séquentiels comme oracle mineur). **Décision non dictée mot pour mot par
+  `docs/lot6-plan-comptes.md`** (qui place la copie de `/moi` « dans la base locale »,
+  sans trancher comment retrouver cette base avant de l'ouvrir) : à valider côté
+  orchestrateur/architecte si un autre mécanisme est préféré pour Barrin (ex. lire la
+  liste des bases IndexedDB existantes au démarrage plutôt qu'un pointeur `localStorage`).
+
+Flux attendu côté étape D :
+
+```ts
+// Connexion réussie (POST /connexion -> UserRead) :
+const dbName = dbNameForAccount(user.id);
+rememberActiveAccountId(user.id);
+const runtime = createVtesOffline({ dbName });
+await saveLocalAccount(runtime.db, user);
+// ... éventuelle adoption (ci-dessous), puis runtime.start().
+
+// Démarrage à froid, sans repasser par le réseau :
+const id = readActiveAccountId();
+if (id !== null) {
+  const runtime = createVtesOffline({ dbName: dbNameForAccount(id) });
+  // runtime.db a déjà la dernière identité connue (readLocalAccount), utilisable
+  // hors ligne ; une vérification GET /moi en ligne confirme ou corrige ensuite.
+}
+```
+
+### Adoption de la base d'avant les comptes
+
+`vtes/legacy.ts` :
+
+- `hasPendingLegacyOperations()` : vérification seule, sans effet de bord — y a-t-il, sur
+  cet appareil, une base nommée `gurchon-hall-offline` (`LEGACY_DB_NAME`, l'ancien nom par
+  défaut) avec des opérations en attente ? Sert à décider si l'étape D doit proposer la
+  confirmation (« Des saisies faites avant les comptes attendent sur cet appareil. Les
+  rattacher à `<nom>` ? »).
+- `adoptLegacyDatabase(targetDbName)` : recopie la file, `settled` et les correspondances
+  `client_ref` **sans modification** (mêmes `operation_id`, même corps — donc la même
+  empreinte d'idempotence qu'avant : un rejeu reste un rejeu) dans la base du compte qui
+  vient de se connecter, puis supprime l'ancienne base. Les miroirs ne sont **pas**
+  recopiés : `runtime.refresh()` les recharge depuis le serveur. Seul le rang local
+  (`rank`, jamais envoyé au serveur) est décalé pour s'ajouter à la suite de ce que la
+  base cible contient déjà, sans jamais réordonner. Ne demande aucune confirmation
+  elle-même : c'est le rôle de l'étape D, **avant** d'appeler cette fonction. Rend
+  `{ adopted: false, operations: 0 }` sans rien changer si la base historique n'existe
+  pas ou si sa file est vide.
+
+### Déconnexion : en ligne seulement
+
+Rien, dans ce paquet, ne purge une base locale de son propre chef : `createVtesOffline()`
+ne fait jamais disparaître de données sans qu'on le lui demande explicitement.
+
+- **Savoir si l'appareil est en ligne** pour désactiver le bouton de déconnexion hors
+  ligne (le cookie étant `HttpOnly`, le client ne peut hors ligne ni l'effacer ni faire
+  supprimer la session côté serveur) : `engine.getStatus().online` (donc
+  `useConnectivity()`, déjà générique) suffit, aucun mécanisme nouveau n'a été ajouté ici.
+- **`runtime.purge()`** (nouveau, `vtes/runtime.ts`) supprime la base IndexedDB du compte
+  **en entier** : miroirs, file, `settled`, correspondances `client_ref`. Arrête le
+  moteur et ferme la base au passage. Le precache du service worker (coquille de
+  l'application) n'est pas concerné et n'est pas touché.
+- **Ordre impératif, à respecter par l'étape D** : appeler `POST /deconnexion` **d'abord**,
+  et n'appeler `purge()` qu'**après** sa réponse — succès ou 401, qui dit que la session
+  était déjà morte côté serveur. Jamais avant : purger la base locale en laissant le
+  cookie en place donnerait, au retour du réseau, une application « déconnectée » dont une
+  éventuelle requête encore en vol partirait sous le compte précédent. `purge()` ne parle
+  jamais au serveur de son côté ; c'est à l'appelant de respecter cet ordre.
+- **D3 du brief (file non vide → avertir puis purger sur confirmation)** : l'avertissement
+  et la confirmation sont à l'écran (étape D) ; ce paquet fournit seulement la mécanique
+  (compter la file via `outbox.counts()`/`useSyncStatus()`, puis `purge()` une fois
+  confirmé).
+- **`purge()` ne touche pas au pointeur `localStorage`** (`forgetActiveAccountId`) :
+  volontairement séparé, pour rester symétrique avec la connexion
+  (`rememberActiveAccountId`, non lié à `createVtesOffline`) et ne pas coupler
+  `runtime.ts` à un mécanisme propre à ce dépôt. L'étape D appelle les deux :
+
+  ```ts
+  // await apiClient.POST("/deconnexion") d'abord, quel que soit son statut (204 ou 401) :
+  await runtime.purge();
+  forgetActiveAccountId();
+  ```
+
+### `credentials: "include"` et nouvelles routes
+
+- `frontend/src/api-client/client.ts` configure `credentials: "include"` sur le client
+  partagé (`apiClient`) : nécessaire pour que le cookie de session parte sur chaque
+  requête, y compris cross-origin (front et back sont deux origines distinctes même en
+  développement). `vtes/transport.ts` réutilise ce client sans rien reconfigurer ; toute
+  route d'authentification appelée directement par l'étape D (hors de ce paquet, en
+  ligne seulement) en bénéficie aussi du moment qu'elle passe par `apiClient`.
+- `apiRoutes.ts` liste désormais `/inscription`, `/connexion`, `/deconnexion`, `/moi` :
+  nécessairement en ligne (on ne vérifie pas un mot de passe hors ligne), donc jamais de
+  route cliente portant ces noms, pour la même raison que `/decks` ou `/sync`.
+
+### Pour Barrin
+
+Ce qui doit en sortir réutilisable (voir aussi CLAUDE.md § 11, Lot 6, paragraphe
+« Barrin ») : la pause sur 401 dans `core/syncEngine.ts` (générique, sans notion de
+compte) ; `dbNameForAccount`/l'option `dbName` pour une base par compte ; la règle
+« déconnexion en ligne seulement » (`purge()` après la réponse serveur, jamais avant) ;
+`adoptLegacyDatabase` comme modèle pour migrer une file mono-utilisateur existante vers
+un compte. Le pointeur `localStorage` du compte actif (`account.ts`) est, lui, une
+décision locale à ce dépôt (cf. ci-dessus) : à revoir au cas par cas.
 
 ## Entre le verdict et le rafraîchissement
 
@@ -348,3 +538,8 @@ dédié ou un routeur à hash.
 - Le tri local compare les chaînes par unités de code, comme le tri binaire de SQLite
   pour la plupart des textes ; il partage la limite connue du back (majuscules avant
   minuscules, accents en fin).
+- Lot 6 : la mécanique (pause, base par compte, adoption, purge) est testée ici au
+  niveau du paquet ; `features/auth/` (étape D, hors de ce paquet) consomme déjà
+  `SyncStatus.authRequired` et `RefreshReport.authRequired` pour le mur et le bandeau de
+  reconnexion (« Multi-compte et pause d'authentification »), mais sa propre revue et ses
+  propres tests relèvent de l'étape D, pas de celle-ci.

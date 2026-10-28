@@ -22,4 +22,13 @@ const DEFAULT_BASE_URL = "http://localhost:8000";
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL?.trim() || DEFAULT_BASE_URL;
 
-export const apiClient = createClient<paths>({ baseUrl: API_BASE_URL });
+// `credentials: "include"` (Lot 6, comptes) : le cookie de session est
+// `HttpOnly`, posé par `POST /connexion` et lu par le serveur sur toute route
+// protégée (`GET /moi`, `/stock`, `/decks`, `POST /sync`…). Sans cette option,
+// le navigateur n'envoie le cookie que si la requête part du même site ET que
+// rien ne la configure autrement — `fetch` l'omet par défaut pour les
+// requêtes cross-origin, et en pratique front (5173) et back (8000) sont deux
+// origines distinctes même en développement. Valable pour tout appel fait par
+// ce client, direct ou via la couche offline (`offline/vtes/transport.ts`),
+// qui ne construit pas sa propre instance de client.
+export const apiClient = createClient<paths>({ baseUrl: API_BASE_URL, credentials: "include" });

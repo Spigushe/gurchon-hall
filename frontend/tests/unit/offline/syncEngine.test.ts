@@ -279,6 +279,111 @@ describe("SyncEngine : 422", () => {
   });
 });
 
+describe("SyncEngine : pause d'authentification (401, Lot 6)", () => {
+  it("met le rejeu en pause sans bissection : le lot entier reste en attente, intact", async () => {
+    const { outbox, transport, engine } = setup(() => ({
+      status: "unauthenticated",
+      message: "Authentification requise.",
+    }));
+    const ops = await enqueueMany(outbox, 3);
+
+    const summary = await engine.flush();
+
+    expect(summary).toMatchObject({ result: "paused", sent: 0, applied: 0, rejected: 0 });
+    // Un seul envoi, le lot entier : pas de bissection (un 401 ne désigne
+    // aucune opération en particulier).
+    expect(transport.calls).toHaveLength(1);
+    expect(transport.calls[0].map((op) => op.operation_id)).toEqual(ops.map((op) => op.operation_id));
+    // Rien n'est refusé ni sorti de la file : tout redevient `pending`.
+    const stuck = await outbox.list();
+    expect(stuck.map((entry) => entry.state)).toEqual(["pending", "pending", "pending"]);
+    expect(stuck.map((entry) => entry.operationId)).toEqual(ops.map((op) => op.operation_id));
+    expect(stuck.map((entry) => entry.operation)).toEqual(ops);
+    expect(engine.getStatus()).toMatchObject({ authRequired: true, pending: 3, rejected: 0 });
+  });
+
+  it("ne programme aucune minuterie de nouvel essai, contrairement à une indisponibilité ordinaire", async () => {
+    const { outbox, engine, clock } = setup(() => ({ status: "unauthenticated", message: "x" }));
+    await enqueueMany(outbox, 1);
+    engine.start();
+    await engine.whenIdle();
+    expect(clock.active()).toHaveLength(0);
+    expect(engine.getStatus().nextRetryAt).toBeNull();
+  });
+
+  it("aucun essai automatique tant que la pause tient : ni l'événement online, ni le premier plan, ni une nouvelle saisie", async () => {
+    const { outbox, transport, engine } = setup(() => ({ status: "unauthenticated", message: "x" }));
+    engine.start();
+    await enqueueMany(outbox, 1);
+    await engine.whenIdle();
+    expect(transport.calls).toHaveLength(1);
+    expect(engine.getStatus().authRequired).toBe(true);
+
+    transport.calls.length = 0;
+    window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(transport.calls).toEqual([]);
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(transport.calls).toEqual([]);
+
+    await outbox.enqueue(makeOp());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(transport.calls).toEqual([]);
+    expect(await outbox.counts()).toMatchObject({ pending: 2 });
+  });
+
+  it("resumeAfterAuthentication() reprend le rejeu et efface la pause en cas de succès", async () => {
+    let authenticated = false;
+    const { outbox, engine } = setup((entries) =>
+      authenticated
+        ? allApplied(entries)
+        : { status: "unauthenticated", message: "Authentification requise." },
+    );
+    const ops = await enqueueMany(outbox, 2);
+    await engine.flush();
+    expect(engine.getStatus().authRequired).toBe(true);
+
+    authenticated = true;
+    const summary = await engine.resumeAfterAuthentication();
+
+    expect(summary).toMatchObject({ result: "drained", applied: 2 });
+    expect(engine.getStatus()).toMatchObject({ authRequired: false, pending: 0 });
+    expect(await outbox.list()).toEqual([]);
+    expect(ops).toHaveLength(2);
+  });
+
+  it("si la session est toujours invalide, resumeAfterAuthentication() repart en pause, file intacte", async () => {
+    const { outbox, engine } = setup(() => ({ status: "unauthenticated", message: "x" }));
+    const ops = await enqueueMany(outbox, 2);
+    await engine.flush();
+
+    const summary = await engine.resumeAfterAuthentication();
+
+    expect(summary.result).toBe("paused");
+    expect(engine.getStatus().authRequired).toBe(true);
+    const stuck = await outbox.list();
+    expect(stuck.map((entry) => entry.operationId)).toEqual(ops.map((op) => op.operation_id));
+    expect(stuck.every((entry) => entry.state === "pending")).toBe(true);
+  });
+
+  it("un flush() manuel tente aussi, même sans passer par resumeAfterAuthentication()", async () => {
+    let authenticated = false;
+    const { outbox, transport, engine } = setup((entries) =>
+      authenticated ? allApplied(entries) : { status: "unauthenticated", message: "x" },
+    );
+    await enqueueMany(outbox, 1);
+    await engine.flush();
+    expect(engine.getStatus().authRequired).toBe(true);
+
+    authenticated = true;
+    await engine.flush();
+    expect(transport.calls).toHaveLength(2);
+    expect(engine.getStatus()).toMatchObject({ authRequired: false, pending: 0 });
+  });
+});
+
 describe("SyncEngine : échecs de transport", () => {
   it("attend avec un backoff exponentiel plafonné, sans rien perdre", async () => {
     const { outbox, engine, clock } = setup(() => ({

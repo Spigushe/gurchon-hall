@@ -29,6 +29,7 @@ import {
   refreshDecks,
   refreshLanguages,
   refreshStock,
+  RefreshAuthError,
 } from "./refresh";
 import { createVtesSyncTransport } from "./transport";
 import { deckKeyOf, type ApiClient, type DeckKey, type DeckSelector, type VtesOperation } from "./types";
@@ -92,6 +93,14 @@ export interface RefreshReport {
   complete: boolean;
   refreshed: string[];
   errors: string[];
+  /**
+   * Lot 6 : au moins une lecture a rendu 401. Les miroirs concernés n'ont pas
+   * bougé (rien n'est effacé avant d'avoir tout relu) : ce n'est pas une
+   * erreur à afficher comme les autres (`errors`), seulement un signal
+   * « reconnexion requise », cohérent avec la pause du moteur de rejeu
+   * (`SyncEngine.status.authRequired`).
+   */
+  authRequired: boolean;
 }
 
 export interface VtesOfflineRuntime extends OfflineRuntime<VtesOperation> {
@@ -106,6 +115,17 @@ export interface VtesOfflineRuntime extends OfflineRuntime<VtesOperation> {
   refresh(options?: RefreshOptions): Promise<RefreshReport>;
   /** Ferme la base et les canaux (tests, démontage définitif). */
   dispose(): void;
+  /**
+   * Supprime en entier la base IndexedDB de ce compte : miroirs, file,
+   * `settled`, correspondances `client_ref` (D3, Lot 6). À n'appeler
+   * **qu'après** une réponse de `POST /deconnexion` (succès ou 401, qui dit
+   * que la session était déjà morte côté serveur) — jamais avant, et jamais
+   * sans cette réponse (sans quoi la session resterait active côté serveur
+   * pendant que le client se croit déconnecté). Arrête le moteur et ferme la
+   * base au passage ; le precache du service worker (coquille de l'appli)
+   * n'est pas concerné et n'est pas touché.
+   */
+  purge(): Promise<void>;
 }
 
 export interface VtesOfflineOptions {
@@ -153,7 +173,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
 
   const runRefresh = async (opts: RefreshOptions): Promise<RefreshReport> => {
     const online = typeof navigator === "undefined" ? true : navigator.onLine;
-    if (!online) return { complete: false, refreshed: [], errors: ["hors ligne"] };
+    if (!online) return { complete: false, refreshed: [], errors: ["hors ligne"], authRequired: false };
 
     const steps: Array<[string, () => Promise<number>]> = [
       ["languages", () => refreshLanguages(client, db)],
@@ -163,7 +183,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
     ];
     if (opts.catalog) steps.push(["catalog", () => refreshCatalog(client, db)]);
 
-    let report: RefreshReport = { complete: false, refreshed: [], errors: [] };
+    let report: RefreshReport = { complete: false, refreshed: [], errors: [], authRequired: false };
     // Un verdict tombé pendant la lecture rendrait l'instantané périmé (une
     // opération tranchée sortirait de la file avant que le serveur qu'on a lu
     // ne la contienne) : on relit, au plus trois fois.
@@ -173,14 +193,18 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       // qui appelle `refresh()`, qui attendrait ce rejeu (interblocage).
       await engine.whenDrained();
       const epoch = outbox.settleEpoch;
-      report = { complete: true, refreshed: [], errors: [] };
+      report = { complete: true, refreshed: [], errors: [], authRequired: false };
       for (const [name, step] of steps) {
         try {
           await step();
           report.refreshed.push(name);
         } catch (error) {
           report.complete = false;
-          report.errors.push(`${name} : ${describe(error)}`);
+          // 401 (Lot 6) : pas une erreur de lecture ordinaire, un signal de
+          // reconnexion. Le miroir `name` n'a pas bougé (unwrap lève avant
+          // toute écriture) : rien à annoncer comme une perte de données.
+          if (error instanceof RefreshAuthError) report.authRequired = true;
+          else report.errors.push(`${name} : ${describe(error)}`);
         }
       }
       if (outbox.settleEpoch === epoch) return report;
@@ -204,6 +228,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
           complete: false,
           refreshed: [],
           errors: [`rafraîchissement sans réponse après ${refreshTimeoutMs} ms`],
+          authRequired: false,
         });
       }, refreshTimeoutMs);
       run.then(
@@ -213,7 +238,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
         },
         (error) => {
           clearTimeout(timer);
-          resolve({ complete: false, refreshed: [], errors: [describe(error)] });
+          resolve({ complete: false, refreshed: [], errors: [describe(error)], authRequired: false });
         },
       );
     });
@@ -384,6 +409,19 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       this.stop();
       outbox.close();
       db.close();
+    },
+    async purge() {
+      // Pas de dépendance à `this` (appelable après déstructuration) : on
+      // reprend ce que `stop()`/`dispose()` font, puis on supprime la base.
+      engine.stop();
+      if (onlineListener && typeof window !== "undefined") {
+        window.removeEventListener("online", onlineListener);
+      }
+      onlineListener = null;
+      outbox.close();
+      // `Dexie#delete()` ferme la base si elle est encore ouverte, puis
+      // supprime la base IndexedDB entière (miroirs, file, `settled`, `refs`).
+      await db.delete();
     },
   };
 }

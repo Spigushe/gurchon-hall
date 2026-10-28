@@ -39,6 +39,14 @@ export interface SyncStatus {
   nextRetryAt: string | null;
   /** Échecs de transport consécutifs. */
   failures: number;
+  /**
+   * Le rejeu est en pause faute d'authentification (Lot 6, réponse
+   * `unauthenticated` du transport) : la file est intacte, mais rien ne part
+   * plus automatiquement. L'UI affiche un mur de connexion ou un bandeau de
+   * reconnexion et appelle `SyncEngine.resumeAfterAuthentication()` une fois
+   * la session rétablie. Générique au cœur : aucune notion de compte ici.
+   */
+  authRequired: boolean;
 }
 
 export type FlushResult =
@@ -47,7 +55,13 @@ export type FlushResult =
   /** Un échec de transport a interrompu le rejeu ; un nouvel essai est programmé. */
   | "retry"
   /** Un autre onglet tient le verrou d'envoi. */
-  | "locked";
+  | "locked"
+  /**
+   * Le serveur a répondu « authentification requise » (401) : le lot entier
+   * reste en attente, intact, sans bissection. Aucun nouvel essai automatique
+   * tant que `resumeAfterAuthentication()` n'a pas été appelée.
+   */
+  | "paused";
 
 export interface FlushSummary {
   result: FlushResult;
@@ -105,7 +119,16 @@ export interface SyncEngineOptions<TOp extends OperationEnvelope> {
  *   `rejected` ; le lot continue quoi qu'il arrive à l'une d'elles ;
  * - une réponse **422** ne bloque pas la file : le lot est bissecté jusqu'à
  *   isoler l'opération mal formée, refusée localement (`invalid_request`),
- *   pendant que les autres passent.
+ *   pendant que les autres passent ;
+ * - une réponse **401** (`unauthenticated`, Lot 6) est une **pause**, pas une
+ *   indisponibilité ordinaire ni un refus : jamais de bissection (elle ne
+ *   désigne aucune opération en particulier), jamais de refus local, jamais
+ *   de purge — tout le lot reste `pending` sous ses clés. Aucun nouvel essai
+ *   automatique n'est programmé (`online`, premier plan, nouvelle saisie
+ *   n'en déclenchent plus tant que la pause tient) ; seul un appel explicite
+ *   à `resumeAfterAuthentication()` en sort. Le cœur ne sait rien de plus :
+ *   ni compte, ni cookie, seulement qu'un envoi peut être suspendu faute
+ *   d'authentification (réutilisable tel quel pour Barrin).
  */
 export class SyncEngine<TOp extends OperationEnvelope> {
   private readonly outbox: Outbox<TOp>;
@@ -128,6 +151,13 @@ export class SyncEngine<TOp extends OperationEnvelope> {
   private markDrained: (() => void) | null = null;
   private dirty = false;
   private started = false;
+  /**
+   * `true` depuis qu'une réponse `unauthenticated` a mis le rejeu en pause,
+   * jusqu'à `resumeAfterAuthentication()`. N'affecte que les déclencheurs
+   * automatiques (`autoFlush`) : un `flush()` explicite tente toujours,
+   * comme hors ligne.
+   */
+  private authPaused = false;
   private retryTimer: unknown = null;
   private unsubscribeOutbox: (() => void) | null = null;
   private detachEnvironment: (() => void) | null = null;
@@ -158,6 +188,7 @@ export class SyncEngine<TOp extends OperationEnvelope> {
       lastSuccessAt: null,
       nextRetryAt: null,
       failures: 0,
+      authRequired: false,
     };
   }
 
@@ -212,6 +243,9 @@ export class SyncEngine<TOp extends OperationEnvelope> {
     const onOnline = () => {
       this.patchStatus({ online: true });
       this.clearRetryTimer();
+      // Déclenchement automatique : respecte la pause d'authentification
+      // comme `autoFlush` (sinon chaque retour réseau répéterait le 401).
+      if (this.authPaused) return;
       void this.flush();
     };
     const onOffline = () => {
@@ -260,9 +294,15 @@ export class SyncEngine<TOp extends OperationEnvelope> {
     this.clearRetryTimer();
   }
 
-  /** Déclenchement automatique : seulement démarré, en ligne, et sans rejeu déjà en cours. */
+  /**
+   * Déclenchement automatique : seulement démarré, en ligne, sans rejeu déjà
+   * en cours, et hors pause d'authentification (sinon chaque saisie ou
+   * retour réseau répéterait le même 401 en boucle silencieuse : voir
+   * `resumeAfterAuthentication`).
+   */
   private autoFlush(): void {
     if (!this.started) return;
+    if (this.authPaused) return;
     const online = this.isOnlineFn();
     this.patchStatus({ online });
     if (!online) return;
@@ -307,6 +347,19 @@ export class SyncEngine<TOp extends OperationEnvelope> {
     });
     this.inFlight = this.run();
     return this.inFlight;
+  }
+
+  /**
+   * Point d'entrée explicite pour sortir de la pause d'authentification
+   * (`status.authRequired`), à appeler après une reconnexion réussie (Lot 6).
+   * Ne fait rien de spécial à l'authentification elle-même (le cœur n'en sait
+   * rien) : elle lève simplement la pause puis tente un rejeu comme
+   * `flush()`. Si la session est encore invalide, le transport répond de
+   * nouveau `unauthenticated` et le lot repart en pause, intact. Appelable
+   * même hors pause (no-op sur la pause, tente quand même l'envoi).
+   */
+  resumeAfterAuthentication(): Promise<FlushSummary> {
+    return this.flush();
   }
 
   /**
@@ -402,8 +455,13 @@ export class SyncEngine<TOp extends OperationEnvelope> {
       const failure = await this.sendAndSettle(batch, summary);
       if (failure) {
         await this.outbox.releaseSending();
-        this.onTransportFailure(failure);
-        summary.result = "retry";
+        if (failure.status === "unauthenticated") {
+          this.pauseForAuth(failure.message);
+          summary.result = "paused";
+        } else {
+          this.onTransportFailure(failure);
+          summary.result = "retry";
+        }
         return summary;
       }
       this.patchStatus({
@@ -416,12 +474,18 @@ export class SyncEngine<TOp extends OperationEnvelope> {
 
   /**
    * Envoie un lot et applique les verdicts. Renvoie l'échec de transport
-   * éventuel (le lot n'est alors pas tranché, ou seulement en partie).
+   * éventuel (le lot n'est alors pas tranché, ou seulement en partie) :
+   * `unavailable` (panne transitoire, backoff) ou `unauthenticated` (pause,
+   * Lot 6).
    */
   private async sendAndSettle(
     entries: OutboxEntry<TOp>[],
     summary: FlushSummary,
-  ): Promise<Extract<TransportResult, { status: "unavailable" }> | null> {
+  ): Promise<
+    | Extract<TransportResult, { status: "unavailable" }>
+    | Extract<TransportResult, { status: "unauthenticated" }>
+    | null
+  > {
     let result: TransportResult;
     try {
       result = await this.transport.send(entries.map((entry) => entry.operation));
@@ -430,7 +494,15 @@ export class SyncEngine<TOp extends OperationEnvelope> {
       result = { status: "unavailable", message: describeError(error) };
     }
 
+    if (result.status === "unauthenticated") return result;
     if (result.status === "unavailable") return result;
+
+    // Le serveur a répondu sans refuser l'authentification : la pause, si
+    // elle tenait encore, n'a plus lieu d'être.
+    if (this.authPaused) {
+      this.authPaused = false;
+      this.patchStatus({ authRequired: false });
+    }
 
     if (result.status === "invalid") {
       if (entries.length === 1) {
@@ -461,6 +533,19 @@ export class SyncEngine<TOp extends OperationEnvelope> {
       };
     }
     return null;
+  }
+
+  /**
+   * Met le rejeu en pause faute d'authentification (401, Lot 6) : pas de
+   * backoff, pas de minuterie programmée (contrairement à
+   * `onTransportFailure`), seul `resumeAfterAuthentication()` en sort. Le lot
+   * entier a déjà été remis `pending` par l'appelant (`drain`) avant ce
+   * point : rien n'est bissecté ni refusé.
+   */
+  private pauseForAuth(message: string): void {
+    this.authPaused = true;
+    this.clearRetryTimer();
+    this.patchStatus({ authRequired: true, lastError: message });
   }
 
   private onTransportFailure(failure: {

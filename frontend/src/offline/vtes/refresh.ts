@@ -35,6 +35,15 @@ const PAGE_SIZE = 200; // plafond `le=200` des listes paginées du contrat
 
 class RefreshError extends Error {}
 
+/**
+ * Lot 6 : le `GET` a rendu 401 (pas de session, expirée ou révoquée). Un cas à
+ * part de `RefreshError` : l'appelant (`runtime.ts`) ne doit ni l'afficher
+ * comme une erreur de lecture ordinaire (rien n'est perdu, le miroir n'a pas
+ * bougé : l'écriture n'a lieu qu'après avoir tout lu), ni laisser croire à une
+ * perte de données — seulement signaler que l'authentification est requise.
+ */
+export class RefreshAuthError extends RefreshError {}
+
 // Chaque miroir n'efface, des opérations tranchées, que la famille qu'il reflète.
 const isStockOperation = (type: string) => type.startsWith("stock.") || type.startsWith("bundle.");
 const isDeckOperation = (type: string) => type.startsWith("deck.") || type.startsWith("deck_card.");
@@ -54,6 +63,9 @@ const acquires = (entry: { type: string; operation: unknown }) =>
 
 function unwrap<T>(result: { data?: T; error?: unknown; response: Response }, what: string): T {
   if (result.data === undefined) {
+    if (result.response.status === 401) {
+      throw new RefreshAuthError(`${what} : authentification requise`);
+    }
     throw new RefreshError(`${what} : HTTP ${result.response.status}`);
   }
   return result.data;

@@ -54,8 +54,11 @@ export function parseRetryAfter(value: string | null): number | undefined {
  *
  * Ne lève jamais : réseau coupé, 503 transitoire (écriture concurrente,
  * `Retry-After` respecté), autre 5xx, 4xx inattendu deviennent `unavailable` (le moteur réessaiera, rien n'est perdu) ;
- * 422 devient `invalid` (le moteur isole l'opération fautive) ; 200 devient
- * `ok`. Le contrat garantit qu'un lot rend toujours 200, refus compris.
+ * 422 devient `invalid` (le moteur isole l'opération fautive) ; 401 (Lot 6 :
+ * pas de session, expirée ou révoquée) devient `unauthenticated` (le moteur
+ * met le rejeu en pause, sans bissection ni refus — `core/syncEngine.ts`) ;
+ * 200 devient `ok`. Le contrat garantit qu'un lot rend toujours 200 ou 401,
+ * jamais 409 ni 404 (§7, §11 Lot 6).
  */
 export function createVtesSyncTransport(client: ApiClient): SyncTransport<VtesOperation> {
   return {
@@ -70,6 +73,12 @@ export function createVtesSyncTransport(client: ApiClient): SyncTransport<VtesOp
           return {
             status: "invalid",
             message: describeErrorBody(error) || "Lot refusé (422).",
+          };
+        }
+        if (response.status === 401) {
+          return {
+            status: "unauthenticated",
+            message: describeErrorBody(error) || "Authentification requise.",
           };
         }
         const retryAfterMs = parseRetryAfter(response.headers.get("Retry-After"));

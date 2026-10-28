@@ -114,6 +114,18 @@ export type TransportResult =
   | { status: "ok"; verdicts: SyncVerdict[] }
   /** HTTP 422 : le lot est mal formé, rien n'a été écrit. */
   | { status: "invalid"; message: string }
+  /**
+   * HTTP 401 (Lot 6) : pas de session, session inconnue, expirée ou
+   * supprimée. Rien n'a été appliqué. Générique à dessein (réutilisable pour
+   * Barrin) : ce statut ne dit rien de comptes ni de cookies, seulement qu'un
+   * envoi est suspendu faute d'authentification. Le moteur le traite comme
+   * une **pause** et non comme une indisponibilité ordinaire : aucun nouvel
+   * essai automatique, aucune bissection (un 401 ne désigne aucune opération
+   * en particulier), aucun refus local. La reprise se fait par un appel
+   * explicite (`SyncEngine.resumeAfterAuthentication`), après une
+   * reconnexion réussie côté appelant.
+   */
+  | { status: "unauthenticated"; message: string }
   /** Réseau coupé, 503 transitoire, 5xx, toute autre réponse inattendue : rien n'est perdu, on réessaie. */
   | {
       status: "unavailable";

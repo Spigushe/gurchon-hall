@@ -26,6 +26,13 @@
  */
 export const API_ROUTE_PREFIXES: readonly string[] = [
   "/health",
+  // Lot 6 (comptes) : quatre routes d'authentification, nécessairement en
+  // ligne (on ne vérifie pas un mot de passe hors ligne). Mêmes raisons que
+  // les autres : une route cliente ne doit jamais porter l'un de ces noms.
+  "/inscription",
+  "/connexion",
+  "/deconnexion",
+  "/moi",
   "/cartes",
   "/extensions",
   "/bundles",

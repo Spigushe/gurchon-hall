@@ -124,6 +124,21 @@ describe("createVtesSyncTransport", () => {
     });
   });
 
+  it("traduit un 401 en pause d'authentification (Lot 6), pas en indisponibilité", async () => {
+    const { transport } = transportWith(() => json({ detail: "Authentification requise." }, 401));
+    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);
+    expect(outcome).toEqual({
+      status: "unauthenticated",
+      message: "Authentification requise.",
+    });
+  });
+
+  it("donne un message par défaut pour un 401 sans corps lisible", async () => {
+    const { transport } = transportWith(() => new Response(null, { status: 401 }));
+    const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);
+    expect(outcome).toEqual({ status: "unauthenticated", message: "Authentification requise." });
+  });
+
   it.each([500, 502, 503, 501, 404, 429])("traduit un HTTP %i en indisponibilité", async (status) => {
     const { transport } = transportWith(() => json({ detail: "non disponible" }, status));
     const outcome = await transport.send([ops.stockDelete(clock, 1, "EN", 9)]);

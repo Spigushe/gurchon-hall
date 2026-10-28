@@ -19,6 +19,12 @@ describe("routes de l'API hors du service worker", () => {
     expect(uncovered).toEqual([]);
   });
 
+  it("exclut les routes d'authentification du Lot 6", () => {
+    for (const path of ["/inscription", "/connexion", "/deconnexion", "/moi"]) {
+      expect(isDenied(path), path).toBe(true);
+    }
+  });
+
   it("exclut /sync et ses variantes, avec ou sans query", () => {
     for (const path of ["/sync", "/sync/", "/sync?x=1", "/decks/12", "/decks?state=all", "/openapi.json"]) {
       expect(isDenied(path), path).toBe(true);

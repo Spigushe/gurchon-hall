@@ -31,6 +31,32 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
     expect(API_BASE_URL).toBe("http://localhost:8000");
   });
 
+  // Lot 6 (comptes) : le cookie de session est `HttpOnly`, posé par
+  // `POST /connexion`. Sans `credentials: "include"`, le navigateur ne
+  // l'envoie pas sur une requête vers une autre origine (front et back sont
+  // deux origines distinctes, y compris en développement) : toute route
+  // protégée (`GET /moi`, `/stock`, `/decks`, `POST /sync`…) recevrait 401
+  // alors même que la session existe.
+  it("envoie les cookies de session sur chaque requête (credentials: include)", async () => {
+    const sent: Request[] = [];
+    const fetchSpy = vi.fn(async (request: Request) => {
+      sent.push(request);
+      return new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+    const { apiClient } = await import("../../../src/api-client/client");
+
+    // Même en passant un `fetch` par appel (comme le reste de ce fichier), le
+    // reste des options par défaut du client (dont `credentials`) s'applique :
+    // c'est cette fusion qu'on vérifie, pas seulement la configuration brute.
+    await apiClient.GET("/cartes", { fetch: fetchSpy });
+    await apiClient.POST("/sync", { body: { operations: [] }, fetch: fetchSpy });
+
+    expect(sent).toHaveLength(2);
+    for (const request of sent) {
+      expect(request.credentials).toBe("include");
+    }
+  });
+
   it("type-check un appel GET /health contre le schéma généré", async () => {
     const { apiClient } = await import("../../../src/api-client/client");
 
