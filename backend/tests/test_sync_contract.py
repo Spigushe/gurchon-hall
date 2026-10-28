@@ -32,8 +32,16 @@ from app.schemas.sync import (
     SyncRequest,
     fingerprint,
 )
+from tests.helpers import login_default_account
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la forme du
+    contrat, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def operation(**overrides) -> dict:
@@ -337,6 +345,7 @@ def test_an_explicit_null_is_not_the_same_request_as_an_omitted_field():
 def test_the_journal_records_a_verdict_and_dates_it_itself(db):
     recorded = datetime(2026, 9, 20, 18, 0, tzinfo=UTC)
     entry = SyncOperation(
+        user_id=1,
         operation_id=str(uuid4()),
         batch_id=str(uuid4()),
         operation_type="deck.create",
@@ -448,11 +457,12 @@ def test_the_capture_instant_is_required_on_every_operation():
 def test_the_batch_never_fails_as_a_whole():
     """Ni 404 ni 409 sur `/sync` : un refus vit dans le corps de la réponse 200.
 
-    Les deux seuls autres codes ne portent pas de verdict : le 422 refuse un lot
-    mal formé avant toute écriture, le 503 dit que le lot n'a pas pu être traité
-    du tout.
+    Les autres codes ne portent pas de verdict : le 422 refuse un lot mal formé
+    avant toute écriture, le 503 dit que le lot n'a pas pu être traité du tout,
+    le 401 (Lot 6) dit que rien n'a été appliqué faute de session, le 403 dit
+    qu'`Origin` ne correspond à aucune origine autorisée.
     """
-    assert set(SYNC_POST["responses"]) == {"200", "422", "503"}
+    assert set(SYNC_POST["responses"]) == {"200", "401", "403", "422", "503"}
     assert SYNC_POST["responses"]["200"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/SyncResult"
     }

@@ -1,12 +1,21 @@
-"""Collection possédée : `/stock`, une entrée par carte, langue et extension."""
+"""Collection possédée : `/stock`, une entrée par carte, langue et extension.
+
+Depuis le Lot 6, toutes les routes exigent une session et ne voient que la
+collection du compte : une même clé (carte, langue, extension) existe
+indépendamment dans chaque compte, et le compte vient de la session, jamais du
+chemin.
+"""
 
 from fastapi import APIRouter, Query, Response
 
 from app.models import CardCategory
 from app.routers.common import (
     CONFLICT,
+    FORBIDDEN_ORIGIN,
     MAX_DB_INT,
     NOT_FOUND,
+    UNAUTHENTICATED,
+    CurrentUser,
     DbSession,
     PathId,
     QueryId,
@@ -14,7 +23,11 @@ from app.routers.common import (
 from app.schemas.collection import CardCopyCreate, CardCopyRead, CardCopyUpdate
 from app.services import stock
 
-router = APIRouter(prefix="/stock", tags=["stock"])
+router = APIRouter(
+    prefix="/stock",
+    tags=["stock"],
+    responses=UNAUTHENTICATED,
+)
 
 
 @router.get(
@@ -29,6 +42,7 @@ router = APIRouter(prefix="/stock", tags=["stock"])
 )
 def list_stock(
     db: DbSession,
+    user: CurrentUser,
     language_code: str | None = None,
     card_set_id: QueryId = None,
     category: CardCategory | None = None,
@@ -38,6 +52,7 @@ def list_stock(
 ):
     return stock.list_stock(
         db,
+        user.id,
         language_code=language_code,
         card_set_id=card_set_id,
         category=category,
@@ -57,10 +72,10 @@ def list_stock(
         "404 si la carte, la langue ou l'extension est inconnue, ou si la carte "
         "n'a pas été imprimée dans cette extension. 409 si l'entrée existe déjà."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def create_stock_entry(payload: CardCopyCreate, db: DbSession):
-    return stock.create_copy(db, payload)
+def create_stock_entry(payload: CardCopyCreate, db: DbSession, user: CurrentUser):
+    return stock.create_copy(db, user.id, payload)
 
 
 @router.get(
@@ -71,9 +86,13 @@ def create_stock_entry(payload: CardCopyCreate, db: DbSession):
     responses={**NOT_FOUND},
 )
 def get_stock_entry(
-    card_id: PathId, language_code: str, card_set_id: PathId, db: DbSession
+    card_id: PathId,
+    language_code: str,
+    card_set_id: PathId,
+    db: DbSession,
+    user: CurrentUser,
 ):
-    return stock.get_copy(db, card_id, language_code, card_set_id)
+    return stock.get_copy(db, user.id, card_id, language_code, card_set_id)
 
 
 @router.patch(
@@ -81,7 +100,7 @@ def get_stock_entry(
     response_model=CardCopyRead,
     operation_id="updateStockEntry",
     summary="Modifie une entrée de collection",
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
 def update_stock_entry(
     card_id: PathId,
@@ -89,8 +108,9 @@ def update_stock_entry(
     card_set_id: PathId,
     payload: CardCopyUpdate,
     db: DbSession,
+    user: CurrentUser,
 ):
-    return stock.update_copy(db, card_id, language_code, card_set_id, payload)
+    return stock.update_copy(db, user.id, card_id, language_code, card_set_id, payload)
 
 
 @router.delete(
@@ -103,10 +123,14 @@ def update_stock_entry(
         "l'entrée. Une ligne de deck entièrement jouée en proxy n'en consomme "
         "aucun : elle ne retient pas l'entrée."
     ),
-    responses={**NOT_FOUND, **CONFLICT},
+    responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
 def delete_stock_entry(
-    card_id: PathId, language_code: str, card_set_id: PathId, db: DbSession
+    card_id: PathId,
+    language_code: str,
+    card_set_id: PathId,
+    db: DbSession,
+    user: CurrentUser,
 ):
-    stock.delete_copy(db, card_id, language_code, card_set_id)
+    stock.delete_copy(db, user.id, card_id, language_code, card_set_id)
     return Response(status_code=204)

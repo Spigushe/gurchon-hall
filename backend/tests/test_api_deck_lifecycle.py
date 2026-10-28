@@ -20,9 +20,23 @@ from app.models import (
     Participation,
 )
 from app.services import decks, stock
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
 
 LINE = {"card_id": 1, "language_code": "EN", "card_set_id": 1, "quantity": 1}
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste le cycle de vie
+    des decks, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def card_set_id_of(db, card_id, language="EN") -> int:
@@ -147,7 +161,7 @@ def test_the_draw_avoids_a_deleted_deck_too(api, world, db):
     delete_from_archive(api, world.deck.id)
     db.expire_all()
 
-    taken = decks._taken_discriminators(db, "Ventrue Grinder")
+    taken = decks._taken_discriminators(db, world.user_id, "Ventrue Grinder")
 
     assert taken == {world.deck.discriminator}
 
@@ -185,10 +199,11 @@ def test_creation_gives_up_after_the_attempt_limit(api, db, monkeypatch):
 
 
 def test_a_name_with_every_discriminator_taken_is_a_409(api, db):
+    user_id = default_user_id(db)
     db.execute(
         insert(Deck),
         [
-            {"name": "Saturé", "discriminator": f"{n:04d}"}
+            {"user_id": user_id, "name": "Saturé", "discriminator": f"{n:04d}"}
             for n in range(1, 10_000)
         ],
     )
@@ -203,10 +218,11 @@ def test_a_name_with_every_discriminator_taken_is_a_409(api, db):
 
 
 def test_a_saturated_name_is_also_refused_on_rename(api, db):
+    user_id = default_user_id(db)
     db.execute(
         insert(Deck),
         [
-            {"name": "Saturé", "discriminator": f"{n:04d}"}
+            {"user_id": user_id, "name": "Saturé", "discriminator": f"{n:04d}"}
             for n in range(1, 10_000)
         ],
     )
@@ -614,8 +630,9 @@ def test_delete_returns_the_stock_including_proxies(api, world, db):
     )
     assert response.status_code == 200
     db.expire_all()
-    assert stock.allocated_real(db, world.card.id, "FR", card_set_id) == 0
-    assert stock.proxies_allocated(db, world.card.id, "FR", card_set_id) == 0
+    args = (db, world.user_id, world.card.id, "FR", card_set_id)
+    assert stock.allocated_real(*args) == 0
+    assert stock.proxies_allocated(*args) == 0
 
 
 def test_the_copies_of_a_deleted_deck_are_available_to_another_deck(api, world, db):

@@ -44,7 +44,10 @@ DECK_IDENTITY_REVISION = "5dc50e3c1701"  # discriminant, decklist figée, légal
 SYNC_REVISION = "8cc70f4bbbcc"  # journal d'idempotence de la file hors ligne (Lot 3)
 PROXY_REVISION = "6c9a178b7a1d"  # proxy autorisé au niveau du deck (Lot 4, passe A)
 EXTENSION_REVISION = "b7e41d0c9a52"  # extension dans l'identité du stock (Lot 4B)
-HEAD_REVISION = "f3a91c47b2de"  # deck_card sans entrée de collection (Lot 4b, A1)
+LOT4B_REVISION = "f3a91c47b2de"  # deck_card sans entrée de collection (Lot 4b, A1)
+ACCOUNTS_REVISION = "32d62f354d89"  # comptes et sessions (Lot 6, R8)
+OWNER_REVISION = "89695b77ef45"  # propriétaire sur les données (Lot 6, R9)
+HEAD_REVISION = OWNER_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -52,11 +55,18 @@ REVISIONS = [
     SYNC_REVISION,
     PROXY_REVISION,
     EXTENSION_REVISION,
-    HEAD_REVISION,
+    LOT4B_REVISION,
+    ACCOUNTS_REVISION,
+    OWNER_REVISION,
 ]
+
+# Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
+# toute ligne insérée « à la tête » par les tests ci-dessous.
+LEGACY = 1
 
 EXPECTED_TABLES = {
     "alembic_version",
+    "auth_session",
     "bundle",
     "card",
     "card_copy",
@@ -79,6 +89,7 @@ EXPECTED_TABLES = {
     "sect",
     "sync_operation",
     "tournament",
+    "user_account",
     "venue",
 }
 
@@ -228,7 +239,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Sept révisions à la suite, sans branche : une racine, une tête."""
+    """Neuf révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -240,11 +251,11 @@ def test_history_has_a_single_head_and_a_single_root():
 # --------------------------------------------------------------------------
 
 
-def test_upgrade_head_creates_the_twenty_three_tables(empty_db):
+def test_upgrade_head_creates_the_twenty_five_tables(empty_db):
     assert not empty_db.exists()
     alembic(empty_db, "upgrade", "head")
     assert table_names(empty_db) == EXPECTED_TABLES
-    assert len(table_names(empty_db) - {"alembic_version"}) == 23
+    assert len(table_names(empty_db) - {"alembic_version"}) == 25
 
 
 def test_upgrade_head_stamps_the_revision(migrated):
@@ -263,7 +274,9 @@ def test_upgrade_head_seeds_the_four_languages(migrated):
 
 
 def test_upgrade_head_seeds_nothing_else(migrated):
-    for table in EXPECTED_TABLES - {"alembic_version", "language"}:
+    """Les quatre langues et le compte historique (Lot 6, D6), rien d'autre."""
+    assert scalar(migrated, "SELECT COUNT(*) FROM user_account") == 1
+    for table in EXPECTED_TABLES - {"alembic_version", "language", "user_account"}:
         assert scalar(migrated, f"SELECT COUNT(*) FROM {table}") == 0, table
 
 
@@ -303,9 +316,8 @@ def test_seeded_language_is_usable_by_a_collection_entry(migrated):
             for code in ("EN", "FR", "ES", "XX"):
                 connection.execute(
                     text(
-                        "INSERT INTO card_copy"
-                        " (card_id, language_code, card_set_id, quantity_owned)"
-                        " VALUES (1, :code, 1, 1)"
+                        "INSERT INTO card_copy (user_id, card_id, language_code,"
+                        " card_set_id, quantity_owned) VALUES (1, 1, :code, 1, 1)"
                     ),
                     {"code": code},
                 )
@@ -349,7 +361,7 @@ def test_migrated_schema_equals_the_models_schema(migrated, tmp_path):
 
     from_migration = snapshot_of(migrated)
 
-    assert len(from_models) == 23
+    assert len(from_models) == 25
     assert set(from_migration) == set(from_models)
     for table in from_models:
         assert from_migration[table] == from_models[table], table
@@ -432,8 +444,8 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             )
             connection.execute(
                 text(
-                    "INSERT INTO deck (id, name, discriminator, status)"
-                    " VALUES (1, 'D', '0001', 'draft')"
+                    "INSERT INTO deck (id, user_id, name, discriminator, status)"
+                    " VALUES (1, 1, 'D', '0001', 'draft')"
                 )
             )
             connection.commit()
@@ -446,19 +458,21 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             with pytest.raises(Exception) as no_printing:
                 connection.execute(
                     text(
-                        "INSERT INTO deck_card (deck_id, card_id, language_code,"
-                        " card_set_id, quantity, proxy_quantity)"
-                        " VALUES (1, 1, 'EN', 1, 1, 0)"
+                        "INSERT INTO deck_card (deck_id, user_id, card_id,"
+                        " language_code, card_set_id, quantity, proxy_quantity)"
+                        " VALUES (1, 1, 1, 'EN', 1, 1, 0)"
                     )
                 )
             assert "FOREIGN KEY" in str(no_printing.value)
             connection.rollback()
 
-            # Deux « Moi » -> refusés.
-            connection.execute(text("INSERT INTO player (name, is_me) VALUES ('A', 1)"))
+            # Deux « Moi » dans le même compte -> refusés.
+            connection.execute(
+                text("INSERT INTO player (user_id, name, is_me) VALUES (1, 'A', 1)")
+            )
             with pytest.raises(Exception) as two_me:
                 connection.execute(
-                    text("INSERT INTO player (name, is_me) VALUES ('B', 1)")
+                    text("INSERT INTO player (user_id, name, is_me) VALUES (1, 'B', 1)")
                 )
             assert "UNIQUE" in str(two_me.value)
             connection.rollback()
@@ -467,8 +481,8 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             with pytest.raises(Exception) as bad_enum:
                 connection.execute(
                     text(
-                        "INSERT INTO deck (name, discriminator, status)"
-                        " VALUES ('E', '0001', 'bogus')"
+                        "INSERT INTO deck (user_id, name, discriminator, status)"
+                        " VALUES (1, 'E', '0001', 'bogus')"
                     )
                 )
             assert "CHECK" in str(bad_enum.value)
@@ -478,8 +492,8 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             with pytest.raises(Exception) as bad_discriminator:
                 connection.execute(
                     text(
-                        "INSERT INTO deck (name, discriminator, status)"
-                        " VALUES ('F', '42', 'draft')"
+                        "INSERT INTO deck (user_id, name, discriminator, status)"
+                        " VALUES (1, 'F', '42', 'draft')"
                     )
                 )
             assert "CHECK" in str(bad_discriminator.value)
@@ -513,7 +527,9 @@ def test_downgrade_base_drops_data_too(migrated):
     engine = create_engine(url_for(migrated))
     try:
         with engine.begin() as connection:
-            connection.execute(text("INSERT INTO venue (name) VALUES ('Club')"))
+            connection.execute(
+                text("INSERT INTO venue (user_id, name) VALUES (1, 'Club')")
+            )
     finally:
         engine.dispose()
     alembic(migrated, "downgrade", "base")
@@ -611,7 +627,11 @@ def test_offline_sql_generation_works_and_touches_no_database(empty_db):
     reason=(
         "LIMITE CONNUE (et non bug) : `upgrade head --sql` échoue, le mode batch "
         "de SQLite exige une base vivante pour réfléchir les tables modifiées. "
-        "Documenté dans le test hors-ligne ci-dessus."
+        "Documenté dans le test hors-ligne ci-dessus. Réexaminé au Lot 6 : les "
+        "deux révisions du Lot 6 se rendent hors ligne, prises isolément "
+        "(test_the_accounts_revision_renders_offline, test_the_owner_revision_"
+        "renders_offline) ; l'échec vient toujours des révisions du Lot 2 et des "
+        "gardes D3 du Lot 4, donc la limite reste."
     ),
 )
 def test_offline_sql_generation_works_up_to_head(empty_db):
@@ -796,18 +816,20 @@ def seed_decks_at_proxy_revision(db_path: Path) -> None:
 
 
 def seed_decks_at_head(db_path: Path) -> None:
-    """Le même jeu de decks, au schéma de tête actuel (Lot 4, passe B) :
+    """Le même jeu de decks, au schéma de tête (Lot 4, passe B, puis Lot 6 :
+    chaque ligne au compte historique) :
     `card_copy`/`deck_card`/`deleted_deck_card` portent `card_set_id` dans leur
     clé (D1), et `card_copy` exige une impression réelle du catalogue (D2) —
     d'où la carte, l'extension et l'impression insérées avant la collection.
     """
     execute(
         db_path,
-        "INSERT INTO deck (id, name, discriminator, status, deleted_at) VALUES"
-        " (1, 'Grinder', '0001', 'draft', '2026-09-01 10:00:00'),"
-        " (2, 'Grinder', '0002', 'active', NULL),"
-        " (3, 'Grinder', '0003', 'draft', '2026-09-02 10:00:00'),"
-        " (4, 'Autre', '0001', 'draft', NULL)",
+        "INSERT INTO deck (id, user_id, name, discriminator, status, deleted_at)"
+        " VALUES"
+        " (1, 1, 'Grinder', '0001', 'draft', '2026-09-01 10:00:00'),"
+        " (2, 1, 'Grinder', '0002', 'active', NULL),"
+        " (3, 1, 'Grinder', '0003', 'draft', '2026-09-02 10:00:00'),"
+        " (4, 1, 'Autre', '0001', 'draft', NULL)",
     )
     execute(
         db_path,
@@ -821,13 +843,13 @@ def seed_decks_at_head(db_path: Path) -> None:
     )
     execute(
         db_path,
-        "INSERT INTO card_copy (card_id, language_code, card_set_id, quantity_owned)"
-        " VALUES (1, 'EN', 1, 2)",
+        "INSERT INTO card_copy (user_id, card_id, language_code, card_set_id,"
+        " quantity_owned) VALUES (1, 1, 'EN', 1, 2)",
     )
     execute(
         db_path,
-        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
-        " quantity, proxy_quantity) VALUES (2, 1, 'EN', 1, 2, 0)",
+        "INSERT INTO deck_card (deck_id, user_id, card_id, language_code,"
+        " card_set_id, quantity, proxy_quantity) VALUES (2, 1, 1, 'EN', 1, 2, 0)",
     )
     execute(
         db_path,
@@ -927,21 +949,25 @@ def test_head_replaces_the_partial_index_with_a_unique_pair(migrated):
     finally:
         engine.dispose()
     assert "uq_deck_name_not_deleted" not in indexes
-    assert uniques == {("name", "discriminator"): "uq_deck_name_discriminator"}
+    # Depuis le Lot 6 (D2) : unique par compte, plus une cible de clés composites.
+    assert uniques == {
+        ("user_id", "name", "discriminator"): "uq_deck_user_id_name_discriminator",
+        ("id", "user_id"): "uq_deck_id_user_id",
+    }
 
 
 def test_head_keeps_the_name_and_discriminator_unique_even_for_deleted_decks(migrated):
     """L'identité d'affichage d'un deck supprimé n'est jamais réattribuée."""
     execute(
         migrated,
-        "INSERT INTO deck (name, discriminator, status, deleted_at)"
-        " VALUES ('Grinder', '0001', 'draft', '2026-09-01 10:00:00')",
+        "INSERT INTO deck (user_id, name, discriminator, status, deleted_at)"
+        " VALUES (1, 'Grinder', '0001', 'draft', '2026-09-01 10:00:00')",
     )
     with pytest.raises(Exception) as duplicate:
         execute(
             migrated,
-            "INSERT INTO deck (name, discriminator, status)"
-            " VALUES ('Grinder', '0001', 'draft')",
+            "INSERT INTO deck (user_id, name, discriminator, status)"
+            " VALUES (1, 'Grinder', '0001', 'draft')",
         )
     assert "UNIQUE" in str(duplicate.value)
 
@@ -950,8 +976,8 @@ def test_head_allows_the_same_name_with_another_discriminator(migrated):
     for discriminator in ("0001", "0002", "9999"):
         execute(
             migrated,
-            "INSERT INTO deck (name, discriminator, status)"
-            f" VALUES ('Grinder', '{discriminator}', 'draft')",
+            "INSERT INTO deck (user_id, name, discriminator, status)"
+            f" VALUES (1, 'Grinder', '{discriminator}', 'draft')",
         )
     assert scalar(migrated, "SELECT COUNT(*) FROM deck WHERE name = 'Grinder'") == 3
 
@@ -961,8 +987,8 @@ def test_head_refuses_a_discriminator_that_is_not_four_digits(migrated, value):
     with pytest.raises(Exception) as bad:
         execute(
             migrated,
-            "INSERT INTO deck (name, discriminator, status)"
-            f" VALUES ('D', '{value}', 'draft')",
+            "INSERT INTO deck (user_id, name, discriminator, status)"
+            f" VALUES (1, 'D', '{value}', 'draft')",
         )
     assert "CHECK" in str(bad.value)
 
@@ -971,8 +997,8 @@ def test_head_drops_the_retired_status_from_the_check(migrated):
     with pytest.raises(Exception) as retired:
         execute(
             migrated,
-            "INSERT INTO deck (name, discriminator, status)"
-            " VALUES ('D', '0001', 'retired')",
+            "INSERT INTO deck (user_id, name, discriminator, status)"
+            " VALUES (1, 'D', '0001', 'retired')",
         )
     assert "CHECK" in str(retired.value)
 
@@ -1181,9 +1207,9 @@ def test_downgrade_truncates_the_merged_name_to_the_column_length(empty_db):
     long_name = "N" * 120
     execute(
         empty_db,
-        "INSERT INTO deck (id, name, discriminator, status) VALUES"
-        f" (1, '{long_name}', '0001', 'draft'),"
-        f" (2, '{long_name}', '0002', 'draft')",
+        "INSERT INTO deck (id, user_id, name, discriminator, status) VALUES"
+        f" (1, 1, '{long_name}', '0001', 'draft'),"
+        f" (2, 1, '{long_name}', '0002', 'draft')",
     )
 
     alembic(empty_db, "downgrade", ARCHIVE_REVISION)
@@ -1274,7 +1300,16 @@ def test_upgrading_past_the_proxy_revision_refuses_a_populated_collection(empty_
 
 
 def insert_sync_row(db_path: Path, **columns) -> None:
-    """Insère une ligne de journal, colonnes nommées, sans passer par l'ORM."""
+    """Insère une ligne de journal, colonnes nommées, sans passer par l'ORM.
+
+    À partir du Lot 6, la ligne appartient à un compte : sans `user_id` explicite,
+    elle va au compte historique — mais seulement si la colonne existe, car le
+    même outil sert aussi aux révisions antérieures.
+    """
+    if "user_id" not in columns and "user_id" in {
+        name for (_, name, *_) in rows(db_path, "PRAGMA table_info(sync_operation)")
+    }:
+        columns = {"user_id": LEGACY, **columns}
     names = ", ".join(columns)
     placeholders = ", ".join(f":{name}" for name in columns)
     engine = create_engine(url_for(db_path))
@@ -1479,7 +1514,8 @@ def test_head_moves_proxy_allowed_from_the_collection_to_the_deck(migrated):
 def test_deck_proxy_allowed_defaults_to_false_at_the_database_level(migrated):
     execute(
         migrated,
-        "INSERT INTO deck (name, discriminator, status) VALUES ('D', '0001', 'draft')",
+        "INSERT INTO deck (user_id, name, discriminator, status)"
+        " VALUES (1, 'D', '0001', 'draft')",
     )
     assert scalar(migrated, "SELECT proxy_allowed FROM deck WHERE name = 'D'") == 0
 
@@ -1556,7 +1592,8 @@ def test_head_adds_the_card_set_id_columns_and_the_placeholder_marker(migrated):
         copy_fks = inspector.get_foreign_keys("card_copy")
     finally:
         engine.dispose()
-    assert copy_pk == ["card_id", "language_code", "card_set_id"]
+    # Le compte est entré en tête de la clé au Lot 6.
+    assert copy_pk == ["user_id", "card_id", "language_code", "card_set_id"]
     assert deck_card_pk == ["deck_id", "card_id", "language_code", "card_set_id"]
     assert "is_placeholder" in card_set_columns
     assert "card_set_id" in sync_columns
@@ -1593,9 +1630,8 @@ def test_migrated_database_enforces_the_composite_foreign_key_to_card_printing(
             with pytest.raises(Exception) as not_printed:
                 connection.execute(
                     text(
-                        "INSERT INTO card_copy"
-                        " (card_id, language_code, card_set_id, quantity_owned)"
-                        " VALUES (1, 'EN', 1, 1)"
+                        "INSERT INTO card_copy (user_id, card_id, language_code,"
+                        " card_set_id, quantity_owned) VALUES (1, 1, 'EN', 1, 1)"
                     )
                 )
             assert "FOREIGN KEY" in str(not_printed.value)
@@ -1609,9 +1645,8 @@ def test_migrated_database_enforces_the_composite_foreign_key_to_card_printing(
             )
             connection.execute(
                 text(
-                    "INSERT INTO card_copy"
-                    " (card_id, language_code, card_set_id, quantity_owned)"
-                    " VALUES (1, 'EN', 1, 1)"
+                    "INSERT INTO card_copy (user_id, card_id, language_code,"
+                    " card_set_id, quantity_owned) VALUES (1, 1, 'EN', 1, 1)"
                 )
             )
             connection.commit()
@@ -1689,6 +1724,7 @@ def seed_a_fully_proxy_line_without_a_collection_entry(db_path: Path) -> None:
     """Une carte, une impression, un deck ``proxy_allowed`` et une ligne
     100 % proxy (`quantity == proxy_quantity`) qui ne référence aucune
     `card_copy` — exactement ce que la révision `f3a91c47b2de` rend possible.
+    Au schéma de tête : chaque ligne appartient au compte historique (Lot 6).
     """
     execute(
         db_path,
@@ -1702,13 +1738,13 @@ def seed_a_fully_proxy_line_without_a_collection_entry(db_path: Path) -> None:
     )
     execute(
         db_path,
-        "INSERT INTO deck (id, name, discriminator, status, proxy_allowed)"
-        " VALUES (1, 'Tout proxy', '0001', 'draft', 1)",
+        "INSERT INTO deck (id, user_id, name, discriminator, status, proxy_allowed)"
+        " VALUES (1, 1, 'Tout proxy', '0001', 'draft', 1)",
     )
     execute(
         db_path,
-        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
-        " quantity, proxy_quantity) VALUES (1, 1, 'EN', 1, 3, 3)",
+        "INSERT INTO deck_card (deck_id, user_id, card_id, language_code,"
+        " card_set_id, quantity, proxy_quantity) VALUES (1, 1, 1, 'EN', 1, 3, 3)",
     )
 
 
@@ -1743,9 +1779,11 @@ def test_downgrading_the_no_collection_revision_refuses_an_orphan_line(empty_db)
 
     result = alembic(empty_db, "downgrade", EXTENSION_REVISION, check=False)
 
+    # Les deux révisions du Lot 6 redescendent d'abord (tout est au compte
+    # historique), puis la garde de `f3a91c47b2de` arrête la descente.
     assert result.returncode != 0
     assert "f3a91c47b2de" in result.stdout + result.stderr
-    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == HEAD_REVISION
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == LOT4B_REVISION
 
 
 def test_downgrading_the_no_collection_revision_succeeds_without_orphans(
@@ -1768,8 +1806,471 @@ def test_the_no_collection_revision_upgrade_renders_offline(empty_db):
     result = alembic(
         empty_db,
         "upgrade",
-        f"{EXTENSION_REVISION}:{HEAD_REVISION}",
+        f"{EXTENSION_REVISION}:{LOT4B_REVISION}",
         "--sql",
     )
     assert "CREATE TABLE deck_card" in result.stdout
     assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot 6 : comptes et sessions (R8), propriétaire sur les données (R9)
+# --------------------------------------------------------------------------
+
+OWNED_TABLES = (
+    "venue",
+    "player",
+    "deck",
+    "tournament",
+    "game",
+    "participation",
+    "deck_card",
+    "card_copy",
+    "sync_operation",
+)
+
+
+def seed_the_state_before_the_accounts(db_path: Path) -> None:
+    """L'état de départ du Lot 6, en réduit, au schéma de `LOT4B_REVISION`.
+
+    Une collection de trois entrées, un deck vivant qui en consomme deux (une
+    ligne réelle, une ligne mi-proxy), une ligne tout-proxy sans entrée en face,
+    un deck supprimé avec sa decklist figée, et un journal qui contient la
+    création appliquée d'un deck par `client_ref` et un refus.
+    """
+    execute(
+        db_path,
+        "INSERT INTO card (id, vekn_id, name, category, advanced, burn_option, trifle)"
+        " VALUES (1, 1, 'X', 'crypt', 0, 0, 0), (2, 2, 'Y', 'library', 0, 0, 0),"
+        " (3, 3, 'Z', 'library', 0, 0, 0)",
+    )
+    execute(db_path, "INSERT INTO card_set (id, abbrev) VALUES (1, 'FN'), (2, 'V5')")
+    execute(
+        db_path,
+        "INSERT INTO card_printing (id, card_id, card_set_id) VALUES"
+        " (1, 1, 1), (2, 2, 1), (3, 2, 2), (4, 3, 2)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO card_copy (card_id, language_code, card_set_id, quantity_owned)"
+        " VALUES (1, 'EN', 1, 4), (2, 'FR', 1, 3), (2, 'EN', 2, 1)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck (id, name, discriminator, status, proxy_allowed, deleted_at)"
+        " VALUES (1, 'Banu Princes', '8105', 'draft', 1, NULL),"
+        " (2, 'Ancien', '0001', 'draft', 0, '2026-09-01 10:00:00')",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck_card (deck_id, card_id, language_code, card_set_id,"
+        " quantity, proxy_quantity) VALUES"
+        " (1, 1, 'EN', 1, 3, 0), (1, 2, 'FR', 1, 3, 1), (1, 3, 'EN', 2, 2, 2)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deleted_deck_card (deck_id, card_id, language_code,"
+        " card_set_id, quantity, proxy_quantity) VALUES (2, 1, 'EN', 1, 4, 0)",
+    )
+    insert_sync_row(
+        db_path, **applied_row(operation_id="op-create", client_ref="ref-1")
+    )
+    insert_sync_row(
+        db_path,
+        **applied_row(
+            operation_id="op-refus",
+            status="rejected",
+            error_code="conflict",
+            error_message="Exemplaires insuffisants.",
+            resource_kind=None,
+            deck_id=None,
+        ),
+    )
+
+
+def availabilities(db_path: Path, *, by_owner: bool) -> list[tuple]:
+    """Disponibilité de chaque entrée : possédé moins réel alloué aux decks vivants.
+
+    La même règle que `services/stock.py`, écrite en SQL. `by_owner` ajoute la
+    condition de compte que la règle du Lot 6 impose.
+    """
+    owner = " AND dc.user_id = cc.user_id" if by_owner else ""
+    return rows(
+        db_path,
+        "SELECT cc.card_id, cc.language_code, cc.card_set_id,"
+        " cc.quantity_owned - COALESCE((SELECT SUM(dc.quantity - dc.proxy_quantity)"
+        "   FROM deck_card dc JOIN deck d ON d.id = dc.deck_id"
+        "   WHERE d.deleted_at IS NULL AND dc.card_id = cc.card_id"
+        "   AND dc.language_code = cc.language_code"
+        f"   AND dc.card_set_id = cc.card_set_id{owner}), 0)"
+        " FROM card_copy cc ORDER BY 1, 2, 3",
+    )
+
+
+def add_account(db_path: Path, account_id: int = 2) -> None:
+    execute(
+        db_path,
+        "INSERT INTO user_account (id, email, username, password_hash) VALUES"
+        f" ({account_id}, 'b{account_id}@exemple.fr', 'compte-{account_id}', 'x')",
+    )
+
+
+def test_head_creates_the_legacy_account(migrated):
+    """D6 : identifiant 1, rôle admin, mot de passe inutilisable."""
+    assert rows(
+        migrated,
+        "SELECT id, email, username, password_hash, role FROM user_account",
+    ) == [
+        (
+            1,
+            "compte-historique@gurchon-hall.invalid",
+            "compte-historique",
+            "!",
+            "admin",
+        )
+    ]
+    assert scalar(migrated, "SELECT created_at IS NOT NULL FROM user_account") == 1
+
+
+def test_head_gives_the_user_role_by_default_at_the_database_level(migrated):
+    add_account(migrated)
+    assert scalar(migrated, "SELECT role FROM user_account WHERE id = 2") == "user"
+    with pytest.raises(Exception) as bad_role:
+        execute(
+            migrated,
+            "INSERT INTO user_account (email, username, password_hash, role)"
+            " VALUES ('c@exemple.fr', 'compte-c', 'x', 'moderator')",
+        )
+    assert "CHECK" in str(bad_role.value)
+
+
+def test_head_keeps_email_and_username_unique(migrated):
+    add_account(migrated)
+    for duplicate in (
+        "('b2@exemple.fr', 'autre', 'x')",
+        "('autre@exemple.fr', 'compte-2', 'x')",
+    ):
+        with pytest.raises(Exception) as refused:
+            execute(
+                migrated,
+                "INSERT INTO user_account (email, username, password_hash)"
+                f" VALUES {duplicate}",
+            )
+        assert "UNIQUE" in str(refused.value)
+
+
+def test_a_session_stores_a_unique_token_hash_and_follows_its_account(migrated):
+    add_account(migrated)
+    execute(
+        migrated,
+        "INSERT INTO auth_session (user_id, token_hash, created_at, expires_at)"
+        f" VALUES (2, '{'a' * 64}', '2026-10-01 10:00:00', '2026-10-15 10:00:00')",
+    )
+    with pytest.raises(Exception) as duplicate:
+        execute(
+            migrated,
+            "INSERT INTO auth_session (user_id, token_hash, created_at, expires_at)"
+            f" VALUES (1, '{'a' * 64}', '2026-10-01 10:00:00', '2026-10-15 10:00:00')",
+        )
+    assert "UNIQUE" in str(duplicate.value)
+
+    engine = create_app_engine(url_for(migrated))
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM user_account WHERE id = 2"))
+    finally:
+        engine.dispose()
+    assert scalar(migrated, "SELECT COUNT(*) FROM auth_session") == 0
+
+
+def test_a_session_cannot_expire_before_it_starts(migrated):
+    with pytest.raises(Exception) as backwards:
+        execute(
+            migrated,
+            "INSERT INTO auth_session (user_id, token_hash, created_at, expires_at)"
+            f" VALUES (1, '{'b' * 64}', '2026-10-15 10:00:00', '2026-10-01 10:00:00')",
+        )
+    assert "CHECK" in str(backwards.value)
+
+
+def test_every_private_table_has_a_mandatory_owner(migrated):
+    engine = create_engine(url_for(migrated))
+    try:
+        inspector = inspect(engine)
+        for table in OWNED_TABLES:
+            columns = {c["name"]: c for c in inspector.get_columns(table)}
+            assert columns["user_id"]["nullable"] is False, table
+        assert "user_id" not in {
+            c["name"] for c in inspector.get_columns("deleted_deck_card")
+        }
+        # Le journal garde son principe : aucune clé étrangère, `user_id` compris.
+        assert inspector.get_foreign_keys("sync_operation") == []
+    finally:
+        engine.dispose()
+
+
+def test_two_accounts_can_hold_the_same_deck_identity_but_not_one(migrated):
+    """D2 : le couple (nom, discriminant) est unique par compte seulement."""
+    add_account(migrated)
+    execute(
+        migrated,
+        "INSERT INTO deck (user_id, name, discriminator, status) VALUES"
+        " (1, 'Banu Princes', '1234', 'draft'), (2, 'Banu Princes', '1234', 'draft')",
+    )
+    with pytest.raises(Exception) as duplicate:
+        execute(
+            migrated,
+            "INSERT INTO deck (user_id, name, discriminator, status)"
+            " VALUES (2, 'Banu Princes', '1234', 'draft')",
+        )
+    assert "UNIQUE" in str(duplicate.value)
+
+
+def test_two_accounts_can_own_the_same_collection_entry(migrated):
+    add_account(migrated)
+    seed_decks_at_head(migrated)
+    execute(
+        migrated,
+        "INSERT INTO card_copy (user_id, card_id, language_code, card_set_id,"
+        " quantity_owned) VALUES (2, 1, 'EN', 1, 5)",
+    )
+    assert rows(
+        migrated, "SELECT user_id, quantity_owned FROM card_copy ORDER BY user_id"
+    ) == [(1, 2), (2, 5)]
+
+
+def test_a_deck_line_cannot_belong_to_another_account_than_its_deck(migrated):
+    """La clé composite `(deck_id, user_id)` interdit que la copie diverge."""
+    add_account(migrated)
+    seed_decks_at_head(migrated)
+    engine = create_app_engine(url_for(migrated))
+    try:
+        with engine.connect() as connection:
+            with pytest.raises(Exception) as foreign:
+                connection.execute(
+                    text(
+                        "INSERT INTO deck_card (deck_id, user_id, card_id,"
+                        " language_code, card_set_id, quantity, proxy_quantity)"
+                        " VALUES (4, 2, 1, 'EN', 1, 1, 1)"
+                    )
+                )
+            assert "FOREIGN KEY" in str(foreign.value)
+    finally:
+        engine.dispose()
+
+
+def test_a_participation_cannot_point_at_another_accounts_deck(migrated):
+    """Tables du Lot 7 (D7) : la base refuse le mélange de comptes."""
+    add_account(migrated)
+    engine = create_app_engine(url_for(migrated))
+    try:
+        with engine.connect() as connection:
+            for statement in (
+                "INSERT INTO deck (id, user_id, name, discriminator, status)"
+                " VALUES (10, 1, 'De A', '0001', 'draft')",
+                "INSERT INTO player (id, user_id, name, is_me) VALUES (20, 2, 'B', 1)",
+                "INSERT INTO game (id, user_id, played_at, player_count, round_type)"
+                " VALUES (30, 2, '2026-10-01 20:00:00', 5, 'casual')",
+            ):
+                connection.execute(text(statement))
+            connection.commit()
+
+            for foreign in (
+                # Le deck de A dans une partie de B.
+                "INSERT INTO participation (user_id, game_id, player_id, deck_id)"
+                " VALUES (2, 30, 20, 10)",
+                # La partie de B depuis le compte A.
+                "INSERT INTO participation (user_id, game_id, player_id)"
+                " VALUES (1, 30, 20)",
+            ):
+                with pytest.raises(Exception) as refused:
+                    connection.execute(text(foreign))
+                assert "FOREIGN KEY" in str(refused.value)
+                connection.rollback()
+
+            # Un adversaire sans deck : `deck_id` nul, contrôle désactivé.
+            connection.execute(
+                text(
+                    "INSERT INTO participation (user_id, game_id, player_id)"
+                    " VALUES (2, 30, 20)"
+                )
+            )
+            connection.commit()
+    finally:
+        engine.dispose()
+
+
+def test_one_me_per_account(migrated):
+    add_account(migrated)
+    execute(
+        migrated,
+        "INSERT INTO player (user_id, name, is_me) VALUES (1, 'Moi', 1), (2, 'Moi', 1)",
+    )
+    with pytest.raises(Exception) as second_me:
+        execute(
+            migrated,
+            "INSERT INTO player (user_id, name, is_me) VALUES (2, 'Moi bis', 1)",
+        )
+    assert "UNIQUE" in str(second_me.value)
+
+
+def test_the_idempotency_key_and_the_client_reference_are_per_account(migrated):
+    add_account(migrated)
+    insert_sync_row(migrated, **applied_row(client_ref="ref-1"))
+    insert_sync_row(migrated, **applied_row(user_id=2, client_ref="ref-1", deck_id=2))
+    assert scalar(migrated, "SELECT COUNT(*) FROM sync_operation") == 2
+
+    with pytest.raises(Exception) as duplicate:
+        insert_sync_row(migrated, **applied_row(user_id=2, batch_id="batch-2"))
+    assert "UNIQUE" in str(duplicate.value)
+
+
+def test_upgrade_gives_every_existing_row_to_the_legacy_account(empty_db):
+    """D5 : conversion, pas refus ; disponibilités du stock inchangées."""
+    alembic(empty_db, "upgrade", LOT4B_REVISION)
+    seed_the_state_before_the_accounts(empty_db)
+    before = availabilities(empty_db, by_owner=False)
+    journal = rows(
+        empty_db,
+        "SELECT operation_id, request_hash, status, client_ref, deck_id"
+        " FROM sync_operation ORDER BY id",
+    )
+
+    alembic(empty_db, "upgrade", "head")
+
+    for table in OWNED_TABLES:
+        owners = {owner for (owner,) in rows(empty_db, f"SELECT user_id FROM {table}")}
+        assert owners <= {LEGACY}, table
+    assert scalar(empty_db, "SELECT COUNT(*) FROM card_copy") == 3
+    assert scalar(empty_db, "SELECT COUNT(*) FROM deck_card") == 3
+    assert scalar(empty_db, "SELECT COUNT(*) FROM deleted_deck_card") == 1
+    assert availabilities(empty_db, by_owner=True) == before
+    assert before == [(1, "EN", 1, 1), (2, "EN", 2, 1), (2, "FR", 1, 1)]
+    # Le journal garde ses verdicts sous le compte historique : un rejeu reste
+    # un rejeu.
+    assert rows(
+        empty_db,
+        "SELECT operation_id, request_hash, status, client_ref, deck_id"
+        " FROM sync_operation WHERE user_id = 1 ORDER BY id",
+    ) == journal
+    assert foreign_key_violations(empty_db) == []
+
+
+def test_upgrade_keeps_the_frozen_decklist_pointing_at_the_deck_table(empty_db):
+    """`deleted_deck_card` n'est pas recréée : renommer `deck` ne doit pas
+    réécrire sa clé étrangère (d'où `legacy_alter_table`, cf. la révision)."""
+    alembic(empty_db, "upgrade", "head")
+    sql = scalar(
+        empty_db, "SELECT sql FROM sqlite_master WHERE name = 'deleted_deck_card'"
+    )
+    assert "REFERENCES deck (id)" in sql
+    assert "_avant_" not in sql
+    leftovers = rows(
+        empty_db, "SELECT name FROM sqlite_master WHERE name LIKE '%_avant_%'"
+    )
+    assert leftovers == []
+
+
+def test_downgrade_to_lot4b_restores_its_schema_and_its_data(empty_db, tmp_path):
+    alembic(empty_db, "upgrade", LOT4B_REVISION)
+    seed_the_state_before_the_accounts(empty_db)
+    before = {
+        table: rows(empty_db, f"SELECT * FROM {table} ORDER BY 1, 2")
+        for table in ("card_copy", "deck_card", "deleted_deck_card")
+    }
+    available = availabilities(empty_db, by_owner=False)
+    alembic(empty_db, "upgrade", "head")
+
+    alembic(empty_db, "downgrade", LOT4B_REVISION)
+
+    reference = tmp_path / "lot4b.db"
+    alembic(reference, "upgrade", LOT4B_REVISION)
+    assert snapshot_of(empty_db) == snapshot_of(reference)
+    for table, content in before.items():
+        assert rows(empty_db, f"SELECT * FROM {table} ORDER BY 1, 2") == content
+    assert availabilities(empty_db, by_owner=False) == available
+    assert foreign_key_violations(empty_db) == []
+
+
+def test_downgrading_the_owner_revision_refuses_data_of_another_account(empty_db):
+    alembic(empty_db, "upgrade", "head")
+    add_account(empty_db)
+    execute(empty_db, "INSERT INTO venue (user_id, name) VALUES (2, 'Club de B')")
+
+    result = alembic(empty_db, "downgrade", LOT4B_REVISION, check=False)
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert OWNER_REVISION in output
+    assert "venue : 1" in output
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == OWNER_REVISION
+    assert scalar(empty_db, "SELECT user_id FROM venue") == 2
+
+
+def test_downgrading_the_accounts_revision_refuses_another_account(empty_db):
+    """Un second compte sans aucune donnée ne bloque pas R9, mais bloque R8."""
+    alembic(empty_db, "upgrade", "head")
+    add_account(empty_db)
+
+    result = alembic(empty_db, "downgrade", LOT4B_REVISION, check=False)
+
+    assert result.returncode != 0
+    assert ACCOUNTS_REVISION in result.stdout + result.stderr
+    assert "compte-2" in result.stdout + result.stderr
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == ACCOUNTS_REVISION
+    )
+    assert scalar(empty_db, "SELECT COUNT(*) FROM user_account") == 2
+
+
+def test_upgrading_the_owner_revision_refuses_a_missing_legacy_account(empty_db):
+    """Le journal n'a pas de clé étrangère : sans cette garde, ses lignes
+    seraient rattachées en silence à un compte inexistant, ce que le
+    `foreign_key_check` final ne relèverait pas."""
+    alembic(empty_db, "upgrade", ACCOUNTS_REVISION)
+    insert_sync_row(empty_db, **applied_row(client_ref="ref-1"))
+    execute(empty_db, "DELETE FROM user_account WHERE id = 1")
+
+    result = alembic(empty_db, "upgrade", "head", check=False)
+
+    assert result.returncode != 0
+    assert OWNER_REVISION in result.stdout + result.stderr
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == ACCOUNTS_REVISION
+    )
+    assert scalar(empty_db, "SELECT COUNT(*) FROM sync_operation") == 1
+    assert rows(
+        empty_db, "SELECT name FROM sqlite_master WHERE name LIKE '%_avant_%'"
+    ) == []
+
+
+def test_the_accounts_revision_renders_offline(empty_db):
+    result = alembic(
+        empty_db, "upgrade", f"{LOT4B_REVISION}:{ACCOUNTS_REVISION}", "--sql"
+    )
+    assert "CREATE TABLE user_account" in result.stdout
+    assert "CREATE TABLE auth_session" in result.stdout
+    assert "'compte-historique@gurchon-hall.invalid'" in result.stdout
+    assert not empty_db.exists()
+
+
+def test_the_owner_revision_renders_offline(empty_db):
+    result = alembic(
+        empty_db, "upgrade", f"{ACCOUNTS_REVISION}:{OWNER_REVISION}", "--sql"
+    )
+    for table in OWNED_TABLES:
+        assert f"CREATE TABLE {table}" in result.stdout, table
+    assert "uq_deck_user_id_name_discriminator" in result.stdout
+    assert "PRAGMA legacy_alter_table = ON" in result.stdout
+    assert not empty_db.exists()
+
+
+@pytest.mark.parametrize("revision", [ACCOUNTS_REVISION, OWNER_REVISION])
+def test_the_lot6_downgrades_do_not_render_offline(empty_db, revision):
+    """Leurs gardes lisent la base : elles le disent au lieu d'écrire du SQL."""
+    previous = {ACCOUNTS_REVISION: LOT4B_REVISION, OWNER_REVISION: ACCOUNTS_REVISION}
+    result = alembic(
+        empty_db, "downgrade", f"{revision}:{previous[revision]}", "--sql", check=False
+    )
+    assert result.returncode != 0
+    assert revision in result.stdout + result.stderr

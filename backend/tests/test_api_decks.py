@@ -7,11 +7,27 @@ import re
 import time
 from datetime import UTC, date, datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.models import Card, CardCategory, CardCopy
 from app.services import decks
-from tests.helpers import add_languages, make_card, make_copy, make_deck, make_printing
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+    make_printing,
+)
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste `/decks`, pas
+    l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def card_set_id_of(db, card_id, language="EN") -> int:
@@ -925,9 +941,10 @@ def test_the_service_evaluates_at_the_requested_date(api, db):
         ],
     )
 
-    before = decks.get_legality(db, deck.id, on=date(2005, 1, 1))
-    between = decks.get_legality(db, deck.id, on=date(2012, 1, 1))
-    after = decks.get_legality(db, deck.id, on=date(2015, 6, 1))
+    user_id = default_user_id(db)
+    before = decks.get_legality(db, user_id, deck.id, on=date(2005, 1, 1))
+    between = decks.get_legality(db, user_id, deck.id, on=date(2012, 1, 1))
+    after = decks.get_legality(db, user_id, deck.id, on=date(2015, 6, 1))
 
     assert before.evaluated_on == date(2005, 1, 1)
     assert names([c.model_dump() for c in before.not_yet_legal_cards]) == ["Vampire 0"]

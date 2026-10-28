@@ -37,6 +37,7 @@ from app.models import (
 )
 from tests.helpers import (
     add_languages,
+    default_user_id,
     make_card,
     make_deck,
     make_game,
@@ -114,7 +115,9 @@ def test_in_memory_append_sets_the_other_side_before_flush(db, world):
 def test_new_participation_is_appended_to_game_collection(db, world):
     extra = make_player(db, "Troisième")
     assert len(world.game.participations) == 2  # charge la collection
-    participation = Participation(player=extra, game=world.game, seat=5)
+    participation = Participation(
+        user_id=world.user_id, player=extra, game=world.game, seat=5
+    )
     assert participation in world.game.participations
     db.add(participation)  # SQLAlchemy 2.0 : le backref n'ajoute plus à la session
     db.commit()
@@ -378,7 +381,7 @@ def test_deleting_a_tournament_without_games_is_fine(db):
 
 
 def test_deleting_a_venue_that_nothing_references_is_fine(db):
-    venue = Venue(name="Vide")
+    venue = Venue(user_id=default_user_id(db), name="Vide")
     db.add(venue)
     db.flush()
     db.delete(venue)
@@ -414,7 +417,14 @@ def test_one_player_can_sit_at_many_games_with_different_decks(db):
     first, second = make_deck(db, "Un"), make_deck(db, "Deux")
     for game_deck in (first, second):
         game = make_game(db)
-        db.add(Participation(game_id=game.id, player_id=me.id, deck_id=game_deck.id))
+        db.add(
+            Participation(
+                game_id=game.id,
+                user_id=game.user_id,
+                player_id=me.id,
+                deck_id=game_deck.id,
+            )
+        )
     db.commit()
     assert count(db, Participation) == 2
 
@@ -424,7 +434,10 @@ def test_full_table_of_five_can_be_recorded(db):
     for seat in range(1, 6):
         db.add(
             Participation(
-                game_id=game.id, player_id=make_player(db, f"J{seat}").id, seat=seat
+                game_id=game.id,
+                user_id=game.user_id,
+                player_id=make_player(db, f"J{seat}", user_id=game.user_id).id,
+                seat=seat,
             )
         )
     db.commit()

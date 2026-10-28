@@ -17,7 +17,7 @@ décisions de CLAUDE.md §11 que ce lot devait trancher :
 * la même carte peut entrer dans un deck en deux langues différentes.
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import create_engine, select
@@ -60,6 +60,8 @@ from app.models import (
     TournamentFormat,
     Venue,
 )
+from app.models.account import AuthSession, UserAccount
+from app.services import auth as auth_service
 
 
 @pytest.fixture
@@ -80,6 +82,22 @@ def session():
 @pytest.fixture
 def seeded(session):
     """Une ligne dans chaque table, reliées entre elles."""
+    account = UserAccount(
+        email="smoke@example.com",
+        username="smoke",
+        password_hash=auth_service.hash_password("Sup3r-Secret-1!"),
+    )
+    session.add(account)
+    session.flush()
+    user_id = account.id
+    session.add(
+        AuthSession(
+            user_id=user_id,
+            token_hash="a" * 64,
+            created_at=datetime(2026, 2, 1, tzinfo=UTC),
+            expires_at=datetime(2026, 2, 1, tzinfo=UTC) + timedelta(days=14),
+        )
+    )
     language_en = Language(code="EN", label="Anglais", sort_order=10)
     language_fr = Language(code="FR", label="Français", sort_order=20)
     clan = Clan(name="Ventrue", abbrev="VEN")
@@ -92,7 +110,7 @@ def seeded(session):
         release_date=date(2001, 6, 11),
         company="White Wolf",
     )
-    venue = Venue(name="Club de test", city="Nantes")
+    venue = Venue(user_id=user_id, name="Club de test", city="Nantes")
     session.add_all(
         [language_en, language_fr, clan, sect, discipline, card_type, card_set, venue]
     )
@@ -135,6 +153,7 @@ def seeded(session):
                 card_id=card.id, language_code="FR", name="Parenté Aabbt"
             ),
             CardCopy(
+                user_id=user_id,
                 card_id=card.id,
                 language_code="EN",
                 card_set_id=card_set.id,
@@ -144,6 +163,7 @@ def seeded(session):
             # collection que pour être jouée en proxy (l'autorisation vit sur
             # le deck, Lot 4, pas ici).
             CardCopy(
+                user_id=user_id,
                 card_id=card.id,
                 language_code="FR",
                 card_set_id=card_set.id,
@@ -153,6 +173,7 @@ def seeded(session):
     )
 
     deck = Deck(
+        user_id=user_id,
         name="Ventrue Grinder",
         discriminator="8561",
         created_on=date(2026, 1, 15),
@@ -162,14 +183,16 @@ def seeded(session):
     # Un deck supprimé, dont la decklist a été figée : c'est la seule façon
     # d'avoir une ligne dans `deleted_deck_card`.
     gone = Deck(
+        user_id=user_id,
         name="Ventrue Grinder",
         discriminator="0042",
         status=DeckStatus.DRAFT,
         archived_at=datetime(2026, 1, 20, tzinfo=UTC),
         deleted_at=datetime(2026, 1, 21, tzinfo=UTC),
     )
-    player = Player(name="Moi", is_me=True)
+    player = Player(user_id=user_id, name="Moi", is_me=True)
     tournament = Tournament(
+        user_id=user_id,
         name="Tournoi de test",
         start_date=date(2026, 2, 1),
         deck_policy=DeckPolicy.MONO,
@@ -184,6 +207,7 @@ def seeded(session):
         [
             DeckCard(
                 deck_id=deck.id,
+                user_id=user_id,
                 card_id=card.id,
                 language_code="EN",
                 card_set_id=card_set.id,
@@ -202,6 +226,7 @@ def seeded(session):
     )
 
     game = Game(
+        user_id=user_id,
         played_at=datetime(2026, 2, 1, 14, 0, tzinfo=UTC),
         venue=venue,
         tournament=tournament,
@@ -215,6 +240,7 @@ def seeded(session):
     session.add(
         Participation(
             game_id=game.id,
+            user_id=user_id,
             player_id=player.id,
             deck_id=deck.id,
             seat=3,
@@ -225,9 +251,10 @@ def seeded(session):
 
     # Journal de la file hors ligne (Lot 3) : la création du deck ci-dessus,
     # telle qu'elle serait revenue d'un `POST /sync`. Aucune clé étrangère —
-    # `deck_id` n'est qu'un identifiant recopié.
+    # `deck_id` n'est qu'un identifiant recopié, `user_id` compris (Lot 6).
     session.add(
         SyncOperation(
+            user_id=user_id,
             operation_id="0f8f8b8e-1111-4222-8333-444444444444",
             batch_id="6f1d2a4e-0e9e-4a1a-9a0f-2f7b3c4d5e6f",
             operation_type=SyncOperationType.DECK_CREATE,
@@ -246,6 +273,7 @@ def seeded(session):
         "game": game,
         "player": player,
         "card_set_id": card_set.id,
+        "user_id": user_id,
     }
 
 
@@ -276,6 +304,7 @@ def test_deck_card_still_requires_a_known_language(session, seeded):
     session.add(
         DeckCard(
             deck_id=seeded["deck"].id,
+            user_id=seeded["user_id"],
             card_id=seeded["card"].id,
             language_code="ZZ",
             card_set_id=seeded["card_set_id"],
@@ -301,6 +330,7 @@ def test_deck_card_no_longer_requires_a_collection_entry(session, seeded):
     session.add(
         DeckCard(
             deck_id=seeded["deck"].id,
+            user_id=seeded["user_id"],
             card_id=seeded["card"].id,
             language_code="ES",
             card_set_id=seeded["card_set_id"],
@@ -315,6 +345,7 @@ def test_deck_mixes_languages_for_the_same_card(session, seeded):
     session.add(
         DeckCard(
             deck_id=seeded["deck"].id,
+            user_id=seeded["user_id"],
             card_id=seeded["card"].id,
             language_code="FR",
             card_set_id=seeded["card_set_id"],

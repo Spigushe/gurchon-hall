@@ -31,6 +31,7 @@ from app.models import (
 )
 from tests.helpers import (
     add_languages,
+    default_user_id,
     make_card,
     make_copy,
     make_deck,
@@ -84,7 +85,10 @@ def test_card_copy_defaults_to_nothing_owned(db):
     card = make_card(db)
     printing = make_printing(db, card)
     copy = CardCopy(
-        card_id=card.id, language_code="EN", card_set_id=printing.card_set_id
+        user_id=default_user_id(db),
+        card_id=card.id,
+        language_code="EN",
+        card_set_id=printing.card_set_id,
     )
     db.add(copy)
     db.commit()
@@ -94,7 +98,7 @@ def test_card_copy_defaults_to_nothing_owned(db):
 def test_deck_defaults_to_proxy_not_allowed(db):
     # Lot 4 : l'autorisation de proxy est portée par le deck, pas par
     # l'entrée de collection (`CardCopy` n'a plus ce champ).
-    deck = Deck(name="Sans proxy", discriminator="0001")
+    deck = Deck(user_id=default_user_id(db), name="Sans proxy", discriminator="0001")
     db.add(deck)
     db.commit()
     assert deck.proxy_allowed is False
@@ -107,6 +111,7 @@ def test_deck_card_defaults_to_one_copy_without_proxy(db):
     deck = make_deck(db)
     line = DeckCard(
         deck_id=deck.id,
+        user_id=deck.user_id,
         card_id=card.id,
         language_code="EN",
         card_set_id=copy.card_set_id,
@@ -136,7 +141,7 @@ def test_deleted_deck_card_has_the_same_defaults(db):
 
 
 def test_player_is_not_me_by_default(db):
-    player = Player(name="Quelqu'un")
+    player = Player(user_id=default_user_id(db), name="Quelqu'un")
     db.add(player)
     db.commit()
     assert player.is_me is False
@@ -149,8 +154,11 @@ def test_language_sort_order_defaults_to_zero(db):
 
 
 def test_participation_results_default_to_unknown(db):
-    game, player = make_game(db), make_player(db)
-    participation = Participation(game_id=game.id, player_id=player.id)
+    game = make_game(db)
+    player = make_player(db, user_id=game.user_id)
+    participation = Participation(
+        game_id=game.id, user_id=game.user_id, player_id=player.id
+    )
     db.add(participation)
     db.commit()
     assert participation.game_win is None
@@ -253,9 +261,10 @@ def test_date_columns_roundtrip(db):
 
 
 def test_victory_points_keep_half_points(db):
-    game, player = make_game(db), make_player(db)
+    game = make_game(db)
+    player = make_player(db, user_id=game.user_id)
     participation = Participation(
-        game_id=game.id, player_id=player.id, victory_points=2.5
+        game_id=game.id, user_id=game.user_id, player_id=player.id, victory_points=2.5
     )
     db.add(participation)
     db.commit()
@@ -324,9 +333,9 @@ def test_every_index_has_a_name():
             assert index.name, f"{table.name}: index anonyme"
 
 
-def test_model_registry_covers_twenty_three_tables():
-    """Filet : le modèle décrit 23 tables, ni plus ni moins."""
-    assert len(Base.metadata.tables) == 23
+def test_model_registry_covers_twenty_five_tables():
+    """Filet : le modèle décrit 25 tables, ni plus ni moins (Lot 6 : +2)."""
+    assert len(Base.metadata.tables) == 25
     assert set(Base.metadata.tables) == {
         "language",
         "clan",
@@ -351,4 +360,6 @@ def test_model_registry_covers_twenty_three_tables():
         "game",
         "participation",
         "sync_operation",
+        "user_account",
+        "auth_session",
     }

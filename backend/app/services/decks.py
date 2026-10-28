@@ -37,6 +37,13 @@ puis se supprime *depuis l'archive*. La suppression est logique : la ligne reste
 la decklist migre de `deck_card` vers `deleted_deck_card` (figée, sans plus rien
 réserver dans le stock) et `deleted_at` est posé. Un deck supprimé reste lisible
 par son identifiant, jamais en liste, et n'accepte plus aucune écriture.
+
+**Portée par compte (Lot 6).** Toute fonction de ce module prend `user_id` en
+paramètre obligatoire, sans valeur par défaut. Un deck d'un autre compte,
+vivant ou supprimé, n'existe pas pour ce module : il rend 404 avec le même
+message qu'un identifiant inconnu (`_get_deck`), jamais 403. Le discriminant
+est unique par (compte, nom) — D2 de `docs/lot6-plan-comptes.md` — : le tirage
+et le 409 d'épuisement ne regardent que les decks du compte courant.
 """
 
 import random
@@ -95,14 +102,17 @@ def pick_discriminator(taken: Collection[str]) -> str:
 
 
 def _taken_discriminators(
-    db: Session, name: str, *, excluding_id: int | None = None
+    db: Session, user_id: int, name: str, *, excluding_id: int | None = None
 ) -> set[str]:
-    """Discriminants déjà portés par ce nom — decks supprimés compris.
+    """Discriminants déjà portés par ce nom, pour ce compte — decks supprimés compris.
 
-    L'unicité (nom, discriminant) vaut sur tous les decks : un deck supprimé
-    garde son identité d'affichage, rien ne la réattribue.
+    L'unicité (compte, nom, discriminant) vaut sur tous les decks du compte
+    (Lot 6, D2) : un deck supprimé garde son identité d'affichage, rien ne la
+    réattribue ; les decks des autres comptes n'entrent jamais dans ce calcul.
     """
-    stmt = select(Deck.discriminator).where(Deck.name == name)
+    stmt = select(Deck.discriminator).where(
+        Deck.user_id == user_id, Deck.name == name
+    )
     if excluding_id is not None:
         stmt = stmt.where(Deck.id != excluding_id)
     return set(db.scalars(stmt))
@@ -110,6 +120,7 @@ def _taken_discriminators(
 
 def _write_with_discriminator[T](
     db: Session,
+    user_id: int,
     name: str,
     write: Callable[[str], T],
     *,
@@ -125,13 +136,13 @@ def _write_with_discriminator[T](
     session est alors annulée (`rollback`) et `write` rejoué en entier, il doit
     donc pouvoir se répéter sur un état rechargé.
 
-    409 si le nom a épuisé ses 9999 discriminants, ou après
+    409 si le nom a épuisé ses 9999 discriminants **pour ce compte**, ou après
     `DISCRIMINATOR_ATTEMPTS` refus de la base.
     """
     draw = pick or pick_discriminator
     candidate = preferred
     for _ in range(DISCRIMINATOR_ATTEMPTS):
-        taken = _taken_discriminators(db, name, excluding_id=excluding_id)
+        taken = _taken_discriminators(db, user_id, name, excluding_id=excluding_id)
         if len(taken) >= DISCRIMINATOR_COUNT:
             raise ConflictError(
                 f"Les {DISCRIMINATOR_COUNT} discriminants du nom {name!r} sont tous "
@@ -150,17 +161,21 @@ def _write_with_discriminator[T](
     )
 
 
-def _get_deck(db: Session, deck_id: int) -> Deck:
-    """Un deck lisible : vivant, archivé ou supprimé (lecture seule)."""
+def _get_deck(db: Session, user_id: int, deck_id: int) -> Deck:
+    """Un deck lisible du compte : vivant, archivé ou supprimé (lecture seule).
+
+    Un deck d'un autre compte n'existe pas pour ce service : même 404, même
+    message qu'un identifiant inconnu (§11, Lot 6) — jamais 403.
+    """
     deck = db.get(Deck, deck_id)
-    if deck is None:
+    if deck is None or deck.user_id != user_id:
         raise NotFoundError(f"Deck {deck_id} introuvable.")
     return deck
 
 
-def _get_live_deck(db: Session, deck_id: int) -> Deck:
+def _get_live_deck(db: Session, user_id: int, deck_id: int) -> Deck:
     """Un deck non supprimé (archivé ou non) : la base de toute écriture."""
-    deck = _get_deck(db, deck_id)
+    deck = _get_deck(db, user_id, deck_id)
     if deck.deleted_at is not None:
         raise ConflictError(
             f"Le deck {deck_id} est supprimé : il n'est plus consultable qu'en "
@@ -169,9 +184,9 @@ def _get_live_deck(db: Session, deck_id: int) -> Deck:
     return deck
 
 
-def _get_editable_deck(db: Session, deck_id: int) -> Deck:
+def _get_editable_deck(db: Session, user_id: int, deck_id: int) -> Deck:
     """Un deck vivant et non archivé : celui dont on peut changer la composition."""
-    deck = _get_live_deck(db, deck_id)
+    deck = _get_live_deck(db, user_id, deck_id)
     if deck.archived_at is not None:
         raise ConflictError(
             f"Le deck {deck_id} est archivé : le désarchiver (`archived: false`) "
@@ -184,12 +199,14 @@ def _today() -> date:
     return datetime.now(UTC).date()
 
 
-def get_legality(db: Session, deck_id: int, on: date | None = None) -> DeckLegality:
+def get_legality(
+    db: Session, user_id: int, deck_id: int, on: date | None = None
+) -> DeckLegality:
     """Verdict de légalité à la date `on` (aujourd'hui UTC par défaut).
 
     Calculé sur la composition **vivante** : un deck supprimé est refusé (409).
     """
-    _get_live_deck(db, deck_id)
+    _get_live_deck(db, user_id, deck_id)
     on = on or _today()
     lines = db.scalars(
         select(DeckCard)
@@ -255,8 +272,8 @@ def get_legality(db: Session, deck_id: int, on: date | None = None) -> DeckLegal
     )
 
 
-def _ensure_can_activate(db: Session, deck: Deck) -> None:
-    legality = get_legality(db, deck.id)
+def _ensure_can_activate(db: Session, user_id: int, deck: Deck) -> None:
+    legality = get_legality(db, user_id, deck.id)
     if not legality.is_legal:
         raise ConflictError(
             "Un deck illégal ne peut pas être actif : " + " ".join(legality.issues)
@@ -265,13 +282,14 @@ def _ensure_can_activate(db: Session, deck: Deck) -> None:
 
 def list_decks(
     db: Session,
+    user_id: int,
     *,
     status: DeckStatus | None = None,
     q: str | None = None,
     state: DeckListState = DeckListState.ACTIVE,
 ) -> list[Deck]:
-    """Decks non supprimés, selon `state` : non archivés, archivés, ou tous."""
-    stmt = select(Deck).where(Deck.deleted_at.is_(None))
+    """Decks non supprimés du compte, selon `state` : non archivés, archivés ou tous."""
+    stmt = select(Deck).where(Deck.user_id == user_id, Deck.deleted_at.is_(None))
     if state is DeckListState.ACTIVE:
         stmt = stmt.where(Deck.archived_at.is_(None))
     elif state is DeckListState.ARCHIVED:
@@ -283,9 +301,9 @@ def list_decks(
     return list(db.scalars(stmt.order_by(Deck.name, Deck.discriminator, Deck.id)))
 
 
-def get_deck_detail(db: Session, deck_id: int) -> DeckDetailRead:
+def get_deck_detail(db: Session, user_id: int, deck_id: int) -> DeckDetailRead:
     """Un deck et sa composition ; un deck supprimé se lit depuis sa decklist figée."""
-    deck = _get_deck(db, deck_id)
+    deck = _get_deck(db, user_id, deck_id)
     line_type = DeletedDeckCard if deck.deleted_at is not None else DeckCard
     lines = db.scalars(
         select(line_type)
@@ -304,20 +322,20 @@ def get_deck_detail(db: Session, deck_id: int) -> DeckDetailRead:
 
 
 def create_deck(
-    db: Session, payload: DeckCreate, *, pick: Picker | None = None
+    db: Session, user_id: int, payload: DeckCreate, *, pick: Picker | None = None
 ) -> Deck:
     data = payload.model_dump()
 
     def write(discriminator: str) -> Deck:
-        deck = Deck(**data, discriminator=discriminator)
+        deck = Deck(user_id=user_id, **data, discriminator=discriminator)
         db.add(deck)
         db.flush()  # l'INSERT part ici : la base a le dernier mot sur l'unicité
         return deck
 
-    deck = _write_with_discriminator(db, payload.name, write, pick=pick)
+    deck = _write_with_discriminator(db, user_id, payload.name, write, pick=pick)
     if deck.status is DeckStatus.ACTIVE:
         try:
-            _ensure_can_activate(db, deck)
+            _ensure_can_activate(db, user_id, deck)
         except ConflictError:
             db.rollback()  # rien ne doit rester du deck refusé
             raise
@@ -326,7 +344,12 @@ def create_deck(
 
 
 def update_deck(
-    db: Session, deck_id: int, payload: DeckUpdate, *, pick: Picker | None = None
+    db: Session,
+    user_id: int,
+    deck_id: int,
+    payload: DeckUpdate,
+    *,
+    pick: Picker | None = None,
 ) -> Deck:
     """Modifie un deck, et l'archive ou le désarchive (`archived`).
 
@@ -335,19 +358,19 @@ def update_deck(
     qu'`archived` est refusé (409) ; `archived: true` seul sur un deck déjà
     archivé reste un 200 sans effet, la date d'origine étant conservée.
     """
-    deck = _get_live_deck(db, deck_id)
+    deck = _get_live_deck(db, user_id, deck_id)
     changes = payload.model_dump(exclude_unset=True)
     archived: bool | None = changes.pop("archived", None)
 
     if deck.archived_at is not None and archived is not False and changes:
-        _get_editable_deck(db, deck_id)  # lève le 409 « archivé »
+        _get_editable_deck(db, user_id, deck_id)  # lève le 409 « archivé »
 
     activating = (
         changes.get("status") is DeckStatus.ACTIVE
         and deck.status is not DeckStatus.ACTIVE
     )
     if activating:
-        _ensure_can_activate(db, deck)
+        _ensure_can_activate(db, user_id, deck)
 
     if changes.get("proxy_allowed") is False and deck.proxy_allowed:
         proxies = db.scalar(
@@ -379,6 +402,7 @@ def update_deck(
 
         _write_with_discriminator(
             db,
+            user_id,
             changes["name"],
             write,
             excluding_id=deck_id,
@@ -394,7 +418,7 @@ def update_deck(
     return deck
 
 
-def delete_deck(db: Session, deck_id: int) -> None:
+def delete_deck(db: Session, user_id: int, deck_id: int) -> None:
     """Suppression **logique**, possible seulement depuis l'archive.
 
     En une transaction : la decklist est recopiée dans `deleted_deck_card`, les
@@ -402,7 +426,7 @@ def delete_deck(db: Session, deck_id: int) -> None:
     `deleted_at` est posé. Le deck et ses participations restent en base : un
     deck joué garde son historique.
     """
-    deck = _get_live_deck(db, deck_id)
+    deck = _get_live_deck(db, user_id, deck_id)
     if deck.archived_at is None:
         raise ConflictError(
             f"Le deck {deck_id} n'est pas archivé : l'archiver avant de le supprimer."
@@ -424,12 +448,18 @@ def delete_deck(db: Session, deck_id: int) -> None:
 
 
 def _load_line(
-    db: Session, deck_id: int, card_id: int, language_code: str, card_set_id: int
+    db: Session,
+    user_id: int,
+    deck_id: int,
+    card_id: int,
+    language_code: str,
+    card_set_id: int,
 ) -> DeckCard:
     line = db.scalars(
         select(DeckCard)
         .where(
             DeckCard.deck_id == deck_id,
+            DeckCard.user_id == user_id,
             DeckCard.card_id == card_id,
             DeckCard.language_code == language_code,
             DeckCard.card_set_id == card_set_id,
@@ -466,6 +496,7 @@ def _check_acquisition(acquired: int, real_before: int, real_after: int) -> None
 
 def _check_allocation(
     db: Session,
+    user_id: int,
     deck_id: int,
     deck: Deck,
     copy: CardCopy | None,
@@ -506,6 +537,7 @@ def _check_allocation(
     real = quantity - proxy_quantity
     allocated = stock.allocated_real(
         db,
+        user_id,
         card_id,
         language_code,
         card_set_id,
@@ -522,13 +554,15 @@ def _check_allocation(
 
 def _acquire(
     db: Session,
+    user_id: int,
     copy: CardCopy | None,
     card_id: int,
     language_code: str,
     card_set_id: int,
     acquired: int,
 ) -> None:
-    """Ajoute `acquired` exemplaires à la collection, créant l'entrée au besoin.
+    """Ajoute `acquired` exemplaires à la collection du compte, créant l'entrée
+    au besoin.
 
     Appelé après tous les contrôles, dans la transaction de la ligne : le
     commit de la ligne valide les deux, un refus de la base annule les deux.
@@ -538,6 +572,7 @@ def _acquire(
     if copy is None:
         db.add(
             CardCopy(
+                user_id=user_id,
                 card_id=card_id,
                 language_code=language_code,
                 card_set_id=card_set_id,
@@ -557,7 +592,9 @@ def _commit(db: Session, message: str = _COMPOSITION_CONFLICT) -> None:
     commit_or_conflict(db, message)
 
 
-def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
+def add_card(
+    db: Session, user_id: int, deck_id: int, payload: DeckCardCreate
+) -> DeckCard:
     """Ajoute une ligne au deck, et au besoin les exemplaires acquis au stock.
 
     Une ligne qui consomme au moins un exemplaire réel
@@ -572,13 +609,13 @@ def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
     CLAUDE.md §11 point 2 se lit désormais « une carte doit être en
     collection pour qu'un deck en consomme un exemplaire réel ».
     """
-    deck = _get_editable_deck(db, deck_id)
+    deck = _get_editable_deck(db, user_id, deck_id)
     code = catalog.normalize_language_code(payload.language_code)
     acquired = payload.acquired_quantity
     if db.get(Card, payload.card_id) is None:
         raise NotFoundError(f"Carte {payload.card_id} introuvable.")
     catalog.get_printing(db, payload.card_id, payload.card_set_id)
-    copy = db.get(CardCopy, (payload.card_id, code, payload.card_set_id))
+    copy = db.get(CardCopy, (user_id, payload.card_id, code, payload.card_set_id))
     if db.get(DeckCard, (deck_id, payload.card_id, code, payload.card_set_id)):
         raise ConflictError(
             f"La carte {payload.card_id} en {code} est déjà dans le deck : "
@@ -599,6 +636,7 @@ def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
     _check_acquisition(acquired, 0, payload.quantity - payload.proxy_quantity)
     _check_allocation(
         db,
+        user_id,
         deck_id,
         deck,
         copy,
@@ -610,10 +648,11 @@ def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
         acquired,
     )
 
-    _acquire(db, copy, payload.card_id, code, payload.card_set_id, acquired)
+    _acquire(db, user_id, copy, payload.card_id, code, payload.card_set_id, acquired)
     db.add(
         DeckCard(
             deck_id=deck_id,
+            user_id=user_id,
             card_id=payload.card_id,
             language_code=code,
             card_set_id=payload.card_set_id,
@@ -623,11 +662,12 @@ def add_card(db: Session, deck_id: int, payload: DeckCardCreate) -> DeckCard:
     )
     deck.updated_at = utcnow()
     _commit(db)
-    return _load_line(db, deck_id, payload.card_id, code, payload.card_set_id)
+    return _load_line(db, user_id, deck_id, payload.card_id, code, payload.card_set_id)
 
 
 def update_card(
     db: Session,
+    user_id: int,
     deck_id: int,
     card_id: int,
     language_code: str,
@@ -645,9 +685,9 @@ def update_card(
     Elle est incrémentée si elle existe, créée au besoin sinon — `_acquire` et
     `_check_allocation` traitent déjà ce cas sans condition sur `copy`.
     """
-    deck = _get_editable_deck(db, deck_id)
+    deck = _get_editable_deck(db, user_id, deck_id)
     code = catalog.normalize_language_code(language_code)
-    line = _load_line(db, deck_id, card_id, code, card_set_id)
+    line = _load_line(db, user_id, deck_id, card_id, code, card_set_id)
     changes = payload.model_dump(exclude_unset=True)
     acquired = changes.pop("acquired_quantity", 0)
     quantity = changes.get("quantity", line.quantity)
@@ -664,9 +704,10 @@ def update_card(
     _check_acquisition(
         acquired, line.quantity - line.proxy_quantity, quantity - proxy_quantity
     )
-    copy = db.get(CardCopy, (card_id, code, card_set_id))
+    copy = db.get(CardCopy, (user_id, card_id, code, card_set_id))
     _check_allocation(
         db,
+        user_id,
         deck_id,
         deck,
         copy,
@@ -678,7 +719,7 @@ def update_card(
         acquired,
     )
 
-    _acquire(db, copy, card_id, code, card_set_id, acquired)
+    _acquire(db, user_id, copy, card_id, code, card_set_id, acquired)
     line.quantity = quantity
     line.proxy_quantity = proxy_quantity
     deck.updated_at = utcnow()
@@ -687,11 +728,17 @@ def update_card(
 
 
 def remove_card(
-    db: Session, deck_id: int, card_id: int, language_code: str, card_set_id: int
+    db: Session,
+    user_id: int,
+    deck_id: int,
+    card_id: int,
+    language_code: str,
+    card_set_id: int,
 ) -> None:
-    deck = _get_editable_deck(db, deck_id)
+    deck = _get_editable_deck(db, user_id, deck_id)
     line = _load_line(
         db,
+        user_id,
         deck_id,
         card_id,
         catalog.normalize_language_code(language_code),

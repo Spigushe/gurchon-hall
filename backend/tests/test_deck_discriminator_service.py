@@ -16,7 +16,14 @@ from app.models import Deck
 from app.schemas.collection import DeckCreate, DeckUpdate
 from app.services import decks
 from app.services.errors import ConflictError
-from tests.helpers import make_deck
+from tests.auth_helpers import make_account
+from tests.helpers import default_user_id, make_deck
+
+
+@pytest.fixture
+def user_id(db):
+    """Compte de test par défaut (Lot 6), pour les appels directs au service."""
+    return default_user_id(db)
 
 
 def spy(*values):
@@ -39,22 +46,28 @@ def count_decks(db):
     return db.scalar(select(func.count()).select_from(Deck))
 
 
-def deleted(db, name, discriminator):
+def deleted(db, name, discriminator, user_id=None):
     return make_deck(
         db,
         name,
         discriminator=discriminator,
         archived_at=datetime.now(UTC),
         deleted_at=datetime.now(UTC),
+        user_id=user_id,
     )
 
 
-def fill_name(db, name, *, skipping=(), deleted_at=None):
+def fill_name(db, user_id, name, *, skipping=(), deleted_at=None):
     """Prend tous les discriminants du nom, sauf ceux de `skipping`."""
     db.execute(
         insert(Deck),
         [
-            {"name": name, "discriminator": f"{n:04d}", "deleted_at": deleted_at}
+            {
+                "user_id": user_id,
+                "name": name,
+                "discriminator": f"{n:04d}",
+                "deleted_at": deleted_at,
+            }
             for n in range(1, 10_000)
             if f"{n:04d}" not in skipping
         ],
@@ -65,10 +78,10 @@ def fill_name(db, name, *, skipping=(), deleted_at=None):
 # --- Tirage ------------------------------------------------------------------
 
 
-def test_create_deck_uses_the_injected_picker(db):
+def test_create_deck_uses_the_injected_picker(db, user_id):
     pick, seen = spy("0500")
 
-    deck = decks.create_deck(db, DeckCreate(name="Alpha"), pick=pick)
+    deck = decks.create_deck(db, user_id, DeckCreate(name="Alpha"), pick=pick)
 
     assert deck.discriminator == "0500"
     assert seen == [set()]
@@ -76,7 +89,9 @@ def test_create_deck_uses_the_injected_picker(db):
     assert db.scalars(select(Deck.discriminator)).all() == ["0500"]
 
 
-def test_the_picker_sees_the_live_archived_and_deleted_discriminators_of_the_name(db):
+def test_the_picker_sees_the_live_archived_and_deleted_discriminators_of_the_name(
+    db, user_id
+):
     make_deck(db, "Alpha", discriminator="0001")
     make_deck(db, "Alpha", discriminator="0002", archived_at=datetime.now(UTC))
     deleted(db, "Alpha", "0003")
@@ -84,7 +99,7 @@ def test_the_picker_sees_the_live_archived_and_deleted_discriminators_of_the_nam
     db.commit()
     pick, seen = spy("0500")
 
-    decks.create_deck(db, DeckCreate(name="Alpha"), pick=pick)
+    decks.create_deck(db, user_id, DeckCreate(name="Alpha"), pick=pick)
 
     assert seen == [{"0001", "0002", "0003"}]  # rien de « Beta »
 
@@ -97,9 +112,9 @@ def test_the_real_picker_only_returns_four_digits_never_zero():
     assert len(draws) > 100  # tiré au hasard, pas constant
 
 
-def test_the_only_free_discriminator_is_the_one_attributed(db):
+def test_the_only_free_discriminator_is_the_one_attributed(db, user_id):
     # Vivants et supprimés mêlés : « 4242 » est le seul libre.
-    fill_name(db, "Plein", skipping={"4242"})
+    fill_name(db, user_id, "Plein", skipping={"4242"})
     db.execute(
         Deck.__table__.update()
         .where(Deck.name == "Plein", Deck.discriminator < "5000")
@@ -107,13 +122,15 @@ def test_the_only_free_discriminator_is_the_one_attributed(db):
     )
     db.commit()
 
-    deck = decks.create_deck(db, DeckCreate(name="Plein"))
+    deck = decks.create_deck(db, user_id, DeckCreate(name="Plein"))
 
     assert deck.discriminator == "4242"
 
 
-def test_homonyms_all_get_different_discriminators(db):
-    created = [decks.create_deck(db, DeckCreate(name="Même nom")) for _ in range(25)]
+def test_homonyms_all_get_different_discriminators(db, user_id):
+    created = [
+        decks.create_deck(db, user_id, DeckCreate(name="Même nom")) for _ in range(25)
+    ]
 
     assert len({d.discriminator for d in created}) == 25
 
@@ -121,84 +138,91 @@ def test_homonyms_all_get_different_discriminators(db):
 # --- Retry et abandon --------------------------------------------------------
 
 
-def test_create_retries_through_the_injected_picker(db):
+def test_create_retries_through_the_injected_picker(db, user_id):
     make_deck(db, "Alpha", discriminator="0042")
     db.commit()
     # Le tirage retombe deux fois sur un couple pris : la base refuse, on réessaie.
     pick, seen = spy("0042", "0042", "0043")
 
-    deck = decks.create_deck(db, DeckCreate(name="Alpha"), pick=pick)
+    deck = decks.create_deck(db, user_id, DeckCreate(name="Alpha"), pick=pick)
 
     assert deck.discriminator == "0043"
     assert len(seen) == 3
     assert count_decks(db) == 2
 
 
-def test_create_gives_up_after_exactly_the_attempt_limit(db):
+def test_create_gives_up_after_exactly_the_attempt_limit(db, user_id):
     make_deck(db, "Alpha", discriminator="0042")
     db.commit()
     pick, seen = spy("0042")
 
     with pytest.raises(ConflictError) as error:
-        decks.create_deck(db, DeckCreate(name="Alpha"), pick=pick)
+        decks.create_deck(db, user_id, DeckCreate(name="Alpha"), pick=pick)
 
     assert len(seen) == decks.DISCRIMINATOR_ATTEMPTS == 20
     assert "20" in error.value.message
     assert count_decks(db) == 1
     # La session reste utilisable après tous ces rollbacks.
-    assert decks.create_deck(db, DeckCreate(name="Alpha")).discriminator != "0042"
+    again = decks.create_deck(db, user_id, DeckCreate(name="Alpha"))
+    assert again.discriminator != "0042"
 
 
-def test_rename_uses_the_injected_picker_when_the_couple_is_taken(db):
+def test_rename_uses_the_injected_picker_when_the_couple_is_taken(db, user_id):
     make_deck(db, "Alpha", discriminator="0001")
     other = make_deck(db, "Beta", discriminator="0001")
     db.commit()
     pick, seen = spy("0777")
 
-    renamed = decks.update_deck(db, other.id, DeckUpdate(name="Alpha"), pick=pick)
+    renamed = decks.update_deck(
+        db, user_id, other.id, DeckUpdate(name="Alpha"), pick=pick
+    )
 
     assert (renamed.name, renamed.discriminator) == ("Alpha", "0777")
     assert seen == [{"0001"}]
 
 
-def test_rename_does_not_draw_when_the_discriminator_is_free_under_the_new_name(db):
+def test_rename_does_not_draw_when_the_discriminator_is_free_under_the_new_name(
+    db, user_id
+):
     make_deck(db, "Alpha", discriminator="0001")
     other = make_deck(db, "Beta", discriminator="0002")
     db.commit()
     pick, seen = spy("0999")
 
-    renamed = decks.update_deck(db, other.id, DeckUpdate(name="Alpha"), pick=pick)
+    renamed = decks.update_deck(
+        db, user_id, other.id, DeckUpdate(name="Alpha"), pick=pick
+    )
 
     assert renamed.discriminator == "0002"
     assert seen == []
 
 
-def test_rename_to_the_same_name_neither_draws_nor_changes_anything(db):
+def test_rename_to_the_same_name_neither_draws_nor_changes_anything(db, user_id):
     deck = make_deck(db, "Alpha", discriminator="0123")
     db.commit()
     pick, seen = spy("0999")
 
-    decks.update_deck(db, deck.id, DeckUpdate(name="Alpha"), pick=pick)
+    decks.update_deck(db, user_id, deck.id, DeckUpdate(name="Alpha"), pick=pick)
 
     assert seen == []
     db.rollback()
     assert db.get(Deck, deck.id).discriminator == "0123"
 
 
-def test_the_renamed_deck_does_not_collide_with_itself(db):
+def test_the_renamed_deck_does_not_collide_with_itself(db, user_id):
     # Le deck ne compte pas parmi les « pris » du nom qu'il quitte ou rejoint.
     deck = make_deck(db, "Alpha", discriminator="0001")
     db.commit()
     pick, seen = spy("0999")
 
-    decks.update_deck(db, deck.id, DeckUpdate(name="Beta"), pick=pick)
+    decks.update_deck(db, user_id, deck.id, DeckUpdate(name="Beta"), pick=pick)
 
     assert seen == []
     db.rollback()
     assert db.get(Deck, deck.id).discriminator == "0001"
 
 
-def test_rename_retries_and_keeps_the_other_fields(db, monkeypatch):
+def test_rename_retries_and_keeps_the_other_fields(db, user_id, monkeypatch):
     make_deck(db, "Alpha", discriminator="0001")
     other = make_deck(db, "Beta", discriminator="0001")
     db.commit()
@@ -206,15 +230,19 @@ def test_rename_retries_and_keeps_the_other_fields(db, monkeypatch):
     real = decks._taken_discriminators
     calls = []
 
-    def blind_once(db_, name, *, excluding_id=None):
+    def blind_once(db_, user_id_, name, *, excluding_id=None):
         calls.append(name)
-        return set() if len(calls) == 1 else real(db_, name, excluding_id=excluding_id)
+        return (
+            set()
+            if len(calls) == 1
+            else real(db_, user_id_, name, excluding_id=excluding_id)
+        )
 
     pick, _ = spy("0008")
     monkeypatch.setattr(decks, "_taken_discriminators", blind_once)
 
     renamed = decks.update_deck(
-        db, other.id, DeckUpdate(name="Alpha", notes="gardée"), pick=pick
+        db, user_id, other.id, DeckUpdate(name="Alpha", notes="gardée"), pick=pick
     )
 
     assert (renamed.name, renamed.discriminator, renamed.notes) == (
@@ -225,25 +253,26 @@ def test_rename_retries_and_keeps_the_other_fields(db, monkeypatch):
     assert len(calls) == 2
 
 
-def test_renaming_frees_the_old_names_discriminator(db):
+def test_renaming_frees_the_old_names_discriminator(db, user_id):
     deck = make_deck(db, "Alpha", discriminator="0001")
     db.commit()
-    decks.update_deck(db, deck.id, DeckUpdate(name="Beta"))
+    decks.update_deck(db, user_id, deck.id, DeckUpdate(name="Beta"))
     pick, seen = spy("0001")
 
-    created = decks.create_deck(db, DeckCreate(name="Alpha"), pick=pick)
+    created = decks.create_deck(db, user_id, DeckCreate(name="Alpha"), pick=pick)
 
     assert seen == [set()]  # plus rien de pris sous « Alpha »
     assert created.discriminator == "0001"
 
 
-def test_two_homonyms_renamed_apart_and_together_stay_distinct(db):
+def test_two_homonyms_renamed_apart_and_together_stay_distinct(db, user_id):
     first = make_deck(db, "Alpha", discriminator="0001")
     second = make_deck(db, "Beta", discriminator="0001")
     db.commit()
 
-    decks.update_deck(db, first.id, DeckUpdate(name="Gamma"))
-    decks.update_deck(db, second.id, DeckUpdate(name="Gamma"))  # 0001 pris chez Gamma
+    decks.update_deck(db, user_id, first.id, DeckUpdate(name="Gamma"))
+    # 0001 pris chez Gamma :
+    decks.update_deck(db, user_id, second.id, DeckUpdate(name="Gamma"))
 
     db.rollback()
     couples = {(d.name, d.discriminator) for d in db.scalars(select(Deck))}
@@ -254,37 +283,75 @@ def test_two_homonyms_renamed_apart_and_together_stay_distinct(db):
 # --- Saturation --------------------------------------------------------------
 
 
-def test_deleted_decks_still_count_toward_saturation(db):
-    fill_name(db, "Saturé", deleted_at=datetime.now(UTC))
+def test_deleted_decks_still_count_toward_saturation(db, user_id):
+    fill_name(db, user_id, "Saturé", deleted_at=datetime.now(UTC))
 
     with pytest.raises(ConflictError) as error:
-        decks.create_deck(db, DeckCreate(name="Saturé"))
+        decks.create_deck(db, user_id, DeckCreate(name="Saturé"))
 
     assert "9999" in error.value.message
-    assert decks.create_deck(db, DeckCreate(name="Autre")).discriminator
+    assert decks.create_deck(db, user_id, DeckCreate(name="Autre")).discriminator
 
 
-def test_a_deleted_discriminator_is_never_handed_out_again(db):
+def test_a_deleted_discriminator_is_never_handed_out_again(db, user_id):
     # Tout est pris sauf « 1234 », que porte un deck supprimé : créer un homonyme
     # est refusé, plutôt que de réattribuer le couple du deck supprimé.
-    fill_name(db, "Plein", skipping={"1234"})
+    fill_name(db, user_id, "Plein", skipping={"1234"})
     deleted(db, "Plein", "1234")
     db.commit()
 
     with pytest.raises(ConflictError):
-        decks.create_deck(db, DeckCreate(name="Plein"))
+        decks.create_deck(db, user_id, DeckCreate(name="Plein"))
 
     assert count_decks(db) == 9999
 
 
-def test_saturation_is_refused_on_rename_and_leaves_the_deck_alone(db):
-    fill_name(db, "Saturé", deleted_at=datetime.now(UTC))
+def test_saturation_is_refused_on_rename_and_leaves_the_deck_alone(db, user_id):
+    fill_name(db, user_id, "Saturé", deleted_at=datetime.now(UTC))
     other = make_deck(db, "Autre", discriminator="0001", notes="avant")
     db.commit()
 
     with pytest.raises(ConflictError):
-        decks.update_deck(db, other.id, DeckUpdate(name="Saturé", notes="après"))
+        decks.update_deck(
+            db, user_id, other.id, DeckUpdate(name="Saturé", notes="après")
+        )
 
     db.rollback()
     kept = db.get(Deck, other.id)
     assert (kept.name, kept.discriminator, kept.notes) == ("Autre", "0001", "avant")
+
+
+# --- Portée par compte (Lot 6, D2) -------------------------------------------
+
+
+def test_two_accounts_can_share_the_same_name_and_discriminator(db, user_id):
+    """D2 : l'unicité (nom, discriminant) ne vaut plus que dans un même compte."""
+    other_user_id = make_account(
+        db, email="autre-discriminant@example.com", username="autre-discriminant"
+    ).id
+    pick = lambda taken: "8561"  # noqa: E731 — même tirage pour les deux comptes
+
+    first = decks.create_deck(db, user_id, DeckCreate(name="Banu Princes"), pick=pick)
+    second = decks.create_deck(
+        db, other_user_id, DeckCreate(name="Banu Princes"), pick=pick
+    )
+
+    assert (first.name, first.discriminator) == ("Banu Princes", "8561")
+    assert (second.name, second.discriminator) == ("Banu Princes", "8561")
+    assert first.id != second.id
+
+
+def test_saturating_one_accounts_discriminators_does_not_affect_another(db, user_id):
+    """D2 : l'épuisement des 9999 discriminants d'un nom, chez un compte, ne
+    bloque pas le même nom chez un autre compte."""
+    other_user_id = make_account(
+        db, email="autre-saturation@example.com", username="autre-saturation"
+    ).id
+    fill_name(db, user_id, "Saturé")
+
+    with pytest.raises(ConflictError):
+        decks.create_deck(db, user_id, DeckCreate(name="Saturé"))
+
+    # Le même nom reste librement disponible pour l'autre compte.
+    deck = decks.create_deck(db, other_user_id, DeckCreate(name="Saturé"))
+    assert deck.discriminator

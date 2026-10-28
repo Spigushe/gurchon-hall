@@ -101,27 +101,35 @@ class Touched:
 # --------------------------------------------------------------------------
 
 
-def _applied_creation(db: Session, client_ref: str) -> SyncOperation | None:
-    """La création **appliquée** qui a donné son identité à cette référence."""
+def _applied_creation(
+    db: Session, user_id: int, client_ref: str
+) -> SyncOperation | None:
+    """La création **appliquée** qui a donné son identité à cette référence,
+    pour ce compte. Une `client_ref` d'un autre compte ne compte pas : elle se
+    comporte comme une référence inconnue (Lot 6, §11)."""
     return db.scalars(
         select(SyncOperation).where(
+            SyncOperation.user_id == user_id,
             SyncOperation.client_ref == client_ref,
             SyncOperation.status == SyncOperationStatus.APPLIED,
         )
     ).one_or_none()
 
 
-def _resolve_deck(db: Session, ref: DeckRef) -> int:
+def _resolve_deck(db: Session, user_id: int, ref: DeckRef) -> int:
     """Identifiant serveur du deck désigné, par `deck_id` ou par référence client.
 
-    La référence se résout au journal en filtrant sur `status = 'applied'` : une
-    création refusée laisse sa trace sans réserver la référence. Le journal étant
-    lu dans la transaction du lot, une création faite plus haut dans le même lot
-    est déjà visible.
+    La référence se résout au journal **du compte**, en filtrant sur
+    `status = 'applied'` : une création refusée laisse sa trace sans réserver
+    la référence. Le journal étant lu dans la transaction du lot, une création
+    faite plus haut dans le même lot est déjà visible. Un `deck_id` fourni
+    directement n'est pas vérifié ici : les services appelés par `_execute`
+    rendent 404 pour un deck d'un autre compte, avec le même message qu'un
+    identifiant inconnu.
     """
     if ref.deck_id is not None:
         return ref.deck_id
-    creation = _applied_creation(db, ref.client_ref)
+    creation = _applied_creation(db, user_id, ref.client_ref)
     if creation is None or creation.deck_id is None:
         raise UnresolvedClientRef(
             f"Aucun deck n'a été créé sous la référence client {ref.client_ref!r} "
@@ -135,18 +143,20 @@ def _resolve_deck(db: Session, ref: DeckRef) -> int:
 # --------------------------------------------------------------------------
 
 
-def _execute(db: Session, operation: AnySyncOperation) -> Touched:
-    """Appelle le service de la route en ligne équivalente."""
+def _execute(db: Session, user_id: int, operation: AnySyncOperation) -> Touched:
+    """Appelle le service de la route en ligne équivalente, pour ce compte."""
     match operation:
         case StockUpsertOperation(data=data):
             code = catalog.normalize_language_code(data.language_code)
-            if db.get(CardCopy, (data.card_id, code, data.card_set_id)) is None:
-                stock.create_copy(db, data)
+            copy_key = (user_id, data.card_id, code, data.card_set_id)
+            if db.get(CardCopy, copy_key) is None:
+                stock.create_copy(db, user_id, data)
             else:
                 # L'état complet voulu : les champs omis valent leur défaut, ils
                 # ne conservent pas ce que le serveur avait.
                 stock.update_copy(
                     db,
+                    user_id,
                     data.card_id,
                     code,
                     data.card_set_id,
@@ -166,7 +176,7 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
             card_id=card_id, language_code=language_code, card_set_id=card_set_id
         ):
             code = catalog.normalize_language_code(language_code)
-            stock.delete_copy(db, card_id, code, card_set_id)
+            stock.delete_copy(db, user_id, card_id, code, card_set_id)
             return Touched(
                 SyncResourceKind.CARD_COPY,
                 card_id=card_id,
@@ -178,35 +188,36 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
             # Contrôlé avant l'écriture : la base refuserait le doublon (index
             # unique partiel) mais seulement à l'insertion du journal, quand le
             # deck serait déjà créé.
-            existing = _applied_creation(db, client_ref)
+            existing = _applied_creation(db, user_id, client_ref)
             if existing is not None:
                 raise ConflictError(
                     f"La référence client {client_ref!r} désigne déjà le deck "
                     f"{existing.deck_id} : une référence n'est jamais réutilisée, "
                     "en tirer une nouvelle."
                 )
-            deck = decks.create_deck(db, data)
+            deck = decks.create_deck(db, user_id, data)
             return Touched(SyncResourceKind.DECK, deck_id=deck.id)
 
         case DeckUpdateOperation(deck=ref, data=data):
-            deck_id = _resolve_deck(db, ref)
-            decks.update_deck(db, deck_id, data)
+            deck_id = _resolve_deck(db, user_id, ref)
+            decks.update_deck(db, user_id, deck_id, data)
             return Touched(SyncResourceKind.DECK, deck_id=deck_id)
 
         case DeckDeleteOperation(deck=ref):
-            deck_id = _resolve_deck(db, ref)
-            decks.delete_deck(db, deck_id)
+            deck_id = _resolve_deck(db, user_id, ref)
+            decks.delete_deck(db, user_id, deck_id)
             return Touched(SyncResourceKind.DECK, deck_id=deck_id)
 
         case DeckCardUpsertOperation(deck=ref, data=data):
-            deck_id = _resolve_deck(db, ref)
+            deck_id = _resolve_deck(db, user_id, ref)
             code = catalog.normalize_language_code(data.language_code)
             key = (deck_id, data.card_id, code, data.card_set_id)
             if db.get(DeckCard, key) is None:
-                decks.add_card(db, deck_id, data)
+                decks.add_card(db, user_id, deck_id, data)
             else:
                 decks.update_card(
                     db,
+                    user_id,
                     deck_id,
                     data.card_id,
                     code,
@@ -234,9 +245,9 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
             language_code=language_code,
             card_set_id=card_set_id,
         ):
-            deck_id = _resolve_deck(db, ref)
+            deck_id = _resolve_deck(db, user_id, ref)
             code = catalog.normalize_language_code(language_code)
-            decks.remove_card(db, deck_id, card_id, code, card_set_id)
+            decks.remove_card(db, user_id, deck_id, card_id, code, card_set_id)
             return Touched(
                 SyncResourceKind.DECK_CARD,
                 deck_id=deck_id,
@@ -246,7 +257,7 @@ def _execute(db: Session, operation: AnySyncOperation) -> Touched:
             )
 
         case BundleDepositOperation(bundle_id=bundle_id, data=data):
-            stock.deposit_bundle(db, bundle_id, data)
+            stock.deposit_bundle(db, user_id, bundle_id, data)
             return Touched(
                 SyncResourceKind.BUNDLE,
                 bundle_id=bundle_id,
@@ -322,6 +333,7 @@ def _mismatch(operation: AnySyncOperation) -> SyncOperationResult:
 
 def _process(
     db: Session,
+    user_id: int,
     operation: AnySyncOperation,
     known: SyncOperation | None,
     body_hash: str,
@@ -333,6 +345,7 @@ def _process(
         return _result(known, SyncOutcome.REPLAYED)
 
     entry = SyncOperation(
+        user_id=user_id,
         operation_id=str(operation.operation_id),
         batch_id=batch_id,
         operation_type=SyncOperationType(operation.type),
@@ -346,7 +359,7 @@ def _process(
         ),
     )
     try:
-        touched = _execute(db, operation)
+        touched = _execute(db, user_id, operation)
     except (DomainError, UnresolvedClientRef) as error:
         # Le service a pu écrire avant de refuser : on revient au point de
         # sauvegarde de cette opération, rien de partiel ne reste.
@@ -371,12 +384,18 @@ def _process(
     return result
 
 
-def apply_batch(engine: Engine, request: SyncRequest) -> SyncResult:
+def apply_batch(engine: Engine, request: SyncRequest, user_id: int) -> SyncResult:
     """Applique un lot d'opérations sous verrou d'écriture, dans l'ordre reçu.
 
     Prend le moteur et non une session : la transaction est ouverte ici, à la
     main (cf. `app.db.locking`), et une session ordinaire ne peut pas la
     partager.
+
+    `user_id` est le compte de la session qui a envoyé le lot (résolu et
+    vérifié par le routeur, une fois, avant l'appel) : l'idempotence et les
+    références client sont filtrées par ce compte (Lot 6, §11) — une clé ou
+    une référence prise par un autre compte est traitée comme neuve, jamais
+    comme un rejeu ni comme un conflit qui le révélerait.
 
     `WriteLockTimeout` (`app.db.locking`) si une autre écriture tient la base
     au-delà du délai d'attente du pilote : rien n'a été fait, le lot peut être
@@ -390,11 +409,14 @@ def apply_batch(engine: Engine, request: SyncRequest) -> SyncResult:
         journal = {
             entry.operation_id: entry
             for entry in db.scalars(
-                select(SyncOperation).where(SyncOperation.operation_id.in_(keys))
+                select(SyncOperation).where(
+                    SyncOperation.user_id == user_id,
+                    SyncOperation.operation_id.in_(keys),
+                )
             )
         }
         results = [
-            _process(db, operation, journal.get(key), body_hash, batch_id)
+            _process(db, user_id, operation, journal.get(key), body_hash, batch_id)
             for operation, key, body_hash in zip(
                 request.operations, keys, hashes, strict=True
             )

@@ -24,9 +24,16 @@ import pytest
 from app.models import CardCategory
 from app.schemas.sync import MAX_SYNC_OPERATIONS
 from app.services import sync
-from tests.helpers import add_languages, make_card, make_copy
+from tests.helpers import add_languages, login_default_account, make_card, make_copy
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ces tests mesurent le coût d'un
+    lot, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def op(type_: str, **fields) -> dict:

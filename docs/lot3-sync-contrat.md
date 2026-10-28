@@ -396,3 +396,77 @@ que l'upsert ajoute d'exemplaires réels à la ligne (`invalid` au-delà) ; le
 journal empêche de le rejouer, la borne empêche de compter deux fois une saisie
 mise en file sous deux clés. Détail et cas de test :
 `docs/lot4b-acquisition-depuis-deck.md`.
+
+## Lot 6 : un journal par compte
+
+Le Lot 6 met un propriétaire sur chaque donnée privée
+(`docs/lot6-plan-comptes.md`). Pour `/sync`, les huit types d'opérations et
+leurs charges utiles ne changent pas, et aucun corps ne porte de `user_id` :
+le compte vient de la session, jamais du client. Un `user_id` glissé dans une
+opération est un champ inconnu, donc un 422 comme les autres.
+
+**Session.** La route exige une session (cookie, schéma de sécurité
+`sessionCookie` du contrat). Elle est vérifiée **une fois**, avant de prendre
+le verrou d'écriture ; une session qui expire pendant le lot ne l'interrompt
+pas. Un 401 a le sens d'un 503 : **rien n'a été appliqué ni journalisé**, et le
+lot se renvoie à l'identique après reconnexion, mêmes clés et mêmes corps. Le
+client ne doit ni bissecter sur un 401 (il ne dit rien d'une opération en
+particulier), ni marquer d'opération refusée, ni purger : c'est une pause.
+S'y ajoute le 403 du contrôle d'`Origin` des écritures, commun à toutes les
+méthodes d'écriture du contrat ; lui non plus ne tranche rien.
+
+**Idempotence par compte.** La clé d'idempotence devient (`user_id`,
+`operation_id`) : contrainte `uq_sync_operation_user_id_operation_id`, et la
+recherche des clés déjà tranchées filtre sur le compte de la session. Une
+`operation_id` déjà employée par un autre compte est **neuve** pour celui-ci :
+
+- pas de `replayed`, qui rendrait le verdict d'un autre compte ;
+- pas de `mismatched_replay`, qui révélerait que la clé existe ailleurs.
+
+`mismatched_replay` ne se produit donc qu'à l'intérieur d'un même compte. Une
+clé tirée en UUID v4 ne devrait jamais se retrouver dans deux comptes ; la
+règle ferme la fuite pour le cas où un client la réutiliserait quand même.
+
+**Références client par compte.** La résolution `client_ref` → `deck_id` et
+l'unicité des créations appliquées filtrent sur le compte (index partiel
+`ux_sync_operation_client_ref` sur (`user_id`, `client_ref`), même condition
+`client_ref IS NOT NULL AND status = 'applied'`). Une `client_ref` prise par un
+autre compte se comporte **exactement** comme une référence inconnue : même
+code (`unresolved_client_ref`, le refus du Lot 3 pour une référence absente du
+journal), même message. Le compte courant peut créer un deck sous cette même
+référence, sans conflit.
+
+**Decks d'un autre compte.** Toute opération qui désigne un deck par
+`deck_id` (`deck.update`, `deck.delete`, `deck_card.upsert`,
+`deck_card.delete`) rend `not_found` pour un deck d'un autre compte, avec le
+message d'un deck inexistant. Rien ne distingue « n'existe pas » de
+« appartient à un autre ».
+
+**Invariants, reformulés par compte.** La politique de conflit ne change pas
+(« la file fait foi, les invariants font loi »), mais les invariants sont
+désormais ceux du compte :
+
+- la comptabilité du stock compare les exemplaires réels alloués par les decks
+  vivants **du compte** à `quantity_owned` de son entrée ; les decks d'un autre
+  compte n'entrent jamais dans la somme ni dans le message d'un `conflict` ;
+- une ligne de deck qui consomme un exemplaire réel exige une entrée de
+  collection **du même compte** ;
+- le discriminant d'un deck est unique parmi les decks du compte (D2) : deux
+  comptes peuvent avoir chacun leur « Banu Princes#1234 », et l'épuisement des
+  9999 discriminants d'un nom ne compte que les decks du compte ;
+- `bundle.deposit` verse le produit (partagé) dans la collection du compte.
+
+**Journal converti, pas vidé.** La révision `89695b77ef45` rattache les lignes
+existantes de `sync_operation` au compte historique (`1`). Une opération déjà
+tranchée qui attend encore dans une file reste un rejeu après la migration, à
+condition que la file soit renvoyée sous ce compte : c'est pourquoi le client
+n'envoie jamais la file d'un compte sous la session d'un autre (une base
+IndexedDB par compte, adoption explicite de la base d'avant le Lot 6 ; cf.
+étape C du brief). Le journal garde sa règle « aucune clé étrangère » :
+`user_id` y est un identifiant, pas une relation.
+
+**Verrou.** `serialized_writes` reste global à la base : le lot d'un compte fait
+attendre celui d'un autre, au pire jusqu'au 503 + `Retry-After`. Limite
+acceptée pour le pilote ; un portage Postgres pourrait verrouiller par compte
+(`pg_advisory_xact_lock(user_id)`), les invariants étant désormais tous par
+compte.

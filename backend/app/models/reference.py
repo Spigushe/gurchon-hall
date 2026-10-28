@@ -172,11 +172,25 @@ class Bundle(Base):
 
 
 class Venue(Base):
-    """Lieu de jeu (club, boutique, convention…) — le `Lieu` du §6."""
+    """Lieu de jeu (club, boutique, convention…) — le `Lieu` du §6.
+
+    **Propre à un compte** (Lot 6, P5), bien qu'il vive parmi les tables de
+    référence : « mon club » est une saisie de l'utilisateur, pas une donnée
+    publique. Partagé, il ferait de l'unicité du nom un oracle et laisserait un
+    compte renommer le lieu des autres. Deux comptes peuvent donc avoir chacun
+    leur « Le Bar à Dés », sans conséquence : rien ne compare les parties de
+    deux comptes.
+    """
 
     __tablename__ = "venue"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name"),
+        # Cible des clés composites de `tournament` et `game`.
+        UniqueConstraint("id", "user_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
+    name: Mapped[str] = mapped_column(String(120))
     city: Mapped[str | None] = mapped_column(String(80))
     notes: Mapped[str | None] = mapped_column(Text())

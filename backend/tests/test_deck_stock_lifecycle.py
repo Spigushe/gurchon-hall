@@ -14,9 +14,23 @@ from sqlalchemy.orm import Session
 
 from app.models import CardCopy, Deck, DeckCard, DeletedDeckCard
 from app.services import stock
-from tests.helpers import add_languages, make_card, make_copy, make_deck
+from tests.helpers import (
+    add_languages,
+    default_user_id,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+)
 
 MAX_INT = 2**31 - 1
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ce module teste la comptabilité
+    du stock sur le cycle de vie d'un deck, pas l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def add_line(
@@ -66,9 +80,10 @@ def delete_deck(api, deck_id):
 def free(db, card, language="EN", *, card_set_id):
     """Exemplaires réels encore disponibles pour l'entrée (carte, langue, extension)."""
     db.rollback()  # fin de la transaction courante : on relit la base
-    copy = db.get(CardCopy, (card.id, language, card_set_id))
+    user_id = default_user_id(db)
+    copy = db.get(CardCopy, (user_id, card.id, language, card_set_id))
     return copy.quantity_owned - stock.allocated_real(
-        db, card.id, language, card_set_id
+        db, user_id, card.id, language, card_set_id
     )
 
 
@@ -179,8 +194,8 @@ def test_stock_accounting_holds_through_the_whole_deck_lifecycle(api, db):
     en_free = free(db, card, "EN", card_set_id=en_set)
     fr_free = free(db, card, "FR", card_set_id=fr_set)
     assert (en_free, fr_free) == (3, 1)
-    assert stock.proxies_allocated(db, card.id, "EN", en_set) == 0
-    assert stock.proxies_allocated(db, card.id, "FR", fr_set) == 0
+    assert stock.proxies_allocated(db, default_user_id(db), card.id, "EN", en_set) == 0
+    assert stock.proxies_allocated(db, default_user_id(db), card.id, "FR", fr_set) == 0
     assert_stock_invariant(db)
 
     # `quantity_owned` est réutilisable en entier par un autre deck.

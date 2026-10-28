@@ -30,10 +30,25 @@ from app.main import app
 from app.models import CardCategory, CardCopy, DeckCard
 from app.schemas.collection import CardCopyCreate
 from app.services import decks, stock
-from tests.helpers import make_card, make_copy, make_deck, make_printing
+from tests.auth_helpers import DEFAULT_PASSWORD, log_in
+from tests.helpers import (
+    DEFAULT_ACCOUNT_EMAIL,
+    login_default_account,
+    make_card,
+    make_copy,
+    make_deck,
+    make_printing,
+)
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
 RACE_WINDOW = 0.05  # secondes entre le contrôle et l'écriture
+
+
+@pytest.fixture
+def api(api, db):
+    """`api` authentifié par défaut (Lot 6) : ces tests de concurrence portent
+    sur le verrou d'écriture, pas sur l'authentification elle-même."""
+    return login_default_account(api, db)
 
 
 def op(type_: str, **fields) -> dict:
@@ -117,7 +132,9 @@ def test_concurrent_batches_cannot_oversubscribe_a_stock_entry(
     assert all("insuffisants" in r["error"]["message"] for r in refused)
 
     db.expire_all()
-    assert stock.allocated_real(db, card_id, "EN", card_set_id) == 3  # jamais 4-6
+    assert (
+        stock.allocated_real(db, world.user_id, card_id, "EN", card_set_id) == 3
+    )  # jamais 4-6
     assert db.scalar(select(func.count()).select_from(DeckCard)) == 3 + 1  # + `world`
 
 
@@ -193,7 +210,7 @@ def test_concurrent_lowering_of_the_stock_cannot_undercut_an_allocation(
         select(CardCopy.quantity_owned).where(CardCopy.card_id == card.id)
     )
     # Selon l'ordre d'arrivée, l'un des deux est refusé : jamais les deux appliqués.
-    assert stock.allocated_real(db, card.id, "EN", card_set_id) <= owned
+    assert stock.allocated_real(db, world.user_id, card.id, "EN", card_set_id) <= owned
 
 
 # --------------------------------------------------------------------------
@@ -215,6 +232,7 @@ def test_the_lock_survives_the_commits_of_the_services(db_engine, db, world):
     with serialized_writes(db_engine) as session:
         stock.create_copy(
             session,
+            world.user_id,
             CardCopyCreate(
                 card_id=card.id,
                 language_code="EN",
@@ -250,6 +268,7 @@ def test_an_exception_in_the_block_undoes_everything_and_releases_the_lock(
         with serialized_writes(db_engine) as session:
             stock.create_copy(
                 session,
+                world.user_id,
                 CardCopyCreate(
                     card_id=card.id,
                     language_code="EN",
@@ -280,6 +299,7 @@ def test_a_service_rollback_only_undoes_its_own_operation(db_engine, db, world):
     with serialized_writes(db_engine) as session:
         stock.create_copy(
             session,
+            world.user_id,
             CardCopyCreate(
                 card_id=kept.id,
                 language_code="EN",
@@ -288,6 +308,7 @@ def test_a_service_rollback_only_undoes_its_own_operation(db_engine, db, world):
         )
         session.add(
             CardCopy(
+                user_id=world.user_id,
                 card_id=kept.id,
                 language_code="FR",
                 card_set_id=printing.card_set_id,
@@ -342,6 +363,7 @@ def test_a_batch_that_cannot_get_the_lock_answers_503_and_writes_nothing(
     }
     try:
         with TestClient(app) as client:
+            log_in(client, DEFAULT_ACCOUNT_EMAIL, DEFAULT_PASSWORD)
             with serialized_writes(db_engine):  # une autre écriture est en cours
                 blocked = client.post("/sync", json=batch)
             assert blocked.status_code == 503
