@@ -1,24 +1,20 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "./index.css";
+import { AuthGate } from "./features/auth/AuthGate.tsx";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
-import { VtesOfflineProvider } from "./offline/vtes/VtesOfflineProvider";
-import { createVtesOffline } from "./offline/vtes/runtime";
 
-// Couche offline (Lot 3) : base IndexedDB, file d'écritures et rejeu vers
-// `POST /sync`. Créée une fois ; le provider démarre le moteur (reprise de la
-// file au lancement, écoute de `online`) et l'arrête au démontage. Rien ici
-// n'attend le réseau : le premier rendu ne dépend ni de la file ni de l'API.
-const offline = createVtesOffline();
-
+// Couche offline (Lot 3) et comptes (Lot 6) : `AuthGate` décide, avant tout,
+// s'il existe un compte connu sur cet appareil, ouvre le runtime offline (base
+// IndexedDB, file d'écritures, rejeu vers `POST /sync`) du bon compte le cas
+// échéant, et affiche le mur de connexion sinon. Rien ici n'attend le réseau :
+// le premier rendu ne dépend ni de la file ni de l'API (`docs/lot6-plan-comptes.md`,
+// § P3).
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <VtesOfflineProvider runtime={offline}>
-      <App />
-    </VtesOfflineProvider>
+    <AuthGate />
   </StrictMode>,
 );
 

@@ -6,6 +6,13 @@ export interface CatalogState {
   /** `loading` : téléchargement en cours ; `error` : le dernier essai a échoué. */
   status: "idle" | "loading" | "error";
   error: string | null;
+  /**
+   * Lot 6 : le dernier essai a rendu 401 (`RefreshReport.authRequired`), pas
+   * une panne ordinaire. `status` reste `"idle"` dans ce cas (rien à afficher
+   * comme une erreur alarmante) ; c'est ce drapeau qui dit à `CatalogPanel`
+   * de proposer une reconnexion plutôt qu'un nouvel essai muet.
+   */
+  authRequired: boolean;
   /** Télécharge le catalogue complet (en ligne seulement). */
   update: () => Promise<void>;
 }

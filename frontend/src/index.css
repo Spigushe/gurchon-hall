@@ -2542,3 +2542,63 @@ fieldset:disabled .chip {
     gap: 16px;
   }
 }
+
+/*
+ * — Lot 6 (comptes) —
+ * Mur de connexion (`AuthScreen`), compte courant (`AccountMenu`) et bandeaux
+ * flottants (`LegacyAdoptionBanner`, panneau `ReconnectSheet` via `.sheet`
+ * déjà stylé plus haut). Une seule mise en page pour les deux largeurs : sous
+ * 1024px la carte occupe toute la largeur disponible (comme `.page`),
+ * au-delà elle se centre et se borne (handoff bureau, même principe que
+ * `.page-max-width-desktop` pour le contenu courant).
+ */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--page-padding);
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-screen__tabs {
+  margin-bottom: var(--space-2);
+}
+
+/* Compte courant + déconnexion, dans `.shell-bar` (visible aux deux largeurs). */
+.account-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.account-menu__name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  color: var(--color-text);
+}
+
+/* Bandeau flottant (adoption de la base d'avant les comptes) : visible sans
+   dépendre d'où `AuthGate` le monte dans l'arbre (hors du flux de `.page`). */
+.floating-banner {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-6);
+  transform: translateX(-50%);
+  width: min(480px, calc(100% - 32px));
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-md);
+  z-index: 80;
+}

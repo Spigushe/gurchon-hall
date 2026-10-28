@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useConnectivity } from "../../offline/react";
 import { plural } from "../../labels";
+import { ReconnectSheet } from "../auth/ReconnectSheet";
 import { useCatalog } from "./catalogContext";
 
 /**
@@ -12,10 +14,24 @@ import { useCatalog } from "./catalogContext";
  * complet avec le même contenu, plus visible.
  */
 export function CatalogPanel({ compact = false }: { compact?: boolean }) {
-  const { count, status, error, update } = useCatalog();
+  const { count, status, error, authRequired, update } = useCatalog();
   const online = useConnectivity();
   const missing = count === 0;
   const loading = status === "loading";
+  const [reconnecting, setReconnecting] = useState(false);
+
+  // Lot 6 : un 401 pendant le rafraîchissement n'est pas une panne à afficher
+  // en rouge (`status` reste `"idle"`, `CatalogProvider`) — une invite à se
+  // reconnecter, avec le même formulaire que le bandeau global.
+  const authHint = authRequired && (
+    <p className="hint" data-testid="catalog-auth-required">
+      Reconnexion nécessaire pour mettre à jour le catalogue.{" "}
+      <button type="button" className="btn-text" onClick={() => setReconnecting(true)} data-testid="catalog-reconnect">
+        Se reconnecter →
+      </button>
+      {reconnecting && <ReconnectSheet onClose={() => setReconnecting(false)} />}
+    </p>
+  );
 
   const stateText =
     count === undefined
@@ -67,6 +83,7 @@ export function CatalogPanel({ compact = false }: { compact?: boolean }) {
             Téléchargement impossible : {error}
           </p>
         )}
+        {authHint}
       </div>
     );
   }
@@ -90,6 +107,7 @@ export function CatalogPanel({ compact = false }: { compact?: boolean }) {
           Téléchargement impossible : {error}
         </p>
       )}
+      {authHint}
       <button
         type="button"
         className="btn btn-secondary"
