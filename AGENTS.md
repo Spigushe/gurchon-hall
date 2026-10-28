@@ -15,8 +15,10 @@ This repository is the VtES tracking app and PWA pilot described in [CLAUDE.md](
 - .claude/agents/ — specialized agent definitions for orchestration, backend, frontend, PWA, QA, and deployment.
 - .claude/skills/ — reusable operational playbooks for the project.
 - backend/ — FastAPI app, SQLAlchemy models, Alembic migrations, and pytest tests.
-- frontend/ — React + TypeScript + Vite app and PWA assets.
+- frontend/ — React + TypeScript + Vite app, PWA assets, the reusable offline package (`src/offline/`), and vitest/Playwright tests.
 - contracts/ — generated OpenAPI contract used as the shared API source of truth.
+- docs/ — per-lot plans and briefs, design handoffs, incident notes, and the deployment note.
+- scripts/ — single tooling entry point (`run.ps1` / `run.sh` with `install`, `test`, `build`, `dev`) and the PWA installability check.
 
 ## Working conventions
 
@@ -24,7 +26,8 @@ This repository is the VtES tracking app and PWA pilot described in [CLAUDE.md](
 - Respect the contract-first rule: design or update schemas before backend/frontend implementation.
 - Keep the PWA work grounded in real installability checks and offline/sync behavior rather than a generic "works in dev" assumption.
 - Do not treat VtES rules labeled as [à confirmer] as established facts; they need explicit verification before turning into hard logic.
-- Keep the monorepo layout and task ordering aligned with the roadmap in [CLAUDE.md](CLAUDE.md): Lot 0 skeleton and PWA basics first, then contract/model work, then CRUD, offline sync, and gameplay features.
+- Keep the monorepo layout and task ordering aligned with the roadmap in [CLAUDE.md](CLAUDE.md) §12. Lots 0 to 6 are delivered (skeleton and PWA, contract and model, CRUD, offline sync, inventory by printing, mobile and desktop design, accounts); games and tournaments (Lot 7) come next.
+- Since Lot 6, every private resource belongs to an account: new routes take the current user from the session, scope every query by it, and answer 404 (never 403) for another account's resource.
 
 ## When modifying code
 

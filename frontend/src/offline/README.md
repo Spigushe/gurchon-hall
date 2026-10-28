@@ -399,8 +399,9 @@ ne fait jamais disparaître de données sans qu'on le lui demande explicitement.
 
 ### Pour Barrin
 
-Ce qui doit en sortir réutilisable (voir aussi CLAUDE.md § 11, Lot 6, paragraphe
-« Barrin ») : la pause sur 401 dans `core/syncEngine.ts` (générique, sans notion de
+Ce qui doit en sortir réutilisable (voir aussi CLAUDE.md § 11, Lot 6, points
+« Côté client, une base IndexedDB par compte », « 401 = pause du moteur de sync » et
+« Déconnexion : avertir, puis purger sur confirmation ») : la pause sur 401 dans `core/syncEngine.ts` (générique, sans notion de
 compte) ; `dbNameForAccount`/l'option `dbName` pour une base par compte ; la règle
 « déconnexion en ligne seulement » (`purge()` après la réponse serveur, jamais avant) ;
 `adoptLegacyDatabase` comme modèle pour migrer une file mono-utilisateur existante vers
@@ -539,7 +540,8 @@ dédié ou un routeur à hash.
   pour la plupart des textes ; il partage la limite connue du back (majuscules avant
   minuscules, accents en fin).
 - Lot 6 : la mécanique (pause, base par compte, adoption, purge) est testée ici au
-  niveau du paquet ; `features/auth/` (étape D, hors de ce paquet) consomme déjà
+  niveau du paquet. `features/auth/`, hors de ce paquet, consomme
   `SyncStatus.authRequired` et `RefreshReport.authRequired` pour le mur et le bandeau de
-  reconnexion (« Multi-compte et pause d'authentification »), mais sa propre revue et ses
-  propres tests relèvent de l'étape D, pas de celle-ci.
+  reconnexion (« Multi-compte et pause d'authentification ») ; il a ses propres tests
+  (`frontend/tests/unit/features/auth/`) et trois scénarios de bout en bout contre le
+  vrai back (`frontend/tests/e2e-real/lot6-comptes.spec.ts`).

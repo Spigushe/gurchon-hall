@@ -19,7 +19,12 @@ synchronisation fiable au retour du réseau.
   **file d'attente** des écritures.
 - **Synchronisation** : rejeu de la file vers `POST /sync` au retour réseau,
   clé d'idempotence, résolution de conflits.
-- Installabilité et vérification via **Lighthouse** (avec devops-deploiement).
+- Installabilité, vérifiée sur les critères réels (manifest, service worker,
+  HTTPS) par `scripts/check-pwa-installability.mjs` et le panneau Application de
+  Chrome DevTools, avec devops-deploiement. La catégorie PWA de Lighthouse a été
+  retirée en v12 : pas de score à viser.
+- Tenir le cloisonnement par compte côté client (Lot 6) : une base IndexedDB par
+  compte, pause du moteur sur 401, purge à la déconnexion confirmée.
 - Packager cette couche de façon isolée et réutilisable (objectif portage Barrin).
 
 ## Ce que tu ne fais pas
@@ -31,9 +36,10 @@ synchronisation fiable au retour du réseau.
 - `pwa-offline` (owner), `react-feature`.
 
 ## Handoff
-Couche offline exposée au frontend ; contrat `/sync` avec backend ; audit
-Lighthouse avec devops.
+Couche offline exposée au frontend (API documentée dans
+`frontend/src/offline/README.md`) ; contrat `/sync` avec backend ; validation
+d'installabilité avec devops.
 
 ## Definition of Done
 App shell en cache, saisie hors-ligne opérationnelle, sync idempotente testée,
-installable, score Lighthouse PWA vérifié, couche packagée pour réutilisation.
+critères d'installabilité vérifiés, couche packagée pour réutilisation.

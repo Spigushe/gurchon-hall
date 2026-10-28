@@ -14,8 +14,12 @@ persistance SQLAlchemy, validation Pydantic, endpoint de synchronisation `POST
 /sync` (idempotent).
 
 ## Ce que tu fais
-- Implémenter les ressources de §7 (`/cartes`, `/stock`, `/decks`, `/parties`,
-  `/tournois`, `/participations`, `/sync`).
+- Implémenter les ressources de §7. Livrées : `/cartes`, `/extensions`,
+  `/bundles`, `/langues`, `/stock`, `/decks`, `/sync` et les routes de compte ;
+  à venir au Lot 7 : `/joueurs`, `/tournois`, `/parties`, `/participations`.
+- Scoper toute route privée par compte (Lot 6) : injecter `CurrentUser`
+  (`app/routers/common.py`), passer `user.id` au service, rendre 404 pour la
+  ressource d'un autre compte avec le même message qu'un identifiant inconnu.
 - Appliquer les règles VtES via les services de validation de l'architecte
   (ne pas les redéfinir).
 - Gérer l'idempotence de `/sync` (clé d'idempotence côté client).

@@ -5,8 +5,8 @@
 > toute intervention.
 
 **État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (Lot 5 en attente de la
-vérification manuelle PWA, Lot 6 en attente de la réclamation du compte historique par
-l'utilisateur, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
+vérification manuelle PWA ; Lot 6 sur la branche `lot-6-comptes`, pas encore fusionné
+dans `main`, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
 React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -65,13 +65,17 @@ après un essai sur une copie ; la sauvegarde d'avant migration est conservée d
 `backend/vtes.db.pre-lot6-20261002-201755.bak`. Elle contient la vraie collection de
 l'utilisateur : 28 entrées de stock, le deck « Banu Princes » et ses 20 lignes, 58
 opérations au journal de sync, toutes au compte historique (`user_account.id = 1`,
-rôle `admin`, adresse provisoire `compte-historique@gurchon-hall.invalid`, mot de passe
-inutilisable). Les disponibilités du stock ont été comparées ligne à ligne avant et
-après : identiques. **Ce compte n'est pas encore réclamé** : avant d'ouvrir
-l'application, l'utilisateur doit lancer lui-même, depuis `backend/`,
+rôle `admin`). Les disponibilités du stock ont été comparées ligne à ligne avant et
+après : identiques. Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
+(`manage_accounts.py claim-legacy`) : il porte désormais une vraie adresse, un nom et
+un mot de passe, à la place de l'adresse provisoire
+`compte-historique@gurchon-hall.invalid` et du mot de passe inutilisable posés par la
+migration. Sur toute autre base migrée à la tête, la réclamation reste à faire avant
+d'ouvrir l'application, depuis `backend/` :
 `uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>`
-(les deux options sont obligatoires ; saisie interactive du mot de passe), sans quoi personne ne peut se connecter pour accéder à ces données ni rejouer
-les files des appareils existants (elles attendent sans dommage). Une base plus ancienne
+(les deux options sont obligatoires ; saisie interactive du mot de passe), sans quoi
+personne ne peut se connecter pour accéder à ces données ni rejouer les files des
+appareils existants (elles attendent sans dommage). Une base plus ancienne
 se remet à niveau par ce même `upgrade head` ; une base repartie de zéro se reconstruit
 par `upgrade head` suivi de `uv run python scripts/import_catalog.py`.
 
@@ -125,7 +129,7 @@ plus fiable.
 | PWA | **vite-plugin-pwa** (Workbox) | manifest + service worker |
 | Stockage client | **IndexedDB** (via Dexie) | données locales + file d'attente offline |
 | Back | **FastAPI + Pydantic v2** | contrat OpenAPI généré |
-| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | pilote mono-utilisateur aujourd'hui ; modèle multi-utilisateur à prévoir ; migration Postgres possible plus tard |
+| ORM / DB | **SQLAlchemy 2.0 + Alembic + SQLite** | multi-utilisateur depuis le Lot 6 (un propriétaire sur chaque donnée privée) ; migration Postgres possible plus tard |
 | Client API | **client TS typé généré** depuis l'OpenAPI | contract-first, pas de types réécrits à la main |
 
 > Versions précises à figer au démarrage (lockfiles). Ne pas épingler ici des
@@ -171,8 +175,10 @@ code offline est packagé de façon réutilisable pour Barrin.
 │  ├─ src/ (features, components, api-client généré, offline/)
 │  └─ tests/
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
-├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md) et handoffs de
-│                               design (ex. design-handoff/, Lot 5 et 5bis)
+├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md), handoffs de
+│                               design (design-handoff/, Lot 5 et 5bis), fiches
+│                               d'incident (issues/), références QA (qa-baselines/)
+│                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ .github/                   ← workflow CI + Dependabot
@@ -374,7 +380,7 @@ Livré aux Lots 2 à 6 (chemins en français, `operationId` en anglais camelCase
 | `PATCH /decks/{id}` | modification partielle, `proxy_allowed` compris (409 s'il est retiré à un deck qui joue des proxies), et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
-| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck, chaque ligne allouée depuis une entrée de stock précise |
+| `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck ; une ligne qui consomme au moins un exemplaire réel est allouée depuis l'entrée de stock du même triplet, une ligne entièrement en proxy n'en exige aucune (`f3a91c47b2de`) |
 | `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
@@ -467,8 +473,8 @@ Total : 1 chef d'orchestre + 6 agents spécialisés.
 
 ## 9. Skills fondamentales
 
-Skills = modules `SKILL.md` réutilisables dans `.claude/skills/`. À **créer** pour
-le projet (sauf `ecriture-naturelle`, déjà existante côté utilisateur). Chaque
+Skills = modules `SKILL.md` réutilisables dans `.claude/skills/`, tous créés dans le
+dépôt (sauf `ecriture-naturelle`, qui existe côté utilisateur et non dans le dépôt). Chaque
 skill a un **agent propriétaire** (owner) et des **agents consommateurs**.
 
 | Skill | Rôle | Owner | Consommateurs |
@@ -913,7 +919,9 @@ Limites connues à la clôture du Lot 5 :
   vérifier à la main, comme au Lot 0.
 - **La suite Playwright tourne en `Desktop Chrome` (1280 × 720)**, alors que l'UI livrée
   est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
-  fixe une largeur mobile explicite avant d'en poser un.
+  fixe une largeur mobile explicite avant d'en poser un. *Soldé au Lot 5bis* : les
+  projets mobiles tournent à 390 × 844, les projets bureau à 1440 × 900
+  (`frontend/playwright.config.ts`).
 
 Tranchées à l'ouverture du Lot 5bis (2026-09-29), avant toute implémentation :
 
@@ -1153,8 +1161,8 @@ points d'interprétation dans `docs/lot6-plan-comptes.md`, qui fait foi pour le 
   contredit pas la décision du 2026-10-01 de ne pas purger la file à la suppression
   d'un deck.
 - **Ordre de mise en service** : migrer, puis réclamer le compte historique, **avant**
-  d'ouvrir l'application. Migration faite le 2026-10-02 sur `backend/vtes.db`,
-  réclamation encore à faire par l'utilisateur (en-tête de ce fichier).
+  d'ouvrir l'application. Migration et réclamation faites le 2026-10-02 sur
+  `backend/vtes.db` (en-tête de ce fichier).
 
 Limites connues à la clôture du Lot 6 :
 
@@ -1205,8 +1213,8 @@ Limites connues à la clôture du Lot 6 :
    depuis le Lot 2), migration initiale, schémas Pydantic, chaîne de génération du client
    TS. Aucune route ajoutée :
    le contrat reste limité à `/health`. CI (`astral-sh/setup-uv`, ruff, ESLint, tests)
-   vérifiée verte au premier push. Reste à confirmer : le premier run réel de
-   Dependabot en mode `uv` (onglet Dependabot du dépôt).
+   vérifiée verte au premier push. Dependabot en mode `uv` est confirmé : il ouvre des
+   PR sur `backend/uv.lock` (branches `dependabot/uv/backend/…`).
 3. **Lot 2 — CRUD** — *livré, passes 1 et 2 (back et contrat, sans UI).* Import du
    catalogue krcg (rejouable, cf. §11.1), stock par langue, decks + composition, versement
    d'un bundle dans le stock ; en passe 2, légalité de deck complète (les cinq règles du
@@ -1279,8 +1287,8 @@ Limites connues à la clôture du Lot 6 :
    dont la numérotation ne bouge pas. Dans les faits, le Lot 6 est passé avant Chercher
    (D0 de `docs/lot6-plan-comptes.md`, §11) ; Chercher reste reporté, et sa place par
    rapport aux Lots 7 à 11 reste à confirmer avec l'utilisateur.
-7. **Lot 6 — Comptes et multi-utilisateur** — *livré, en attente de la réclamation du
-   compte historique.* Le pilote sort du mono-utilisateur : comptes (inscription
+7. **Lot 6 — Comptes et multi-utilisateur** — *livré, sur la branche `lot-6-comptes`,
+   pas encore fusionné dans `main`.* Le pilote sort du mono-utilisateur : comptes (inscription
    ouverte, connexion, déconnexion, `GET /moi`), session serveur de 14 jours fixes dans
    un cookie `HttpOnly` (empreinte seule en base), hachage Argon2id et limitation de
    débit alignés sur Barrin, rôle `user`/`admin` réservant `POST /langues`. Deux
@@ -1303,11 +1311,8 @@ Limites connues à la clôture du Lot 6 :
    appliquée le 2026-10-02 sur `backend/vtes.db` après un essai sur copie : 28 entrées
    de stock, 1 deck, 20 lignes de composition et 58 opérations de journal rattachées au
    compte `1`, disponibilités du stock identiques avant et après, sauvegarde dans
-   `backend/vtes.db.pre-lot6-20261002-201755.bak`. **Reste à faire par l'utilisateur**,
-   avant d'ouvrir l'application :
-   `uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>`
-   depuis `backend/` (mot de passe saisi au clavier), qui pose sa vraie adresse, son nom
-   et son mot de passe sur le compte historique.
+   `backend/vtes.db.pre-lot6-20261002-201755.bak`. Compte historique réclamé par
+   l'utilisateur le même jour (`manage_accounts.py claim-legacy`).
 8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
 9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
 10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB

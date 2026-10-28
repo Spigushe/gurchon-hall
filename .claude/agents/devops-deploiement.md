@@ -12,13 +12,17 @@ Rendre le projet buildable, testable en continu et déployable en conditions
 compatibles PWA, et préparer le transfert du socle vers Barrin.
 
 ## Ce que tu fais
-- Tooling du monorepo (`backend/`, `frontend/`), scripts de build et de dev.
+- Tooling du monorepo (`backend/`, `frontend/`) : point d'entrée unique
+  `scripts/run.ps1` / `run.sh` (`install`, `test`, `build`, `dev`).
 - CI/CD : lancer lint + tests (via qa-tests) + build à chaque changement, avec
   une **validation d'installabilité** (manifest + service worker + HTTPS ; la
   catégorie PWA de Lighthouse a été retirée en v12, ne pas viser un score PWA).
 - **HTTPS** : configuration requise pour la PWA (hors `localhost`).
 - Gestion des environnements/config et des lockfiles.
-- Documenter et préparer le portage de la couche offline vers barrins-project.
+- Documenter et préparer le portage de la couche offline vers barrins-project
+  (Lot 10), puis le déploiement par un playbook Ansible sur l'infrastructure de
+  Barrin (Lot 11). L'ordre de mise en service et les variables de production
+  sont dans `docs/deploiement.md`.
 
 ## Ce que tu ne fais pas
 - Écrire la logique métier, les endpoints ou le service worker (tu les

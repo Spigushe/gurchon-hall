@@ -4,9 +4,9 @@ Suivi de pratique *Vampire: The Eternal Struggle* (collection, decks, parties,
 tournois), développé comme pilote pour dérisquer une PWA offline-first avant
 de porter l'approche sur barrins-project.
 
-Stack prévue : React + TypeScript (Vite) côté front, FastAPI + SQLAlchemy +
-SQLite côté back, contrat OpenAPI partagé entre les deux, IndexedDB (Dexie)
-pour le stockage hors-ligne.
+Stack : React + TypeScript (Vite) côté front, FastAPI + SQLAlchemy + SQLite
+côté back, contrat OpenAPI partagé entre les deux, IndexedDB (Dexie) pour le
+stockage hors-ligne.
 
 Le détail complet — objectifs, modèle de données, contrat d'API, agents et
 skills Claude Code, roadmap — est dans [CLAUDE.md](CLAUDE.md). Les conventions
@@ -14,16 +14,25 @@ de travail pour les agents sont dans [AGENTS.md](AGENTS.md).
 
 ## État actuel
 
-Lot 0 en cours de finalisation (voir CLAUDE.md §12) : backend FastAPI minimal
-(`GET /health`, contrat OpenAPI exporté), frontend React + Vite avec manifest
-et service worker (PWA) en place, contrat d'API versionné dans `contracts/`.
-Le tooling de build/test/CI et la validation d'installabilité décrits
-ci-dessous font partie de cette finalisation.
+Lots 0 à 6 livrés (détail et restes à vérifier dans CLAUDE.md §12) :
+
+- catalogue krcg importé, collection comptée par carte × langue × extension,
+  decks avec légalité, archivage et proxies ;
+- PWA offline-first : app shell en cache, saisie hors ligne dans IndexedDB,
+  file d'opérations rejouée vers `POST /sync` au retour du réseau ;
+- UI mobile et bureau (design system Nocturne) ;
+- comptes (inscription, connexion, session dans un cookie `HttpOnly`) et
+  cloisonnement des données par compte.
+
+Les parties et tournois (Lot 7) ne sont pas encore commencés. La validation
+manuelle de la PWA dans Chrome DevTools et sur téléphone reste à faire (voir
+« Limites » plus bas).
 
 ## Installation
 
-Prérequis : Python 3.14, [uv](https://docs.astral.sh/uv/) et Node.js (18+,
-testé avec la version 22/24) installés sur la machine.
+Prérequis : Python 3.14, [uv](https://docs.astral.sh/uv/) et Node.js
+(20.19+ ou 22.12+, exigé par Vite 8 ; 22 en CI, testé aussi en 24) installés
+sur la machine.
 
 ```powershell
 .\scripts\run.ps1 install
@@ -111,9 +120,13 @@ frontend. Deux raisons à ce choix, déjà engagées dans le code existant :
   frontend a besoin d'HTTPS pour l'installation (voir plus bas), le backend
   peut être servi séparément.
 
-Ce point n'a pas encore d'effet concret en Lot 0 (aucun appel API n'est câblé
-côté frontend : `contracts/README.md` précise que le client TS généré arrive
-au Lot 1). Il documente la direction à suivre quand ce client sera introduit.
+Le client TS généré (`frontend/src/api-client/client.ts`) appelle donc le
+backend à l'adresse donnée par `VITE_API_BASE_URL` (défaut
+`http://localhost:8000`). Depuis le Lot 6, il envoie le cookie de session
+(`credentials: "include"`) et le backend répond avec `allow_credentials` sur la
+liste fermée d'origines. Conséquence pratique : ouvrir le front sur
+`localhost` et l'API sur `127.0.0.1` (ou l'inverse) casse la session sans
+message, les deux noms étant des sites distincts pour le navigateur.
 
 ## Tests
 
@@ -187,8 +200,13 @@ Chrome DevTools et/ou un test d'installation sur téléphone :
   depuis le cache, cf. Lot 3 pour la synchronisation des écritures) ;
 - apparition de l'invite d'installation (« Ajouter à l'écran d'accueil ») et
   déroulé de l'installation sur un appareil réel ;
-- contenu effectif du `Storage` (cache Workbox, IndexedDB une fois introduit
-  au Lot 3).
+- contenu effectif du `Storage` (cache Workbox, base IndexedDB du compte
+  connecté, `gurchon-hall-offline-u<id>`).
+
+Le comportement hors ligne de l'application (coupure, saisie, rechargement,
+rejeu) est en revanche couvert par les tests Playwright contre un vrai back
+(`frontend/tests/e2e-real/`) ; ce qui reste manuel, c'est la vérification dans
+un navigateur réel et l'installation sur téléphone.
 
 ## HTTPS
 
@@ -204,14 +222,11 @@ Chrome DevTools et/ou un test d'installation sur téléphone :
   navigateurs mobiles — si l'installation ne se propose pas sur téléphone via
   l'IP locale alors qu'elle fonctionne sur `localhost` desktop, c'est la cause
   la plus probable, pas un bug de configuration.
-- **Déploiement** : aucune plateforme cible n'est encore choisie pour ce pilote
-  (hors périmètre du Lot 0). Quel que soit l'hébergeur retenu pour la suite,
-  la contrainte reste la même : le frontend doit être servi en HTTPS pour être
-  installable. La plupart des hébergeurs statiques (Netlify, Vercel, GitHub
-  Pages, Cloudflare Pages…) fournissent un certificat automatiquement ; un
-  hébergement maison nécessiterait un reverse proxy TLS (ex. Caddy, qui
-  provisionne Let's Encrypt automatiquement) devant `uvicorn` côté backend et
-  devant les fichiers statiques du frontend.
+- **Déploiement** : prévu au Lot 11, par un playbook Ansible qui réutilise
+  l'infrastructure de déploiement de barrins-project, où gurchon-hall sera
+  hébergé temporairement (CLAUDE.md §12). La contrainte reste la même : le
+  frontend doit être servi en HTTPS pour être installable, et le cookie de
+  session `__Host-` exige lui aussi HTTPS hors `localhost`.
 
 ## Variables d'environnement
 
@@ -235,7 +250,7 @@ Résumé :
   `Set-Cookie`) mais qu'un appel suivant rend quand même 401, mettre cette
   variable à `false` en développement local sur `http://localhost` est le
   premier réflexe. Hors `localhost`, HTTPS est de toute façon requis pour la
-  PWA (voir plus bas) : garder la valeur par défaut en production.
+  PWA (voir plus haut) : garder la valeur par défaut en production.
 - `ARGON2_MEMORY_COST_KIB`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` (Lot 6,
   défauts 65536 / 3 / 4, alignés sur barrins-project) : coûts du hachage
   Argon2id des mots de passe. La CI les abaisse (voir plus bas) ; le
@@ -279,10 +294,6 @@ autre option, non retenue ici, serait qu'une fixture pytest surcharge ces
 variables directement (hors du périmètre DevOps : relève de qa-tests ou
 backend-fastapi, cf. `backend/tests/conftest.py`).
 
-Ce fichier est présent dans le dépôt mais n'a pas encore été poussé sur
-GitHub ni activé côté organisation : à committer et pousser explicitement
-quand la CI doit démarrer.
-
 ## Déploiement
 
 `docs/deploiement.md` fixe l'ordre à respecter pour une mise en service (Lot 6,
@@ -294,9 +305,11 @@ opérations et les variables d'environnement liées aux comptes et à la PWA.
 ## Portage vers Barrin (aperçu)
 
 La couche offline (config `vite-plugin-pwa`/Workbox dans `frontend/vite.config.ts`,
-enregistrement du service worker dans `frontend/src/offline/`) est pensée pour
-être transplantée sur barrins-project avec un minimum d'adaptation : voir les
-commentaires dédiés dans ces fichiers pour les points d'ajustement (préfixes de
-routes API notamment). Les scripts `scripts/run.ps1`/`run.sh` de ce dépôt
+paquet `frontend/src/offline/` : enregistrement du service worker, base Dexie,
+file d'attente et moteur de rejeu, avec un cœur générique séparé de
+l'adaptateur VtES) est pensée pour être transplantée sur barrins-project avec un
+minimum d'adaptation. Son API et les points d'ajustement (préfixes de routes
+API notamment) sont décrits dans `frontend/src/offline/README.md` ; le portage
+lui-même est le Lot 10. Les scripts `scripts/run.ps1`/`run.sh` de ce dépôt
 n'ont aucune dépendance au domaine VtES et sont directement réutilisables tels
 quels sur un monorepo Vite + FastAPI équivalent.

@@ -17,9 +17,14 @@ VtES**.
 - Modéliser les entités de §6 et leurs relations ; générer/mettre à jour
   `contracts/openapi.json` depuis les schémas Pydantic.
 - Écrire les migrations Alembic pour tout changement de schéma.
-- Détenir les règles VtES : légalité de deck (crypt ≥ 12 ; library 60–90),
-  scoring VP/GW, contrainte tournoi mono-deck. Les exposer comme validations de
-  service réutilisables.
+- Détenir les règles VtES : légalité de deck (les cinq règles du §5 : crypt ≥ 12,
+  deux groupes adjacents au plus, library 60–90, aucune carte bannie, aucune carte
+  pas encore légale ; fonctions pures dans `backend/app/services/vtes_rules.py`),
+  scoring VP/GW et contrainte tournoi mono-deck (Lot 7). Les exposer comme
+  validations de service réutilisables.
+- Poser un propriétaire (`user_id`) sur toute nouvelle donnée privée, avec les
+  unicités et FK composites par compte (§6, Lot 6). Le catalogue et les langues
+  restent partagés.
 - Publier les artefacts (schéma, OpenAPI) que back et front consomment.
 
 ## Ce que tu ne fais pas
