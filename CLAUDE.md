@@ -5,9 +5,8 @@
 > toute intervention.
 
 **État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (vérification manuelle de la
-PWA faite le 2026-10-28 ; Lot 6 sur la branche `lot-6-comptes`, pas encore fusionné
-dans `main`, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
-React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
+PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, §12). Lot 0 : squelette
+monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
 catalogue krcg, routes catalogue / stock / decks, légalité de deck (cinq règles),
@@ -1290,9 +1289,8 @@ Limites connues à la clôture du Lot 6 :
    dont la numérotation ne bouge pas. Dans les faits, le Lot 6 est passé avant Chercher
    (D0 de `docs/lot6-plan-comptes.md`, §11) ; Chercher reste reporté, et sa place par
    rapport aux Lots 7 à 11 reste à confirmer avec l'utilisateur.
-7. **Lot 6 — Comptes et multi-utilisateur** — *livré, sur la branche `lot-6-comptes`,
-   pas encore fusionné dans `main`.* Le pilote sort du mono-utilisateur : comptes (inscription
-   ouverte, connexion, déconnexion, `GET /moi`), session serveur de 14 jours fixes dans
+7. **Lot 6 — Comptes et multi-utilisateur** — *livré* (PR #39). Le pilote sort
+   du mono-utilisateur : comptes (inscription ouverte, connexion, déconnexion, `GET /moi`), session serveur de 14 jours fixes dans
    un cookie `HttpOnly` (empreinte seule en base), hachage Argon2id et limitation de
    débit alignés sur Barrin, rôle `user`/`admin` réservant `POST /langues`. Deux
    révisions, `32d62f354d89` (comptes et sessions) et `89695b77ef45` (propriétaire sur
