@@ -93,7 +93,15 @@ test("deck supprimé avec une ligne refusée en file : le refus nomme encore le 
 
   // « Renvoyer tel quel » : la ligne vise désormais un deck supprimé. Le serveur
   // refuse comme il l'aurait fait en ligne (écriture sur un deck supprimé).
-  await page.getByTestId("reissue-button").first().click();
+  // L'écran revient au même état qu'avant le clic (un refus, rien en attente) :
+  // seule la réponse du renvoi dit qu'il a eu lieu, c'est donc elle qu'on attend.
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" && new URL(response.url()).pathname === "/sync",
+    ),
+    page.getByTestId("reissue-button").first().click(),
+  ]);
   await expect(syncStatus(page)).toHaveAttribute("data-rejected", "1");
   await expectPending(page, 0);
   expect(syncCalls).toHaveLength(2);
