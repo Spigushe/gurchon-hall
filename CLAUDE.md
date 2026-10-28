@@ -4,8 +4,8 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (Lot 5 en attente de la
-vérification manuelle PWA ; Lot 6 sur la branche `lot-6-comptes`, pas encore fusionné
+**État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (vérification manuelle de la
+PWA faite le 2026-10-28 ; Lot 6 sur la branche `lot-6-comptes`, pas encore fusionné
 dans `main`, §12). Lot 0 : squelette monorepo, FastAPI `/health`,
 React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
@@ -916,7 +916,8 @@ Limites connues à la clôture du Lot 5 :
 - **Vérification PWA manuelle non faite** : le contrôle automatisé
   (`scripts/check-pwa-installability.mjs`) passe, mais le panneau Application de Chrome
   DevTools, la coupure réseau réelle et l'invite d'installation sur mobile restent à
-  vérifier à la main, comme au Lot 0.
+  vérifier à la main, comme au Lot 0. *Soldé le 2026-10-28* : les trois points ont été
+  vérifiés à la main.
 - **La suite Playwright tourne en `Desktop Chrome` (1280 × 720)**, alors que l'UI livrée
   est mobile. Sans conséquence tant qu'il n'y a pas de breakpoint ; l'étape 0 du Lot 5bis
   fixe une largeur mobile explicite avant d'en poser un. *Soldé au Lot 5bis* : les
@@ -1177,9 +1178,11 @@ Limites connues à la clôture du Lot 6 :
   Lot 6** : deux exécutions de la suite complète sur quatre ont vu échouer un test,
   chaque fois différent et sans rapport avec l'authentification, sans reproduction en
   isolation. Toujours à attribuer s'il revient.
-- **Cookie `Secure` sur `http://localhost` [à vérifier]** : Chrome et Firefox sont
-  documentés comme l'acceptant, ce qui n'a pas été vérifié sur les versions en usage.
-  Symptôme d'un refus : connexion réussie puis 401 immédiat sur `GET /moi`. Repli :
+- **Cookie `Secure` sur `http://localhost`** : Chrome et Firefox sont documentés comme
+  l'acceptant ; *vérifié à la main le 2026-10-28* sur le navigateur en usage (connexion
+  puis application utilisable, sans 401 sur `GET /moi`). Un autre navigateur ou une
+  autre version pourrait se comporter autrement. Symptôme d'un refus : connexion
+  réussie puis 401 immédiat sur `GET /moi`. Repli :
   `SESSION_COOKIE_SECURE=false` en développement local (`backend/.env.example`). Mélanger
   `localhost` et `127.0.0.1` casse aussi la session sans message (deux sites distincts).
 - **Limitation de débit en mémoire du processus** : compteurs remis à zéro au
@@ -1203,11 +1206,11 @@ Limites connues à la clôture du Lot 6 :
 
 ## 12. Roadmap
 
-1. **Lot 0 — Squelette + PWA minimale** — *livré, en attente de validation manuelle.*
+1. **Lot 0 — Squelette + PWA minimale** — *livré.*
    Monorepo, FastAPI `/health`, React+Vite, manifest + service worker, tests
-   automatisés (pytest, vitest, Playwright offline), CI. Reste à confirmer à la main
-   dans Chrome DevTools : panneau Application (manifest sans avertissement, SW
-   *activated*), coupure réseau réelle, prompt d'installation sur mobile via HTTPS.
+   automatisés (pytest, vitest, Playwright offline), CI. Vérifié à la main le
+   2026-10-28 : panneau Application de Chrome DevTools (manifest sans avertissement,
+   SW *activated*), coupure réseau réelle, invite d'installation sur mobile.
 2. **Lot 1 — Contrat & modèle** — *livré.* Dettes de tooling soldées
    (uv + `uv.lock`, ruff, ESLint, scripts unifiés), modèle de 21 tables à l'époque (22
    depuis le Lot 2), migration initiale, schémas Pydantic, chaîne de génération du client
@@ -1253,7 +1256,7 @@ Limites connues à la clôture du Lot 6 :
    scénario contre le vrai back : deux impressions de la même carte et langue saisies hors
    ligne, placées dans un deck puis rejouées. Base de développement migrée à la tête et
    import rejoué sans doublon ni changement d'identifiant.
-6. **Lot 5 — Passe design mobile** — *livré, en attente de validation manuelle.* Refonte
+6. **Lot 5 — Passe design mobile** — *livré.* Refonte
    de l'UI sur le handoff « 1b » (design system Nocturne, `docs/design-handoff/MOBILE.md`) :
    10 écrans phone-first plus les états vides, de chargement et introuvable, sans
    changement de comportement (mêmes routes, mêmes données, même sémantique offline).
@@ -1263,9 +1266,9 @@ Limites connues à la clôture du Lot 6 :
    et 25 tests Playwright passent (9 `chromium`, 16 `real-backend`, décompte vérifié par
    fichier, par `--list` et à l'exécution), dont un nouveau scénario contre le vrai back :
    un deck monté hors ligne avec acquisition totale puis partielle. Le contrôle
-   automatisé d'installabilité passe ; reste à confirmer à la main dans Chrome DevTools
-   (panneau Application, SW *activated*, coupure réseau réelle, invite d'installation
-   sur mobile). Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
+   automatisé d'installabilité passe, et la vérification à la main (panneau
+   Application, SW *activated*, coupure réseau réelle, invite d'installation sur
+   mobile) a été faite le 2026-10-28. Ce lot couvre l'affichage **mobile** uniquement (colonne unique) ; le
    desktop est hors de son périmètre et forme un lot séparé, **Lot 5bis** (handoff
    `docs/design-handoff/DESKTOP.md`, plan `docs/lot5bis-plan-design.md`), sans
    décaler la numérotation des lots suivants.

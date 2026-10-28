@@ -70,8 +70,7 @@ utilisateurs :
   fonctionnent.
 - Ne jamais positionner `SESSION_COOKIE_SECURE=false` en production : c'est un
   repli de développement local uniquement (voir `backend/.env.example` pour le
-  détail, y compris le point encore marqué « à vérifier » sur certains
-  navigateurs en `http://localhost`).
+  détail, y compris le comportement des navigateurs en `http://localhost`).
 
 ## Variables à positionner en production
 

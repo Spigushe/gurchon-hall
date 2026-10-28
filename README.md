@@ -24,9 +24,9 @@ Lots 0 à 6 livrés (détail et restes à vérifier dans CLAUDE.md §12) :
 - comptes (inscription, connexion, session dans un cookie `HttpOnly`) et
   cloisonnement des données par compte.
 
-Les parties et tournois (Lot 7) ne sont pas encore commencés. La validation
-manuelle de la PWA dans Chrome DevTools et sur téléphone reste à faire (voir
-« Limites » plus bas).
+Les parties et tournois (Lot 7) ne sont pas encore commencés. La PWA a été
+vérifiée à la main le 2026-10-28, dans Chrome DevTools et sur téléphone (voir
+« Vérification manuelle » plus bas).
 
 ## Installation
 
@@ -188,11 +188,13 @@ v12 ; il n'existe plus de « score PWA » à obtenir, et ce projet n'en vise
 aucun. La validation ci-dessus porte sur les critères réels d'installabilité,
 pas sur un score.
 
-### Limites — vérification manuelle restante
+### Vérification manuelle
 
 Le script ne remplace pas un contrôle dans un vrai navigateur. Restent
 volontairement non automatisés, à vérifier via le panneau **Application** de
-Chrome DevTools et/ou un test d'installation sur téléphone :
+Chrome DevTools et/ou un test d'installation sur téléphone. Fait le 2026-10-28
+(panneau Application, coupure réseau réelle, installation sur téléphone) ; à
+refaire après un changement du manifest ou du service worker :
 
 - enregistrement effectif du service worker au runtime (pas seulement sa
   présence sur disque) ;
@@ -242,10 +244,9 @@ Résumé :
 - `BACKEND_CORS_ORIGINS` : origines autorisées, séparées par des virgules (voir
   plus haut).
 - `SESSION_COOKIE_SECURE` (Lot 6, défaut vrai) : attribut `Secure` du cookie de
-  session. Un repère, pas une certitude, est documenté dans
-  `backend/.env.example` et dans `docs/lot6-plan-comptes.md` : Chrome et
-  Firefox sont réputés accepter un cookie `Secure` sur `http://localhost`, mais
-  ce point reste marqué « à vérifier » sur les versions réellement en usage. Si
+  session. Chrome et Firefox sont réputés accepter un cookie `Secure` sur
+  `http://localhost`, ce qui a été vérifié à la main le 2026-10-28 sur le
+  navigateur en usage (`backend/.env.example`, CLAUDE.md §11 Lot 6). Si
   une connexion semble réussir (`POST /connexion` rend 200 avec un
   `Set-Cookie`) mais qu'un appel suivant rend quand même 401, mettre cette
   variable à `false` en développement local sur `http://localhost` est le

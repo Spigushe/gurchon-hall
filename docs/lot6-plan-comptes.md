@@ -406,7 +406,7 @@ Le contrat passe de 24 à **28** opérations (+ 4 routes d'authentification).
   `Secure` est piloté par une variable (`SESSION_COOKIE_SECURE`, vrai par
   défaut) ; Chrome et Firefox acceptent un cookie `Secure` sur
   `http://localhost`, **[à vérifier]** sur les versions en usage, d'où la
-  variable de repli.
+  variable de repli. *Vérifié à la main le 2026-10-28 sur le navigateur en usage.*
 
 ### 401 et 404
 

@@ -241,8 +241,8 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
           DATABASE_URL: sqliteUrl(dbFile),
           BACKEND_CORS_ORIGINS: CORS_ORIGINS,
           // Repli de développement (CLAUDE.md §11, Lot 6, cookie de session) :
-          // le point reste marqué [à vérifier] pour les navigateurs réels, donc
-          // la même prudence que `backend/tests/conftest.py` côté pytest —
+          // vérifié à la main sur un navigateur réel, pas sur le Chromium de
+          // Playwright, donc la même prudence que `backend/tests/conftest.py` —
           // sans quoi un cookie `Secure` refusé rendrait toute connexion
           // silencieusement muette (pas de cookie posé, 401 ensuite).
           SESSION_COOKIE_SECURE: "false",
