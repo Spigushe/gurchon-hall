@@ -40,6 +40,7 @@ export const API_ROUTE_PREFIXES: readonly string[] = [
   "/stock",
   "/decks",
   "/joueurs",
+  "/lieux",
   "/tournois",
   "/parties",
   "/sync",

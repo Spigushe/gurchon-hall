@@ -118,6 +118,17 @@ _PROTECTED_ROUTES = [
     ("POST", "/sync", {"operations": [_deck_create_operation("Deck sans session")]}),
     ("GET", "/moi", None),
     ("POST", "/langues", {"code": "DE", "label": "Allemand"}),
+    # Lot 7, étape B1 : le Carnet.
+    ("GET", "/joueurs", None),
+    ("POST", "/joueurs", {"name": "Marc"}),
+    ("GET", "/joueurs/1", None),
+    ("PATCH", "/joueurs/1", {"name": "Marc F."}),
+    ("DELETE", "/joueurs/1", None),
+    ("GET", "/lieux", None),
+    ("POST", "/lieux", {"name": "Le Bar à Dés"}),
+    ("GET", "/lieux/1", None),
+    ("PATCH", "/lieux/1", {"city": "Lyon"}),
+    ("DELETE", "/lieux/1", None),
 ]
 
 
@@ -187,6 +198,27 @@ def test_deck_routes_all_render_a_plain_404_for_another_accounts_deck(two_accoun
     for response in checks:
         assert response.status_code == 404, response.request.url
         assert response.json()["detail"] == _not_found_message(deck_id)
+
+
+def test_player_and_venue_routes_render_a_plain_404_for_another_accounts_row(
+    two_accounts,
+):
+    """Lot 7, B1 : mêmes garanties que pour les decks, sur le Carnet. Le détail
+    complet (listes, compteurs) est dans `test_players_venues_routes.py`."""
+    api_a, api_b = two_accounts
+    player = api_a.post("/joueurs", json={"name": "Marc"}).json()
+    venue = api_a.post("/lieux", json={"name": "Club"}).json()
+    for base, row, label in (
+        ("/joueurs", player, "Joueur"),
+        ("/lieux", venue, "Lieu"),
+    ):
+        for response in (
+            api_b.get(f"{base}/{row['id']}"),
+            api_b.patch(f"{base}/{row['id']}", json={"name": "Intrus"}),
+            api_b.delete(f"{base}/{row['id']}"),
+        ):
+            assert response.status_code == 404, response.request.url
+            assert response.json()["detail"] == f"{label} {row['id']} introuvable."
 
 
 def test_deck_list_of_b_never_shows_a_s_deck(two_accounts):

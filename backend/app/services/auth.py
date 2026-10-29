@@ -29,8 +29,9 @@ from sqlalchemy.orm import Session
 
 from app.models.account import SESSION_LIFETIME, AuthSession, UserAccount
 from app.models.enums import UserRole
+from app.services import players
 from app.services.errors import ConflictError
-from app.services.persistence import commit_or_conflict
+from app.services.persistence import integrity_as_conflict
 
 # ---------------------------------------------------------------------------
 # Mots de passe (P1)
@@ -126,8 +127,9 @@ def create_account(
     `email` et `username` sont supposés déjà validés et normalisés par
     l'appelant (schémas Pydantic côté API, `app.schemas.account`, ou la même
     normalisation côté script) : ce service ne revalide que leur unicité,
-    jamais leur forme. Vérification préalable (message précis, email d'abord
-    comme chez barrins-project) puis `commit_or_conflict` en filet, pour la
+    jamais leur forme. Crée aussi le joueur « Moi » (nom = `username`, A1).
+    Vérification préalable (message précis, email d'abord
+    comme chez barrins-project) puis `integrity_as_conflict` en filet, pour la
     course entre deux inscriptions concurrentes.
     """
     existing_email = db.scalar(select(UserAccount).where(UserAccount.email == email))
@@ -145,7 +147,14 @@ def create_account(
         role=role,
     )
     db.add(account)
-    commit_or_conflict(db, "L'adresse ou le nom d'utilisateur est déjà pris.")
+    # Le « Moi » naît avec le compte, dans la même transaction (Lot 7, A1) :
+    # jamais de compte sans lui, ni de « Moi » sans compte.
+    with integrity_as_conflict(
+        db, "L'adresse ou le nom d'utilisateur est déjà pris."
+    ):
+        db.flush()
+        players.get_or_create_me(db, account.id, account.username)
+        db.commit()
     db.refresh(account)
     return account
 

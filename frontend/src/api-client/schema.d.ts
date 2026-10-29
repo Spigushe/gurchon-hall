@@ -398,6 +398,104 @@ export interface paths {
         patch: operations["updateDeckCard"];
         trace?: never;
     };
+    "/joueurs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste les joueurs
+         * @description Le « Moi » en tête, puis les adversaires par nom (sans tenir compte de la casse ni des accents). `q` cherche une sous-chaîne du nom, de la même façon. `game_count` compte les tables où le joueur figure.
+         */
+        get: operations["listPlayers"];
+        put?: never;
+        /**
+         * Crée un adversaire
+         * @description 409 si un joueur du compte porte déjà ce nom, casse et accents ignorés (« Marc » et « marc » sont le même joueur), ou si c'est celui du « Moi ». Le « Moi » n'est pas créable : il existe déjà.
+         */
+        post: operations["createPlayer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/joueurs/{player_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lit un joueur */
+        get: operations["getPlayer"];
+        put?: never;
+        post?: never;
+        /**
+         * Supprime un adversaire
+         * @description 409 pour le « Moi » (jamais supprimé) et pour un joueur qui figure encore à une table : on le retire d'abord de ces parties.
+         */
+        delete: operations["deletePlayer"];
+        options?: never;
+        head?: never;
+        /**
+         * Renomme un joueur
+         * @description Le « Moi » se renomme aussi. 409 si le nouveau nom, casse et accents ignorés, est celui d'un autre joueur du compte.
+         */
+        patch: operations["updatePlayer"];
+        trace?: never;
+    };
+    "/lieux": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste les lieux
+         * @description Par nom, sans tenir compte de la casse ni des accents ; `q` cherche une sous-chaîne du nom de la même façon. `game_count` et `tournament_count` sont calculés par le serveur.
+         */
+        get: operations["listVenues"];
+        put?: never;
+        /**
+         * Crée un lieu
+         * @description 409 si un lieu du compte porte déjà ce nom, casse et accents ignorés.
+         */
+        post: operations["createVenue"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/lieux/{venue_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lit un lieu */
+        get: operations["getVenue"];
+        put?: never;
+        post?: never;
+        /**
+         * Supprime un lieu
+         * @description 409 tant qu'une partie ou un tournoi se déroule dans ce lieu.
+         */
+        delete: operations["deleteVenue"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifie un lieu
+         * @description Modification partielle ; `city` et `notes` acceptent `null` pour effacer. 409 si le nouveau nom, casse et accents ignorés, est celui d'un autre lieu.
+         */
+        patch: operations["updateVenue"];
+        trace?: never;
+    };
     "/sync": {
         parameters: {
             query?: never;
@@ -1531,6 +1629,44 @@ export interface components {
             sort_order: number;
         };
         /**
+         * PlayerCreate
+         * @description Création d'un adversaire. Le « Moi » existe déjà (A1).
+         */
+        PlayerCreate: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * PlayerRead
+         * @description Un joueur : le « Moi » du compte, ou un adversaire nommé.
+         */
+        PlayerRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Is Me
+             * @description Vrai pour le seul joueur qui est l'utilisateur. Créé par le serveur, il ne se crée ni ne se supprime par l'API.
+             */
+            is_me: boolean;
+            /**
+             * Game Count
+             * @description Parties où ce joueur figure à la table, calculé par le serveur. Un adversaire qui figure à une table ne se supprime pas.
+             */
+            game_count: number;
+        };
+        /**
+         * PlayerUpdate
+         * @description Renommage d'un joueur, « Moi » compris. Le nom est facultatif mais non
+         *     nullable : la colonne est NOT NULL, donc facultatif ne veut pas dire
+         *     « effaçable ».
+         */
+        PlayerUpdate: {
+            /** Name */
+            name?: string;
+        };
+        /**
          * PrintOccurrence
          * @description Manière dont une carte apparaît dans une extension.
          *
@@ -1926,6 +2062,57 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * VenueCreate
+         * @description Création d'un lieu.
+         */
+        VenueCreate: {
+            /** Name */
+            name: string;
+            /** City */
+            city?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * VenueRead
+         * @description Lieu de jeu, privé au compte (Lot 6).
+         */
+        VenueRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** City */
+            city: string | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Game Count
+             * @description Parties jouées dans ce lieu, calculé par le serveur (Lot 7). Un lieu référencé ne se supprime pas.
+             */
+            game_count: number;
+            /**
+             * Tournament Count
+             * @description Tournois tenus dans ce lieu, calculé par le serveur (Lot 7).
+             */
+            tournament_count: number;
+        };
+        /**
+         * VenueUpdate
+         * @description Modification partielle d'un lieu.
+         *
+         *     `name` est facultatif mais non nullable : la colonne est NOT NULL, donc
+         *     `{"name": null}` est refusé à l'entrée plutôt qu'au niveau de la base.
+         */
+        VenueUpdate: {
+            /** Name */
+            name?: string;
+            /** City */
+            city?: string | null;
+            /** Notes */
+            notes?: string | null;
         };
     };
     responses: never;
@@ -3274,6 +3461,576 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckCardRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listPlayers: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createPlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayerCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getPlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deletePlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updatePlayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                player_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlayerUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listVenues: {
+        parameters: {
+            query?: {
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VenueRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createVenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VenueCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VenueRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getVenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                venue_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VenueRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteVenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                venue_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateVenue: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                venue_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VenueUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VenueRead"];
                 };
             };
             /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */

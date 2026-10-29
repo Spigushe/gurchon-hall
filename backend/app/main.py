@@ -20,8 +20,10 @@ from app.routers.auth import router as auth_router
 from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
 from app.routers.health import router as health_router
+from app.routers.players import router as players_router
 from app.routers.stock import router as stock_router
 from app.routers.sync import router as sync_router
+from app.routers.venues import router as venues_router
 from app.services.errors import DomainError, InvalidRequestError
 from app.services.rate_limit import limiter
 
@@ -132,6 +134,8 @@ app.include_router(auth_router)
 app.include_router(catalog_router)
 app.include_router(stock_router)
 app.include_router(decks_router)
+app.include_router(players_router)
+app.include_router(venues_router)
 app.include_router(sync_router)
 
 

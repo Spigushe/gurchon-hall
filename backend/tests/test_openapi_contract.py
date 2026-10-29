@@ -116,6 +116,17 @@ EXPECTED_OPERATIONS = {
         "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
     ): "removeDeckCard",
     ("post", "/sync"): "syncOperations",
+    # Lot 7, étape B1 : le Carnet.
+    ("get", "/joueurs"): "listPlayers",
+    ("post", "/joueurs"): "createPlayer",
+    ("get", "/joueurs/{player_id}"): "getPlayer",
+    ("patch", "/joueurs/{player_id}"): "updatePlayer",
+    ("delete", "/joueurs/{player_id}"): "deletePlayer",
+    ("get", "/lieux"): "listVenues",
+    ("post", "/lieux"): "createVenue",
+    ("get", "/lieux/{venue_id}"): "getVenue",
+    ("patch", "/lieux/{venue_id}"): "updateVenue",
+    ("delete", "/lieux/{venue_id}"): "deleteVenue",
 }
 
 
