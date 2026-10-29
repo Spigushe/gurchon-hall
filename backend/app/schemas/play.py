@@ -17,7 +17,13 @@ from datetime import date, datetime
 
 from pydantic import Field
 
-from app.models.enums import DeckPolicy, RoundType, TournamentFormat
+from app.models.enums import (
+    DeckPolicy,
+    EventTier,
+    FinalDeckRule,
+    RoundType,
+    TournamentFormat,
+)
 from app.schemas.base import (
     MAX_DB_INT,
     UNSET,
@@ -175,7 +181,24 @@ class TournamentRead(ReadModel):
         )
     )
     format: TournamentFormat
+    event_tier: EventTier = Field(
+        description=(
+            "Niveau du tournoi. Le multi-deck est interdit en championnat "
+            "national, en Grand Prix et en championnat continental."
+        )
+    )
+    final_deck_rule: FinalDeckRule | None = Field(
+        default=None,
+        description=(
+            "Règle du deck de finale annoncée par l'organisateur, en multi-deck "
+            "seulement ; nulle tant qu'elle n'est pas connue."
+        ),
+    )
     round_count: int | None = None
+    player_count: int | None = Field(
+        default=None,
+        description="Nombre de joueurs du tournoi, souvent inconnu à l'arrivée.",
+    )
     my_ranking: int | None = None
     notes: str | None = None
     created_at: datetime
@@ -197,7 +220,10 @@ class TournamentCreate(WriteModel):
     venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     deck_policy: DeckPolicy = DeckPolicy.MONO
     format: TournamentFormat = TournamentFormat.CONSTRUCTED
+    event_tier: EventTier = EventTier.STANDARD
+    final_deck_rule: FinalDeckRule | None = None
     round_count: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    player_count: int | None = Field(default=None, ge=2, le=MAX_DB_INT)
     my_ranking: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     notes: str | None = None
 
@@ -205,9 +231,10 @@ class TournamentCreate(WriteModel):
 class TournamentUpdate(WriteModel):
     """Modification partielle d'un tournoi.
 
-    `name`, `start_date`, `deck_policy` et `format` sont facultatifs mais non
-    nullables ; la date de fin, le lieu, le nombre de rondes, le classement et
-    les notes acceptent `null`.
+    `name`, `start_date`, `deck_policy`, `format` et `event_tier` sont
+    facultatifs mais non nullables ; la date de fin, le lieu, la règle du deck
+    de finale, le nombre de rondes, le nombre de joueurs, le classement et les
+    notes acceptent `null`.
     """
 
     name: RequiredText = Field(default=UNSET, max_length=120)
@@ -216,6 +243,9 @@ class TournamentUpdate(WriteModel):
     venue_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     deck_policy: DeckPolicy = UNSET
     format: TournamentFormat = UNSET
+    event_tier: EventTier = UNSET
+    final_deck_rule: FinalDeckRule | None = None
     round_count: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
+    player_count: int | None = Field(default=None, ge=2, le=MAX_DB_INT)
     my_ranking: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     notes: str | None = None

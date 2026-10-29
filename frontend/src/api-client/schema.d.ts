@@ -1680,12 +1680,14 @@ export interface components {
          * SyncOperationType
          * @description Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).
          *
-         *     Une valeur par intention de l'utilisateur, limitée aux ressources qui
-         *     existent déjà : collection, decks, composition, versement d'un produit. Le
-         *     catalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md
-         *     §11) et les parties, tournois et participations attendent le Lot 4 — les
-         *     ajouter ici avant qu'elles aient une route serait promettre une
-         *     synchronisation sans destination.
+         *     Une valeur par intention de l'utilisateur : collection, decks, composition,
+         *     versement d'un produit, et depuis le Lot 7 joueurs, lieux, tournois et
+         *     parties. Le catalogue reste en lecture seule (il ne bouge que par l'import,
+         *     CLAUDE.md §11). Les douze valeurs du Lot 7 sont entrées dans la contrainte
+         *     de la base par la révision R10, avant que `/sync` sache les appliquer :
+         *     élargir ce CHECK oblige à recréer le journal, et on ne le fait qu'une fois.
+         *     Une participation n'a pas d'opération propre : la table d'une partie se
+         *     remplace d'un bloc avec la partie (`game.create`, `game.update`).
          *
          *     Les langues n'y sont pas non plus : `POST /langues` reste une écriture en
          *     ligne. Une saisie hors ligne dans une langue inconnue du serveur doit se
@@ -1701,7 +1703,7 @@ export interface components {
          *       `archived`, exactement comme `PATCH /decks/{id}`.
          * @enum {string}
          */
-        SyncOperationType: "stock.upsert" | "stock.delete" | "deck.create" | "deck.update" | "deck.delete" | "deck_card.upsert" | "deck_card.delete" | "bundle.deposit";
+        SyncOperationType: "stock.upsert" | "stock.delete" | "deck.create" | "deck.update" | "deck.delete" | "deck_card.upsert" | "deck_card.delete" | "bundle.deposit" | "player.create" | "player.update" | "player.delete" | "venue.create" | "venue.update" | "venue.delete" | "tournament.create" | "tournament.update" | "tournament.delete" | "game.create" | "game.update" | "game.delete";
         /**
          * SyncOutcome
          * @description Issue d'une opération, du point de vue du client.
@@ -1729,7 +1731,7 @@ export interface components {
          * @description Nature de la ressource touchée par une opération de synchronisation.
          * @enum {string}
          */
-        SyncResourceKind: "card_copy" | "deck" | "deck_card" | "bundle";
+        SyncResourceKind: "card_copy" | "deck" | "deck_card" | "bundle" | "player" | "venue" | "tournament" | "game";
         /**
          * SyncResourceRef
          * @description Identité de la ressource touchée par une opération.

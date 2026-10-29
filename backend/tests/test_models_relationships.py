@@ -32,6 +32,7 @@ from app.models import (
     Language,
     Participation,
     Player,
+    RoundType,
     Tournament,
     Venue,
 )
@@ -402,7 +403,12 @@ def test_game_can_exist_outside_any_tournament(db):
 def test_tournament_collects_several_games_in_round_order(db):
     tournament = make_tournament(db)
     for round_number in (1, 2, 3):
-        make_game(db, tournament_id=tournament.id, round_number=round_number)
+        make_game(
+            db,
+            tournament_id=tournament.id,
+            round_type=RoundType.PRELIMINARY,
+            round_number=round_number,
+        )
     db.commit()
     db.refresh(tournament)
     assert sorted(g.round_number for g in tournament.games) == [1, 2, 3]

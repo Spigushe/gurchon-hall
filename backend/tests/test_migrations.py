@@ -47,7 +47,8 @@ EXTENSION_REVISION = "b7e41d0c9a52"  # extension dans l'identité du stock (Lot 
 LOT4B_REVISION = "f3a91c47b2de"  # deck_card sans entrée de collection (Lot 4b, A1)
 ACCOUNTS_REVISION = "32d62f354d89"  # comptes et sessions (Lot 6, R8)
 OWNER_REVISION = "89695b77ef45"  # propriétaire sur les données (Lot 6, R9)
-HEAD_REVISION = OWNER_REVISION
+PRACTICE_REVISION = "783b24f9e769"  # pratique de jeu (Lot 7, R10)
+HEAD_REVISION = PRACTICE_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -58,6 +59,7 @@ REVISIONS = [
     LOT4B_REVISION,
     ACCOUNTS_REVISION,
     OWNER_REVISION,
+    PRACTICE_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -239,7 +241,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Neuf révisions à la suite, sans branche : une racine, une tête."""
+    """Dix révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -274,9 +276,12 @@ def test_upgrade_head_seeds_the_four_languages(migrated):
 
 
 def test_upgrade_head_seeds_nothing_else(migrated):
-    """Les quatre langues et le compte historique (Lot 6, D6), rien d'autre."""
+    """Les quatre langues, le compte historique (Lot 6, D6) et son « Moi »
+    (Lot 7, A1), rien d'autre."""
     assert scalar(migrated, "SELECT COUNT(*) FROM user_account") == 1
-    for table in EXPECTED_TABLES - {"alembic_version", "language", "user_account"}:
+    assert scalar(migrated, "SELECT COUNT(*) FROM player") == 1
+    seeded = {"alembic_version", "language", "user_account", "player"}
+    for table in EXPECTED_TABLES - seeded:
         assert scalar(migrated, f"SELECT COUNT(*) FROM {table}") == 0, table
 
 
@@ -389,7 +394,14 @@ def test_migration_creates_the_named_enum_check_constraints(migrated):
         "ck_deck_deck_status",
         "ck_tournament_deck_policy",
         "ck_tournament_tournament_format",
+        "ck_tournament_event_tier",
+        "ck_tournament_final_deck_rule",
+        "ck_tournament_player_count_minimum",
+        "ck_tournament_final_deck_rule_only_multi",
+        "ck_tournament_multi_only_standard_tier",
         "ck_game_round_type",
+        "ck_game_casual_iff_no_tournament",
+        "ck_game_round_number_iff_preliminary",
         "ck_card_copy_quantity_owned_positive",
         "ck_deck_card_quantity_positive",
         "ck_deck_card_proxy_quantity_within_quantity",
@@ -466,10 +478,8 @@ def test_migrated_database_enforces_composite_foreign_key_and_partial_index(migr
             assert "FOREIGN KEY" in str(no_printing.value)
             connection.rollback()
 
-            # Deux « Moi » dans le même compte -> refusés.
-            connection.execute(
-                text("INSERT INTO player (user_id, name, is_me) VALUES (1, 'A', 1)")
-            )
+            # Deux « Moi » dans le même compte -> refusés. Celui du compte
+            # historique existe depuis R10 (Lot 7, A1).
             with pytest.raises(Exception) as two_me:
                 connection.execute(
                     text("INSERT INTO player (user_id, name, is_me) VALUES (1, 'B', 1)")
@@ -1419,10 +1429,10 @@ def test_an_applied_operation_names_the_resource_it_touched(migrated):
 @pytest.mark.parametrize(
     ("column", "value"),
     [
-        ("operation_type", "game.create"),
+        ("operation_type", "match.create"),
         ("status", "pending"),
         ("error_code", "teapot"),
-        ("resource_kind", "tournament"),
+        ("resource_kind", "match"),
     ],
 )
 def test_the_journal_enumerations_are_closed(migrated, column, value):
@@ -2101,10 +2111,12 @@ def test_a_participation_cannot_point_at_another_accounts_deck(migrated):
 
 
 def test_one_me_per_account(migrated):
+    """Le compte historique a déjà le sien (R10) ; un second compte, ajouté
+    après la migration, peut recevoir le sien sous le même nom."""
     add_account(migrated)
     execute(
         migrated,
-        "INSERT INTO player (user_id, name, is_me) VALUES (1, 'Moi', 1), (2, 'Moi', 1)",
+        "INSERT INTO player (user_id, name, is_me) VALUES (2, 'compte-historique', 1)",
     )
     with pytest.raises(Exception) as second_me:
         execute(
@@ -2193,7 +2205,8 @@ def test_downgrade_to_lot4b_restores_its_schema_and_its_data(empty_db, tmp_path)
 
 
 def test_downgrading_the_owner_revision_refuses_data_of_another_account(empty_db):
-    alembic(empty_db, "upgrade", "head")
+    # Arrêt à R9 : à la tête, la garde de R10 refuserait d'abord ce lieu.
+    alembic(empty_db, "upgrade", OWNER_REVISION)
     add_account(empty_db)
     execute(empty_db, "INSERT INTO venue (user_id, name) VALUES (2, 'Club de B')")
 
@@ -2274,3 +2287,373 @@ def test_the_lot6_downgrades_do_not_render_offline(empty_db, revision):
     )
     assert result.returncode != 0
     assert revision in result.stdout + result.stderr
+
+
+# --------------------------------------------------------------------------
+# Lot 7 : pratique de jeu (R10)
+# --------------------------------------------------------------------------
+
+LOT6_JOURNAL_COLUMNS = (
+    "id, user_id, operation_id, batch_id, operation_type, request_hash, status,"
+    " error_code, error_message, client_ref, resource_kind, deck_id, card_id,"
+    " language_code, card_set_id, bundle_id, recorded_at, processed_at"
+)
+
+
+def seed_a_journal(db_path: Path) -> None:
+    """Une création appliquée par `client_ref` et un refus, au compte 1."""
+    insert_sync_row(
+        db_path,
+        **applied_row(
+            operation_id="op-create",
+            client_ref="ref-1",
+            recorded_at="2026-10-01 20:00:00",
+            processed_at="2026-10-01 20:05:00",
+        ),
+    )
+    insert_sync_row(
+        db_path,
+        **applied_row(
+            operation_id="op-refus",
+            status="rejected",
+            error_code="conflict",
+            error_message="Exemplaires insuffisants.",
+            resource_kind=None,
+            deck_id=None,
+            recorded_at="2026-10-01 20:01:00",
+            processed_at="2026-10-01 20:05:00",
+        ),
+    )
+
+
+def journal(db_path: Path) -> list[tuple]:
+    return rows(
+        db_path, f"SELECT {LOT6_JOURNAL_COLUMNS} FROM sync_operation ORDER BY id"
+    )
+
+
+def refusal(db_path: Path, statement: str) -> str:
+    """Exécute `statement` (clés étrangères actives) et rend le message du refus."""
+    engine = create_app_engine(url_for(db_path))
+    try:
+        with engine.connect() as connection:
+            with pytest.raises(Exception) as refused:
+                connection.execute(text(statement))
+            connection.rollback()
+            return str(refused.value)
+    finally:
+        engine.dispose()
+
+
+def test_head_gives_the_legacy_account_its_me(migrated):
+    """A1 : le « Moi » porte le `username` du compte."""
+    assert rows(migrated, "SELECT user_id, name, is_me FROM player") == [
+        (1, "compte-historique", 1)
+    ]
+
+
+def test_upgrade_gives_a_me_to_every_account_that_has_none(empty_db):
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    add_account(empty_db, 2)
+    add_account(empty_db, 3)
+    execute(
+        empty_db,
+        "INSERT INTO player (user_id, name, is_me) VALUES"
+        " (3, 'Déjà moi', 1), (3, 'Marc', 0)",
+    )
+
+    alembic(empty_db, "upgrade", "head")
+
+    assert rows(
+        empty_db, "SELECT user_id, name, is_me FROM player ORDER BY user_id, name"
+    ) == [
+        (1, "compte-historique", 1),
+        (2, "compte-2", 1),
+        (3, "Déjà moi", 1),
+        (3, "Marc", 0),
+    ]
+
+
+def test_upgrade_copies_the_journal_as_it_was(empty_db):
+    """La seule table peuplée du lot : un rejeu doit rester un rejeu."""
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    seed_a_journal(empty_db)
+    before = journal(empty_db)
+
+    alembic(empty_db, "upgrade", "head")
+
+    assert journal(empty_db) == before
+    assert rows(
+        empty_db,
+        "SELECT player_id, venue_id, tournament_id, game_id FROM sync_operation",
+    ) == [(None, None, None, None)] * 2
+    assert foreign_key_violations(empty_db) == []
+    assert rows(
+        empty_db, "SELECT name FROM sqlite_master WHERE name LIKE '%_avant_%'"
+    ) == []
+
+
+def test_head_journal_accepts_the_lot7_types_and_kinds(migrated):
+    insert_sync_row(
+        migrated,
+        **applied_row(
+            operation_id="op-game",
+            operation_type="game.create",
+            client_ref="ref-game",
+            resource_kind="game",
+            deck_id=None,
+            game_id=7,
+        ),
+    )
+    assert rows(
+        migrated, "SELECT operation_type, resource_kind, game_id FROM sync_operation"
+    ) == [("game.create", "game", 7)]
+
+
+@pytest.mark.parametrize(
+    ("values", "constraint"),
+    [
+        ("'multi', 'national_championship', NULL, NULL", "multi_only_standard_tier"),
+        ("'multi', 'grand_prix', NULL, NULL", "multi_only_standard_tier"),
+        (
+            "'multi', 'continental_championship', NULL, NULL",
+            "multi_only_standard_tier",
+        ),
+        ("'mono', 'standard', 'free_choice', NULL", "final_deck_rule_only_multi"),
+        ("'mono', 'standard', NULL, 1", "player_count_minimum"),
+        ("'mono', 'regional', NULL, NULL", "event_tier"),
+        ("'multi', 'standard', 'random', NULL", "final_deck_rule"),
+    ],
+)
+def test_head_enforces_the_tournament_rules(migrated, values, constraint):
+    """A11 et P6, portés par la ligne elle-même."""
+    message = refusal(
+        migrated,
+        "INSERT INTO tournament (user_id, name, start_date, format, deck_policy,"
+        " event_tier, final_deck_rule, player_count)"
+        f" VALUES (1, 'T', '2026-10-24', 'constructed', {values})",
+    )
+    assert "CHECK" in message
+    assert f"ck_tournament_{constraint}" in message
+
+
+def test_head_accepts_a_multi_deck_standard_tournament_with_its_final_rule(migrated):
+    execute(
+        migrated,
+        "INSERT INTO tournament (user_id, name, start_date, format, deck_policy,"
+        " event_tier, final_deck_rule, player_count) VALUES"
+        " (1, 'Open', '2026-10-24', 'constructed', 'multi', 'standard',"
+        " 'best_performing', 27),"
+        " (1, 'GP', '2026-10-25', 'constructed', 'mono', 'grand_prix', NULL, NULL)",
+    )
+    assert scalar(migrated, "SELECT COUNT(*) FROM tournament") == 2
+
+
+def seed_two_tournaments(db_path: Path) -> None:
+    execute(
+        db_path,
+        "INSERT INTO tournament (id, user_id, name, start_date, format, deck_policy,"
+        " event_tier) VALUES"
+        " (1, 1, 'Open', '2026-10-24', 'constructed', 'mono', 'standard'),"
+        " (2, 1, 'Coupe', '2026-10-25', 'constructed', 'mono', 'standard')",
+    )
+
+
+def game_insert(values: str) -> str:
+    return (
+        "INSERT INTO game (user_id, played_at, player_count, tournament_id,"
+        f" round_type, round_number) VALUES {values}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("values", "constraint"),
+    [
+        ("(1, '2026-10-24 14:00', 5, 1, 'casual', NULL)", "casual_iff_no_tournament"),
+        (
+            "(1, '2026-10-24 14:00', 5, NULL, 'preliminary', 1)",
+            "casual_iff_no_tournament",
+        ),
+        ("(1, '2026-10-24 14:00', 5, NULL, 'final', NULL)", "casual_iff_no_tournament"),
+        (
+            "(1, '2026-10-24 14:00', 5, 1, 'preliminary', NULL)",
+            "round_number_iff_preliminary",
+        ),
+        ("(1, '2026-10-24 14:00', 5, 1, 'final', 4)", "round_number_iff_preliminary"),
+        (
+            "(1, '2026-10-24 14:00', 5, NULL, 'casual', 1)",
+            "round_number_iff_preliminary",
+        ),
+    ],
+)
+def test_head_enforces_the_round_rules(migrated, values, constraint):
+    """A6 : tournoi et ronde se tiennent."""
+    seed_two_tournaments(migrated)
+    message = refusal(migrated, game_insert(values))
+    assert f"ck_game_{constraint}" in message
+
+
+def test_head_allows_one_preliminary_per_round_and_one_final_per_tournament(migrated):
+    seed_two_tournaments(migrated)
+    execute(
+        migrated,
+        game_insert(
+            "(1, '2026-10-24 14:00', 5, 1, 'preliminary', 1),"
+            " (1, '2026-10-24 16:00', 5, 1, 'preliminary', 2),"
+            " (1, '2026-10-24 21:00', 5, 1, 'final', NULL),"
+            " (1, '2026-10-25 14:00', 4, 2, 'preliminary', 1),"
+            " (1, '2026-10-25 21:00', 5, 2, 'final', NULL),"
+            " (1, '2026-10-26 20:00', 4, NULL, 'casual', NULL),"
+            " (1, '2026-10-27 20:00', 4, NULL, 'casual', NULL)"
+        ),
+    )
+    assert scalar(migrated, "SELECT COUNT(*) FROM game") == 7
+
+    second_round_one = refusal(
+        migrated, game_insert("(1, '2026-10-24 18:00', 5, 1, 'preliminary', 1)")
+    )
+    assert "UNIQUE" in second_round_one
+    second_final = refusal(
+        migrated, game_insert("(1, '2026-10-24 23:00', 5, 1, 'final', NULL)")
+    )
+    assert "UNIQUE" in second_final
+
+
+def test_upgrading_the_practice_revision_refuses_an_inconsistent_game(empty_db):
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    execute(
+        empty_db,
+        "INSERT INTO tournament (id, user_id, name, start_date, deck_policy, format)"
+        " VALUES (1, 1, 'Open', '2026-10-24', 'mono', 'constructed')",
+    )
+    execute(
+        empty_db,
+        game_insert(
+            "(1, '2026-10-24 14:00', 5, 1, 'casual', NULL),"
+            " (1, '2026-10-24 21:00', 5, 1, 'final', NULL),"
+            " (1, '2026-10-24 22:00', 5, 1, 'final', NULL)"
+        ),
+    )
+
+    result = alembic(empty_db, "upgrade", "head", check=False)
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert PRACTICE_REVISION in output
+    assert "amicale avec tournoi" in output
+    assert "plusieurs finales pour un tournoi : 1" in output
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == OWNER_REVISION
+    assert scalar(empty_db, "SELECT COUNT(*) FROM game") == 3
+    assert scalar(empty_db, "SELECT COUNT(*) FROM player") == 0
+
+
+def test_upgrading_the_practice_revision_refuses_a_me_name_already_taken(empty_db):
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    execute(
+        empty_db,
+        "INSERT INTO player (user_id, name, is_me) VALUES (1, 'compte-historique', 0)",
+    )
+
+    result = alembic(empty_db, "upgrade", "head", check=False)
+
+    assert result.returncode != 0
+    assert "compte-historique" in result.stdout + result.stderr
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == OWNER_REVISION
+
+
+@pytest.mark.parametrize(
+    ("statement", "label"),
+    [
+        (
+            "INSERT INTO tournament (user_id, name, start_date, format, deck_policy,"
+            " event_tier) VALUES (1, 'Open', '2026-10-24', 'constructed', 'mono',"
+            " 'standard')",
+            "tournament : 1",
+        ),
+        (
+            "INSERT INTO game (user_id, played_at, player_count, round_type)"
+            " VALUES (1, '2026-10-26 20:00', 4, 'casual')",
+            "game : 1",
+        ),
+    ],
+)
+def test_downgrading_the_practice_revision_refuses_practice_data(
+    empty_db, statement, label
+):
+    alembic(empty_db, "upgrade", "head")
+    execute(empty_db, statement)
+
+    result = alembic(empty_db, "downgrade", OWNER_REVISION, check=False)
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert PRACTICE_REVISION in output
+    assert label in output
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == HEAD_REVISION
+    assert scalar(empty_db, "SELECT COUNT(*) FROM player WHERE is_me = 1") == 1
+
+
+def test_downgrading_the_practice_revision_refuses_a_lot7_journal_entry(empty_db):
+    alembic(empty_db, "upgrade", "head")
+    insert_sync_row(
+        empty_db,
+        **applied_row(
+            operation_id="op-venue",
+            operation_type="venue.create",
+            resource_kind="venue",
+            deck_id=None,
+            venue_id=3,
+        ),
+    )
+
+    result = alembic(empty_db, "downgrade", OWNER_REVISION, check=False)
+
+    assert result.returncode != 0
+    assert "sync_operation (Lot 7) : 1" in result.stdout + result.stderr
+
+
+def test_downgrade_to_the_owner_revision_restores_its_schema_and_its_data(
+    empty_db, tmp_path
+):
+    """Lieux et adversaires survivent ; les « Moi » partent ; le journal reste."""
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    seed_a_journal(empty_db)
+    before = journal(empty_db)
+    alembic(empty_db, "upgrade", "head")
+    execute(empty_db, "INSERT INTO venue (user_id, name) VALUES (1, 'Le Bar à Dés')")
+    execute(empty_db, "INSERT INTO player (user_id, name, is_me) VALUES (1, 'Marc', 0)")
+
+    alembic(empty_db, "downgrade", OWNER_REVISION)
+
+    reference = tmp_path / "owner.db"
+    alembic(reference, "upgrade", OWNER_REVISION)
+    assert snapshot_of(empty_db) == snapshot_of(reference)
+    assert journal(empty_db) == before
+    assert rows(empty_db, "SELECT name, is_me FROM player") == [("Marc", 0)]
+    assert rows(empty_db, "SELECT name FROM venue") == [("Le Bar à Dés",)]
+    assert foreign_key_violations(empty_db) == []
+
+
+def test_the_practice_revision_renders_offline(empty_db):
+    result = alembic(
+        empty_db, "upgrade", f"{OWNER_REVISION}:{PRACTICE_REVISION}", "--sql"
+    )
+    for table in ("tournament", "game", "sync_operation"):
+        assert f"CREATE TABLE {table}" in result.stdout, table
+    assert "ux_game_final" in result.stdout
+    assert "INSERT INTO player (user_id, name, is_me)" in result.stdout
+    assert "PRAGMA legacy_alter_table = ON" in result.stdout
+    assert not empty_db.exists()
+
+
+def test_the_practice_revision_downgrade_does_not_render_offline(empty_db):
+    """Sa garde lit la base : elle le dit au lieu d'écrire du SQL."""
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{PRACTICE_REVISION}:{OWNER_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert PRACTICE_REVISION in result.stdout + result.stderr

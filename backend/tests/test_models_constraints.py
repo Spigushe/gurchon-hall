@@ -43,6 +43,8 @@ from app.models import (
     DeletedDeckCard,
     Discipline,
     DisciplineRequirement,
+    EventTier,
+    FinalDeckRule,
     Game,
     Language,
     Participation,
@@ -843,6 +845,33 @@ ENUM_COLUMNS = [
         id="tournament.format",
     ),
     pytest.param(
+        "tournament",
+        "event_tier",
+        "ck_tournament_event_tier",
+        EventTier,
+        {
+            "name": "X",
+            "start_date": "2026-01-01",
+            "deck_policy": "mono",
+            "format": "constructed",
+        },
+        id="tournament.event_tier",
+    ),
+    pytest.param(
+        "tournament",
+        "final_deck_rule",
+        "ck_tournament_final_deck_rule",
+        FinalDeckRule,
+        # La règle de finale n'existe qu'en multi-deck (Lot 7, A11).
+        {
+            "name": "X",
+            "start_date": "2026-01-01",
+            "deck_policy": "multi",
+            "format": "constructed",
+        },
+        id="tournament.final_deck_rule",
+    ),
+    pytest.param(
         "game",
         "round_type",
         "ck_game_round_type",
@@ -905,6 +934,12 @@ def test_enum_column_accepts_every_member_value(
             row["name"] = f"deck-{index}"
         if table in ("deck", "tournament", "game"):
             row["user_id"] = default_user_id(db)
+        # Une partie de tournoi a son tournoi, une préliminaire son numéro
+        # (Lot 7, A6) : chaque membre reçoit le contexte qui le rend valide.
+        if table == "game" and member is not RoundType.CASUAL:
+            row["tournament_id"] = make_tournament(db, name=f"t-{index}").id
+            if member is RoundType.PRELIMINARY:
+                row["round_number"] = 1
         insert_row(db, table, row)
 
 
@@ -951,8 +986,10 @@ def test_enum_values_are_stored_as_values_not_member_names(db):
     """`CardCategory.CRYPT` est stocké « crypt » : la base reste lisible."""
     make_card(db, category=CardCategory.CRYPT)
     make_deck(db, status=DeckStatus.ACTIVE)
-    make_tournament(db, deck_policy=DeckPolicy.MULTI, format=TournamentFormat.DRAFT)
-    make_game(db, round_type=RoundType.FINAL)
+    tournament = make_tournament(
+        db, deck_policy=DeckPolicy.MULTI, format=TournamentFormat.DRAFT
+    )
+    make_game(db, round_type=RoundType.FINAL, tournament_id=tournament.id)
     db.commit()
     assert run_sql(db, "SELECT category FROM card").scalar() == "crypt"
     assert run_sql(db, "SELECT status FROM deck").scalar() == "active"
@@ -1628,8 +1665,16 @@ def test_participation_game_fk_rejects_game_of_another_account(db):
 def test_game_tournament_fk_rejects_tournament_of_another_account(db):
     other_user_id = _second_account_id(db)
     other_tournament = make_tournament(db, user_id=other_user_id)
-    with pytest.raises(IntegrityError):
-        make_game(db, tournament_id=other_tournament.id)
+    # Une préliminaire numérotée : la partie est valide hors de la clé, qui est
+    # donc seule à pouvoir la refuser.
+    with pytest.raises(IntegrityError) as refused:
+        make_game(
+            db,
+            tournament_id=other_tournament.id,
+            round_type=RoundType.PRELIMINARY,
+            round_number=1,
+        )
+    assert "FOREIGN KEY" in str(refused.value)
 
 
 def test_game_venue_fk_rejects_venue_of_another_account(db):

@@ -517,9 +517,19 @@ deuxième conversion de données du projet après R9, aussi simple : une ligne p
 compte, sans choix à faire.
 
 Descente : refusée (`RuntimeError`, avant toute modification) s'il existe une
-ligne dans `tournament`, `game`, `participation` ou `venue`, un joueur autre
-que les « Moi », ou une opération du journal d'un type nouveau. Sinon elle
-retire les « Moi », les colonnes et les index.
+ligne dans `tournament`, `game` ou `participation`, ou une opération du journal
+d'un type, d'un genre ou d'un identifiant du Lot 7. Lieux et adversaires, dont
+la forme ne change pas, ne bloquent pas et survivent (resserré à
+l'implémentation : le premier jet les comptait, sans raison de schéma). Sinon
+elle retire les « Moi », les colonnes, les contraintes et les index.
+
+Gardes de montée, ajoutées à l'implémentation, sautées hors ligne : une partie
+qui contredirait les nouvelles contraintes de `game`, ou un compte sans « Moi »
+dont le `username` est déjà le nom d'un de ses joueurs, arrêtent la révision
+avant toute modification, avec un message.
+
+Révision livrée à l'étape A1 : `783b24f9e769`
+(`backend/migrations/versions/20261029_783b24f9e769_pratique_de_jeu.py`).
 
 Mise en service sur `backend/vtes.db` : comme au Lot 6, essai sur une copie,
 sauvegarde datée (`vtes.db.pre-lot7-<horodatage>.bak`), comparaison du journal
@@ -744,7 +754,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
 | A0 | architecte-contrat | P1 appliqué : § 5 de CLAUDE.md et skill `regles-vtes` corrigés (GW, finale, retrait, multi-deck ; TP notés comme non suivis) — **fait le 2026-10-29** | rien |
-| A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` | A0 |
+| A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` — **fait le 2026-10-29** ; l'élargissement des enums de `/sync` change le contrat, exporté et client TS régénéré dès cette étape | A0 |
 | A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS | A1 |
 | B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription | A2 |
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement | B1 |

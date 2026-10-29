@@ -4645,10 +4645,22 @@
           "deck.delete",
           "deck_card.upsert",
           "deck_card.delete",
-          "bundle.deposit"
+          "bundle.deposit",
+          "player.create",
+          "player.update",
+          "player.delete",
+          "venue.create",
+          "venue.update",
+          "venue.delete",
+          "tournament.create",
+          "tournament.update",
+          "tournament.delete",
+          "game.create",
+          "game.update",
+          "game.delete"
         ],
         "title": "SyncOperationType",
-        "description": "Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).\n\nUne valeur par intention de l'utilisateur, limitée aux ressources qui\nexistent déjà : collection, decks, composition, versement d'un produit. Le\ncatalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md\n§11) et les parties, tournois et participations attendent le Lot 4 — les\najouter ici avant qu'elles aient une route serait promettre une\nsynchronisation sans destination.\n\nLes langues n'y sont pas non plus : `POST /langues` reste une écriture en\nligne. Une saisie hors ligne dans une langue inconnue du serveur doit se\nrabattre sur « XX » (autre), cf. le point ouvert du rapport de lot.\n\nDeux nuances de vocabulaire par rapport aux routes REST :\n\n* `stock.upsert` et `deck_card.upsert` créent **ou** remplacent l'entrée,\n  là où REST distingue `POST` et `PATCH`. Une file rejouée n'a pas de\n  garantie sur ce que le serveur possède déjà ; l'upsert rend l'ordre des\n  opérations indifférent et la charge utile porte l'état complet voulu.\n* il n'y a pas d'opération d'archivage : archiver, c'est `deck.update` avec\n  `archived`, exactement comme `PATCH /decks/{id}`."
+        "description": "Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).\n\nUne valeur par intention de l'utilisateur : collection, decks, composition,\nversement d'un produit, et depuis le Lot 7 joueurs, lieux, tournois et\nparties. Le catalogue reste en lecture seule (il ne bouge que par l'import,\nCLAUDE.md §11). Les douze valeurs du Lot 7 sont entrées dans la contrainte\nde la base par la révision R10, avant que `/sync` sache les appliquer :\nélargir ce CHECK oblige à recréer le journal, et on ne le fait qu'une fois.\nUne participation n'a pas d'opération propre : la table d'une partie se\nremplace d'un bloc avec la partie (`game.create`, `game.update`).\n\nLes langues n'y sont pas non plus : `POST /langues` reste une écriture en\nligne. Une saisie hors ligne dans une langue inconnue du serveur doit se\nrabattre sur « XX » (autre), cf. le point ouvert du rapport de lot.\n\nDeux nuances de vocabulaire par rapport aux routes REST :\n\n* `stock.upsert` et `deck_card.upsert` créent **ou** remplacent l'entrée,\n  là où REST distingue `POST` et `PATCH`. Une file rejouée n'a pas de\n  garantie sur ce que le serveur possède déjà ; l'upsert rend l'ordre des\n  opérations indifférent et la charge utile porte l'état complet voulu.\n* il n'y a pas d'opération d'archivage : archiver, c'est `deck.update` avec\n  `archived`, exactement comme `PATCH /decks/{id}`."
       },
       "SyncOutcome": {
         "type": "string",
@@ -4725,7 +4737,11 @@
           "card_copy",
           "deck",
           "deck_card",
-          "bundle"
+          "bundle",
+          "player",
+          "venue",
+          "tournament",
+          "game"
         ],
         "title": "SyncResourceKind",
         "description": "Nature de la ressource touchée par une opération de synchronisation."
