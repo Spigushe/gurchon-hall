@@ -292,6 +292,47 @@ le séquencement : les étapes D1 et D2 attendent le handoff (étape D0), alors
 que le back et la couche offline (A à C) n'en dépendent pas et avancent
 pendant ce temps.
 
+#### Handoff reçu (2026-10-29)
+
+Versé dans `docs/design-handoff/` : `LOT7.md`, prototypes `Gurchon Hall
+Parties.dc.html` (mobile, écrans 12 à 25) et `Gurchon Hall Parties
+Bureau.dc.html` (bureau, d10 à d16), gabarit `TabBar.dc.html`, `TopBar.dc.html`
+mis à jour (onglet Parties, `G P`), captures `1b-12` à `1b-25` et `d10` à
+`d16`, et `support.js`, le runtime des prototypes, qui manquait au dépôt alors
+que les prototypes des Lots 5 et 5bis le chargeaient déjà. Aucun token
+nouveau.
+
+Relu contre ce plan : conforme sur le fond. Pas de TP, pas de place à la
+table, pas de score d'adversaire, deck prêté, GW certain coché d'office,
+classement final de 1 à 5 en finale et pré-rempli à 1 avec un GW en finale,
+upsert par nom des lieux, carte « Tournoi en cours » de P8, libellés de refus
+alignés sur A4, A5, A7, A8, A11 et A6. Quatre points tranchés ici, le
+handoff faisant foi pour tout le reste de la forme :
+
+- **Champ de recherche de la barre haute** : les captures bureau le montrent
+  (« Chercher une carte / »). Il reste **masqué** jusqu'au lot Chercher,
+  comme décidé au Lot 5c ; le prototype reprend simplement l'ancienne barre.
+- **« Enregistrer » le classement, désactivé « tant que le tournoi n'est pas
+  fini »** (d12) : **non retenu**. « Fini » n'est défini nulle part, le
+  handoff dit lui-même qu'aucune règle ne l'impose, et l'écran mobile 20 n'a
+  pas cette restriction ; la garder créerait une asymétrie que le Lot 5c
+  aurait à rattraper. Le bouton est actif dès que la place est saisie, et la
+  mention « à saisir en fin de tournoi » reste comme repère.
+- **GW verrouillé quand il est certain** (13) : **retenu**. L'interrupteur ne
+  se décoche pas et l'aide explique pourquoi. C'est le seul endroit où le
+  client empêche une saisie que le serveur refuserait ; il le fait parce que
+  la règle est certaine et locale (A4, A14), sans rien bloquer d'autre.
+- **Raccourcis bureau** (`N`, `E`, `T`, `R`, `F`, et `G P`) : **retenus**. Ils
+  sont propres à chaque page, comme `N` de la Collection et des Decks ou `R`
+  du détail de deck, donc sans collision ; `G P` est libre dans
+  `NAV_SHORTCUT_BINDINGS`. Ils n'ont pas d'équivalent mobile, ce qui est hors
+  périmètre selon le verdict du Lot 5c sur les raccourcis.
+
+À surveiller à l'implémentation : la tab bar passe à cinq colonnes avec un
+padding réduit (`10px 6px 26px`), ce qui touche tous les écrans mobiles ; les
+e2e mobiles existants et la vérification sur appareil réel (risques) la
+couvrent.
+
 ### P4 — Un adversaire peut-il jouer un de mes decks ?
 
 *Tranché le 2026-10-29 : B, oui, partout.* Une ligne d'adversaire peut
@@ -709,7 +750,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement | B1 |
 | B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence ; section « Lot 7 » du contrat de sync (architecte) | B2 |
 | C1 | pwa-offline | Dexie v5, miroirs, surcouche, actions, calculs portés, libellés et corrections | A2 (types), B3 pour les e2e |
-| D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` | rien |
+| D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
