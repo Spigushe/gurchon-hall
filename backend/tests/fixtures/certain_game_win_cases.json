@@ -1,0 +1,26 @@
+{
+  "description": "Table de cas de certain_game_win (Python) et certainGameWin (TypeScript, frontend/src/offline/vtes/). Lot 7, A4 et A14 : le GW est certain avec plus de la moitié des VP de la table et au moins 2 VP ; sinon rien ne le dit (null). Les deux tests lisent ce fichier : une évolution du seuil se fait ici et dans les deux implémentations. Les deux derniers cas sont hors du domaine que le serveur accepte (6 VP à cinq, 1,25 VP) : l'interface peut les transmettre en cours de saisie, et les deux implémentations doivent y répondre pareil. `expected: null` impose `null`, pas `undefined`, côté TypeScript.",
+  "cases": [
+    { "player_count": 4, "vp": null, "expected": null },
+    { "player_count": 4, "vp": 0, "expected": null },
+    { "player_count": 4, "vp": 1.5, "expected": null },
+    { "player_count": 4, "vp": 2, "expected": null },
+    { "player_count": 4, "vp": 2.5, "expected": true },
+    { "player_count": 4, "vp": 4, "expected": true },
+    { "player_count": 5, "vp": 2, "expected": null },
+    { "player_count": 5, "vp": 2.5, "expected": null },
+    { "player_count": 5, "vp": 3, "expected": true },
+    { "player_count": 5, "vp": 5, "expected": true },
+    { "player_count": 3, "vp": 1.5, "expected": null },
+    { "player_count": 3, "vp": 2, "expected": true },
+    { "player_count": 2, "vp": 1.5, "expected": null },
+    { "player_count": 2, "vp": 2, "expected": true },
+    { "player_count": 6, "vp": 3, "expected": null },
+    { "player_count": 6, "vp": 3.5, "expected": true },
+    { "player_count": 6, "vp": 2.5, "expected": null },
+    { "player_count": 6, "vp": 4, "expected": true },
+    { "player_count": 5, "vp": 3.5, "expected": true },
+    { "player_count": 5, "vp": 6, "expected": true },
+    { "player_count": 4, "vp": 1.25, "expected": null }
+  ]
+}
