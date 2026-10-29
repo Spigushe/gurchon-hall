@@ -179,7 +179,9 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
   decklist qu'il faudrait figer. Un tournoi qui contient des parties refuse la
   suppression (409, `passive_deletes="all"` déjà en place) : on supprime ou
   détache ses parties d'abord. Un joueur ou un lieu encore référencé refuse
-  aussi (409). Pas de suppression logique sur ces tables.
+  aussi (409). Pas de suppression logique sur ces tables. Supprimer une
+  partie, comme la sortir de son tournoi, est une écriture contrôlée (A11) :
+  retirer une préliminaire peut changer le deck que la finale devait jouer.
 - **A10 — Le journal de sync apprend quatre identifiants.** `sync_operation`
   reçoit `player_id`, `venue_id`, `tournament_id` et `game_id`, nullables, sur
   le patron de `deck_id`, plutôt qu'un `resource_id` générique : les colonnes
@@ -216,7 +218,8 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
   rejoue à chaque écriture qui peut le rompre : création ou modification de la
   finale, modification d'une préliminaire (deck, VP, GW, table) d'un tournoi
   qui a déjà une finale, déplacement d'une partie d'un tournoi à l'autre (sur
-  les deux tournois), changement de `deck_policy`, `final_deck_rule` ou
+  les deux tournois), sortie d'une partie de son tournoi, suppression d'une
+  partie, changement de `deck_policy`, `final_deck_rule` ou
   `event_tier`. La décision de passer outre (un organisateur qui change de
   méthode en cours de route) se prend en corrigeant `final_deck_rule`, pas en
   désactivant la règle.
@@ -935,6 +938,120 @@ tables), projection de ces types dans `overlay.ts` (bilan provisoire, clés
 `REFERENCE_FIELDS` typés contre `AnySyncOperation`, réalignement des types de lignes
 provisoires, élagage de `settled` des quatre nouveaux miroirs.
 
+### Livré à l'étape B2 (2026-10-29)
+
+Services `services/games.py`, `services/tournaments.py`, `services/refs.py` et
+`services/play_checks.py`, routes `routers/games.py` et `routers/tournaments.py`,
+onze opérations de plus au contrat : 49 opérations sur 29 chemins, client TS
+régénéré. Les douze opérations `/sync` n'entrent toujours pas dans
+`AnySyncOperation` (B3). Ce qui a été précisé en écrivant :
+
+- **Le découpage des services.** `play_checks.py` porte ce que les règles ont
+  besoin de lire dans le compte : ma participation à chaque partie d'un tournoi
+  (`Round`), l'état d'un tournoi copié (`TournamentState`, pour contrôler un état
+  fusionné sans toucher à l'objet de la session) et les contrôles qui se jouent
+  sur plusieurs parties (mono-deck, deck de finale, classement). `games.py` et
+  `tournaments.py` s'en servent tous deux, sans s'importer l'un l'autre dans les
+  deux sens (`tournaments` lit `games.to_read`).
+- **Une écriture de partie, trois temps.** Toutes les références sont résolues
+  d'abord (`refs.py`), puis les règles se contrôlent sur l'état fusionné, puis
+  seulement la base est écrite. Le tournoi se contrôle dans l'état hypothétique où
+  la partie a sa nouvelle forme : les parties du tournoi, moins celle-ci, plus sa
+  version voulue. Le même contrôle sert la création, la modification, le
+  remplacement de table, le déplacement entre tournois (les deux sont contrôlés) et
+  la suppression : retirer une préliminaire peut changer le deck que la finale
+  devait jouer, donc la suppression est refusée (409) dans ce cas, ce que le plan
+  ne disait pas. `update_game(db, user_id, game_id, payload, table)` fait un seul
+  `commit` pour les champs et la table, comme les services des decks, et
+  `PUT …/participations` n'en est qu'un appel particulier : c'est lui que B3
+  appellera pour `game.update`. Il pose aussi `updated_at` à la main quand seule
+  la table change, la ligne `game` n'étant alors pas modifiée et le miroir hors
+  ligne (C1a) se servant de cet horodatage pour savoir quelle table relire.
+- **`refs.py`.** `UnresolvedClientRef` est devenue une `DomainError` (code HTTP 404,
+  verdict `unresolved_client_ref` de `/sync`) et vit ici ; `sync.py` l'importe, et
+  résout désormais la référence d'un deck par `refs.resolve_client_ref`, qui filtre
+  sur le genre de la ressource. Les résolveurs rendent l'objet du compte (404 sinon)
+  et prennent `allow_client_ref` : faux en ligne, où une référence client rend 422
+  avec son emplacement dans le corps, vrai pour `/sync`. `{"me": true}` passe par
+  `get_or_create_me`, ce qui fait aussi qu'un compte ancien sans « Moi » peut saisir
+  sa première partie.
+- **Quel code pour quel refus.** 422 pour la forme d'une partie (ronde, table, VP,
+  GW, résultat sur une ligne d'adversaire) et pour l'état fusionné d'un tournoi
+  (dates, niveau, règle de finale, classement). 409 pour tout ce qui contredit des
+  données existantes : ronde ou finale déjà saisie, mono-deck, deck de finale, deck
+  supprimé, nombre de rondes sous une ronde déjà jouée, et le classement saisi
+  quand c'est **une écriture de partie** qui le contredit (une finale avec GW
+  ajoutée à un tournoi déjà classé deuxième). Le plan ne tranchait pas ce dernier
+  cas ; le même classement refusé par un `PATCH` du tournoi reste un 422.
+- **Contrôles du `PATCH` d'un tournoi.** Le contrôle des decks (mono-deck, deck de
+  finale) ne se rejoue que si `deck_policy` ou `final_deck_rule` sont envoyés ; ceux
+  d'état (dates, niveau, classement) se rejouent toujours. Passer de `multi` à `mono`
+  exige d'envoyer `final_deck_rule: null` en même temps, sans quoi c'est un 422 : la
+  règle de finale n'a pas de sens en mono-deck, et le serveur ne l'efface pas de
+  lui-même.
+- **Deck supprimé (A8).** Refusé pour une ligne nouvelle ou dont le deck change,
+  comparée à la table actuelle par joueur ; une table qui garde un deck supprimé se
+  corrige encore, mais on ne le reprend pas après l'avoir quitté.
+- **Messages.** « La ronde 2 est déjà saisie pour ce tournoi (sur un autre
+  appareil ?). », « La finale est déjà saisie pour ce tournoi. », « Ce tournoi
+  contient 4 parties : supprimez-les ou détachez-les du tournoi d'abord. » (« 1
+  partie » au singulier). Les messages des règles nomment les decks par
+  `nom#discriminant`. Plusieurs refus d'une même écriture sont joints dans un seul
+  message.
+- **Lectures.** `lazy="joined"` posé sur `Participation.player` et `Game.tournament`
+  (le seul changement de modèle, sans effet sur le schéma) et `selectinload` des
+  tables dans les listes ; un test borne le nombre de requêtes d'une liste de six
+  parties. Une partie sans ligne « Moi » lève une `RuntimeError` explicite au lieu
+  d'une erreur de validation de réponse. Les détails de partie rendent la table par
+  siège, les lignes sans siège en dernier ; les `games` d'un tournoi viennent par
+  ronde, finale en dernier ; `my_summary` est construit explicitement.
+- **Paramètres de liste.** `from` et `to` (alias, les noms Python étant
+  `start_from`/`played_from`) sont des dates pour `/tournois` (date de début,
+  incluses) et des instants avec fuseau pour `/parties` (un instant sans fuseau
+  rend 422), bornes incluses. `casual` vrai ne garde que les amicales, faux que les
+  parties de tournoi. `deck_id` ne regarde que ma ligne.
+- **Réponses.** Les quatre routes qui écrivent ou lisent une partie seule
+  (`POST`, `GET`, `PATCH` et `PUT …/participations`) rendent `GameDetailRead`, la
+  table comprise ; la liste rend `GameRead`. `PATCH /parties/{id}` accepte les
+  champs de `GameUpdate` seuls : pour détacher une partie d'un tournoi, le corps
+  porte `tournament: null`, `round_type: "casual"` et `round_number: null` ensemble,
+  chaque règle se lisant sur l'état fusionné.
+- **Tests.** `tests/test_play_routes.py` (89 tests) couvre chaque refus ci-dessus,
+  le remplacement de table sans heurt d'unicité, les bilans, les tris, les filtres
+  et l'isolation entre comptes ; la matrice du Lot 6 reçoit les onze routes dans son
+  balayage 401 et un test des 404, y compris par référence imbriquée.
+
+Corrections de la relecture de l'architecte-contrat et de la QA, validées par
+l'utilisateur le même jour :
+
+- **Instants extrêmes.** Un instant comme `0001-01-01T00:00:00+14:00` ou
+  `9999-12-31T23:59:59-05:00` ne se convertit pas en UTC (`OverflowError`, un 500).
+  Le validateur `_to_utc` de `schemas/base.py` (partagé avec la file de sync) le
+  rend en `ValueError`, donc en 422, et `_utc` de `games.py` en `InvalidRequestError`
+  sur `from` et `to`.
+- **Course en ligne.** Les `flush` d'une création ou d'un remplacement de table sont
+  sous `integrity_as_conflict` : deux `POST /parties` concurrents sur la même ronde
+  donnent un 409 « Cette ronde ou la finale est déjà saisie… », plus un 500. Le
+  message exact de `_check_round_slot` reste celui du cas non concurrent.
+- **Retirer une ronde.** Le 409 d'une suppression ou d'une sortie de tournoi est
+  préfixé : « Retirer cette ronde changerait le deck attendu en finale : Finale
+  jouée avec A#8470 ; meilleur deck des préliminaires : B#4887. »
+- **Contrat.** `createTournament` déclare aussi le 409 (`commit_or_conflict` peut en
+  rendre un).
+- **Pourquoi `PATCH /tournois` ne rejoue les contrôles de decks que si
+  `deck_policy` ou `final_deck_rule` sont envoyés.** Cela suppose que toute
+  écriture de partie, `DELETE` compris, les rejoue : l'état stocké est donc déjà
+  cohérent. Si une écriture sur `game` cessait de le faire, cette économie
+  deviendrait un trou.
+- **Pour C1b.** Le formulaire de tournoi envoie `final_deck_rule: null` en même temps
+  que le passage en mono, et `correctable.ts` peut proposer ce correctif sur un
+  `invalid` de ce motif.
+- **Limites d'usage.** Échanger les numéros de deux rondes demande une étape
+  intermédiaire (un numéro libre), la ronde étant unique parmi mes parties du
+  tournoi. Une partie sans ligne « Moi » (possible seulement par SQL direct) lève une
+  `RuntimeError` explicite à la lecture plutôt qu'une erreur de validation de
+  réponse : l'utilisateur garde ce comportement, un test le fige.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -957,7 +1074,9 @@ comme `DeckRef`. `SyncResourceKind` gagne `player`, `venue`, `tournament`,
 règle du Lot 3 : ceux que la route en ligne aurait opposés, avec le même
 message : `invalid` pour une règle de table, de ronde, de score, de niveau, de
 dates ou de classement, à la création comme à la modification, puisque ces
-règles sont au service et non au schéma ; `conflict` pour le mono-deck, le
+règles sont au service et non au schéma (le classement contredit est `invalid`
+sur `tournament.*` et `conflict` sur `game.*`, comme le 422 et le 409 des
+routes) ; `conflict` pour le mono-deck, le
 deck de finale, un deck supprimé, une ronde déjà saisie ou un nom déjà porté
 par le « Moi » ; `not_found` pour une ressource absente ou d'un autre compte.
 Un refus n'interrompt pas le lot.
@@ -1081,7 +1200,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` — **fait le 2026-10-29** ; l'élargissement des enums de `/sync` change le contrat, exporté et client TS régénéré dès cette étape | A0 |
 | A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS — **fait le 2026-10-29** (cf. « Livré à l'étape A2 ») | A1 |
 | B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription — **fait le 2026-10-29** (cf. « Livré à l'étape B1 ») | A2 |
-| B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement | B1 |
+| B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement — **fait le 2026-10-29** (cf. « Livré à l'étape B2 ») | B1 |
 | B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence ; section « Lot 7 » du contrat de sync (architecte) | B2 |
 | C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties — **fait le 2026-10-29** (cf. « Livré à l'étape C1a » ; miroir des tables validé le même jour) | A2 |
 | C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections | B3 |

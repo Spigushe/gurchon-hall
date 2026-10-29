@@ -241,6 +241,8 @@ class Game(Base, TimestampMixin):
         primaryjoin="and_(Game.venue_id == Venue.id, Game.user_id == Venue.user_id)",
         foreign_keys="Game.venue_id",
     )
+    # `lazy="joined"` : `GameRead.tournament_name` lit le tournoi de chaque
+    # partie d'une liste ; sans jointure, une requête par partie (Lot 7, B2).
     tournament: Mapped[Tournament | None] = relationship(
         back_populates="games",
         primaryjoin=(
@@ -248,6 +250,7 @@ class Game(Base, TimestampMixin):
             "Game.user_id == Tournament.user_id)"
         ),
         foreign_keys="Game.tournament_id",
+        lazy="joined",
     )
     participations: Mapped[list[Participation]] = relationship(
         back_populates="game",
@@ -318,12 +321,14 @@ class Participation(Base):
         ),
         foreign_keys="Participation.game_id",
     )
+    # `lazy="joined"` : `is_me` et `Game.me` lisent le joueur de chaque ligne.
     player: Mapped[Player] = relationship(
         primaryjoin=(
             "and_(Participation.player_id == Player.id, "
             "Participation.user_id == Player.user_id)"
         ),
         foreign_keys="Participation.player_id",
+        lazy="joined",
     )
     deck: Mapped[Deck | None] = relationship(
         primaryjoin=(

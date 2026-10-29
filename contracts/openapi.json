@@ -2975,6 +2975,1036 @@
         }
       }
     },
+    "/tournois": {
+      "get": {
+        "tags": [
+          "tournois"
+        ],
+        "summary": "Liste les tournois",
+        "description": "Du plus récent au plus ancien (date de début), chacun avec mon bilan. `q` cherche une sous-chaîne du nom, sans tenir compte de la casse ni des accents ; `from` et `to` bornent la date de début, incluses.",
+        "operationId": "listTournaments",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TournamentRead"
+                  },
+                  "title": "Response Listtournaments"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tournois"
+        ],
+        "summary": "Crée un tournoi",
+        "description": "422 si le multi-deck est demandé à un niveau qui l'interdit (championnat national, Grand Prix, championnat continental), si une règle de deck de finale accompagne un tournoi mono-deck, si la date de fin précède celle de début, ou si le classement dépasse le nombre de joueurs. 404 si le lieu est inconnu ou d'un autre compte.",
+        "operationId": "createTournament",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TournamentCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournois/{tournament_id}": {
+      "get": {
+        "tags": [
+          "tournois"
+        ],
+        "summary": "Lit un tournoi",
+        "description": "Le tournoi, mon bilan et mes parties dans l'ordre des rondes, finale en dernier. `admissible_final_decks` liste les decks que ma finale peut jouer en multi-deck, selon la règle annoncée ; nul quand rien n'est contrôlable.",
+        "operationId": "getTournament",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentDetailRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "tournois"
+        ],
+        "summary": "Modifie un tournoi",
+        "description": "Modification partielle ; les champs nullables envoyés à `null` sont remis à zéro. 422 sur l'état fusionné (niveau contre politique de deck, règle de finale, dates, classement contre le nombre de joueurs et ma finale). 409 si le passage en mono-deck, le changement de règle de finale ou une baisse du nombre de rondes contredit les parties déjà saisies.",
+        "operationId": "updateTournament",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TournamentUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tournois"
+        ],
+        "summary": "Supprime un tournoi",
+        "description": "409 tant que le tournoi contient des parties : on les supprime ou on les détache d'abord.",
+        "operationId": "deleteTournament",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parties": {
+      "get": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Liste les parties",
+        "description": "De la plus récente à la plus ancienne. `casual` vrai : parties amicales ; faux : parties de tournoi. `deck_id` ne regarde que mon deck, pas un deck prêté. `from` et `to` sont des instants avec fuseau, bornes incluses. Chaque partie porte ma ligne en résumé et le nom de son tournoi.",
+        "operationId": "listGames",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tournament Id"
+            }
+          },
+          {
+            "name": "casual",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Casual"
+            }
+          },
+          {
+            "name": "deck_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Deck Id"
+            }
+          },
+          {
+            "name": "venue_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2147483647,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Venue Id"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "From"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GameRead"
+                  },
+                  "title": "Response Listgames"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Crée une partie, table comprise",
+        "description": "Une partie se saisit d'une traite : sa table entière comprise, avec exactement ma ligne. Laissé vide, mon Game Win est posé par le serveur quand il est certain. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.",
+        "operationId": "createGame",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetailRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parties/{game_id}": {
+      "get": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Lit une partie et sa table",
+        "description": "La table est triée par siège, les lignes sans siège en dernier.",
+        "operationId": "getGame",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetailRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Modifie une partie, hors table",
+        "description": "Modification partielle ; `venue`, `tournament`, `round_number` et `notes` envoyés à `null` sont remis à zéro. Les règles se contrôlent sur l'état fusionné : changer `player_count` revérifie la table existante. La table se corrige par `PUT /parties/{id}/participations`. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.",
+        "operationId": "updateGame",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetailRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Supprime une partie",
+        "description": "Suppression physique, table comprise. 409 si retirer une préliminaire rend illégal le deck de la finale.",
+        "operationId": "deleteGame",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Game Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parties/{game_id}/participations": {
+      "put": {
+        "tags": [
+          "parties"
+        ],
+        "summary": "Remplace la table d'une partie",
+        "description": "La table se remplace d'un bloc, jamais ligne à ligne : exactement ma ligne, les adversaires facultatifs. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.",
+        "operationId": "replaceGameParticipations",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "game_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Game Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameTableReplace"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetailRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/sync": {
       "post": {
         "tags": [
@@ -4799,6 +5829,15 @@
         "title": "DeckListState",
         "description": "Quels decks une liste renvoie.\n\nPurement contractuel (pas de colonne en face) : l'archivage est une date,\npas un statut. Les decks supprimés ne sont dans aucun de ces trois cas."
       },
+      "DeckPolicy": {
+        "type": "string",
+        "enum": [
+          "mono",
+          "multi"
+        ],
+        "title": "DeckPolicy",
+        "description": "Contrainte de deck d'un tournoi (CLAUDE.md §5, « mono / multi-deck »)."
+      },
       "DeckRead": {
         "properties": {
           "id": {
@@ -5111,6 +6150,418 @@
         "title": "ErrorResponse",
         "description": "Corps d'une réponse d'erreur métier."
       },
+      "EventTier": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "national_championship",
+          "grand_prix",
+          "continental_championship"
+        ],
+        "title": "EventTier",
+        "description": "Niveau d'un tournoi, au sens où le règlement VEKN le distingue (Lot 7, A11).\n\nLe niveau ne sert qu'à une règle : le multi-deck est interdit en championnat\nnational, en Grand Prix et en championnat continental (VEKN 3.1.5, CLAUDE.md\n§5). Tout autre tournoi est `standard`, valeur par défaut."
+      },
+      "FinalDeckRule": {
+        "type": "string",
+        "enum": [
+          "best_performing",
+          "free_choice"
+        ],
+        "title": "FinalDeckRule",
+        "description": "Règle du deck de finale d'un tournoi multi-deck (VEKN 3.1.5a, Lot 7, A11).\n\nAnnoncée par l'organisateur avant la première ronde. `BEST_PERFORMING` : le\ndeck de la meilleure ronde préliminaire, comparée par GW puis VP (le TP\nn'est pas suivi, CLAUDE.md §5). `FREE_CHOICE` : n'importe quel deck joué en\npréliminaires. Sans objet en mono-deck ; une colonne nulle dit que la règle\nn'est pas (encore) connue."
+      },
+      "GameCreate": {
+        "properties": {
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At",
+            "description": "Instant de la partie, fuseau obligatoire, normalisé en UTC."
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tournament": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TournamentRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType",
+            "default": "casual"
+          },
+          "player_count": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 2.0,
+            "title": "Player Count",
+            "description": "Joueurs à la table : 4 ou 5 en tournoi, de 2 à 6 acceptés."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationCreate"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Participations",
+            "description": "La table entière, ma ligne comprise (exactement une). Les adversaires sont facultatifs : une table peut se réduire à ma seule participation."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "played_at",
+          "player_count",
+          "participations"
+        ],
+        "title": "GameCreate",
+        "description": "Création d'une partie, table comprise.\n\nAu club, une partie se saisit d'une traite, souvent hors ligne, et la file\nde synchronisation a tout intérêt à rejouer une seule opération plutôt que\nsix. Une partie hors tournoi est amicale ; une partie de tournoi est une\npréliminaire numérotée ou une finale (A6, contrôle du service)."
+      },
+      "GameDetailRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "tournament_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Id"
+          },
+          "tournament_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Name"
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType"
+          },
+          "player_count": {
+            "type": "integer",
+            "title": "Player Count"
+          },
+          "me": {
+            "$ref": "#/components/schemas/ParticipationSummary",
+            "description": "Ma ligne de la table, en résumé."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationRead"
+            },
+            "type": "array",
+            "title": "Participations",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "played_at",
+          "venue_id",
+          "tournament_id",
+          "tournament_name",
+          "round_number",
+          "round_type",
+          "player_count",
+          "me",
+          "notes",
+          "created_at",
+          "updated_at",
+          "participations"
+        ],
+        "title": "GameDetailRead",
+        "description": "Une partie avec la table complète."
+      },
+      "GameRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "tournament_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Id"
+          },
+          "tournament_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Name"
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType"
+          },
+          "player_count": {
+            "type": "integer",
+            "title": "Player Count"
+          },
+          "me": {
+            "$ref": "#/components/schemas/ParticipationSummary",
+            "description": "Ma ligne de la table, en résumé."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "played_at",
+          "venue_id",
+          "tournament_id",
+          "tournament_name",
+          "round_number",
+          "round_type",
+          "player_count",
+          "me",
+          "notes",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "GameRead",
+        "description": "Une partie, telle qu'une liste l'affiche : ma ligne en résumé et le nom\ndu tournoi, pour lire une liste sans un appel par partie."
+      },
+      "GameTableReplace": {
+        "properties": {
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipationCreate"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 1,
+            "title": "Participations",
+            "description": "La table entière, ma ligne comprise (exactement une). Les adversaires sont facultatifs : une table peut se réduire à ma seule participation."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "participations"
+        ],
+        "title": "GameTableReplace",
+        "description": "Remplacement de la table d'une partie (`PUT /parties/{id}/participations`).\n\nLa table se remplace d'un bloc, jamais ligne à ligne (A3) : c'est la seule\nfaçon de vérifier les règles qui portent sur toute la table sans état\nintermédiaire faux."
+      },
+      "GameUpdate": {
+        "properties": {
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tournament": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TournamentRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType"
+          },
+          "player_count": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 2.0,
+            "title": "Player Count"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GameUpdate",
+        "description": "Modification d'une partie, hors table (`PUT …/participations` pour elle).\n\n`played_at`, `round_type` et `player_count` sont facultatifs mais non\nnullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être\nremis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au\nservice."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -5211,6 +6662,277 @@
         "title": "LanguageRead",
         "description": "Une langue d'exemplaire.\n\nListe ouverte servie par l'API plutôt que codée en dur dans le front : le\njeu exact des langues reste à confirmer (CLAUDE.md §11 point 2), et une\nlangue ajoutée en base doit apparaître dans l'UI sans redéploiement."
       },
+      "ParticipantRef": {
+        "properties": {
+          "me": {
+            "anyOf": [
+              {
+                "type": "boolean",
+                "const": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Me",
+            "description": "Vrai pour désigner le « Moi » du compte ; à omettre sinon."
+          },
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ParticipantRef",
+        "description": "Le joueur d'une ligne de table : moi, ou un joueur désigné.\n\n`{\"me\": true}` désigne le « Moi » du compte, que le serveur résout : le\nclient n'a pas besoin de son identifiant pour saisir sa première partie,\nhors ligne compris. Un adversaire se désigne par `player_id`, ou par\n`client_ref` s'il a été créé hors ligne (`player.create`). Exactement l'un\ndes trois."
+      },
+      "ParticipationCreate": {
+        "properties": {
+          "player": {
+            "$ref": "#/components/schemas/ParticipantRef"
+          },
+          "deck": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 6.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
+          "victory_points": {
+            "anyOf": [
+              {
+                "type": "number",
+                "multipleOf": 0.5,
+                "maximum": 6.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victory Points"
+          },
+          "game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Win"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "player"
+        ],
+        "title": "ParticipationCreate",
+        "description": "Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.\n\n`player` désigne le joueur : `{\"me\": true}`, un adversaire par `player_id`,\nou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est\nmon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).\n`victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;\nlaissé vide, le GW est posé par le serveur quand il est certain (A4). Table\n(exactement une ligne « Moi », joueurs et sièges distincts), bornes\nrelatives à la table et GW : contrôles du service, après résolution des\njoueurs (`vtes_rules.table_issues`)."
+      },
+      "ParticipationRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "game_id": {
+            "type": "integer",
+            "title": "Game Id"
+          },
+          "player_id": {
+            "type": "integer",
+            "title": "Player Id"
+          },
+          "is_me": {
+            "type": "boolean",
+            "title": "Is Me",
+            "description": "Vrai pour ma ligne, la seule à porter VP et GW."
+          },
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat",
+            "description": "Siège à la table, 1 = premier joueur."
+          },
+          "victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victory Points",
+            "description": "Mes VP, par demi-points ; toujours nul sur une ligne d'adversaire."
+          },
+          "game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Win",
+            "description": "Mon Game Win ; toujours nul sur une ligne d'adversaire."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "game_id",
+          "player_id",
+          "is_me",
+          "deck_id",
+          "seat",
+          "victory_points",
+          "game_win",
+          "notes"
+        ],
+        "title": "ParticipationRead",
+        "description": "La place d'un joueur sur une partie.\n\nSeule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance\ndes joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes\ndecks, prêté pour la partie (P4)."
+      },
+      "ParticipationSummary": {
+        "properties": {
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
+          "victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victory Points"
+          },
+          "game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Win"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "seat",
+          "victory_points",
+          "game_win"
+        ],
+        "title": "ParticipationSummary",
+        "description": "Ma ligne d'une partie, en résumé : ce qu'une liste affiche."
+      },
       "PlayerCreate": {
         "properties": {
           "name": {
@@ -5282,6 +7004,16 @@
         ],
         "title": "PrintOccurrence",
         "description": "Manière dont une carte apparaît dans une extension.\n\nLes trois cas sont disjoints dans le catalogue krcg et n'utilisent pas les\nmêmes champs : `RARITY` porte une fréquence et un multiplicateur (booster),\n`PRECON` un produit et un nombre d'exemplaires, `SINGLE` une date de mise\nen vente (promo, impression à la demande)."
+      },
+      "RoundType": {
+        "type": "string",
+        "enum": [
+          "casual",
+          "preliminary",
+          "final"
+        ],
+        "title": "RoundType",
+        "description": "Nature d'une partie dans un tournoi (ou hors tournoi)."
       },
       "SectRead": {
         "properties": {
@@ -5773,6 +7505,636 @@
         "title": "SyncResult",
         "description": "Réponse de `POST /sync` : un verdict par opération, dans le même ordre."
       },
+      "TournamentCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy",
+            "default": "mono"
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat",
+            "default": "constructed"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier",
+            "default": "standard"
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count"
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "start_date"
+        ],
+        "title": "TournamentCreate",
+        "description": "Création d'un tournoi.\n\nNiveau et multi-deck, règle de finale, dates et classement se contrôlent au\nservice (A11, A12), comme pour une modification, qui se contrôle en plus\nsur l'état fusionné et contre les parties."
+      },
+      "TournamentDetailRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy",
+            "description": "Mono-deck : le même deck sur toutes mes rondes, finale comprise. Multi : deck libre par ronde."
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier",
+            "description": "Niveau du tournoi. Le multi-deck est interdit en championnat national, en Grand Prix et en championnat continental."
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Règle du deck de finale annoncée par l'organisateur, en multi-deck seulement ; nulle tant qu'elle n'est pas connue."
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count",
+            "description": "Nombre de joueurs du tournoi, souvent inconnu à l'arrivée."
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "my_summary": {
+            "$ref": "#/components/schemas/TournamentSummary"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/GameRead"
+            },
+            "type": "array",
+            "title": "Games",
+            "default": []
+          },
+          "admissible_final_decks": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admissible Final Decks",
+            "description": "Decks que ma finale peut jouer, en multi-deck selon la règle annoncée ; nul quand rien n'est contrôlable (mono-deck, règle inconnue, aucune préliminaire jouée avec un deck)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start_date",
+          "end_date",
+          "venue_id",
+          "deck_policy",
+          "format",
+          "event_tier",
+          "final_deck_rule",
+          "round_count",
+          "player_count",
+          "my_ranking",
+          "my_summary",
+          "notes",
+          "created_at",
+          "updated_at",
+          "games",
+          "admissible_final_decks"
+        ],
+        "title": "TournamentDetailRead",
+        "description": "Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et\nles decks admis en finale."
+      },
+      "TournamentFormat": {
+        "type": "string",
+        "enum": [
+          "constructed",
+          "draft",
+          "other"
+        ],
+        "title": "TournamentFormat",
+        "description": "Format de tournoi.\n\n[à confirmer] La liste des formats sanctionnés VEKN dépasse peut-être\nconstruit/draft ; `OTHER` sert de soupape en attendant vérification."
+      },
+      "TournamentRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy",
+            "description": "Mono-deck : le même deck sur toutes mes rondes, finale comprise. Multi : deck libre par ronde."
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier",
+            "description": "Niveau du tournoi. Le multi-deck est interdit en championnat national, en Grand Prix et en championnat continental."
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Règle du deck de finale annoncée par l'organisateur, en multi-deck seulement ; nulle tant qu'elle n'est pas connue."
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count",
+            "description": "Nombre de joueurs du tournoi, souvent inconnu à l'arrivée."
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "my_summary": {
+            "$ref": "#/components/schemas/TournamentSummary"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start_date",
+          "end_date",
+          "venue_id",
+          "deck_policy",
+          "format",
+          "event_tier",
+          "final_deck_rule",
+          "round_count",
+          "player_count",
+          "my_ranking",
+          "my_summary",
+          "notes",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TournamentRead",
+        "description": "Un tournoi et mon bilan."
+      },
+      "TournamentRef": {
+        "properties": {
+          "tournament_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TournamentRef",
+        "description": "Désignation d'un tournoi : identifiant serveur ou référence client."
+      },
+      "TournamentSummary": {
+        "properties": {
+          "preliminary_game_wins": {
+            "type": "integer",
+            "title": "Preliminary Game Wins"
+          },
+          "preliminary_victory_points": {
+            "type": "number",
+            "title": "Preliminary Victory Points"
+          },
+          "rounds_played": {
+            "type": "integer",
+            "title": "Rounds Played",
+            "description": "Rondes préliminaires jouées."
+          },
+          "final_victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Victory Points",
+            "description": "Mes VP en finale ; nul sans finale."
+          },
+          "final_game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Game Win",
+            "description": "Mon GW en finale ; nul sans finale."
+          }
+        },
+        "type": "object",
+        "required": [
+          "preliminary_game_wins",
+          "preliminary_victory_points",
+          "rounds_played",
+          "final_victory_points",
+          "final_game_win"
+        ],
+        "title": "TournamentSummary",
+        "description": "Mon bilan d'un tournoi (A12), calculé par le serveur.\n\nGW puis VP des préliminaires, dans l'ordre du classement VEKN réduit à ses\ndeux premiers critères (pas de points de tournoi, P7) ; puis le nombre de\nrondes jouées et la finale. Des VP non saisis comptent pour 0."
+      },
+      "TournamentUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VenueRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy"
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier"
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 2.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count"
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "TournamentUpdate",
+        "description": "Modification partielle d'un tournoi.\n\n`name`, `start_date`, `deck_policy`, `format` et `event_tier` sont\nfacultatifs mais non nullables ; la date de fin, le lieu, la règle du deck\nde finale, le nombre de rondes, le nombre de joueurs, le classement et les\nnotes acceptent `null`."
+      },
       "UserLogIn": {
         "properties": {
           "email": {
@@ -6015,6 +8377,41 @@
         ],
         "title": "VenueRead",
         "description": "Lieu de jeu, privé au compte (Lot 6)."
+      },
+      "VenueRef": {
+        "properties": {
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "VenueRef",
+        "description": "Désignation d'un lieu : identifiant serveur ou référence client."
       },
       "VenueUpdate": {
         "properties": {

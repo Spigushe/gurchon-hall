@@ -129,6 +129,30 @@ _PROTECTED_ROUTES = [
     ("GET", "/lieux/1", None),
     ("PATCH", "/lieux/1", {"city": "Lyon"}),
     ("DELETE", "/lieux/1", None),
+    # Lot 7, étape B2 : tournois et parties.
+    ("GET", "/tournois", None),
+    ("POST", "/tournois", {"name": "Open", "start_date": "2026-10-24"}),
+    ("GET", "/tournois/1", None),
+    ("PATCH", "/tournois/1", {"notes": "x"}),
+    ("DELETE", "/tournois/1", None),
+    ("GET", "/parties", None),
+    (
+        "POST",
+        "/parties",
+        {
+            "played_at": "2026-10-24T20:00:00+02:00",
+            "player_count": 5,
+            "participations": [{"player": {"me": True}}],
+        },
+    ),
+    ("GET", "/parties/1", None),
+    ("PATCH", "/parties/1", {"notes": "x"}),
+    (
+        "PUT",
+        "/parties/1/participations",
+        {"participations": [{"player": {"me": True}}]},
+    ),
+    ("DELETE", "/parties/1", None),
 ]
 
 
@@ -219,6 +243,77 @@ def test_player_and_venue_routes_render_a_plain_404_for_another_accounts_row(
         ):
             assert response.status_code == 404, response.request.url
             assert response.json()["detail"] == f"{label} {row['id']} introuvable."
+
+
+def test_tournament_and_game_routes_render_a_plain_404_for_another_accounts_row(
+    two_accounts,
+):
+    """Lot 7, B2 : tournois et parties, y compris par une référence imbriquée
+    (une partie de B qui vise le deck, le tournoi, le lieu ou le joueur de A).
+    Le détail des refus est dans `test_play_routes.py`."""
+    api_a, api_b = two_accounts
+    tournament = api_a.post(
+        "/tournois", json={"name": "Open", "start_date": "2026-10-24"}
+    ).json()
+    deck = api_a.post("/decks", json={"name": "Deck privé A"}).json()
+    venue = api_a.post("/lieux", json={"name": "Bar"}).json()
+    marc = api_a.post("/joueurs", json={"name": "Marc"}).json()
+    game = api_a.post(
+        "/parties",
+        json={
+            "played_at": "2026-10-24T20:00:00+02:00",
+            "player_count": 5,
+            "participations": [{"player": {"me": True}}],
+        },
+    ).json()
+    table = {"participations": [{"player": {"me": True}}]}
+    for response, noun, ident in (
+        (api_b.get(f"/tournois/{tournament['id']}"), "Tournoi", tournament["id"]),
+        (api_b.get(f"/parties/{game['id']}"), "Partie", game["id"]),
+        (
+            api_b.put(f"/parties/{game['id']}/participations", json=table),
+            "Partie",
+            game["id"],
+        ),
+        (api_b.delete(f"/parties/{game['id']}"), "Partie", game["id"]),
+    ):
+        assert response.status_code == 404, response.request.url
+        assert response.json()["detail"] == f"{noun} {ident} introuvable."
+    base = {
+        "played_at": "2026-10-24T20:00:00+02:00",
+        "player_count": 5,
+        "participations": [{"player": {"me": True}}],
+    }
+    nested = [
+        (
+            {"tournament": {"tournament_id": tournament["id"]}, "round_type": "final"},
+            "Tournoi",
+        ),
+        ({"venue": {"venue_id": venue["id"]}}, "Lieu"),
+        (
+            {
+                "participations": [
+                    {"player": {"me": True}, "deck": {"deck_id": deck["id"]}}
+                ]
+            },
+            "Deck",
+        ),
+        (
+            {
+                "participations": [
+                    {"player": {"me": True}},
+                    {"player": {"player_id": marc["id"]}},
+                ]
+            },
+            "Joueur",
+        ),
+    ]
+    for extra, noun in nested:
+        response = api_b.post("/parties", json={**base, **extra})
+        assert response.status_code == 404, extra
+        assert response.json()["detail"].startswith(f"{noun} ")
+    assert api_b.get("/parties").json() == []
+    assert api_b.get("/tournois").json() == []
 
 
 def test_deck_list_of_b_never_shows_a_s_deck(two_accounts):

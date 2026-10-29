@@ -127,6 +127,18 @@ EXPECTED_OPERATIONS = {
     ("get", "/lieux/{venue_id}"): "getVenue",
     ("patch", "/lieux/{venue_id}"): "updateVenue",
     ("delete", "/lieux/{venue_id}"): "deleteVenue",
+    # Lot 7, étape B2 : tournois et parties.
+    ("get", "/tournois"): "listTournaments",
+    ("post", "/tournois"): "createTournament",
+    ("get", "/tournois/{tournament_id}"): "getTournament",
+    ("patch", "/tournois/{tournament_id}"): "updateTournament",
+    ("delete", "/tournois/{tournament_id}"): "deleteTournament",
+    ("get", "/parties"): "listGames",
+    ("post", "/parties"): "createGame",
+    ("get", "/parties/{game_id}"): "getGame",
+    ("patch", "/parties/{game_id}"): "updateGame",
+    ("put", "/parties/{game_id}/participations"): "replaceGameParticipations",
+    ("delete", "/parties/{game_id}"): "deleteGame",
 }
 
 

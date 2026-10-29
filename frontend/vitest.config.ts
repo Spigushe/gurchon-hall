@@ -13,6 +13,10 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/unit/**/*.test.{ts,tsx}"],
     css: false,
+    // `frontend/.env.local` (propre à chaque poste) peut poser une IP du réseau
+    // local ; la chaîne vide retombe sur l'URL par défaut de `client.ts`
+    // (`|| DEFAULT_BASE_URL`), si bien que les tests ne dépendent pas du poste.
+    env: { VITE_API_BASE_URL: "" },
     restoreMocks: true,
     // Marge de délai, pas un `retry` : un test qui échoue échoue toujours, il a
     // seulement le temps de finir quand la machine est chargée (deux lancements

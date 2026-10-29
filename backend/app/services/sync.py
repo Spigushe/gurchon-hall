@@ -71,17 +71,14 @@ from app.schemas.sync import (
     SyncResult,
     fingerprint,
 )
-from app.services import catalog, decks, stock
+from app.services import catalog, decks, refs, stock
 from app.services.errors import (
     ConflictError,
     DomainError,
     InvalidRequestError,
     NotFoundError,
 )
-
-
-class UnresolvedClientRef(Exception):
-    """Le deck désigné par une référence client n'a jamais été créé (ou a échoué)."""
+from app.services.refs import UnresolvedClientRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,41 +98,20 @@ class Touched:
 # --------------------------------------------------------------------------
 
 
-def _applied_creation(
-    db: Session, user_id: int, client_ref: str
-) -> SyncOperation | None:
-    """La création **appliquée** qui a donné son identité à cette référence,
-    pour ce compte. Une `client_ref` d'un autre compte ne compte pas : elle se
-    comporte comme une référence inconnue (Lot 6, §11)."""
-    return db.scalars(
-        select(SyncOperation).where(
-            SyncOperation.user_id == user_id,
-            SyncOperation.client_ref == client_ref,
-            SyncOperation.status == SyncOperationStatus.APPLIED,
-        )
-    ).one_or_none()
-
-
 def _resolve_deck(db: Session, user_id: int, ref: DeckRef) -> int:
     """Identifiant serveur du deck désigné, par `deck_id` ou par référence client.
 
-    La référence se résout au journal **du compte**, en filtrant sur
-    `status = 'applied'` : une création refusée laisse sa trace sans réserver
-    la référence. Le journal étant lu dans la transaction du lot, une création
-    faite plus haut dans le même lot est déjà visible. Un `deck_id` fourni
-    directement n'est pas vérifié ici : les services appelés par `_execute`
-    rendent 404 pour un deck d'un autre compte, avec le même message qu'un
-    identifiant inconnu.
+    La référence se résout au journal **du compte** (`app.services.refs`), en
+    filtrant sur `status = 'applied'` et sur le genre « deck » : une création
+    refusée laisse sa trace sans réserver la référence. Le journal étant lu dans
+    la transaction du lot, une création faite plus haut dans le même lot est
+    déjà visible. Un `deck_id` fourni directement n'est pas vérifié ici : les
+    services appelés par `_execute` rendent 404 pour un deck d'un autre compte,
+    avec le même message qu'un identifiant inconnu.
     """
     if ref.deck_id is not None:
         return ref.deck_id
-    creation = _applied_creation(db, user_id, ref.client_ref)
-    if creation is None or creation.deck_id is None:
-        raise UnresolvedClientRef(
-            f"Aucun deck n'a été créé sous la référence client {ref.client_ref!r} "
-            "(création absente du journal, ou refusée)."
-        )
-    return creation.deck_id
+    return refs.resolve_client_ref(db, user_id, ref.client_ref, SyncResourceKind.DECK)
 
 
 # --------------------------------------------------------------------------
@@ -188,7 +164,7 @@ def _execute(db: Session, user_id: int, operation: AnySyncOperation) -> Touched:
             # Contrôlé avant l'écriture : la base refuserait le doublon (index
             # unique partiel) mais seulement à l'insertion du journal, quand le
             # deck serait déjà créé.
-            existing = _applied_creation(db, user_id, client_ref)
+            existing = refs.applied_creation(db, user_id, client_ref)
             if existing is not None:
                 raise ConflictError(
                     f"La référence client {client_ref!r} désigne déjà le deck "

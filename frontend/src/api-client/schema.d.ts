@@ -496,6 +496,130 @@ export interface paths {
         patch: operations["updateVenue"];
         trace?: never;
     };
+    "/tournois": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste les tournois
+         * @description Du plus récent au plus ancien (date de début), chacun avec mon bilan. `q` cherche une sous-chaîne du nom, sans tenir compte de la casse ni des accents ; `from` et `to` bornent la date de début, incluses.
+         */
+        get: operations["listTournaments"];
+        put?: never;
+        /**
+         * Crée un tournoi
+         * @description 422 si le multi-deck est demandé à un niveau qui l'interdit (championnat national, Grand Prix, championnat continental), si une règle de deck de finale accompagne un tournoi mono-deck, si la date de fin précède celle de début, ou si le classement dépasse le nombre de joueurs. 404 si le lieu est inconnu ou d'un autre compte.
+         */
+        post: operations["createTournament"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tournois/{tournament_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lit un tournoi
+         * @description Le tournoi, mon bilan et mes parties dans l'ordre des rondes, finale en dernier. `admissible_final_decks` liste les decks que ma finale peut jouer en multi-deck, selon la règle annoncée ; nul quand rien n'est contrôlable.
+         */
+        get: operations["getTournament"];
+        put?: never;
+        post?: never;
+        /**
+         * Supprime un tournoi
+         * @description 409 tant que le tournoi contient des parties : on les supprime ou on les détache d'abord.
+         */
+        delete: operations["deleteTournament"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifie un tournoi
+         * @description Modification partielle ; les champs nullables envoyés à `null` sont remis à zéro. 422 sur l'état fusionné (niveau contre politique de deck, règle de finale, dates, classement contre le nombre de joueurs et ma finale). 409 si le passage en mono-deck, le changement de règle de finale ou une baisse du nombre de rondes contredit les parties déjà saisies.
+         */
+        patch: operations["updateTournament"];
+        trace?: never;
+    };
+    "/parties": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liste les parties
+         * @description De la plus récente à la plus ancienne. `casual` vrai : parties amicales ; faux : parties de tournoi. `deck_id` ne regarde que mon deck, pas un deck prêté. `from` et `to` sont des instants avec fuseau, bornes incluses. Chaque partie porte ma ligne en résumé et le nom de son tournoi.
+         */
+        get: operations["listGames"];
+        put?: never;
+        /**
+         * Crée une partie, table comprise
+         * @description Une partie se saisit d'une traite : sa table entière comprise, avec exactement ma ligne. Laissé vide, mon Game Win est posé par le serveur quand il est certain. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.
+         */
+        post: operations["createGame"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/parties/{game_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lit une partie et sa table
+         * @description La table est triée par siège, les lignes sans siège en dernier.
+         */
+        get: operations["getGame"];
+        put?: never;
+        post?: never;
+        /**
+         * Supprime une partie
+         * @description Suppression physique, table comprise. 409 si retirer une préliminaire rend illégal le deck de la finale.
+         */
+        delete: operations["deleteGame"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifie une partie, hors table
+         * @description Modification partielle ; `venue`, `tournament`, `round_number` et `notes` envoyés à `null` sont remis à zéro. Les règles se contrôlent sur l'état fusionné : changer `player_count` revérifie la table existante. La table se corrige par `PUT /parties/{id}/participations`. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.
+         */
+        patch: operations["updateGame"];
+        trace?: never;
+    };
+    "/parties/{game_id}/participations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Remplace la table d'une partie
+         * @description La table se remplace d'un bloc, jamais ligne à ligne : exactement ma ligne, les adversaires facultatifs. 422 : ronde ou finale incohérente avec le tournoi, table qui ne se tient pas (exactement ma ligne, joueurs et sièges distincts), VP hors table ou par quarts, Game Win contredit par mes VP, VP ou GW sur une ligne d'adversaire. 409 : ronde ou finale déjà saisie, deck supprimé, ou écriture qui contredit le tournoi (mono-deck, deck de finale, classement). 404 : une ressource désignée est inconnue ou d'un autre compte.
+         */
+        put: operations["replaceGameParticipations"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sync": {
         parameters: {
             query?: never;
@@ -1393,6 +1517,12 @@ export interface components {
          */
         DeckListState: "active" | "archived" | "all";
         /**
+         * DeckPolicy
+         * @description Contrainte de deck d'un tournoi (CLAUDE.md §5, « mono / multi-deck »).
+         * @enum {string}
+         */
+        DeckPolicy: "mono" | "multi";
+        /**
          * DeckRead
          * @description Un deck, sans sa composition.
          */
@@ -1563,6 +1693,185 @@ export interface components {
              */
             detail: string;
         };
+        /**
+         * EventTier
+         * @description Niveau d'un tournoi, au sens où le règlement VEKN le distingue (Lot 7, A11).
+         *
+         *     Le niveau ne sert qu'à une règle : le multi-deck est interdit en championnat
+         *     national, en Grand Prix et en championnat continental (VEKN 3.1.5, CLAUDE.md
+         *     §5). Tout autre tournoi est `standard`, valeur par défaut.
+         * @enum {string}
+         */
+        EventTier: "standard" | "national_championship" | "grand_prix" | "continental_championship";
+        /**
+         * FinalDeckRule
+         * @description Règle du deck de finale d'un tournoi multi-deck (VEKN 3.1.5a, Lot 7, A11).
+         *
+         *     Annoncée par l'organisateur avant la première ronde. `BEST_PERFORMING` : le
+         *     deck de la meilleure ronde préliminaire, comparée par GW puis VP (le TP
+         *     n'est pas suivi, CLAUDE.md §5). `FREE_CHOICE` : n'importe quel deck joué en
+         *     préliminaires. Sans objet en mono-deck ; une colonne nulle dit que la règle
+         *     n'est pas (encore) connue.
+         * @enum {string}
+         */
+        FinalDeckRule: "best_performing" | "free_choice";
+        /**
+         * GameCreate
+         * @description Création d'une partie, table comprise.
+         *
+         *     Au club, une partie se saisit d'une traite, souvent hors ligne, et la file
+         *     de synchronisation a tout intérêt à rejouer une seule opération plutôt que
+         *     six. Une partie hors tournoi est amicale ; une partie de tournoi est une
+         *     préliminaire numérotée ou une finale (A6, contrôle du service).
+         */
+        GameCreate: {
+            /**
+             * Played At
+             * Format: date-time
+             * @description Instant de la partie, fuseau obligatoire, normalisé en UTC.
+             */
+            played_at: string;
+            venue?: components["schemas"]["VenueRef"] | null;
+            tournament?: components["schemas"]["TournamentRef"] | null;
+            /** Round Number */
+            round_number?: number | null;
+            /** @default casual */
+            round_type?: components["schemas"]["RoundType"];
+            /**
+             * Player Count
+             * @description Joueurs à la table : 4 ou 5 en tournoi, de 2 à 6 acceptés.
+             */
+            player_count: number;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Participations
+             * @description La table entière, ma ligne comprise (exactement une). Les adversaires sont facultatifs : une table peut se réduire à ma seule participation.
+             */
+            participations: components["schemas"]["ParticipationCreate"][];
+        };
+        /**
+         * GameDetailRead
+         * @description Une partie avec la table complète.
+         */
+        GameDetailRead: {
+            /** Id */
+            id: number;
+            /**
+             * Played At
+             * Format: date-time
+             */
+            played_at: string;
+            /** Venue Id */
+            venue_id: number | null;
+            /** Tournament Id */
+            tournament_id: number | null;
+            /** Tournament Name */
+            tournament_name: string | null;
+            /** Round Number */
+            round_number: number | null;
+            round_type: components["schemas"]["RoundType"];
+            /** Player Count */
+            player_count: number;
+            /** @description Ma ligne de la table, en résumé. */
+            me: components["schemas"]["ParticipationSummary"];
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Participations
+             * @default []
+             */
+            participations: components["schemas"]["ParticipationRead"][];
+        };
+        /**
+         * GameRead
+         * @description Une partie, telle qu'une liste l'affiche : ma ligne en résumé et le nom
+         *     du tournoi, pour lire une liste sans un appel par partie.
+         */
+        GameRead: {
+            /** Id */
+            id: number;
+            /**
+             * Played At
+             * Format: date-time
+             */
+            played_at: string;
+            /** Venue Id */
+            venue_id: number | null;
+            /** Tournament Id */
+            tournament_id: number | null;
+            /** Tournament Name */
+            tournament_name: string | null;
+            /** Round Number */
+            round_number: number | null;
+            round_type: components["schemas"]["RoundType"];
+            /** Player Count */
+            player_count: number;
+            /** @description Ma ligne de la table, en résumé. */
+            me: components["schemas"]["ParticipationSummary"];
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * GameTableReplace
+         * @description Remplacement de la table d'une partie (`PUT /parties/{id}/participations`).
+         *
+         *     La table se remplace d'un bloc, jamais ligne à ligne (A3) : c'est la seule
+         *     façon de vérifier les règles qui portent sur toute la table sans état
+         *     intermédiaire faux.
+         */
+        GameTableReplace: {
+            /**
+             * Participations
+             * @description La table entière, ma ligne comprise (exactement une). Les adversaires sont facultatifs : une table peut se réduire à ma seule participation.
+             */
+            participations: components["schemas"]["ParticipationCreate"][];
+        };
+        /**
+         * GameUpdate
+         * @description Modification d'une partie, hors table (`PUT …/participations` pour elle).
+         *
+         *     `played_at`, `round_type` et `player_count` sont facultatifs mais non
+         *     nullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être
+         *     remis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au
+         *     service.
+         */
+        GameUpdate: {
+            /**
+             * Played At
+             * Format: date-time
+             */
+            played_at?: string;
+            venue?: components["schemas"]["VenueRef"] | null;
+            tournament?: components["schemas"]["TournamentRef"] | null;
+            /** Round Number */
+            round_number?: number | null;
+            round_type?: components["schemas"]["RoundType"];
+            /** Player Count */
+            player_count?: number;
+            /** Notes */
+            notes?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1629,6 +1938,109 @@ export interface components {
             sort_order: number;
         };
         /**
+         * ParticipantRef
+         * @description Le joueur d'une ligne de table : moi, ou un joueur désigné.
+         *
+         *     `{"me": true}` désigne le « Moi » du compte, que le serveur résout : le
+         *     client n'a pas besoin de son identifiant pour saisir sa première partie,
+         *     hors ligne compris. Un adversaire se désigne par `player_id`, ou par
+         *     `client_ref` s'il a été créé hors ligne (`player.create`). Exactement l'un
+         *     des trois.
+         */
+        ParticipantRef: {
+            /**
+             * Me
+             * @description Vrai pour désigner le « Moi » du compte ; à omettre sinon.
+             */
+            me?: true | null;
+            /** Player Id */
+            player_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
+        };
+        /**
+         * ParticipationCreate
+         * @description Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.
+         *
+         *     `player` désigne le joueur : `{"me": true}`, un adversaire par `player_id`,
+         *     ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est
+         *     mon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).
+         *     `victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;
+         *     laissé vide, le GW est posé par le serveur quand il est certain (A4). Table
+         *     (exactement une ligne « Moi », joueurs et sièges distincts), bornes
+         *     relatives à la table et GW : contrôles du service, après résolution des
+         *     joueurs (`vtes_rules.table_issues`).
+         */
+        ParticipationCreate: {
+            player: components["schemas"]["ParticipantRef"];
+            deck?: components["schemas"]["DeckRef"] | null;
+            /** Seat */
+            seat?: number | null;
+            /** Victory Points */
+            victory_points?: number | null;
+            /** Game Win */
+            game_win?: boolean | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * ParticipationRead
+         * @description La place d'un joueur sur une partie.
+         *
+         *     Seule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance
+         *     des joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes
+         *     decks, prêté pour la partie (P4).
+         */
+        ParticipationRead: {
+            /** Id */
+            id: number;
+            /** Game Id */
+            game_id: number;
+            /** Player Id */
+            player_id: number;
+            /**
+             * Is Me
+             * @description Vrai pour ma ligne, la seule à porter VP et GW.
+             */
+            is_me: boolean;
+            /** Deck Id */
+            deck_id: number | null;
+            /**
+             * Seat
+             * @description Siège à la table, 1 = premier joueur.
+             */
+            seat: number | null;
+            /**
+             * Victory Points
+             * @description Mes VP, par demi-points ; toujours nul sur une ligne d'adversaire.
+             */
+            victory_points: number | null;
+            /**
+             * Game Win
+             * @description Mon Game Win ; toujours nul sur une ligne d'adversaire.
+             */
+            game_win: boolean | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
+         * ParticipationSummary
+         * @description Ma ligne d'une partie, en résumé : ce qu'une liste affiche.
+         */
+        ParticipationSummary: {
+            /** Deck Id */
+            deck_id: number | null;
+            /** Seat */
+            seat: number | null;
+            /** Victory Points */
+            victory_points: number | null;
+            /** Game Win */
+            game_win: boolean | null;
+        };
+        /**
          * PlayerCreate
          * @description Création d'un adversaire. Le « Moi » existe déjà (A1).
          */
@@ -1677,6 +2089,12 @@ export interface components {
          * @enum {string}
          */
         PrintOccurrence: "rarity" | "precon" | "single";
+        /**
+         * RoundType
+         * @description Nature d'une partie dans un tournoi (ou hors tournoi).
+         * @enum {string}
+         */
+        RoundType: "casual" | "preliminary" | "final";
         /**
          * SectRead
          * @description Sect.
@@ -1956,6 +2374,232 @@ export interface components {
             results: components["schemas"]["SyncOperationResult"][];
         };
         /**
+         * TournamentCreate
+         * @description Création d'un tournoi.
+         *
+         *     Niveau et multi-deck, règle de finale, dates et classement se contrôlent au
+         *     service (A11, A12), comme pour une modification, qui se contrôle en plus
+         *     sur l'état fusionné et contre les parties.
+         */
+        TournamentCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date?: string | null;
+            venue?: components["schemas"]["VenueRef"] | null;
+            /** @default mono */
+            deck_policy?: components["schemas"]["DeckPolicy"];
+            /** @default constructed */
+            format?: components["schemas"]["TournamentFormat"];
+            /** @default standard */
+            event_tier?: components["schemas"]["EventTier"];
+            final_deck_rule?: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count?: number | null;
+            /** Player Count */
+            player_count?: number | null;
+            /** My Ranking */
+            my_ranking?: number | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
+         * TournamentDetailRead
+         * @description Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et
+         *     les decks admis en finale.
+         */
+        TournamentDetailRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date: string | null;
+            /** Venue Id */
+            venue_id: number | null;
+            /** @description Mono-deck : le même deck sur toutes mes rondes, finale comprise. Multi : deck libre par ronde. */
+            deck_policy: components["schemas"]["DeckPolicy"];
+            format: components["schemas"]["TournamentFormat"];
+            /** @description Niveau du tournoi. Le multi-deck est interdit en championnat national, en Grand Prix et en championnat continental. */
+            event_tier: components["schemas"]["EventTier"];
+            /** @description Règle du deck de finale annoncée par l'organisateur, en multi-deck seulement ; nulle tant qu'elle n'est pas connue. */
+            final_deck_rule: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count: number | null;
+            /**
+             * Player Count
+             * @description Nombre de joueurs du tournoi, souvent inconnu à l'arrivée.
+             */
+            player_count: number | null;
+            /** My Ranking */
+            my_ranking: number | null;
+            my_summary: components["schemas"]["TournamentSummary"];
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Games
+             * @default []
+             */
+            games: components["schemas"]["GameRead"][];
+            /**
+             * Admissible Final Decks
+             * @description Decks que ma finale peut jouer, en multi-deck selon la règle annoncée ; nul quand rien n'est contrôlable (mono-deck, règle inconnue, aucune préliminaire jouée avec un deck).
+             */
+            admissible_final_decks: number[] | null;
+        };
+        /**
+         * TournamentFormat
+         * @description Format de tournoi.
+         *
+         *     [à confirmer] La liste des formats sanctionnés VEKN dépasse peut-être
+         *     construit/draft ; `OTHER` sert de soupape en attendant vérification.
+         * @enum {string}
+         */
+        TournamentFormat: "constructed" | "draft" | "other";
+        /**
+         * TournamentRead
+         * @description Un tournoi et mon bilan.
+         */
+        TournamentRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date: string | null;
+            /** Venue Id */
+            venue_id: number | null;
+            /** @description Mono-deck : le même deck sur toutes mes rondes, finale comprise. Multi : deck libre par ronde. */
+            deck_policy: components["schemas"]["DeckPolicy"];
+            format: components["schemas"]["TournamentFormat"];
+            /** @description Niveau du tournoi. Le multi-deck est interdit en championnat national, en Grand Prix et en championnat continental. */
+            event_tier: components["schemas"]["EventTier"];
+            /** @description Règle du deck de finale annoncée par l'organisateur, en multi-deck seulement ; nulle tant qu'elle n'est pas connue. */
+            final_deck_rule: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count: number | null;
+            /**
+             * Player Count
+             * @description Nombre de joueurs du tournoi, souvent inconnu à l'arrivée.
+             */
+            player_count: number | null;
+            /** My Ranking */
+            my_ranking: number | null;
+            my_summary: components["schemas"]["TournamentSummary"];
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * TournamentRef
+         * @description Désignation d'un tournoi : identifiant serveur ou référence client.
+         */
+        TournamentRef: {
+            /** Tournament Id */
+            tournament_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
+        };
+        /**
+         * TournamentSummary
+         * @description Mon bilan d'un tournoi (A12), calculé par le serveur.
+         *
+         *     GW puis VP des préliminaires, dans l'ordre du classement VEKN réduit à ses
+         *     deux premiers critères (pas de points de tournoi, P7) ; puis le nombre de
+         *     rondes jouées et la finale. Des VP non saisis comptent pour 0.
+         */
+        TournamentSummary: {
+            /** Preliminary Game Wins */
+            preliminary_game_wins: number;
+            /** Preliminary Victory Points */
+            preliminary_victory_points: number;
+            /**
+             * Rounds Played
+             * @description Rondes préliminaires jouées.
+             */
+            rounds_played: number;
+            /**
+             * Final Victory Points
+             * @description Mes VP en finale ; nul sans finale.
+             */
+            final_victory_points: number | null;
+            /**
+             * Final Game Win
+             * @description Mon GW en finale ; nul sans finale.
+             */
+            final_game_win: boolean | null;
+        };
+        /**
+         * TournamentUpdate
+         * @description Modification partielle d'un tournoi.
+         *
+         *     `name`, `start_date`, `deck_policy`, `format` et `event_tier` sont
+         *     facultatifs mais non nullables ; la date de fin, le lieu, la règle du deck
+         *     de finale, le nombre de rondes, le nombre de joueurs, le classement et les
+         *     notes acceptent `null`.
+         */
+        TournamentUpdate: {
+            /** Name */
+            name?: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date?: string;
+            /** End Date */
+            end_date?: string | null;
+            venue?: components["schemas"]["VenueRef"] | null;
+            deck_policy?: components["schemas"]["DeckPolicy"];
+            format?: components["schemas"]["TournamentFormat"];
+            event_tier?: components["schemas"]["EventTier"];
+            final_deck_rule?: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count?: number | null;
+            /** Player Count */
+            player_count?: number | null;
+            /** My Ranking */
+            my_ranking?: number | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /**
          * UserLogIn
          * @description Corps de `POST /connexion`.
          *
@@ -2098,6 +2742,19 @@ export interface components {
              * @description Tournois tenus dans ce lieu, calculé par le serveur (Lot 7).
              */
             tournament_count: number;
+        };
+        /**
+         * VenueRef
+         * @description Désignation d'un lieu : identifiant serveur ou référence client.
+         */
+        VenueRef: {
+            /** Venue Id */
+            venue_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
         };
         /**
          * VenueUpdate
@@ -4031,6 +4688,672 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VenueRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listTournaments: {
+        parameters: {
+            query?: {
+                q?: string | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createTournament: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TournamentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getTournament: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentDetailRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteTournament: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateTournament: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TournamentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listGames: {
+        parameters: {
+            query?: {
+                tournament_id?: number | null;
+                casual?: boolean | null;
+                deck_id?: number | null;
+                venue_id?: number | null;
+                from?: string | null;
+                to?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createGame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameDetailRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getGame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameDetailRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteGame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateGame: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameDetailRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    replaceGameParticipations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                game_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GameTableReplace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GameDetailRead"];
                 };
             };
             /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
