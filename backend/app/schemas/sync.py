@@ -331,9 +331,9 @@ class BundleDepositOperation(SyncOperationBase):
 # son lieu, deux adversaires et trois rondes saisis au club dans un même lot,
 # avec le deck créé la veille hors ligne.
 #
-# Écrits à l'étape A2 du Lot 7, ils n'entrent dans `AnySyncOperation` qu'avec
-# leur exécution par le service (étape B3) : `/sync` ne doit pas accepter un
-# type qu'il ne sait pas appliquer.
+# Écrits à l'étape A2 du Lot 7, ils sont joints à `AnySyncOperation` à l'étape B3,
+# en même temps que leur exécution par `app.services.sync` : `/sync` ne doit pas
+# accepter un type qu'il ne sait pas appliquer.
 
 _CREATION_REF = Field(
     description=(
@@ -476,7 +476,7 @@ LOT7_SYNC_OPERATIONS = (
     GameUpdateOperation,
     GameDeleteOperation,
 )
-"""Les douze types du Lot 7, à joindre à `AnySyncOperation` à l'étape B3."""
+"""Les douze types du Lot 7, joints à `AnySyncOperation` (étape B3)."""
 
 
 AnySyncOperation = Annotated[
@@ -487,7 +487,19 @@ AnySyncOperation = Annotated[
     | DeckDeleteOperation
     | DeckCardUpsertOperation
     | DeckCardDeleteOperation
-    | BundleDepositOperation,
+    | BundleDepositOperation
+    | PlayerCreateOperation
+    | PlayerUpdateOperation
+    | PlayerDeleteOperation
+    | VenueCreateOperation
+    | VenueUpdateOperation
+    | VenueDeleteOperation
+    | TournamentCreateOperation
+    | TournamentUpdateOperation
+    | TournamentDeleteOperation
+    | GameCreateOperation
+    | GameUpdateOperation
+    | GameDeleteOperation,
     Field(discriminator="type"),
 ]
 """Union discriminée par `type`.

@@ -22,6 +22,21 @@ NAMING_CONVENTION = {
 }
 
 
+# Option de table pour les ressources que l'on supprime physiquement et que
+# le client désigne par leur identifiant ou par une `client_ref` du journal de
+# synchronisation : `player`, `venue`, `tournament`, `game` (Lot 7, R11). Sans
+# `AUTOINCREMENT`, SQLite redonne à la ligne suivante l'identifiant de la
+# dernière ligne supprimée, et une référence périmée désignerait en silence
+# une autre ressource (la `client_ref` de Marc, supprimé, renommerait Julie).
+# Avec, un identifiant n'est jamais réattribué : la référence périmée ne
+# trouve plus rien et rend `not_found`. Sans effet hors de SQLite. Les tables
+# à suppression logique (`deck`) ou jamais désignées par leur identifiant
+# (`participation`, remplacée en bloc avec sa partie) n'en ont pas besoin.
+# Contrepartie SQLite : la clé primaire est rendue en ligne
+# (`id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT`) et perd son nom `pk_…`.
+NEVER_REUSE_IDS = {"sqlite_autoincrement": True}
+
+
 class Base(DeclarativeBase):
     """Classe de base de tous les modèles."""
 

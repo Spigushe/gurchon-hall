@@ -25,7 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base
+from app.models.base import NEVER_REUSE_IDS, Base
 
 
 class Language(Base):
@@ -187,6 +187,8 @@ class Venue(Base):
         UniqueConstraint("user_id", "name"),
         # Cible des clés composites de `tournament` et `game`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

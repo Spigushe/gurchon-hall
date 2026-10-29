@@ -81,6 +81,17 @@ def applied_creation(
     return db.scalars(stmt).one_or_none()
 
 
+def designation(entry: SyncOperation) -> str:
+    """La ressource que cette création a désignée, pour un message : « le deck
+    12 », « la partie 4 »."""
+    kind = entry.resource_kind
+    if kind not in _JOURNAL_COLUMN:
+        return "une ressource"
+    article = "la" if kind is SyncResourceKind.GAME else "le"
+    ident = getattr(entry, _JOURNAL_COLUMN[kind].key)
+    return f"{article} {_NOUN[kind]} {ident}"
+
+
 def resolve_client_ref(
     db: Session, user_id: int, client_ref: str, kind: SyncResourceKind
 ) -> int:
@@ -90,8 +101,10 @@ def resolve_client_ref(
     column = _JOURNAL_COLUMN[kind].key
     resolved = None if creation is None else getattr(creation, column)
     if resolved is None:
+        feminine = kind is SyncResourceKind.GAME
         raise UnresolvedClientRef(
-            f"Aucun {_NOUN[kind]} n'a été créé sous la référence client "
+            f"{'Aucune' if feminine else 'Aucun'} {_NOUN[kind]} n'a été "
+            f"{'créée' if feminine else 'créé'} sous la référence client "
             f"{client_ref!r} (création absente du journal, ou refusée)."
         )
     return resolved

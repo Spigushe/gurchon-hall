@@ -56,12 +56,14 @@ fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
 
 **Avertissement provisoire, Lot 7 en cours** (à retirer à l'étape F de
-`docs/lot7-plan-parties.md`) : depuis l'étape A1, la tête Alembic du code est
-`783b24f9e769` (R10, « pratique de jeu »), alors que `backend/vtes.db` reste
-volontairement à `89695b77ef45`. **Ne pas lancer `upgrade head` sur cette base**
-avant l'étape F, qui fait l'essai sur copie, la sauvegarde datée et la
-comparaison du journal, et pas avant que le code de l'étape B1 crée le « Moi »
-à l'inscription. Ce qui suit sur la base de développement décrit son état réel,
+`docs/lot7-plan-parties.md`) : la tête Alembic du code est `e2a7819dd4a2`
+(R11, « identifiants jamais réattribués », ajoutée après la relecture de B3),
+qui suit `783b24f9e769` (R10, « pratique de jeu », depuis l'étape A1), alors
+que `backend/vtes.db` reste volontairement à `89695b77ef45`. **Ne pas lancer
+`upgrade head` sur cette base** avant l'étape F, qui appliquera R10 puis R11 en
+une fois après l'essai sur copie, la sauvegarde datée et la comparaison du
+journal, et pas avant que le code de l'étape B1 crée le « Moi » à
+l'inscription. Ce qui suit sur la base de développement décrit son état réel,
 à la révision du Lot 6.
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,

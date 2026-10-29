@@ -14,9 +14,10 @@ parce que les schémas de partie (`app.schemas.play`) en ont besoin et que
 `app.schemas.sync` les importe à son tour. `app.schemas.sync` le réexporte, et
 son nom au contrat ne change pas.
 
-Une écriture en ligne peut aussi désigner une ressource par sa `client_ref` :
-la résolution passe par le même journal. C'est surtout utile par `/sync`, où le
-client ne connaît pas encore les identifiants.
+Une `client_ref` ne se résout que par `/sync` : une écriture en ligne qui en
+porte une est refusée (422, décision du 2026-10-29), le client en ligne
+connaissant les identifiants et n'écrivant que par la file lorsqu'il ne les
+connaît pas.
 """
 
 from typing import Annotated, Literal, Self

@@ -516,8 +516,9 @@ Rien dans ce lot ne dépendait de la réponse.
 
 ## Modèle de données
 
-Pas de table nouvelle : le modèle reste à **25 tables**. Une révision, la
-dixième.
+Pas de table nouvelle : le modèle reste à **25 tables**. Deux révisions, la
+dixième (R10, prévue au plan) et la onzième (R11, corrective, ajoutée après la
+relecture de B3).
 
 ### R10 — « pratique de jeu »
 
@@ -559,7 +560,50 @@ Révision livrée à l'étape A1 : `783b24f9e769`
 
 Mise en service sur `backend/vtes.db` : comme au Lot 6, essai sur une copie,
 sauvegarde datée (`vtes.db.pre-lot7-<horodatage>.bak`), comparaison du journal
-avant et après, puis `upgrade head`. Vérifier `DATABASE_URL` avant.
+avant et après, puis `upgrade head`, qui applique **R10 puis R11**. Vérifier
+`DATABASE_URL` avant.
+
+### R11 — « identifiants jamais réattribués »
+
+Révision `e2a7819dd4a2`
+(`backend/migrations/versions/20261029_e2a7819dd4a2_identifiants_jamais_reattribues.py`),
+décidée le 2026-10-29 par l'utilisateur : une révision nouvelle, pas un
+amendement de R10, déjà commitée et poussée.
+
+**Motif.** `player`, `venue`, `tournament` et `game` se suppriment
+physiquement, et leur clé n'avait pas `AUTOINCREMENT` : SQLite redonnait à la
+ligne suivante l'identifiant de la dernière ligne supprimée. Une `client_ref`
+du journal, ou un identifiant gardé par un miroir local périmé, qui visait la
+ressource supprimée désignait alors en silence la suivante (`player.update`
+par la référence de Marc, supprimé, renommait Julie). Trouvé à la relecture de
+B3, reproduit par la QA.
+
+| Table | Changement | Données |
+| --- | --- | --- |
+| `venue`, `player`, `tournament`, `game` | clé `AUTOINCREMENT` (option `sqlite_autoincrement` des modèles, `NEVER_REUSE_IDS` dans `app/models/base.py`) ; colonnes, clés composites, unicités, CHECK nommés et index partiels inchangés | toutes les lignes recopiées avec leur identifiant |
+| `participation` | aucun : rien ne la désigne par son identifiant (ni route, ni opération `/sync`, ni référence, ni colonne du journal), sa table se remplace en bloc avec sa partie | aucune |
+
+Forme : celle de R10, renommage (`<table>_avant_e2a7819dd4a2`) puis recréation
+à la main, `PRAGMA legacy_alter_table = ON` pour que les clés étrangères de
+`tournament`, `game` et `participation` continuent de viser le nom des tables.
+Ordre `venue`, `player`, `tournament`, `game`, la descente à l'envers. Après
+recopie, la séquence de chaque table (`sqlite_sequence`) est posée au plus
+grand identifiant connu : celui des lignes recopiées, ou celui que le journal
+cite encore pour une ressource supprimée (`sync_operation.player_id`, etc.) ;
+un identifiant attribué puis supprimé hors de `/sync` sans trace ne se
+reconstitue pas. Sous SQLite, une clé `AUTOINCREMENT` s'écrit en ligne et perd
+son nom `pk_<table>`, sans effet sur le reste.
+
+Ni garde ni conversion : montée et descente se rendent toutes deux hors ligne
+(`--sql`). La descente recrée les tables de R10 au caractère près, sans perte
+de ligne ; la table `sqlite_sequence` reste, vide (SQLite interdit de la
+supprimer). Le contrat ne change pas.
+
+Essai sur une copie de `backend/vtes.db` (2026-10-29) : `upgrade head` de R9 à
+R11, journal de 58 lignes identique ligne à ligne, stock, decks et catalogue
+identiques, un « Moi » pour l'unique compte, `foreign_key_check` vide,
+`integrity_check` à `ok`, séquence `player` à 1 ; puis descente sous R10 (DDL
+identique à une copie montée à R10 seulement) et remontée, identiques.
 
 ### Règles portant sur plusieurs lignes (skill `regles-vtes`)
 
@@ -811,7 +855,7 @@ Points relevés pour les étapes suivantes, à reprendre dans leurs briefs :
   est identifiée : `StockPage.tsx` lit liste et compteurs par deux requêtes
   Dexie indépendantes, et `stock.test.tsx` lit les compteurs sans les
   attendre ; même schéma à chercher dans `decks.test.tsx`.
-- **F** : procédure détaillée de mise en service de R10 proposée par
+- **F** : procédure détaillée de mise en service de R10 (et désormais de R11) proposée par
   devops-deploiement (contrôle de `DATABASE_URL`, `alembic current`,
   sauvegarde, essai et aller-retour sur copie, comparaison du journal ligne à
   ligne, vérification d'un « Moi » par compte), retrait de l'avertissement de
@@ -1052,6 +1096,96 @@ l'utilisateur le même jour :
   `RuntimeError` explicite à la lecture plutôt qu'une erreur de validation de
   réponse : l'utilisateur garde ce comportement, un test le fige.
 
+### Livré à l'étape B3 (2026-10-29)
+
+Les douze opérations `/sync` du Lot 7 sont jointes à `AnySyncOperation` et
+exécutées par `services/sync.py` (fonction `_execute_play`, appelée par `_execute`
+pour tout type qui n'est pas l'un des huit du Lot 3). Aucun service de B1 ni de B2
+n'est réécrit : chaque opération appelle le service de la route en ligne, avec
+`allow_client_ref=True` là où il existe. Contrat à 49 opérations inchangé en
+nombre (le corps de `POST /sync` s'élargit), client TS régénéré. Aucune migration
+pour les opérations elles-mêmes ; la relecture a ajouté la révision corrective R11
+(avant-dernier point ci-dessous). Ce qui a été précisé en écrivant :
+
+- **Journal par genre.** `Touched` gagne `player_id`, `venue_id`, `tournament_id`
+  et `game_id`, copiés dans la colonne du journal de leur genre et dans aucune
+  autre : une `tournament.create` ne remplit pas `venue_id`, même quand elle
+  désigne un lieu. Les mises à jour et suppressions journalisent aussi
+  l'identifiant de leur genre (comme `deck.update` le `deck_id`), mais seules les
+  créations portent une `client_ref` (`getattr(operation, "client_ref", None)`).
+- **Référence déjà prise.** Le contrôle d'avant écriture de `deck.create` devient
+  `_check_ref_free`, commun aux cinq créations. Il cherche sans genre
+  (`refs.applied_creation`), puisque l'index unique du journal vaut pour tous les
+  genres : une `client_ref` de lieu réutilisée pour un joueur est un `conflict`
+  « La référence client 'x' désigne déjà le lieu 4… », jamais une
+  `IntegrityError`. Le message de `deck.create` est inchangé (`refs.designation`
+  le compose). Une création refusée ne réserve pas sa référence.
+- **Upsert par nom.** `player.create` et `venue.create` cherchent par
+  `find_by_name` (comparaison repliée) : un nom connu rend l'identifiant existant,
+  verdict `applied`, rien n'est écrit, et la `client_ref` est liée à cet
+  identifiant. Deux références peuvent donc désigner le même joueur. Un nom replié
+  égal à celui du « Moi » est un `conflict` de message `players.ME_NAME_TAKEN`. Le
+  renommage (`player.update`, `venue.update`) garde les règles de la route : un
+  nom déjà pris est un `conflict`.
+- **Désignation.** Joueur, lieu et tournoi se résolvent par `refs.resolve_*` (404
+  pour un identifiant d'un autre compte, `unresolved_client_ref` pour une
+  référence inconnue ou d'un autre genre) ; la partie par `resolve_game_id`, dont
+  l'existence est vérifiée par le service. `game.update` appelle
+  `update_game(db, user_id, game_id, op.data, op.table.participations ou None,
+  allow_client_ref=True)` : champs et table d'un seul `commit`.
+- **Codes.** Ceux du plan, par `_error_code` sans changement : 422 de service
+  `invalid`, 409 `conflict`, 404 `not_found`, référence non résolue
+  `unresolved_client_ref`. Les messages sont ceux des routes (un test compare le
+  refus de `player.delete` avec le 409 de `DELETE /joueurs/{id}`).
+- **Rejeu.** `SyncResourceRef` lit les neuf colonnes d'identifiant du journal : un
+  `replayed` rend les mêmes identifiants du Lot 7 qu'à l'origine, ainsi que le
+  verdict et l'horodatage d'origine.
+- **Test ajusté.** `test_the_new_operations_are_not_accepted_by_sync_yet`
+  (`test_lot7_sync_schemas.py`) devient `test_the_new_operations_are_accepted_by_sync`.
+- **`docs/lot3-sync-contrat.md`.** La phrase « `invalid` n'est pas atteignable par
+  `/sync` » est corrigée, et la section « Lot 7 » est écrite par
+  l'architecte-contrat le 2026-10-29 (types, désignation, verdicts, résolution,
+  référence déjà prise, upsert par nom, `game.update`, classement des refus, ce
+  que le client doit faire, identifiants jamais réattribués).
+- **Tests.** `tests/test_sync_lot7.py` (36 tests) : le scénario du plan en un seul
+  lot, étalé sur six lots, et rejoué à l'identique ; journal par genre ;
+  références par genre ; référence déjà prise (dix combinaisons) ; upsert par nom
+  et nom du « Moi » ; rejeu, rejeu d'un refus, `mismatched_replay` ; les trois
+  familles de refus dans un même lot sans l'interrompre ; table invalide sans
+  résidu ; isolation entre deux comptes (références, clés d'idempotence,
+  identifiants, joueur et deck d'un autre compte dans une table).
+- **Compléments après relecture** (agent backend). Le message d'une `client_ref`
+  non résolue est accordé au genre (« Aucune partie n'a été créée… ») ; la
+  docstring de `schemas/refs.py` dit qu'une `client_ref` envoyée à une route en
+  ligne rend 422 ; la description de `POST /sync` au contrat couvre les cinq
+  genres. 33 cas de test ajoutés à `test_sync_lot7.py`, dans une section
+  « Compléments de couverture » et dans « Isolation » : journal par genre
+  (créations, mises à jour, suppressions), désignations du mauvais genre,
+  référence déjà prise (quatre créations contre cinq), création refusée qui ne
+  réserve pas sa référence, rejeu partiel, `mismatched_replay` par genre, upsert
+  rejoué après renommage puis après suppression, lot de 200 opérations mêlées,
+  absence de résidu, `game.update` vide, 422 qui annulent le lot entier,
+  isolation sur une vraie partie de l'autre compte.
+- **Correction : identifiants jamais réattribués (R11).** La relecture a montré
+  que la référence d'un joueur, d'un lieu, d'un tournoi ou d'une partie supprimé
+  désignait la ressource créée juste après, SQLite réattribuant l'identifiant de
+  la dernière ligne supprimée. La révision R11 (`e2a7819dd4a2`, section « Modèle
+  de données ») passe les quatre tables en `AUTOINCREMENT` : la référence
+  périmée rend désormais `not_found`. `participation` n'est pas concernée, rien
+  ne la désignant par son identifiant. Trois tests de régression en fin de
+  `test_sync_lot7.py` (joueur, partie, lieu et tournoi, par référence et par
+  identifiant), qui échouent sans la correction ; tests de migration dans
+  `test_migrations.py` (section R11).
+- **Pour C1b.** `tsc --noEmit -p tsconfig.app.json` échoue à deux endroits sur
+  l'`assertNever` posé par C1a (`features/sync/useOperationLabels.ts` l. 101 et
+  `offline/vtes/overlay.ts` l. 313) : l'union générée contient désormais les douze
+  types, les `switch` doivent les traiter. Un lot d'une seule écriture de plusieurs
+  créations ne peut pas répéter une `client_ref` (422 du lot entier) ; la file
+  cliente en tire une neuve par création, comme pour les decks. Une `client_ref` de
+  joueur ou de lieu peut désigner un objet qui existait déjà (upsert) : le
+  verdict `applied` lie la référence à l'identifiant rendu, et il ne faut pas
+  supposer qu'un joueur « créé » est neuf.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1077,9 +1211,16 @@ dates ou de classement, à la création comme à la modification, puisque ces
 règles sont au service et non au schéma (le classement contredit est `invalid`
 sur `tournament.*` et `conflict` sur `game.*`, comme le 422 et le 409 des
 routes) ; `conflict` pour le mono-deck, le
-deck de finale, un deck supprimé, une ronde déjà saisie ou un nom déjà porté
-par le « Moi » ; `not_found` pour une ressource absente ou d'un autre compte.
-Un refus n'interrompt pas le lot.
+deck de finale, un deck supprimé, une ronde déjà saisie, un nom déjà porté
+par le « Moi », la suppression du « Moi » (jamais supprimable), la suppression
+d'une ressource encore utilisée (tournoi qui contient des parties, lieu qui
+sert, joueur présent à une table), un `round_count` ramené sous une ronde
+déjà jouée, le retrait d'une préliminaire qui changerait le deck attendu en
+finale, un nom déjà pris au renommage (`player.update`, `venue.update`) et une
+référence client déjà prise par une autre création ; `not_found` pour une
+ressource absente, supprimée (la référence d'une ressource supprimée ne
+désigne jamais la suivante, R11) ou d'un autre compte. Un refus n'interrompt
+pas le lot.
 
 Le scénario qui doit marcher de bout en bout, dans un seul lot ou étalé sur
 plusieurs : `deck.create` (veille, hors ligne), `venue.create`,
@@ -1090,8 +1231,9 @@ deck de la ronde 1, `game.update` (correction de mes VP et de mon GW),
 `tournament.update` (`player_count`, `my_ranking`). Chaque opération désigne
 les précédentes par leur `client_ref`.
 
-Section « Lot 7 » à ajouter à `docs/lot3-sync-contrat.md` par
-l'architecte-contrat, comme pour les Lots 4, 4b et 6.
+Section « Lot 7 » de `docs/lot3-sync-contrat.md` écrite par l'architecte-contrat
+le 2026-10-29, comme pour les Lots 4, 4b et 6 ; elle fait foi pour le détail des
+refus et de la résolution des références.
 
 ## Couche offline
 
@@ -1201,14 +1343,14 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS — **fait le 2026-10-29** (cf. « Livré à l'étape A2 ») | A1 |
 | B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription — **fait le 2026-10-29** (cf. « Livré à l'étape B1 ») | A2 |
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement — **fait le 2026-10-29** (cf. « Livré à l'étape B2 ») | B1 |
-| B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence ; section « Lot 7 » du contrat de sync (architecte) | B2 |
+| B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence — **fait le 2026-10-29** (cf. « Livré à l'étape B3 ») ; section « Lot 7 » de `docs/lot3-sync-contrat.md` écrite par l'architecte le même jour | B2 |
 | C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties — **fait le 2026-10-29** (cf. « Livré à l'étape C1a » ; miroir des tables validé le même jour) | A2 |
 | C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
-| F | orchestrateur | mise en service de R10 sur `vtes.db`, CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
+| F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
 
 Le premier jet faisait partir B et C en parallèle dès l'export du contrat
 d'A2. Ce n'est plus possible : les schémas de partie n'entrent au contrat
@@ -1250,7 +1392,11 @@ Back :
   genre, upsert par nom (P5), refus de deck de finale ;
 - R10 : montée et descente sur base vide, montée sur une base au Lot 6 peuplée
   (journal recopié à l'identique), descente refusée dès qu'une partie existe,
-  montée hors ligne (`--sql`).
+  montée hors ligne (`--sql`) ;
+- R11 : lignes des cinq tables de la pratique et journal identiques à travers
+  la montée et la descente, DDL de R10 restitué au caractère près, séquence
+  au-dessus des identifiants que le journal cite encore, identifiant supprimé
+  jamais réattribué sur les quatre tables, montée et descente hors ligne.
 
 Front :
 
@@ -1323,8 +1469,9 @@ pour la raison OneDrive notée au § 11 (Lot 4).
 - § 5 de CLAUDE.md corrigé (P1), ordre des lots reporté au § 12 (P9).
 - Handoff Claude Design versé dans `docs/design-handoff/` et écrans conformes,
   en mobile et en bureau.
-- R10 appliquée sur `backend/vtes.db` après essai sur copie, journal identique
-  avant et après, un « Moi » par compte.
+- R10 et R11 appliquées sur `backend/vtes.db` après essai sur copie, journal
+  identique avant et après, un « Moi » par compte, quatre tables en
+  `AUTOINCREMENT`.
 - 49 opérations au contrat, client TS régénéré, `API_ROUTE_PREFIXES` à jour.
 - `uv run pytest` vert (hors les deux `xfail` connus), `ruff check` propre ;
   `npm run lint`, `npx tsc --noEmit -p tsconfig.app.json` et `npm run test`

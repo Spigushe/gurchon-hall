@@ -44,7 +44,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin
+from app.models.base import NEVER_REUSE_IDS, Base, TimestampMixin
 from app.models.collection import Deck
 from app.models.enums import (
     DeckPolicy,
@@ -86,6 +86,8 @@ class Player(Base):
         UniqueConstraint("user_id", "name"),
         # Cible de la clé composite de `participation`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -121,6 +123,8 @@ class Tournament(Base, TimestampMixin):
         ForeignKeyConstraint(["venue_id", "user_id"], ["venue.id", "venue.user_id"]),
         # Cible de la clé composite de `game`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -220,6 +224,8 @@ class Game(Base, TimestampMixin):
         ),
         # Cible de la clé composite de `participation`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

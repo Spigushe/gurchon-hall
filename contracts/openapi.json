@@ -4011,7 +4011,7 @@
           "sync"
         ],
         "summary": "Rejoue un lot d'écritures faites hors ligne",
-        "description": "Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Clés d'idempotence et références client sont propres au compte de la session : celles d'un autre compte n'existent pas. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Un 401 (session absente ou expirée, vérifiée avant le lot) et un 503 transitoire (une écriture concurrente tient la base) disent la même chose : rien n'a été appliqué, et le lot se renvoie à l'identique, après reconnexion pour le premier.",
+        "description": "Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck, un joueur, un lieu, un tournoi ou une partie créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant (et discriminant pour un deck). Clés d'idempotence et références client sont propres au compte de la session : celles d'un autre compte n'existent pas. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Un 401 (session absente ou expirée, vérifiée avant le lot) et un 503 transitoire (une écriture concurrente tient la base) disent la même chose : rien n'a été appliqué, et le lot se renvoie à l'identique, après reconnexion pour le premier.",
         "operationId": "syncOperations",
         "requestBody": {
           "content": {
@@ -6254,6 +6254,82 @@
         "title": "GameCreate",
         "description": "Création d'une partie, table comprise.\n\nAu club, une partie se saisit d'une traite, souvent hors ligne, et la file\nde synchronisation a tout intérêt à rejouer une seule opération plutôt que\nsix. Une partie hors tournoi est amicale ; une partie de tournoi est une\npréliminaire numérotée ou une finale (A6, contrôle du service)."
       },
+      "GameCreateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "game.create",
+            "title": "Type"
+          },
+          "client_ref": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client Ref",
+            "description": "Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants."
+          },
+          "data": {
+            "$ref": "#/components/schemas/GameCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "client_ref",
+          "data"
+        ],
+        "title": "GameCreateOperation",
+        "description": "Crée une partie saisie hors ligne, table comprise."
+      },
+      "GameDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "game.delete",
+            "title": "Type"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "game"
+        ],
+        "title": "GameDeleteOperation",
+        "description": "Supprime une partie et sa table (suppression physique, A9)."
+      },
       "GameDetailRead": {
         "properties": {
           "id": {
@@ -6475,6 +6551,41 @@
         "title": "GameRead",
         "description": "Une partie, telle qu'une liste l'affiche : ma ligne en résumé et le nom\ndu tournoi, pour lire une liste sans un appel par partie."
       },
+      "GameRef": {
+        "properties": {
+          "game_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "GameRef",
+        "description": "Désignation d'une partie : identifiant serveur ou référence client."
+      },
       "GameTableReplace": {
         "properties": {
           "participations": {
@@ -6561,6 +6672,54 @@
         "type": "object",
         "title": "GameUpdate",
         "description": "Modification d'une partie, hors table (`PUT …/participations` pour elle).\n\n`played_at`, `round_type` et `player_count` sont facultatifs mais non\nnullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être\nremis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au\nservice."
+      },
+      "GameUpdateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "game.update",
+            "title": "Type"
+          },
+          "game": {
+            "$ref": "#/components/schemas/GameRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GameUpdate"
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameTableReplace"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Table complète voulue ; omise, la table ne change pas."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "game"
+        ],
+        "title": "GameUpdateOperation",
+        "description": "Modifie une partie, et au besoin remplace sa table.\n\n`data` suit `PATCH /parties/{id}` (omis, rien ne change hors de la table) ;\n`table`, s'il est fourni, est le corps de `PUT /parties/{id}/participations`\nrepris tel quel : la table complète voulue (A3). Les deux s'appliquent\nensemble, sous le même point de sauvegarde et après un seul contrôle de\nl'état final : corriger mes VP et mon GW se fait en une opération."
       },
       "HTTPValidationError": {
         "properties": {
@@ -6950,6 +7109,82 @@
         "title": "PlayerCreate",
         "description": "Création d'un adversaire. Le « Moi » existe déjà (A1)."
       },
+      "PlayerCreateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "player.create",
+            "title": "Type"
+          },
+          "client_ref": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client Ref",
+            "description": "Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants."
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlayerCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "client_ref",
+          "data"
+        ],
+        "title": "PlayerCreateOperation",
+        "description": "Crée un adversaire saisi hors ligne.\n\nUpsert par nom (P5) : si le compte a déjà un adversaire de ce nom (comparé\npar `fold_text`, comme la recherche), l'opération est appliquée sans rien\nécrire et la référence client est liée à l'adversaire existant. Deux\nsaisies de « Marc » sur deux appareils ne laissent pas en plan les parties\nqui désignent la seconde. Le « Moi » est exclu de l'upsert : un nom qui est\nle sien est refusé (`conflict`, « nom déjà porté par votre joueur Moi »),\nsans quoi la référence d'un adversaire désignerait « Moi »."
+      },
+      "PlayerDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "player.delete",
+            "title": "Type"
+          },
+          "player": {
+            "$ref": "#/components/schemas/PlayerRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "player"
+        ],
+        "title": "PlayerDeleteOperation",
+        "description": "Supprime un adversaire ; refusée (`conflict`) pour « Moi » ou pour un\njoueur présent à une table."
+      },
       "PlayerRead": {
         "properties": {
           "id": {
@@ -6981,6 +7216,41 @@
         "title": "PlayerRead",
         "description": "Un joueur : le « Moi » du compte, ou un adversaire nommé."
       },
+      "PlayerRef": {
+        "properties": {
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id"
+          },
+          "client_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ref",
+            "description": "Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PlayerRef",
+        "description": "Désignation d'un joueur : identifiant serveur ou référence client."
+      },
       "PlayerUpdate": {
         "properties": {
           "name": {
@@ -6994,6 +7264,44 @@
         "type": "object",
         "title": "PlayerUpdate",
         "description": "Renommage d'un joueur, « Moi » compris. Le nom est facultatif mais non\nnullable : la colonne est NOT NULL, donc facultatif ne veut pas dire\n« effaçable »."
+      },
+      "PlayerUpdateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "player.update",
+            "title": "Type"
+          },
+          "player": {
+            "$ref": "#/components/schemas/PlayerRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PlayerUpdate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "player",
+          "data"
+        ],
+        "title": "PlayerUpdateOperation",
+        "description": "Renomme un joueur, « Moi » compris (cf. `PATCH /joueurs/{id}`)."
       },
       "PrintOccurrence": {
         "type": "string",
@@ -7282,6 +7590,42 @@
                 },
                 {
                   "$ref": "#/components/schemas/BundleDepositOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/PlayerCreateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/PlayerUpdateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/PlayerDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/VenueCreateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/VenueUpdateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/VenueDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/TournamentCreateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/TournamentUpdateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/TournamentDeleteOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/GameCreateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/GameUpdateOperation"
+                },
+                {
+                  "$ref": "#/components/schemas/GameDeleteOperation"
                 }
               ],
               "discriminator": {
@@ -7293,8 +7637,20 @@
                   "deck.update": "#/components/schemas/DeckUpdateOperation",
                   "deck_card.delete": "#/components/schemas/DeckCardDeleteOperation",
                   "deck_card.upsert": "#/components/schemas/DeckCardUpsertOperation",
+                  "game.create": "#/components/schemas/GameCreateOperation",
+                  "game.delete": "#/components/schemas/GameDeleteOperation",
+                  "game.update": "#/components/schemas/GameUpdateOperation",
+                  "player.create": "#/components/schemas/PlayerCreateOperation",
+                  "player.delete": "#/components/schemas/PlayerDeleteOperation",
+                  "player.update": "#/components/schemas/PlayerUpdateOperation",
                   "stock.delete": "#/components/schemas/StockDeleteOperation",
-                  "stock.upsert": "#/components/schemas/StockUpsertOperation"
+                  "stock.upsert": "#/components/schemas/StockUpsertOperation",
+                  "tournament.create": "#/components/schemas/TournamentCreateOperation",
+                  "tournament.delete": "#/components/schemas/TournamentDeleteOperation",
+                  "tournament.update": "#/components/schemas/TournamentUpdateOperation",
+                  "venue.create": "#/components/schemas/VenueCreateOperation",
+                  "venue.delete": "#/components/schemas/VenueDeleteOperation",
+                  "venue.update": "#/components/schemas/VenueUpdateOperation"
                 }
               }
             },
@@ -7621,6 +7977,82 @@
         ],
         "title": "TournamentCreate",
         "description": "Création d'un tournoi.\n\nNiveau et multi-deck, règle de finale, dates et classement se contrôlent au\nservice (A11, A12), comme pour une modification, qui se contrôle en plus\nsur l'état fusionné et contre les parties."
+      },
+      "TournamentCreateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "tournament.create",
+            "title": "Type"
+          },
+          "client_ref": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client Ref",
+            "description": "Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants."
+          },
+          "data": {
+            "$ref": "#/components/schemas/TournamentCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "client_ref",
+          "data"
+        ],
+        "title": "TournamentCreateOperation",
+        "description": "Crée un tournoi saisi hors ligne ; son lieu se désigne par référence."
+      },
+      "TournamentDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "tournament.delete",
+            "title": "Type"
+          },
+          "tournament": {
+            "$ref": "#/components/schemas/TournamentRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "tournament"
+        ],
+        "title": "TournamentDeleteOperation",
+        "description": "Supprime un tournoi ; refusée (`conflict`) s'il contient des parties."
       },
       "TournamentDetailRead": {
         "properties": {
@@ -8135,6 +8567,44 @@
         "title": "TournamentUpdate",
         "description": "Modification partielle d'un tournoi.\n\n`name`, `start_date`, `deck_policy`, `format` et `event_tier` sont\nfacultatifs mais non nullables ; la date de fin, le lieu, la règle du deck\nde finale, le nombre de rondes, le nombre de joueurs, le classement et les\nnotes acceptent `null`."
       },
+      "TournamentUpdateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "tournament.update",
+            "title": "Type"
+          },
+          "tournament": {
+            "$ref": "#/components/schemas/TournamentRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TournamentUpdate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "tournament",
+          "data"
+        ],
+        "title": "TournamentUpdateOperation",
+        "description": "Modifie un tournoi (cf. `PATCH /tournois/{id}`).\n\nLes contrôles portent sur l'état fusionné et sur les parties déjà\nenregistrées : passer en mono-deck un tournoi joué avec deux decks, ou\nchanger la règle de finale après la finale, est refusé (`conflict`)."
+      },
       "UserLogIn": {
         "properties": {
           "email": {
@@ -8323,6 +8793,82 @@
         "title": "VenueCreate",
         "description": "Création d'un lieu."
       },
+      "VenueCreateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "venue.create",
+            "title": "Type"
+          },
+          "client_ref": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Client Ref",
+            "description": "Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants."
+          },
+          "data": {
+            "$ref": "#/components/schemas/VenueCreate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "client_ref",
+          "data"
+        ],
+        "title": "VenueCreateOperation",
+        "description": "Crée un lieu saisi hors ligne ; upsert par nom, comme `player.create`."
+      },
+      "VenueDeleteOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "venue.delete",
+            "title": "Type"
+          },
+          "venue": {
+            "$ref": "#/components/schemas/VenueRef"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "venue"
+        ],
+        "title": "VenueDeleteOperation",
+        "description": "Supprime un lieu ; refusée (`conflict`) s'il est référencé."
+      },
       "VenueRead": {
         "properties": {
           "id": {
@@ -8449,6 +8995,44 @@
         "type": "object",
         "title": "VenueUpdate",
         "description": "Modification partielle d'un lieu.\n\n`name` est facultatif mais non nullable : la colonne est NOT NULL, donc\n`{\"name\": null}` est refusé à l'entrée plutôt qu'au niveau de la base."
+      },
+      "VenueUpdateOperation": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Operation Id",
+            "description": "Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer."
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier."
+          },
+          "type": {
+            "type": "string",
+            "const": "venue.update",
+            "title": "Type"
+          },
+          "venue": {
+            "$ref": "#/components/schemas/VenueRef"
+          },
+          "data": {
+            "$ref": "#/components/schemas/VenueUpdate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "operation_id",
+          "recorded_at",
+          "type",
+          "venue",
+          "data"
+        ],
+        "title": "VenueUpdateOperation",
+        "description": "Modifie un lieu (cf. `PATCH /lieux/{id}`)."
       }
     },
     "securitySchemes": {

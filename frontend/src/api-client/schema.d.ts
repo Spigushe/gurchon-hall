@@ -631,7 +631,7 @@ export interface paths {
         put?: never;
         /**
          * Rejoue un lot d'écritures faites hors ligne
-         * @description Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant et discriminant. Clés d'idempotence et références client sont propres au compte de la session : celles d'un autre compte n'existent pas. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Un 401 (session absente ou expirée, vérifiée avant le lot) et un 503 transitoire (une écriture concurrente tient la base) disent la même chose : rien n'a été appliqué, et le lot se renvoie à l'identique, après reconnexion pour le premier.
+         * @description Rejoue la file d'attente du client : un lot ordonné d'opérations, chacune portant sa clé d'idempotence (`operation_id`). Le lot ne bascule jamais en bloc — chaque opération reçoit son verdict (`applied`, `replayed`, `rejected`) dans l'ordre de la requête, et un refus n'interrompt pas les suivantes. Rejouer une clé déjà tranchée rend le verdict mémorisé sans rien réappliquer ; c'est ce qui rend le versement d'un produit (`bundle.deposit`) sûr au rejeu, là où `POST /bundles/{bundle_id}/stock` additionne à chaque appel. Un deck, un joueur, un lieu, un tournoi ou une partie créé hors ligne se désigne par la référence client de sa création, le serveur restant seul à attribuer identifiant (et discriminant pour un deck). Clés d'idempotence et références client sont propres au compte de la session : celles d'un autre compte n'existent pas. Ni 404 ni 409 ne sortent de cette route : un refus est un verdict dans le corps de la réponse 200. Un 401 (session absente ou expirée, vérifiée avant le lot) et un 503 transitoire (une écriture concurrente tient la base) disent la même chose : rien n'a été appliqué, et le lot se renvoie à l'identique, après reconnexion pour le premier.
          */
         post: operations["syncOperations"];
         delete?: never;
@@ -1751,6 +1751,59 @@ export interface components {
             participations: components["schemas"]["ParticipationCreate"][];
         };
         /**
+         * GameCreateOperation
+         * @description Crée une partie saisie hors ligne, table comprise.
+         */
+        GameCreateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "game.create";
+            /**
+             * Client Ref
+             * @description Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants.
+             */
+            client_ref: string;
+            data: components["schemas"]["GameCreate"];
+        };
+        /**
+         * GameDeleteOperation
+         * @description Supprime une partie et sa table (suppression physique, A9).
+         */
+        GameDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "game.delete";
+            game: components["schemas"]["GameRef"];
+        };
+        /**
          * GameDetailRead
          * @description Une partie avec la table complète.
          */
@@ -1833,6 +1886,19 @@ export interface components {
             updated_at: string;
         };
         /**
+         * GameRef
+         * @description Désignation d'une partie : identifiant serveur ou référence client.
+         */
+        GameRef: {
+            /** Game Id */
+            game_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
+        };
+        /**
          * GameTableReplace
          * @description Remplacement de la table d'une partie (`PUT /parties/{id}/participations`).
          *
@@ -1871,6 +1937,39 @@ export interface components {
             player_count?: number;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * GameUpdateOperation
+         * @description Modifie une partie, et au besoin remplace sa table.
+         *
+         *     `data` suit `PATCH /parties/{id}` (omis, rien ne change hors de la table) ;
+         *     `table`, s'il est fourni, est le corps de `PUT /parties/{id}/participations`
+         *     repris tel quel : la table complète voulue (A3). Les deux s'appliquent
+         *     ensemble, sous le même point de sauvegarde et après un seul contrôle de
+         *     l'état final : corriger mes VP et mon GW se fait en une opération.
+         */
+        GameUpdateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "game.update";
+            game: components["schemas"]["GameRef"];
+            data?: components["schemas"]["GameUpdate"];
+            /** @description Table complète voulue ; omise, la table ne change pas. */
+            table?: components["schemas"]["GameTableReplace"] | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -2049,6 +2148,68 @@ export interface components {
             name: string;
         };
         /**
+         * PlayerCreateOperation
+         * @description Crée un adversaire saisi hors ligne.
+         *
+         *     Upsert par nom (P5) : si le compte a déjà un adversaire de ce nom (comparé
+         *     par `fold_text`, comme la recherche), l'opération est appliquée sans rien
+         *     écrire et la référence client est liée à l'adversaire existant. Deux
+         *     saisies de « Marc » sur deux appareils ne laissent pas en plan les parties
+         *     qui désignent la seconde. Le « Moi » est exclu de l'upsert : un nom qui est
+         *     le sien est refusé (`conflict`, « nom déjà porté par votre joueur Moi »),
+         *     sans quoi la référence d'un adversaire désignerait « Moi ».
+         */
+        PlayerCreateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "player.create";
+            /**
+             * Client Ref
+             * @description Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants.
+             */
+            client_ref: string;
+            data: components["schemas"]["PlayerCreate"];
+        };
+        /**
+         * PlayerDeleteOperation
+         * @description Supprime un adversaire ; refusée (`conflict`) pour « Moi » ou pour un
+         *     joueur présent à une table.
+         */
+        PlayerDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "player.delete";
+            player: components["schemas"]["PlayerRef"];
+        };
+        /**
          * PlayerRead
          * @description Un joueur : le « Moi » du compte, ou un adversaire nommé.
          */
@@ -2069,6 +2230,19 @@ export interface components {
             game_count: number;
         };
         /**
+         * PlayerRef
+         * @description Désignation d'un joueur : identifiant serveur ou référence client.
+         */
+        PlayerRef: {
+            /** Player Id */
+            player_id?: number | null;
+            /**
+             * Client Ref
+             * @description Référence donnée par le client à la ressource lors de sa création hors ligne. Résolue par le serveur, dans ce lot ou dans un lot antérieur.
+             */
+            client_ref?: string | null;
+        };
+        /**
          * PlayerUpdate
          * @description Renommage d'un joueur, « Moi » compris. Le nom est facultatif mais non
          *     nullable : la colonne est NOT NULL, donc facultatif ne veut pas dire
@@ -2077,6 +2251,31 @@ export interface components {
         PlayerUpdate: {
             /** Name */
             name?: string;
+        };
+        /**
+         * PlayerUpdateOperation
+         * @description Renomme un joueur, « Moi » compris (cf. `PATCH /joueurs/{id}`).
+         */
+        PlayerUpdateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "player.update";
+            player: components["schemas"]["PlayerRef"];
+            data: components["schemas"]["PlayerUpdate"];
         };
         /**
          * PrintOccurrence
@@ -2278,7 +2477,7 @@ export interface components {
              * Operations
              * @description Opérations à appliquer dans l'ordre donné. L'ordre compte : une carte ne s'ajoute qu'à un deck déjà créé.
              */
-            operations: (components["schemas"]["StockUpsertOperation"] | components["schemas"]["StockDeleteOperation"] | components["schemas"]["DeckCreateOperation"] | components["schemas"]["DeckUpdateOperation"] | components["schemas"]["DeckDeleteOperation"] | components["schemas"]["DeckCardUpsertOperation"] | components["schemas"]["DeckCardDeleteOperation"] | components["schemas"]["BundleDepositOperation"])[];
+            operations: (components["schemas"]["StockUpsertOperation"] | components["schemas"]["StockDeleteOperation"] | components["schemas"]["DeckCreateOperation"] | components["schemas"]["DeckUpdateOperation"] | components["schemas"]["DeckDeleteOperation"] | components["schemas"]["DeckCardUpsertOperation"] | components["schemas"]["DeckCardDeleteOperation"] | components["schemas"]["BundleDepositOperation"] | components["schemas"]["PlayerCreateOperation"] | components["schemas"]["PlayerUpdateOperation"] | components["schemas"]["PlayerDeleteOperation"] | components["schemas"]["VenueCreateOperation"] | components["schemas"]["VenueUpdateOperation"] | components["schemas"]["VenueDeleteOperation"] | components["schemas"]["TournamentCreateOperation"] | components["schemas"]["TournamentUpdateOperation"] | components["schemas"]["TournamentDeleteOperation"] | components["schemas"]["GameCreateOperation"] | components["schemas"]["GameUpdateOperation"] | components["schemas"]["GameDeleteOperation"])[];
         };
         /**
          * SyncResourceKind
@@ -2407,6 +2606,59 @@ export interface components {
             my_ranking?: number | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * TournamentCreateOperation
+         * @description Crée un tournoi saisi hors ligne ; son lieu se désigne par référence.
+         */
+        TournamentCreateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tournament.create";
+            /**
+             * Client Ref
+             * @description Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants.
+             */
+            client_ref: string;
+            data: components["schemas"]["TournamentCreate"];
+        };
+        /**
+         * TournamentDeleteOperation
+         * @description Supprime un tournoi ; refusée (`conflict`) s'il contient des parties.
+         */
+        TournamentDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tournament.delete";
+            tournament: components["schemas"]["TournamentRef"];
         };
         /**
          * TournamentDetailRead
@@ -2600,6 +2852,35 @@ export interface components {
             notes?: string | null;
         };
         /**
+         * TournamentUpdateOperation
+         * @description Modifie un tournoi (cf. `PATCH /tournois/{id}`).
+         *
+         *     Les contrôles portent sur l'état fusionné et sur les parties déjà
+         *     enregistrées : passer en mono-deck un tournoi joué avec deux decks, ou
+         *     changer la règle de finale après la finale, est refusé (`conflict`).
+         */
+        TournamentUpdateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "tournament.update";
+            tournament: components["schemas"]["TournamentRef"];
+            data: components["schemas"]["TournamentUpdate"];
+        };
+        /**
          * UserLogIn
          * @description Corps de `POST /connexion`.
          *
@@ -2720,6 +3001,59 @@ export interface components {
             notes?: string | null;
         };
         /**
+         * VenueCreateOperation
+         * @description Crée un lieu saisi hors ligne ; upsert par nom, comme `player.create`.
+         */
+        VenueCreateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "venue.create";
+            /**
+             * Client Ref
+             * @description Référence de la ressource côté client, unique et jamais réutilisée (UUID attendu). Les opérations suivantes s'en servent pour la désigner, dans ce lot comme dans les suivants.
+             */
+            client_ref: string;
+            data: components["schemas"]["VenueCreate"];
+        };
+        /**
+         * VenueDeleteOperation
+         * @description Supprime un lieu ; refusée (`conflict`) s'il est référencé.
+         */
+        VenueDeleteOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "venue.delete";
+            venue: components["schemas"]["VenueRef"];
+        };
+        /**
          * VenueRead
          * @description Lieu de jeu, privé au compte (Lot 6).
          */
@@ -2770,6 +3104,31 @@ export interface components {
             city?: string | null;
             /** Notes */
             notes?: string | null;
+        };
+        /**
+         * VenueUpdateOperation
+         * @description Modifie un lieu (cf. `PATCH /lieux/{id}`).
+         */
+        VenueUpdateOperation: {
+            /**
+             * Operation Id
+             * Format: uuid
+             * @description Clé d'idempotence tirée par le client (UUID), fixée à la saisie et jamais réutilisée. Rejouer le même identifiant rend le verdict d'origine sans rien réappliquer.
+             */
+            operation_id: string;
+            /**
+             * Recorded At
+             * Format: date-time
+             * @description Instant de la saisie à l'horloge du client, fuseau obligatoire, normalisé en UTC. Journalisé ; sans effet sur les règles métier.
+             */
+            recorded_at: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "venue.update";
+            venue: components["schemas"]["VenueRef"];
+            data: components["schemas"]["VenueUpdate"];
         };
     };
     responses: never;

@@ -48,7 +48,8 @@ LOT4B_REVISION = "f3a91c47b2de"  # deck_card sans entrée de collection (Lot 4b,
 ACCOUNTS_REVISION = "32d62f354d89"  # comptes et sessions (Lot 6, R8)
 OWNER_REVISION = "89695b77ef45"  # propriétaire sur les données (Lot 6, R9)
 PRACTICE_REVISION = "783b24f9e769"  # pratique de jeu (Lot 7, R10)
-HEAD_REVISION = PRACTICE_REVISION
+IDS_REVISION = "e2a7819dd4a2"  # identifiants jamais réattribués (Lot 7, R11)
+HEAD_REVISION = IDS_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -60,6 +61,7 @@ REVISIONS = [
     ACCOUNTS_REVISION,
     OWNER_REVISION,
     PRACTICE_REVISION,
+    IDS_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -241,7 +243,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Dix révisions à la suite, sans branche : une racine, une tête."""
+    """Onze révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -2580,7 +2582,7 @@ def test_upgrading_the_practice_revision_refuses_a_me_name_already_taken(empty_d
 def test_downgrading_the_practice_revision_refuses_practice_data(
     empty_db, statement, label
 ):
-    alembic(empty_db, "upgrade", "head")
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
     execute(empty_db, statement)
 
     result = alembic(empty_db, "downgrade", OWNER_REVISION, check=False)
@@ -2589,12 +2591,14 @@ def test_downgrading_the_practice_revision_refuses_practice_data(
     output = result.stdout + result.stderr
     assert PRACTICE_REVISION in output
     assert label in output
-    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == HEAD_REVISION
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == PRACTICE_REVISION
+    )
     assert scalar(empty_db, "SELECT COUNT(*) FROM player WHERE is_me = 1") == 1
 
 
 def test_downgrading_the_practice_revision_refuses_a_lot7_journal_entry(empty_db):
-    alembic(empty_db, "upgrade", "head")
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
     insert_sync_row(
         empty_db,
         **applied_row(
@@ -2657,3 +2661,291 @@ def test_the_practice_revision_downgrade_does_not_render_offline(empty_db):
     )
     assert result.returncode != 0
     assert PRACTICE_REVISION in result.stdout + result.stderr
+
+
+# --------------------------------------------------------------------------
+# Lot 7 : identifiants jamais réattribués (R11)
+# --------------------------------------------------------------------------
+
+# Les quatre tables à suppression physique que le client désigne par leur
+# identifiant ou par une `client_ref` du journal. `participation` n'en fait
+# pas partie : rien ne la désigne par son identifiant.
+NEVER_REUSED = ("venue", "player", "tournament", "game")
+IDS_SUFFIX = f"_avant_{IDS_REVISION}"
+
+PRACTICE_SNAPSHOT = {
+    "venue": "SELECT * FROM venue ORDER BY id",
+    "player": "SELECT * FROM player ORDER BY id",
+    "tournament": "SELECT * FROM tournament ORDER BY id",
+    "game": "SELECT * FROM game ORDER BY id",
+    "participation": "SELECT * FROM participation ORDER BY id",
+    "sync_operation": "SELECT * FROM sync_operation ORDER BY id",
+}
+
+
+def autoincrement_tables(db_path: Path) -> set[str]:
+    return {
+        name
+        for (name,) in rows(
+            db_path,
+            "SELECT name FROM sqlite_master"
+            " WHERE type = 'table' AND sql LIKE '%AUTOINCREMENT%'",
+        )
+    }
+
+
+def sequences(db_path: Path) -> dict[str, int]:
+    return dict(rows(db_path, "SELECT name, seq FROM sqlite_sequence"))
+
+
+def schema_text(db_path: Path) -> list[tuple]:
+    """Le DDL tel que SQLite le garde, hors objets internes (`sqlite_…`)."""
+    return rows(
+        db_path,
+        "SELECT type, name, tbl_name, sql FROM sqlite_master"
+        " WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+    )
+
+
+def practice_rows(db_path: Path) -> dict[str, list[tuple]]:
+    return {table: rows(db_path, sql) for table, sql in PRACTICE_SNAPSHOT.items()}
+
+
+def seed_practice_at_r10(db_path: Path) -> None:
+    """Une pratique complète, avec des trous laissés par des suppressions :
+    chaque table a perdu sa ligne de plus grand identifiant, et le journal
+    garde la trace de ces lignes disparues (le cas exact du défaut).
+
+    Le « Moi » du compte 1 (id 1) vient de R10. Un second compte, pour
+    vérifier que la séquence, commune à la table, couvre aussi ses lignes.
+    """
+    add_account(db_path, 2)
+    execute(
+        db_path,
+        "INSERT INTO player (id, user_id, name, is_me) VALUES"
+        " (2, 2, 'compte-2', 1), (3, 1, 'Marc', 0), (4, 1, 'Julie', 0),"
+        " (6, 2, 'Eloise', 0)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO venue (id, user_id, name, city) VALUES"
+        " (1, 1, 'Bar a Des', 'Lyon'), (3, 2, 'Club', NULL)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck (id, user_id, name, discriminator, status) VALUES"
+        " (1, 1, 'Banu Princes', '0001', 'active')",
+    )
+    execute(
+        db_path,
+        "INSERT INTO tournament (id, user_id, name, start_date, venue_id,"
+        " deck_policy, format, event_tier, final_deck_rule, round_count,"
+        " player_count, my_ranking) VALUES"
+        " (1, 1, 'Open de Lyon', '2026-10-24', 1, 'multi', 'constructed',"
+        " 'standard', 'free_choice', 3, 27, 3),"
+        " (2, 1, 'GP', '2026-10-25', NULL, 'mono', 'constructed', 'grand_prix',"
+        " NULL, NULL, NULL, NULL)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO game (id, user_id, played_at, venue_id, tournament_id,"
+        " round_number, round_type, player_count, notes) VALUES"
+        " (1, 1, '2026-10-24 14:00:00', 1, 1, 1, 'preliminary', 5, NULL),"
+        " (2, 1, '2026-10-24 21:00:00', 1, 1, NULL, 'final', 5, 'table finale'),"
+        " (4, 1, '2026-10-26 20:00:00', NULL, NULL, NULL, 'casual', 4, NULL)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO participation (id, user_id, game_id, player_id, deck_id,"
+        " seat, victory_points, game_win) VALUES"
+        " (1, 1, 1, 1, 1, 1, 2.5, 1),"
+        " (2, 1, 1, 3, 1, 2, NULL, NULL),"
+        " (3, 1, 1, 4, NULL, 3, NULL, NULL),"
+        " (4, 1, 2, 1, 1, NULL, 1.0, 0),"
+        " (5, 1, 4, 1, NULL, NULL, 0.5, 0)",
+    )
+    # Le journal se souvient de ressources supprimées depuis : le joueur 7
+    # (compte 2), le lieu 5, le tournoi 3, la partie 9.
+    for operation_id, kind, column, ident in (
+        ("op-player", "player", "player_id", 7),
+        ("op-venue", "venue", "venue_id", 5),
+        ("op-tournament", "tournament", "tournament_id", 3),
+        ("op-game", "game", "game_id", 9),
+        ("op-julie", "player", "player_id", 4),
+    ):
+        insert_sync_row(
+            db_path,
+            **applied_row(
+                operation_id=operation_id,
+                operation_type=f"{kind}.create",
+                client_ref=f"ref-{operation_id}",
+                resource_kind=kind,
+                deck_id=None,
+                **{column: ident},
+            ),
+        )
+
+
+def test_head_gives_an_autoincrement_key_to_the_four_tables_only(migrated, tmp_path):
+    """Les tables migrées et celles des modèles sont les mêmes ; rien d'autre."""
+    models_path = tmp_path / "models.db"
+    engine = create_engine(url_for(models_path))
+    try:
+        Base.metadata.create_all(engine)
+    finally:
+        engine.dispose()
+
+    assert autoincrement_tables(migrated) == set(NEVER_REUSED)
+    assert autoincrement_tables(models_path) == set(NEVER_REUSED)
+
+
+@pytest.mark.parametrize(
+    ("table", "insert"),
+    [
+        ("venue", "INSERT INTO venue (user_id, name) VALUES (1, '{name}')"),
+        ("player", "INSERT INTO player (user_id, name, is_me) VALUES (1, '{name}', 0)"),
+        (
+            "tournament",
+            "INSERT INTO tournament (user_id, name, start_date, deck_policy, format)"
+            " VALUES (1, '{name}', '2026-10-24', 'mono', 'constructed')",
+        ),
+        (
+            "game",
+            "INSERT INTO game (user_id, played_at, player_count, round_type, notes)"
+            " VALUES (1, '2026-10-26 20:00:00', 4, 'casual', '{name}')",
+        ),
+    ],
+)
+def test_head_never_gives_a_deleted_identifier_again(migrated, table, insert):
+    """Le défaut corrigé par R11 : supprimer la dernière ligne puis en créer une
+    autre ne redonne pas son identifiant."""
+    execute(migrated, insert.format(name="Marc"))
+    execute(migrated, insert.format(name="Paul"))
+    deleted = scalar(migrated, f"SELECT MAX(id) FROM {table}")
+    execute(migrated, f"DELETE FROM {table} WHERE id = {deleted}")
+
+    execute(migrated, insert.format(name="Julie"))
+
+    assert scalar(migrated, f"SELECT MAX(id) FROM {table}") == deleted + 1
+    assert scalar(migrated, f"SELECT COUNT(*) FROM {table} WHERE id = {deleted}") == 0
+
+
+def test_upgrade_keeps_every_practice_row_and_its_identifier(empty_db):
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
+    seed_practice_at_r10(empty_db)
+    before = practice_rows(empty_db)
+    assert foreign_key_violations(empty_db) == []
+
+    alembic(empty_db, "upgrade", IDS_REVISION)
+
+    assert practice_rows(empty_db) == before
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+    assert (
+        rows(
+            empty_db,
+            "SELECT name FROM sqlite_master"
+            f" WHERE name LIKE '%{IDS_SUFFIX}%' OR sql LIKE '%{IDS_SUFFIX}%'",
+        )
+        == []
+    )
+    assert autoincrement_tables(empty_db) == set(NEVER_REUSED)
+
+
+def test_upgrade_starts_each_sequence_above_every_known_identifier(empty_db):
+    """Au-dessus des lignes recopiées, et des lignes disparues que le journal
+    cite encore : la référence d'un joueur supprimé ne désignera personne."""
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
+    seed_practice_at_r10(empty_db)
+
+    alembic(empty_db, "upgrade", IDS_REVISION)
+
+    assert sequences(empty_db) == {"venue": 5, "player": 7, "tournament": 3, "game": 9}
+    execute(empty_db, "INSERT INTO player (user_id, name, is_me) VALUES (1, 'Zoe', 0)")
+    assert scalar(empty_db, "SELECT id FROM player WHERE name = 'Zoe'") == 8
+
+
+def test_upgrade_of_an_empty_practice_writes_only_the_me_sequence(empty_db):
+    """Une table vide, que le journal ne cite pas, n'a pas d'entrée de séquence
+    (comme SQLite la laisse) ; le « Moi » de R10 en donne une à `player`."""
+    alembic(empty_db, "upgrade", "head")
+    assert sequences(empty_db) == {"player": 1}
+
+
+def test_head_still_enforces_the_practice_constraints_after_the_rebuild(empty_db):
+    """Index partiels, clés composites et cascade survivent à la recréation."""
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
+    seed_practice_at_r10(empty_db)
+    alembic(empty_db, "upgrade", IDS_REVISION)
+
+    assert "UNIQUE" in refusal(
+        empty_db, "INSERT INTO player (user_id, name, is_me) VALUES (1, 'Moi 2', 1)"
+    )
+    assert "UNIQUE" in refusal(
+        empty_db, game_insert("(1, '2026-10-24 23:00', 5, 1, 'final', NULL)")
+    )
+    # Une partie du compte 1 ne peut pas pointer le lieu du compte 2.
+    assert "FOREIGN KEY" in refusal(
+        empty_db,
+        "INSERT INTO game (user_id, played_at, player_count, round_type, venue_id)"
+        " VALUES (1, '2026-10-27 20:00', 4, 'casual', 3)",
+    )
+    # Supprimer une partie emporte toujours ses participations.
+    engine = create_app_engine(url_for(empty_db))
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM game WHERE id = 4"))
+    finally:
+        engine.dispose()
+    assert scalar(empty_db, "SELECT COUNT(*) FROM participation WHERE game_id = 4") == 0
+
+
+def test_downgrade_to_the_practice_revision_restores_its_ddl_and_its_rows(empty_db):
+    """Sans perte de ligne, au caractère près pour le DDL ; la table
+    `sqlite_sequence` reste, vide (SQLite interdit de la supprimer)."""
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
+    seed_practice_at_r10(empty_db)
+    ddl_before = schema_text(empty_db)
+    rows_before = practice_rows(empty_db)
+
+    alembic(empty_db, "upgrade", IDS_REVISION)
+    alembic(empty_db, "downgrade", PRACTICE_REVISION)
+
+    assert schema_text(empty_db) == ddl_before
+    assert practice_rows(empty_db) == rows_before
+    assert autoincrement_tables(empty_db) == set()
+    assert sequences(empty_db) == {}
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_the_ids_revision_round_trip_is_identical(empty_db):
+    alembic(empty_db, "upgrade", PRACTICE_REVISION)
+    seed_practice_at_r10(empty_db)
+    alembic(empty_db, "upgrade", IDS_REVISION)
+    ddl = schema_text(empty_db)
+    data = practice_rows(empty_db)
+    sequence = sequences(empty_db)
+
+    alembic(empty_db, "downgrade", PRACTICE_REVISION)
+    alembic(empty_db, "upgrade", IDS_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert practice_rows(empty_db) == data
+    assert sequences(empty_db) == sequence
+
+
+def test_the_ids_revision_renders_offline_in_both_directions(empty_db):
+    up = alembic(empty_db, "upgrade", f"{PRACTICE_REVISION}:{IDS_REVISION}", "--sql")
+    for table in NEVER_REUSED:
+        assert f"ALTER TABLE {table} RENAME TO {table}{IDS_SUFFIX}" in up.stdout
+        assert f"DELETE FROM sqlite_sequence WHERE name = '{table}'" in up.stdout
+    assert up.stdout.count("PRIMARY KEY AUTOINCREMENT") == 4
+    assert "CREATE TABLE participation" not in up.stdout
+
+    down = alembic(
+        empty_db, "downgrade", f"{IDS_REVISION}:{PRACTICE_REVISION}", "--sql"
+    )
+    assert down.stdout.count("CREATE TABLE") == 4
+    assert "AUTOINCREMENT" not in down.stdout
+    assert not empty_db.exists()

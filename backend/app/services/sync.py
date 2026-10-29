@@ -61,6 +61,12 @@ from app.schemas.sync import (
     DeckDeleteOperation,
     DeckRef,
     DeckUpdateOperation,
+    GameCreateOperation,
+    GameDeleteOperation,
+    GameUpdateOperation,
+    PlayerCreateOperation,
+    PlayerDeleteOperation,
+    PlayerUpdateOperation,
     StockDeleteOperation,
     StockUpsertOperation,
     SyncOperationError,
@@ -69,9 +75,24 @@ from app.schemas.sync import (
     SyncRequest,
     SyncResourceRef,
     SyncResult,
+    TournamentCreateOperation,
+    TournamentDeleteOperation,
+    TournamentUpdateOperation,
+    VenueCreateOperation,
+    VenueDeleteOperation,
+    VenueUpdateOperation,
     fingerprint,
 )
-from app.services import catalog, decks, refs, stock
+from app.services import (
+    catalog,
+    decks,
+    games,
+    players,
+    refs,
+    stock,
+    tournaments,
+    venues,
+)
 from app.services.errors import (
     ConflictError,
     DomainError,
@@ -91,6 +112,10 @@ class Touched:
     language_code: str | None = None
     card_set_id: int | None = None
     bundle_id: int | None = None
+    player_id: int | None = None
+    venue_id: int | None = None
+    tournament_id: int | None = None
+    game_id: int | None = None
 
 
 # --------------------------------------------------------------------------
@@ -161,16 +186,7 @@ def _execute(db: Session, user_id: int, operation: AnySyncOperation) -> Touched:
             )
 
         case DeckCreateOperation(client_ref=client_ref, data=data):
-            # Contrôlé avant l'écriture : la base refuserait le doublon (index
-            # unique partiel) mais seulement à l'insertion du journal, quand le
-            # deck serait déjà créé.
-            existing = refs.applied_creation(db, user_id, client_ref)
-            if existing is not None:
-                raise ConflictError(
-                    f"La référence client {client_ref!r} désigne déjà le deck "
-                    f"{existing.deck_id} : une référence n'est jamais réutilisée, "
-                    "en tirer une nouvelle."
-                )
+            _check_ref_free(db, user_id, client_ref)
             deck = decks.create_deck(db, user_id, data)
             return Touched(SyncResourceKind.DECK, deck_id=deck.id)
 
@@ -239,6 +255,123 @@ def _execute(db: Session, user_id: int, operation: AnySyncOperation) -> Touched:
                 bundle_id=bundle_id,
                 language_code=catalog.normalize_language_code(data.language_code),
             )
+
+    return _execute_play(db, user_id, operation)
+
+
+def _check_ref_free(db: Session, user_id: int, client_ref: str) -> None:
+    """Refuse une `client_ref` déjà donnée à une création appliquée du compte.
+
+    Contrôlé avant l'écriture : la base refuserait le doublon (index unique
+    partiel, tous genres confondus) mais seulement à l'insertion du journal,
+    quand la ressource serait déjà créée.
+    """
+    existing = refs.applied_creation(db, user_id, client_ref)
+    if existing is not None:
+        raise ConflictError(
+            f"La référence client {client_ref!r} désigne déjà "
+            f"{refs.designation(existing)} : une référence n'est jamais "
+            "réutilisée, en tirer une nouvelle."
+        )
+
+
+def _execute_play(db: Session, user_id: int, operation: AnySyncOperation) -> Touched:
+    """Les douze opérations du Lot 7 : joueurs, lieux, tournois, parties.
+
+    Les services de la route en ligne sont appelés tels quels, avec
+    `allow_client_ref=True` pour que les désignations par référence client se
+    résolvent au journal. Chaque service valide d'un seul `commit`, qui relâche
+    le point de sauvegarde de l'opération.
+    """
+    match operation:
+        case PlayerCreateOperation(client_ref=client_ref, data=data):
+            _check_ref_free(db, user_id, client_ref)
+            # Upsert par nom (P5) : un adversaire de même nom replié est repris,
+            # rien n'est écrit. Le « Moi » n'entre pas dans l'upsert.
+            existing = players.find_by_name(db, user_id, data.name)
+            if existing is None:
+                player_id = players.create_player(db, user_id, data).id
+            elif existing.is_me:
+                raise ConflictError(players.ME_NAME_TAKEN)
+            else:
+                player_id = existing.id
+            return Touched(SyncResourceKind.PLAYER, player_id=player_id)
+
+        case PlayerUpdateOperation(player=ref, data=data):
+            player = refs.resolve_player(db, user_id, ref, allow_client_ref=True)
+            player_id = player.id
+            players.update_player(db, user_id, player_id, data)
+            return Touched(SyncResourceKind.PLAYER, player_id=player_id)
+
+        case PlayerDeleteOperation(player=ref):
+            player = refs.resolve_player(db, user_id, ref, allow_client_ref=True)
+            player_id = player.id
+            players.delete_player(db, user_id, player_id)
+            return Touched(SyncResourceKind.PLAYER, player_id=player_id)
+
+        case VenueCreateOperation(client_ref=client_ref, data=data):
+            _check_ref_free(db, user_id, client_ref)
+            existing = venues.find_by_name(db, user_id, data.name)
+            if existing is None:
+                venue_id = venues.create_venue(db, user_id, data).id
+            else:
+                venue_id = existing.id
+            return Touched(SyncResourceKind.VENUE, venue_id=venue_id)
+
+        case VenueUpdateOperation(venue=ref, data=data):
+            venue = refs.resolve_venue(db, user_id, ref, allow_client_ref=True)
+            venue_id = venue.id
+            venues.update_venue(db, user_id, venue_id, data)
+            return Touched(SyncResourceKind.VENUE, venue_id=venue_id)
+
+        case VenueDeleteOperation(venue=ref):
+            venue = refs.resolve_venue(db, user_id, ref, allow_client_ref=True)
+            venue_id = venue.id
+            venues.delete_venue(db, user_id, venue_id)
+            return Touched(SyncResourceKind.VENUE, venue_id=venue_id)
+
+        case TournamentCreateOperation(client_ref=client_ref, data=data):
+            _check_ref_free(db, user_id, client_ref)
+            tournament = tournaments.create_tournament(
+                db, user_id, data, allow_client_ref=True
+            )
+            return Touched(SyncResourceKind.TOURNAMENT, tournament_id=tournament.id)
+
+        case TournamentUpdateOperation(tournament=ref, data=data):
+            found = refs.resolve_tournament(db, user_id, ref, allow_client_ref=True)
+            tournament_id = found.id
+            tournaments.update_tournament(
+                db, user_id, tournament_id, data, allow_client_ref=True
+            )
+            return Touched(SyncResourceKind.TOURNAMENT, tournament_id=tournament_id)
+
+        case TournamentDeleteOperation(tournament=ref):
+            found = refs.resolve_tournament(db, user_id, ref, allow_client_ref=True)
+            tournament_id = found.id
+            tournaments.delete_tournament(db, user_id, tournament_id)
+            return Touched(SyncResourceKind.TOURNAMENT, tournament_id=tournament_id)
+
+        case GameCreateOperation(client_ref=client_ref, data=data):
+            _check_ref_free(db, user_id, client_ref)
+            game = games.create_game(db, user_id, data, allow_client_ref=True)
+            return Touched(SyncResourceKind.GAME, game_id=game.id)
+
+        case GameUpdateOperation(game=ref, data=data, table=table):
+            game_id = refs.resolve_game_id(db, user_id, ref, allow_client_ref=True)
+            games.update_game(
+                db,
+                user_id,
+                game_id,
+                data,
+                None if table is None else table.participations,
+                allow_client_ref=True,
+            )
+            return Touched(SyncResourceKind.GAME, game_id=game_id)
+
+        case GameDeleteOperation(game=ref):
+            game_id = refs.resolve_game_id(db, user_id, ref, allow_client_ref=True)
+            games.delete_game(db, user_id, game_id)
+            return Touched(SyncResourceKind.GAME, game_id=game_id)
 
     raise AssertionError(f"Type d'opération non géré : {operation.type!r}")
 
@@ -334,9 +467,7 @@ def _process(
         processed_at=utcnow(),
         # Renseignée par les seules créations, appliquées ou refusées : c'est
         # « la création qui a donné son identité à cette référence ».
-        client_ref=(
-            operation.client_ref if isinstance(operation, DeckCreateOperation) else None
-        ),
+        client_ref=getattr(operation, "client_ref", None),
     )
     try:
         touched = _execute(db, user_id, operation)
@@ -356,6 +487,10 @@ def _process(
         entry.language_code = touched.language_code
         entry.card_set_id = touched.card_set_id
         entry.bundle_id = touched.bundle_id
+        entry.player_id = touched.player_id
+        entry.venue_id = touched.venue_id
+        entry.tournament_id = touched.tournament_id
+        entry.game_id = touched.game_id
         outcome = SyncOutcome.APPLIED
 
     result = _result(entry, outcome)  # avant le commit, qui expire l'objet

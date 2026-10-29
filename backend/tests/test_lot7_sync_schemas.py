@@ -1,8 +1,7 @@
 """Désignations et opérations `/sync` du Lot 7 : validation d'entrée seulement.
 
-Les douze opérations sont écrites à l'étape A2 et n'entrent dans
-`AnySyncOperation` qu'avec leur exécution (étape B3) : ces tests vérifient leur
-forme, pas leur effet.
+Les douze opérations sont écrites à l'étape A2 et jointes à `AnySyncOperation`
+à l'étape B3 : ces tests vérifient leur forme, l'effet est dans `test_sync_lot7.py`.
 """
 
 from typing import get_args
@@ -203,10 +202,10 @@ def test_a_creation_requires_its_client_ref(kind):
     assert {e["loc"] for e in excinfo.value.errors()} == {("client_ref",)}
 
 
-def test_the_new_operations_are_not_accepted_by_sync_yet():
-    """Étape B3 : `/sync` n'accepte un type qu'avec son exécution."""
-    with pytest.raises(ValidationError):
-        sync.SyncRequest.model_validate({"operations": [envelope("player.create")]})
+def test_the_new_operations_are_accepted_by_sync():
+    """Étape B3 : les douze types sont joints à l'union, avec leur exécution."""
+    for kind in BODIES:
+        sync.SyncRequest.model_validate({"operations": [envelope(kind)]})
 
 
 def test_a_game_update_without_table_leaves_it_alone():
