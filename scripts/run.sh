@@ -162,6 +162,14 @@ cmd_dev() {
     fi
     export BACKEND_CORS_ORIGINS="$origins"
 
+    # Le navigateur ne garde un cookie Secure sur http:// que pour localhost : depuis
+    # http://<ip-lan> (telephone), la connexion repond 200 mais la session est perdue
+    # et tout le reste rend 401. En dev sur le reseau local, cookie sans Secure,
+    # sauf si la variable est deja positionnee.
+    if [ -n "$lan_ip" ] && [ -z "${SESSION_COOKIE_SECURE:-}" ]; then
+        export SESSION_COOKIE_SECURE=false
+    fi
+
     echo ""
     echo "Backend  (FastAPI) : http://localhost:${backend_port}"
     [ -n "$lan_ip" ] && echo "                     http://${lan_ip}:${backend_port}  (reseau Wifi)"

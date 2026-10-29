@@ -175,6 +175,14 @@ function Invoke-DevCommand {
     }
     $env:BACKEND_CORS_ORIGINS = ($corsOrigins -join ",")
 
+    # Le navigateur ne garde un cookie Secure sur http:// que pour localhost : depuis
+    # http://<ip-lan> (telephone), la connexion repond 200 mais la session est perdue
+    # et tout le reste rend 401. En dev sur le reseau local, cookie sans Secure,
+    # sauf si la variable est deja positionnee.
+    if ($lanIp -and -not $env:SESSION_COOKIE_SECURE) {
+        $env:SESSION_COOKIE_SECURE = "false"
+    }
+
     Write-Host ""
     Write-Host "Backend  (FastAPI) : http://localhost:$BackendPort" -ForegroundColor Cyan
     if ($lanIp) {
