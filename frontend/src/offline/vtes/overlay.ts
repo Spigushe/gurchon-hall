@@ -1,5 +1,7 @@
+import { assertNever } from "../core/assertNever";
 import type { RefBinding } from "../core/types";
 import type { CardRow, DeckCardRow, DeckRow, StockRow } from "./db";
+import { bindingsOfKind } from "./references";
 import type { CardCategory, DeckKey, DeckStatus, VtesOperation } from "./types";
 
 /** Entrée de collection telle que l'UI la lit : instantané + opérations en file. */
@@ -92,8 +94,11 @@ export function project(
   settled: readonly VtesOperation[] = [],
 ): Projection {
   const cardsById = new Map(snapshot.cards.map((card) => [card.id, card]));
-  const refByDeckId = new Map(snapshot.refs.map((binding) => [binding.id, binding.ref]));
-  const deckIdByRef = new Map(snapshot.refs.map((binding) => [binding.ref, binding.id]));
+  // Les identifiants serveur se recouvrent d'un genre à l'autre (un joueur 12 et
+  // un deck 12) : la carte inverse id -> référence ne lit que les decks.
+  const deckBindings = bindingsOfKind(snapshot.refs, "deck");
+  const refByDeckId = new Map(deckBindings.map((binding) => [binding.id, binding.ref]));
+  const deckIdByRef = new Map(deckBindings.map((binding) => [binding.ref, binding.id]));
 
   // --- Instantané ---
   const stock = new Map<string, LocalStockEntry>();
@@ -304,6 +309,8 @@ export function project(
       }
       case "bundle.deposit":
         break; // non projeté, cf. la documentation de la fonction
+      default:
+        assertNever(operation, "Type d'opération non projeté");
     }
   };
 

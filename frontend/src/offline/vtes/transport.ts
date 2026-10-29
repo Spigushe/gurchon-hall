@@ -1,26 +1,42 @@
 import type { components } from "../../api-client/schema.d.ts";
 import type { SyncTransport, SyncVerdict, TransportResult } from "../core/types";
+import { CREATION_BINDINGS } from "./references";
 import type { ApiClient, VtesOperation } from "./types";
 
 type SyncOperationResult = components["schemas"]["SyncOperationResult"];
 
-/** Verdict du contrat -> verdict générique du moteur. */
+/**
+ * Verdict du contrat -> verdict générique du moteur.
+ *
+ * Une création appliquée (ou rejouée) rend sa correspondance référence client
+ * -> identifiant serveur. Le genre de la ressource et le champ qui porte son
+ * identifiant se lisent dans `CREATION_BINDINGS` (deck, joueur, lieu, tournoi,
+ * partie) ; le genre n'est rangé que hors deck, absent valant deck.
+ */
 export function toVerdict(result: SyncOperationResult): SyncVerdict {
-  const bindsDeckRef =
-    result.type === "deck.create" &&
-    result.error === null &&
-    result.client_ref !== null &&
-    result.resource?.deck_id != null;
   return {
     operationId: result.operation_id,
     outcome: result.outcome,
     error: result.error ? { code: result.error.code, message: result.error.message } : null,
-    // La correspondance référence client -> deck_id est ce que le client doit
-    // retenir d'une création appliquée (ou rejouée).
-    refs: bindsDeckRef
-      ? [{ ref: result.client_ref as string, id: result.resource!.deck_id as number }]
-      : [],
+    refs: bindingsOf(result),
   };
+}
+
+function bindingsOf(result: SyncOperationResult): SyncVerdict["refs"] {
+  if (result.error !== null || result.client_ref === null) return [];
+  const creation = Object.hasOwn(CREATION_BINDINGS, result.type)
+    ? CREATION_BINDINGS[result.type]
+    : undefined;
+  if (!creation) return [];
+  const id = (result.resource as Record<string, unknown> | null)?.[creation.idField];
+  if (typeof id !== "number") return [];
+  return [
+    {
+      ref: result.client_ref,
+      id,
+      ...(creation.kind === "deck" ? {} : { kind: creation.kind }),
+    },
+  ];
 }
 
 /** Texte lisible d'un corps d'erreur FastAPI (422 standard ou `{"detail": "…"}`). */

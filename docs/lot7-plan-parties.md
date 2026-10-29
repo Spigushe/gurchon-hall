@@ -815,6 +815,126 @@ Points relevés pour les étapes suivantes, à reprendre dans leurs briefs :
   CLAUDE.md ; en CI, `timeout-minutes` et le `--check` du contrat avant
   pytest.
 
+### Livré à l'étape B1 (2026-10-29)
+
+Services `services/players.py` et `services/venues.py`, routes
+`routers/players.py` et `routers/venues.py`, dix opérations de plus au contrat
+(38 sur 24 chemins ; les onze restantes, tournois et parties, viennent avec B2).
+Ce qui a été précisé en écrivant :
+
+- **Noms comparés repliés, partout.** `equals_folded` (`text_search.py`) sert la
+  création, le renommage et, en B3, l'upsert ; `find_by_name` des deux services
+  est le point d'entrée de cet upsert. Renommer un joueur ou un lieu avec une
+  autre casse de son propre nom reste permis. Un joueur du compte dont le nom
+  replié est celui du « Moi » est refusé en 409 avec `players.ME_NAME_TAKEN`
+  (« Ce nom est déjà porté par votre joueur Moi. »), constante prévue pour le
+  `conflict` de `player.create` par `/sync`.
+- **`get_or_create_me(db, user_id, username=None)`** ne fait que `flush` :
+  l'appelant garde la transaction (`create_account` y ajoute sa propre
+  validation, qui couvre aussi une course sur l'unicité du compte). Si un
+  adversaire porte déjà le nom replié du `username` (compte ancien sans « Moi »),
+  le « Moi » prend un suffixe, « nom (2) », plutôt que d'échouer.
+- **Comptes sans « Moi ».** `manage_accounts.py check-me` les liste (code de
+  sortie 1 s'il en reste) et `--fix` le crée. `claim-legacy` renomme le « Moi »
+  de R10 vers le nouveau `username` seulement s'il porte encore l'ancien (un
+  « Moi » renommé à la main n'est pas touché) et s'il n'y a pas de collision ;
+  il le crée s'il manque. Un avertissement est affiché dans le cas de collision.
+- **Messages de suppression** : « Marc F. figure à 6 tables : retirez-le d'abord
+  de ces parties pour le supprimer. » (« 1 table » au singulier), « Le Bar à Dés
+  sert à 7 parties et 1 tournoi : impossible de le supprimer. » (un seul terme
+  quand l'autre compte zéro), « Votre joueur Moi est renommable, jamais
+  supprimé. » Le nom du lieu est repris tel quel, article compris.
+- **Ordre des listes** : joueurs, « Moi » d'abord puis nom replié ; lieux, nom
+  replié. Un `PATCH` vide est un 200 sans effet.
+- **Pas de `client_ref` ici.** Les schémas de joueur et de lieu n'en portent
+  pas : le contrôle « 422 en ligne » du plan ne concerne que les routes de B2
+  (partie, tournoi) et n'a rien à faire à B1.
+- **Les tests** (`tests/test_players_venues_routes.py`) créent le « Moi » par
+  `get_or_create_me` ; `tests.auth_helpers.make_account` ne le crée pas, pour ne
+  pas bousculer les tests existants qui posent eux-mêmes un joueur `is_me`.
+- **Front** : `/lieux` ajouté à `API_ROUTE_PREFIXES` (les trois autres y étaient
+  déjà), client TS régénéré. La denylist du service worker en est dérivée.
+
+### Livré à l'étape C1a (2026-10-29)
+
+Tout ce qui se code sans les types générés des schémas de partie et des douze
+opérations. Code dans `frontend/src/offline/`, tests dans
+`frontend/tests/unit/offline/` (vitest : 416 tests sur 30 fichiers avant, 478 sur
+35 après). Ni le contrat, ni `backend/`, ni `apiRoutes.ts` n'ont été touchés.
+
+- **Dexie version 5** (`vtes/db.ts`, `VTES_STORES_V4`) : `players` et `venues`
+  (`id, foldedName`), `tournaments` (`id, startDate`), `games`
+  (`id, tournamentId, playedAt`). Ajout de magasins seulement, un cran, aucun
+  `upgrade`, aucune donnée perdue (test de montée depuis un schéma 4 peuplé).
+  `OfflineCoreDb` ferme sa connexion sur `versionchange` (comportement par défaut
+  de Dexie, rendu explicite et sans bruit en console). **Types de lignes du miroir
+  provisoires** (`PlayerRow`, `VenueRow`, `TournamentRow`, `GameRow`,
+  `GameTableLineRow`, unions de texte des enums), écrits à la main sur les lectures
+  de `play.py` et `reference.py` : **à réaligner sur les types générés en C1b**.
+- **Genre dans `RefBinding`** : `kind?: string` opaque, absent = deck, champ non
+  indexé donc sans cran. `SyncVerdict.refs` le porte jusqu'à `Outbox.settle`.
+  `overlay.ts` ne retourne plus que les correspondances de genre deck
+  (`bindingsOfKind`), si bien qu'un joueur 12 et un deck 12 ne se confondent plus.
+  `core/` ne nomme ni partie, ni tournoi, ni joueur.
+- **`toVerdict`** lit `CREATION_BINDINGS` (`vtes/references.ts`) : type de création
+  -> genre et champ d'identifiant du verdict. Les cinq créations (deck, joueur,
+  lieu, tournoi, partie) y sont déjà, écrites en chaînes : C1b n'a qu'à typer.
+- **`Outbox.reissue(id, transform, { position })`**, `same` (défaut) ou `end`.
+- **Marcheur de références** : `collectClientRefs` et `groupCascades` dans
+  `core/references.ts` (génériques), `REFERENCE_FIELDS` et `referencesOf` côté
+  adaptateur. Les refus en cascade se regroupent sous leur racine, y compris quand
+  la création corrigée a été rangée en fin de file.
+- **`assertNever`** (`core/assertNever.ts`) dans `overlay.ts` et
+  `useOperationLabels.ts`. Ni `correctable.ts` ni `CorrectionForm.tsx` ne
+  l'emploient : leur `default` est volontaire (les types non corrigeables se
+  renvoient tels quels). Quand C1b élargira l'union, `tsc` désignera chaque
+  `switch` à compléter.
+- **`vtes/playRules.ts`** : `certainGameWin` (testée sur la table de cas partagée,
+  lue par `readFileSync`, `toBeNull()` pour les cas `null`), `tournamentSummary`
+  (bilan provisoire aligné sur `tournament_summary`), `nextRoundNumber`
+  (`max + 1`).
+- **Clés de surcouche** `PlayerKey`, `VenueKey`, `TournamentKey`, `GameKey` : quatre
+  alias de la forme `id:<n>` / `ref:<uuid>`, avec `resourceKeyOf` et
+  `parseResourceKey`. TypeScript ne les distingue pas entre elles ni de `DeckKey`
+  (même forme) ; limite assumée, notée au README.
+- **Élagage de `settled` par famille** : fait (`vtes/families.ts`), puisqu'il ne
+  dépend que du texte des types. `refresh.ts` l'utilise déjà pour le stock et les
+  decks. Reste à C1b de l'appliquer aux quatre nouveaux miroirs.
+- **README** de `frontend/src/offline/` : section « Chaîner des références de
+  plusieurs genres dans un même lot », version 5 du schéma, nouveaux fichiers.
+
+**Choix du miroir des tables de parties : proposé par pwa-offline, validé par
+l'utilisateur le 2026-10-29.** Option retenue : la table complète de chaque partie vit dans le miroir
+(`GameRow.table`), chargée par `GET /parties/{id}` **de façon incrémentale** (une
+partie dont `updated_at` n'a pas changé depuis le dernier rafraîchissement n'est
+pas relue), et l'édition de table n'est offerte que pour une table connue
+(`table !== null`). Justification :
+- `game.update` remplace la table d'un bloc (A3) : éditer une table qu'on ignore
+  effacerait les adversaires. Réserver l'édition aux tables connues est donc un
+  garde-fou de fond, pas seulement une économie ; il reste le repli pour une
+  partie dont le détail n'a pas pu être lu.
+- `GET /parties` ne rend que `me` en résumé : lire toutes les tables coûte une
+  requête par partie, comme `refreshDecks` le fait déjà pour les decks. Le coût
+  n'est payé qu'une fois, puis seulement pour les parties modifiées (`updated_at`
+  figure dans la liste), ce qui borne la charge réseau d'un carnet qui grossit.
+- Hors ligne au club, le détail d'une partie (la table par siège, les noms, les
+  decks prêtés) et l'édition de sa table restent disponibles sans réseau pour
+  toutes les parties déjà synchronisées, ce que le seul résumé ne permettrait pas.
+- Une partie saisie hors ligne porte sa table dans l'opération en file : la
+  surcouche la connaît d'emblée.
+Option écartée : ne miroiter que le résumé et lire la table à l'ouverture d'un
+détail. Moins de réseau au premier rafraîchissement, mais le détail d'une partie
+et l'édition de sa table deviendraient indisponibles hors ligne tant qu'on ne l'a
+pas ouvert en ligne, ce qui contredit le pilote.
+
+Renvoyé à C1b : constructeurs d'opérations des douze types et leur typage contre
+le contrat, rafraîchissement des quatre miroirs (dont le chargement incrémental des
+tables), projection de ces types dans `overlay.ts` (bilan provisoire, clés
+`ref:<uuid>`), actions de `useVtesOffline()`, libellés et corrections
+(`useOperationLabels.ts`, `correctable.ts`), `CREATION_BINDINGS` et
+`REFERENCE_FIELDS` typés contre `AnySyncOperation`, réalignement des types de lignes
+provisoires, élagage de `settled` des quatre nouveaux miroirs.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -960,10 +1080,10 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | A0 | architecte-contrat | P1 appliqué : § 5 de CLAUDE.md et skill `regles-vtes` corrigés (GW, finale, retrait, multi-deck ; TP notés comme non suivis) — **fait le 2026-10-29** | rien |
 | A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` — **fait le 2026-10-29** ; l'élargissement des enums de `/sync` change le contrat, exporté et client TS régénéré dès cette étape | A0 |
 | A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS — **fait le 2026-10-29** (cf. « Livré à l'étape A2 ») | A1 |
-| B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription | A2 |
+| B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription — **fait le 2026-10-29** (cf. « Livré à l'étape B1 ») | A2 |
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement | B1 |
 | B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence ; section « Lot 7 » du contrat de sync (architecte) | B2 |
-| C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties | A2 |
+| C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties — **fait le 2026-10-29** (cf. « Livré à l'étape C1a » ; miroir des tables validé le même jour) | A2 |
 | C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1b, D0 |

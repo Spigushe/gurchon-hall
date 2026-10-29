@@ -33,6 +33,11 @@ d'API généré. `vtes/runtime.ts` est le seul fichier qui assemble le tout.
   Option `retainSettled` : voir « Entre le verdict et le rafraîchissement ».
 - `core/settled.ts` : les opérations tranchées en attente de rafraîchissement
   (`lastSettledSeq`, `readSettled`, `pruneSettled`).
+- `core/references.ts` (Lot 7) : `collectClientRefs`, un marcheur de références client
+  qui lit des chemins déclarés par l'adaptateur (`data.rows[].who`), et `groupCascades`,
+  qui range sous la création refusée les refus qui la désignent. Le genre d'une
+  référence y est une chaîne opaque.
+- `core/assertNever.ts` : garde d'exhaustivité des `switch` sur le type d'opération.
 - `core/syncEngine.ts` : le moteur. `start`, `stop`, `flush`, `getStatus`,
   `subscribe`, `whenIdle`, `whenDrained`, `resumeAfterAuthentication` (Lot 6,
   cf. « Pause d'authentification » plus bas).
@@ -51,8 +56,17 @@ suit le même protocole, rien d'autre n'est à écrire dans `core/`.
 ## Ce qui est propre à VtES
 
 - `vtes/db.ts` : les tables miroirs (`stock`, `decks`, `deckCards`, `cards`,
-  `cardSets`, `languages`) et les versions du schéma (1 à 4, cf. « Versionnage
-  du schéma IndexedDB » plus bas).
+  `cardSets`, `languages`, puis `players`, `venues`, `tournaments`, `games` au
+  Lot 7) et les versions du schéma (1 à 5, cf. « Versionnage du schéma
+  IndexedDB » plus bas).
+- `vtes/references.ts` (Lot 7) : genres de références, table création -> genre
+  (`CREATION_BINDINGS`) et champs de référence de chaque type d'opération
+  (`REFERENCE_FIELDS`, `referencesOf`). Voir « Chaîner des références de plusieurs
+  genres ».
+- `vtes/families.ts` : famille d'une opération par préfixe de son type, pour que
+  chaque miroir n'efface de `settled` que la sienne.
+- `vtes/playRules.ts` : `certainGameWin`, bilan provisoire d'un tournoi et ronde
+  suivante, les règles de partie que le client suggère sans les imposer.
 - `vtes/operations.ts` : un constructeur par type d'opération du contrat.
 - `vtes/transport.ts` : `POST /sync` par le client typé généré.
 - `vtes/overlay.ts`, `vtes/reads.ts` : ce que l'UI lit.
@@ -201,8 +215,9 @@ rejeu de la même clé avec un autre corps (`mismatched_replay`).
 
 **Un refus ne se rejoue pas tel quel.** Il reste dans la file avec son motif, et
 `useRejectedOperations` le donne à l'UI. Pour le corriger, `outbox.reissue(id,
-transform)` crée une nouvelle opération, sous une nouvelle clé, à la même place dans
-la file. `outbox.discard(id)` l'abandonne. Un refus n'a aucun effet local : la lecture
+transform, { position })` crée une nouvelle opération, sous une nouvelle clé, à la même
+place dans la file (`position: "same"`, défaut) ou en fin de file (`"end"`, pour une
+correction qui exige une opération postérieure à ce qui est déjà saisi). `outbox.discard(id)` l'abandonne. Un refus n'a aucun effet local : la lecture
 est recalculée depuis l'instantané, il n'y a rien à défaire.
 
 **Une seule requête à la fois.** Un verrou par onglet et, quand le navigateur l'offre,
@@ -408,6 +423,42 @@ compte) ; `dbNameForAccount`/l'option `dbName` pour une base par compte ; la rè
 un compte. Le pointeur `localStorage` du compte actif (`account.ts`) est, lui, une
 décision locale à ce dépôt (cf. ci-dessus) : à revoir au cas par cas.
 
+## Chaîner des références de plusieurs genres dans un même lot (Lot 7)
+
+Un lot peut créer un deck, un lieu, un tournoi, deux joueurs puis une partie qui
+les nomme tous, chacun désigné par la `client_ref` de sa création. Ce que cela
+demande à l'adaptateur, et que le cœur ne sait pas faire seul :
+
+- **Le genre voyage avec la correspondance.** Les identifiants serveur se recouvrent
+  d'un genre à l'autre (le joueur 12 et le deck 12 coexistent) ; les `client_ref`, eux,
+  sont des UUID et ne se recouvrent pas. `RefBinding.kind` (texte opaque pour le cœur,
+  absent = le genre historique, ici un deck) est rangé au verdict, sans cran Dexie :
+  c'est un champ non indexé. Tout code qui **retourne** la table `refs` (identifiant ->
+  référence, comme `overlay.ts`) doit d'abord filtrer par genre (`bindingsOfKind`),
+  sinon le deck 12 prend la référence du joueur 12.
+- **Une table création -> genre -> champ d'identifiant.** `toVerdict` lit
+  `CREATION_BINDINGS[type]` pour savoir quel champ de la ressource du verdict
+  (`deck_id`, `player_id`, `venue_id`, `tournament_id`, `game_id`) porte l'identifiant
+  de la création, et le range avec son genre. Un nouveau genre se déclare en une ligne.
+- **Une table type d'opération -> champs de référence.** `REFERENCE_FIELDS` dit où
+  chaque type désigne d'autres ressources (`deck`, `data.venue`,
+  `data.participations[].player`…). `referencesOf(operation)` en tire ce que
+  l'opération crée et ce qu'elle désigne par référence client ; une désignation par
+  identifiant serveur, ou `{"me": true}`, n'est pas une dépendance. Le cœur fournit le
+  marcheur (`collectClientRefs`) et le regroupement (`groupCascades`), pas la liste des
+  champs.
+- **Les refus en cascade.** Si la création d'un joueur est refusée, la partie qui le
+  nomme l'est aussi (`unresolved_client_ref` ou `not_found`). `groupCascades(refusées,
+  referencesOf)` les range sous leur racine : l'écran de synchronisation montre la
+  cause une fois, et la correction de la racine (`reissue`, au besoin en fin de file)
+  suffit souvent à rendre les autres rejouables telles quelles.
+- **Les clés de surcouche** (`PlayerKey`, `VenueKey`, `TournamentKey`, `GameKey`,
+  comme `DeckKey`) valent `ref:<uuid>` avant et après la synchronisation d'une création
+  hors ligne, `id:<n>` pour ce qui vient du serveur. Les cinq types ont la même forme :
+  TypeScript ne les distingue pas, c'est la table consultée qui les distingue.
+- **Un miroir ne vide que sa famille de `settled`** (`vtes/families.ts`) : relire les
+  joueurs n'efface pas une partie tranchée dont le miroir n'est pas encore à jour.
+
 ## Entre le verdict et le rafraîchissement
 
 Une opération tranchée sort de la file, mais l'instantané du serveur n'est relu que
@@ -474,9 +525,13 @@ semées par le serveur (`EN`, `FR`, `ES`, `XX`) font foi. Un code vide est refus
 ## Versionnage du schéma IndexedDB
 
 Une base IndexedDB a un seul numéro de version pour toutes ses tables. Le schéma
-actuel est la version 4 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), la 2 qui
-ajoute `settled` (`CORE_STORES_V2`), puis les 3 et 4 du Lot 4 (`VTES_STORES_V2`,
-`VTES_STORES_V3`). Pour faire évoluer le schéma en temps normal, ajouter un
+actuel est la version 5 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), la 2 qui
+ajoute `settled` (`CORE_STORES_V2`), les 3 et 4 du Lot 4 (`VTES_STORES_V2`,
+`VTES_STORES_V3`), puis la 5 du Lot 7 (`VTES_STORES_V4` : `players`, `venues`,
+`tournaments`, `games`, un ajout de magasins sans changement de clé, donc un seul
+cran et aucune donnée perdue). `OfflineCoreDb` ferme sa connexion quand un autre
+onglet monte la version (événement `versionchange`) : sans cela, la mise à niveau
+resterait bloquée tant qu'un ancien onglet est ouvert. Pour faire évoluer le schéma en temps normal, ajouter un
 `this.version(n + 1).stores({...})` avec les seules tables modifiées, et un
 `.upgrade()` si des données doivent migrer. Ne jamais réécrire une version déjà
 livrée : des navigateurs ont déjà ouvert la base.

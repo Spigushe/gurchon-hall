@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { cardSetLabelById, plural } from "../../labels";
 import { useLiveQuery } from "../../offline/react";
-import { type OutboxEntry } from "../../offline/core";
+import { assertNever, type OutboxEntry } from "../../offline/core";
 import { useLocalDecks, useVtesOffline, type VtesOperation } from "../../offline/vtes";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
 
@@ -97,6 +97,8 @@ export function useOperationDescriber(entries: readonly Entry[]) {
           return `${sentence(deck(operation.deck))} : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
         case "bundle.deposit":
           return `Versement du produit n° ${operation.bundle_id} (${operation.data.language_code}, ${plural(operation.data.count ?? 1, "exemplaire")})`;
+        default:
+          return assertNever(operation, "Type d'opération sans libellé");
       }
     },
     [cardNames, cardSets.byId, decks, entries],

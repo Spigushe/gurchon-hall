@@ -10,6 +10,7 @@ import type {
   StockRow,
   VtesOfflineDb,
 } from "./db";
+import { isDeckOperation, isStockOperation } from "./families";
 import type { ApiClient } from "./types";
 
 type Schemas = components["schemas"];
@@ -44,9 +45,8 @@ class RefreshError extends Error {}
  */
 export class RefreshAuthError extends RefreshError {}
 
-// Chaque miroir n'efface, des opérations tranchées, que la famille qu'il reflète.
-const isStockOperation = (type: string) => type.startsWith("stock.") || type.startsWith("bundle.");
-const isDeckOperation = (type: string) => type.startsWith("deck.") || type.startsWith("deck_card.");
+// Chaque miroir n'efface, des opérations tranchées, que la famille qu'il reflète
+// (`families.ts`).
 
 /**
  * Lot 4b : un `deck_card.upsert` qui acquiert des exemplaires touche les deux

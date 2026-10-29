@@ -55,5 +55,15 @@ export class OfflineCoreDb extends Dexie {
 
   constructor(name: string) {
     super(name);
+    // Un autre onglet monte la version du schéma (ou supprime la base) : sans
+    // fermeture de notre connexion, sa mise à niveau resterait bloquée. On
+    // ferme proprement, en laissant la base se rouvrir au prochain accès
+    // (avec le schéma de ce code : si l'autre onglet exécute une version plus
+    // récente, c'est à la page de se recharger). Comportement par défaut de
+    // Dexie, écrit ici pour ne pas en dépendre ni faire de bruit en console.
+    this.on("versionchange", () => {
+      this.close({ disableAutoOpen: false });
+      return false;
+    });
   }
 }

@@ -95,6 +95,14 @@ export interface RefBinding {
   ref: string;
   id: number;
   boundAt: string;
+  /**
+   * Genre de la ressource désignée, opaque pour le cœur : seul l'adaptateur sait
+   * le lire. Absent = le genre historique de l'adaptateur (VtES : un deck), ce
+   * qui évite tout cran de schéma pour les correspondances déjà rangées. Sert à
+   * ne pas confondre deux ressources de genres différents qui auraient le même
+   * identifiant serveur quand on retourne la table (identifiant -> référence).
+   */
+  kind?: string;
 }
 
 export type SyncOutcome = "applied" | "replayed" | "rejected";
@@ -104,8 +112,11 @@ export interface SyncVerdict {
   operationId: string;
   outcome: SyncOutcome;
   error: { code: RejectionCode; message: string } | null;
-  /** Correspondances à mémoriser (ex. `client_ref` -> `deck_id`). */
-  refs: ReadonlyArray<{ ref: string; id: number }>;
+  /**
+   * Correspondances à mémoriser (ex. `client_ref` -> `deck_id`). `kind` est le
+   * genre opaque de `RefBinding`, absent pour le genre historique.
+   */
+  refs: ReadonlyArray<{ ref: string; id: number; kind?: string }>;
 }
 
 /** Résultat d'un envoi de lot, vu du moteur. */

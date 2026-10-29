@@ -39,3 +39,37 @@ export function toDeckRef(target: DeckSelector | DeckKey): Schemas["DeckRef"] {
     ? { deck_id: selector.deckId }
     : { client_ref: selector.clientRef };
 }
+
+// --- Clés de surcouche (Lot 7) ---------------------------------------------
+//
+// Même patron que `DeckKey` pour les autres ressources saisies hors ligne : la
+// clé ne change pas quand le serveur attribue un identifiant à une création
+// (`ref:<uuid>` avant comme après), `id:<n>` pour ce qui vient du serveur. Les
+// cinq alias ont la même forme, TypeScript ne les distingue donc pas : c'est la
+// table où l'on cherche (joueurs, lieux, tournois, parties, decks) et le genre
+// de la correspondance (`vtes/references.ts`) qui les distinguent. Ne jamais
+// chercher une `PlayerKey` dans les decks, même si les chaînes se ressemblent.
+
+/** Forme commune des clés de surcouche. */
+export type ResourceKey = `id:${number}` | `ref:${string}`;
+export type PlayerKey = ResourceKey;
+export type VenueKey = ResourceKey;
+export type TournamentKey = ResourceKey;
+export type GameKey = ResourceKey;
+
+/** Désignation d'une ressource : identifiant serveur, ou référence client d'une création hors ligne. */
+export type ResourceSelector = { id: number } | { clientRef: string };
+
+export function resourceKeyOf(selector: ResourceSelector): ResourceKey {
+  return "id" in selector ? `id:${selector.id}` : `ref:${selector.clientRef}`;
+}
+
+export function parseResourceKey(key: ResourceKey): ResourceSelector {
+  if (key.startsWith("ref:")) return { clientRef: key.slice(4) };
+  return { id: Number(key.slice(3)) };
+}
+
+export const playerKeyOf: (selector: ResourceSelector) => PlayerKey = resourceKeyOf;
+export const venueKeyOf: (selector: ResourceSelector) => VenueKey = resourceKeyOf;
+export const tournamentKeyOf: (selector: ResourceSelector) => TournamentKey = resourceKeyOf;
+export const gameKeyOf: (selector: ResourceSelector) => GameKey = resourceKeyOf;

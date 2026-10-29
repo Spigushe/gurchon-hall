@@ -24,8 +24,53 @@ export {
   VTES_STORES_V1,
   VTES_STORES_V2,
   VTES_STORES_V3,
+  VTES_STORES_V4,
 } from "./db";
-export type { CardRow, CardSetRow, DeckCardRow, DeckRow, LanguageRow, StockRow } from "./db";
+export type {
+  CardRow,
+  CardSetRow,
+  DeckCardRow,
+  DeckRow,
+  GameMeRow,
+  GameRoundType,
+  GameRow,
+  GameTableLineRow,
+  LanguageRow,
+  PlayerRow,
+  StockRow,
+  TournamentDeckPolicy,
+  TournamentEventTier,
+  TournamentFinalDeckRule,
+  TournamentFormatName,
+  TournamentRow,
+  TournamentSummaryRow,
+  VenueRow,
+} from "./db";
+export {
+  GAME_WIN_MINIMUM_VP,
+  certainGameWin,
+  nextRoundNumber,
+  tournamentSummary,
+} from "./playRules";
+export type { RoundResult, TournamentTally } from "./playRules";
+export {
+  CREATION_BINDINGS,
+  REFERENCE_FIELDS,
+  bindingsOfKind,
+  kindOfBinding,
+  referencesOf,
+} from "./references";
+export type { ReferenceKind } from "./references";
+export {
+  isDeckOperation,
+  isGameOperation,
+  isPlayerOperation,
+  isStockOperation,
+  isTournamentOperation,
+  isVenueOperation,
+  operationFamily,
+} from "./families";
+export type { OperationFamily } from "./families";
 export {
   FALLBACK_LANGUAGE,
   SEEDED_LANGUAGES,
@@ -57,12 +102,28 @@ export {
   refreshStock,
 } from "./refresh";
 export { createVtesSyncTransport, describeErrorBody, toVerdict } from "./transport";
-export { deckKeyOf, parseDeckKey, toDeckRef } from "./types";
+export {
+  deckKeyOf,
+  gameKeyOf,
+  parseDeckKey,
+  parseResourceKey,
+  playerKeyOf,
+  resourceKeyOf,
+  toDeckRef,
+  tournamentKeyOf,
+  venueKeyOf,
+} from "./types";
 export type {
   ApiClient,
   DeckKey,
   DeckSelector,
+  GameKey,
   OperationOf,
+  PlayerKey,
+  ResourceKey,
+  ResourceSelector,
+  TournamentKey,
+  VenueKey,
   VtesOperation,
   VtesOperationType,
 } from "./types";
