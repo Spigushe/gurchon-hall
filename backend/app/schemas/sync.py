@@ -42,8 +42,10 @@ chaque motif ajouté.
 
 ## Politique de conflit : la file fait foi, les invariants font loi
 
-Décidée au Lot 3, et volontairement simple — l'application est
-mono-utilisateur, et le serveur ne bouge que sous l'action de ce client :
+Décidée au Lot 3, et volontairement simple — les données d'un compte ne
+bougent que sous l'action de ce compte (l'application était mono-utilisateur
+au Lot 3 ; depuis le Lot 6, chaque compte a les siennes, que nul autre ne
+touche) :
 
 1. **Pas d'arbitrage sur l'horloge.** Aucune comparaison entre `recorded_at` et
    la date de dernière modification côté serveur : l'horloge d'un téléphone
@@ -93,8 +95,8 @@ tard.
 Un canal de lecture. Rien ne redescend ici que des verdicts : après une
 synchronisation, le client rafraîchit ce qui l'intéresse par les `GET`
 existants (il est en ligne, par construction). Un delta descendant
-(« qu'est-ce qui a changé depuis ? ») n'a pas de sens dans une application
-mono-utilisateur où le serveur ne bouge que sous l'action de ce client.
+(« qu'est-ce qui a changé depuis ? ») n'a pas de sens tant que les données
+d'un compte ne bougent que sous l'action de ce compte.
 """
 
 import json
@@ -104,7 +106,7 @@ from hashlib import sha256
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.enums import (
     SyncErrorCode,
@@ -126,6 +128,27 @@ from app.schemas.collection import (
     DeckCreate,
     DeckUpdate,
 )
+from app.schemas.play import (
+    GameCreate,
+    GameTableReplace,
+    GameUpdate,
+    PlayerCreate,
+    PlayerUpdate,
+    TournamentCreate,
+    TournamentUpdate,
+)
+from app.schemas.reference import VenueCreate, VenueUpdate
+
+# `ClientRef` et `DeckRef` sont nés ici au Lot 3 ; ils vivent dans
+# `app.schemas.refs` depuis le Lot 7 et s'importent toujours d'ici.
+from app.schemas.refs import (
+    ClientRef,
+    DeckRef,
+    GameRef,
+    PlayerRef,
+    TournamentRef,
+    VenueRef,
+)
 
 MAX_SYNC_OPERATIONS = 200
 """Opérations acceptées dans un lot.
@@ -135,17 +158,6 @@ d'écriture (cf. `app.routers.sync`), et un lot sans limite tiendrait ce verrou
 aussi longtemps que le client le voudrait. Une file plus longue se découpe côté
 client, ce qui est sans danger puisque chaque opération porte sa propre clé
 d'idempotence et que les références client survivent d'un lot à l'autre.
-"""
-
-ClientRef = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=64)
-]
-"""Référence qu'un client donne à un objet qu'il vient de créer hors ligne.
-
-Un UUID est attendu, mais le contrat ne l'impose pas : ce qui compte est
-qu'elle soit **unique et jamais réutilisée**, y compris entre deux
-installations de l'application. Une référence déjà employée par une création
-appliquée est refusée.
 """
 
 
@@ -161,35 +173,6 @@ class SyncOutcome(StrEnum):
     APPLIED = "applied"
     REPLAYED = "replayed"
     REJECTED = "rejected"
-
-
-class DeckRef(WriteModel):
-    """Désignation d'un deck : son identifiant serveur, ou sa référence client.
-
-    Exactement l'un des deux. `deck_id` pour un deck que le client a déjà vu
-    revenir du serveur ; `client_ref` pour un deck créé hors ligne, dont
-    l'identifiant n'existe pas encore au moment où la file est constituée.
-    """
-
-    deck_id: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
-    client_ref: ClientRef | None = Field(
-        default=None,
-        description=(
-            "Référence donnée par le client au deck lors de sa création hors "
-            "ligne (`deck.create`). Résolue par le serveur, dans ce lot ou dans "
-            "un lot antérieur."
-        ),
-    )
-
-    @model_validator(mode="after")
-    def _exactly_one_designation(self) -> DeckRef:
-        if (self.deck_id is None) == (self.client_ref is None):
-            raise ValueError(
-                "désigner le deck par `deck_id` (identifiant serveur) ou par "
-                "`client_ref` (référence de création hors ligne), mais pas les "
-                "deux ni aucun des deux."
-            )
-        return self
 
 
 class SyncOperationBase(WriteModel):
@@ -336,6 +319,166 @@ class BundleDepositOperation(SyncOperationBase):
     data: BundleDeposit
 
 
+# --------------------------------------------------------------------------
+# Lot 7 : joueurs, lieux, tournois, parties
+# --------------------------------------------------------------------------
+#
+# Douze types, au nom calqué sur les huit précédents. Chaque création porte une
+# `client_ref` obligatoire, et les opérations suivantes désignent la ressource
+# par une référence de son genre (`PlayerRef`, `VenueRef`, `TournamentRef`,
+# `GameRef`) ; les charges utiles désignent à leur tour lieu, tournoi, joueurs
+# et decks par référence (`app.schemas.play`). Le scénario visé : un tournoi,
+# son lieu, deux adversaires et trois rondes saisis au club dans un même lot,
+# avec le deck créé la veille hors ligne.
+#
+# Écrits à l'étape A2 du Lot 7, ils n'entrent dans `AnySyncOperation` qu'avec
+# leur exécution par le service (étape B3) : `/sync` ne doit pas accepter un
+# type qu'il ne sait pas appliquer.
+
+_CREATION_REF = Field(
+    description=(
+        "Référence de la ressource côté client, unique et jamais réutilisée (UUID "
+        "attendu). Les opérations suivantes s'en servent pour la désigner, dans ce "
+        "lot comme dans les suivants."
+    )
+)
+
+
+class PlayerCreateOperation(SyncOperationBase):
+    """Crée un adversaire saisi hors ligne.
+
+    Upsert par nom (P5) : si le compte a déjà un adversaire de ce nom (comparé
+    par `fold_text`, comme la recherche), l'opération est appliquée sans rien
+    écrire et la référence client est liée à l'adversaire existant. Deux
+    saisies de « Marc » sur deux appareils ne laissent pas en plan les parties
+    qui désignent la seconde. Le « Moi » est exclu de l'upsert : un nom qui est
+    le sien est refusé (`conflict`, « nom déjà porté par votre joueur Moi »),
+    sans quoi la référence d'un adversaire désignerait « Moi ».
+    """
+
+    type: Literal["player.create"]
+    client_ref: ClientRef = _CREATION_REF
+    data: PlayerCreate
+
+
+class PlayerUpdateOperation(SyncOperationBase):
+    """Renomme un joueur, « Moi » compris (cf. `PATCH /joueurs/{id}`)."""
+
+    type: Literal["player.update"]
+    player: PlayerRef
+    data: PlayerUpdate
+
+
+class PlayerDeleteOperation(SyncOperationBase):
+    """Supprime un adversaire ; refusée (`conflict`) pour « Moi » ou pour un
+    joueur présent à une table."""
+
+    type: Literal["player.delete"]
+    player: PlayerRef
+
+
+class VenueCreateOperation(SyncOperationBase):
+    """Crée un lieu saisi hors ligne ; upsert par nom, comme `player.create`."""
+
+    type: Literal["venue.create"]
+    client_ref: ClientRef = _CREATION_REF
+    data: VenueCreate
+
+
+class VenueUpdateOperation(SyncOperationBase):
+    """Modifie un lieu (cf. `PATCH /lieux/{id}`)."""
+
+    type: Literal["venue.update"]
+    venue: VenueRef
+    data: VenueUpdate
+
+
+class VenueDeleteOperation(SyncOperationBase):
+    """Supprime un lieu ; refusée (`conflict`) s'il est référencé."""
+
+    type: Literal["venue.delete"]
+    venue: VenueRef
+
+
+class TournamentCreateOperation(SyncOperationBase):
+    """Crée un tournoi saisi hors ligne ; son lieu se désigne par référence."""
+
+    type: Literal["tournament.create"]
+    client_ref: ClientRef = _CREATION_REF
+    data: TournamentCreate
+
+
+class TournamentUpdateOperation(SyncOperationBase):
+    """Modifie un tournoi (cf. `PATCH /tournois/{id}`).
+
+    Les contrôles portent sur l'état fusionné et sur les parties déjà
+    enregistrées : passer en mono-deck un tournoi joué avec deux decks, ou
+    changer la règle de finale après la finale, est refusé (`conflict`).
+    """
+
+    type: Literal["tournament.update"]
+    tournament: TournamentRef
+    data: TournamentUpdate
+
+
+class TournamentDeleteOperation(SyncOperationBase):
+    """Supprime un tournoi ; refusée (`conflict`) s'il contient des parties."""
+
+    type: Literal["tournament.delete"]
+    tournament: TournamentRef
+
+
+class GameCreateOperation(SyncOperationBase):
+    """Crée une partie saisie hors ligne, table comprise."""
+
+    type: Literal["game.create"]
+    client_ref: ClientRef = _CREATION_REF
+    data: GameCreate
+
+
+class GameUpdateOperation(SyncOperationBase):
+    """Modifie une partie, et au besoin remplace sa table.
+
+    `data` suit `PATCH /parties/{id}` (omis, rien ne change hors de la table) ;
+    `table`, s'il est fourni, est le corps de `PUT /parties/{id}/participations`
+    repris tel quel : la table complète voulue (A3). Les deux s'appliquent
+    ensemble, sous le même point de sauvegarde et après un seul contrôle de
+    l'état final : corriger mes VP et mon GW se fait en une opération.
+    """
+
+    type: Literal["game.update"]
+    game: GameRef
+    data: GameUpdate = Field(default_factory=GameUpdate)
+    table: GameTableReplace | None = Field(
+        default=None,
+        description="Table complète voulue ; omise, la table ne change pas.",
+    )
+
+
+class GameDeleteOperation(SyncOperationBase):
+    """Supprime une partie et sa table (suppression physique, A9)."""
+
+    type: Literal["game.delete"]
+    game: GameRef
+
+
+LOT7_SYNC_OPERATIONS = (
+    PlayerCreateOperation,
+    PlayerUpdateOperation,
+    PlayerDeleteOperation,
+    VenueCreateOperation,
+    VenueUpdateOperation,
+    VenueDeleteOperation,
+    TournamentCreateOperation,
+    TournamentUpdateOperation,
+    TournamentDeleteOperation,
+    GameCreateOperation,
+    GameUpdateOperation,
+    GameDeleteOperation,
+)
+"""Les douze types du Lot 7, à joindre à `AnySyncOperation` à l'étape B3."""
+
+
 AnySyncOperation = Annotated[
     StockUpsertOperation
     | StockDeleteOperation
@@ -418,7 +561,9 @@ class SyncResourceRef(ReadModel):
     objets. Un versement de produit touche des centaines d'entrées de
     collection, et le client est en ligne au moment où il synchronise — il
     rafraîchit par les `GET` existants. Ce dont il a réellement besoin ici,
-    c'est du `deck_id` attribué à un deck créé hors ligne.
+    c'est de l'identifiant attribué à ce qu'il a créé hors ligne : un deck, et
+    depuis le Lot 7 un joueur, un lieu, un tournoi ou une partie, chacun dans
+    la colonne de son genre (A10).
     """
 
     kind: SyncResourceKind
@@ -434,6 +579,12 @@ class SyncResourceRef(ReadModel):
         ),
     )
     bundle_id: int | None = None
+    player_id: int | None = Field(default=None, description="`player.*` (Lot 7).")
+    venue_id: int | None = Field(default=None, description="`venue.*` (Lot 7).")
+    tournament_id: int | None = Field(
+        default=None, description="`tournament.*` (Lot 7)."
+    )
+    game_id: int | None = Field(default=None, description="`game.*` (Lot 7).")
 
 
 class SyncOperationResult(ReadModel):
@@ -446,8 +597,10 @@ class SyncOperationResult(ReadModel):
         default=None,
         description=(
             "Référence client de l'opération, renvoyée telle quelle. Avec "
-            "`resource.deck_id`, c'est la correspondance que le client doit "
-            "enregistrer pour ses prochaines requêtes."
+            "l'identifiant du genre de la ressource créée (`resource.deck_id`, "
+            "`player_id`, `venue_id`, `tournament_id` ou `game_id`), c'est la "
+            "correspondance que le client doit enregistrer pour ses prochaines "
+            "requêtes."
         ),
     )
     resource: SyncResourceRef | None = Field(

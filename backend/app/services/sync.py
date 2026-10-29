@@ -298,6 +298,10 @@ def _result(entry: SyncOperation, outcome: SyncOutcome) -> SyncOperationResult:
             language_code=entry.language_code,
             card_set_id=entry.card_set_id,
             bundle_id=entry.bundle_id,
+            player_id=entry.player_id,
+            venue_id=entry.venue_id,
+            tournament_id=entry.tournament_id,
+            game_id=entry.game_id,
         )
     error = None
     if entry.error_code is not None:

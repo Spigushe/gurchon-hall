@@ -259,6 +259,19 @@ class Game(Base, TimestampMixin):
         foreign_keys="Participation.game_id",
     )
 
+    # Lectures dérivées pour `GameRead` (Lot 7) : de la navigation, aucun
+    # calcul. Le service charge `participations`, leurs joueurs et le tournoi
+    # d'avance, sans quoi une liste ferait une requête par partie.
+
+    @property
+    def me(self) -> Participation | None:
+        """Ma ligne de la table ; une partie en a toujours une (A2)."""
+        return next((p for p in self.participations if p.player.is_me), None)
+
+    @property
+    def tournament_name(self) -> str | None:
+        return self.tournament.name if self.tournament is not None else None
+
 
 class Participation(Base):
     """La place et le résultat d'un joueur sur une partie.
@@ -319,3 +332,9 @@ class Participation(Base):
         ),
         foreign_keys="Participation.deck_id",
     )
+
+    @property
+    def is_me(self) -> bool:
+        """Ma ligne, la seule à porter VP et GW (A13) ; lu pour
+        `ParticipationRead`."""
+        return self.player.is_me

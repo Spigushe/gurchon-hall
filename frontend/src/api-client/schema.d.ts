@@ -1662,7 +1662,7 @@ export interface components {
             outcome: components["schemas"]["SyncOutcome"];
             /**
              * Client Ref
-             * @description Référence client de l'opération, renvoyée telle quelle. Avec `resource.deck_id`, c'est la correspondance que le client doit enregistrer pour ses prochaines requêtes.
+             * @description Référence client de l'opération, renvoyée telle quelle. Avec l'identifiant du genre de la ressource créée (`resource.deck_id`, `player_id`, `venue_id`, `tournament_id` ou `game_id`), c'est la correspondance que le client doit enregistrer pour ses prochaines requêtes.
              */
             client_ref: string | null;
             /** @description Ressource touchée ; nul si l'opération a été refusée. */
@@ -1740,7 +1740,9 @@ export interface components {
          *     objets. Un versement de produit touche des centaines d'entrées de
          *     collection, et le client est en ligne au moment où il synchronise — il
          *     rafraîchit par les `GET` existants. Ce dont il a réellement besoin ici,
-         *     c'est du `deck_id` attribué à un deck créé hors ligne.
+         *     c'est de l'identifiant attribué à ce qu'il a créé hors ligne : un deck, et
+         *     depuis le Lot 7 un joueur, un lieu, un tournoi ou une partie, chacun dans
+         *     la colonne de son genre (A10).
          */
         SyncResourceRef: {
             kind: components["schemas"]["SyncResourceKind"];
@@ -1757,6 +1759,26 @@ export interface components {
             card_set_id: number | null;
             /** Bundle Id */
             bundle_id: number | null;
+            /**
+             * Player Id
+             * @description `player.*` (Lot 7).
+             */
+            player_id: number | null;
+            /**
+             * Venue Id
+             * @description `venue.*` (Lot 7).
+             */
+            venue_id: number | null;
+            /**
+             * Tournament Id
+             * @description `tournament.*` (Lot 7).
+             */
+            tournament_id: number | null;
+            /**
+             * Game Id
+             * @description `game.*` (Lot 7).
+             */
+            game_id: number | null;
         };
         /**
          * SyncResult

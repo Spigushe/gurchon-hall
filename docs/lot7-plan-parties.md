@@ -11,7 +11,9 @@ Rédigé le 2026-10-28 sur la branche `lot7-plan-parties`, à partir de `main`
 l'utilisateur le 2026-10-28, P4, P8 et P9 le 2026-10-29, avec une précision
 sur P7 en deux temps le même jour : le suivi se fait **du seul point de vue du
 joueur**, et **sans points de tournoi** ; VP et GW sont le dénominateur
-commun. Aucune proposition ne reste ouverte.
+commun. Aucune proposition ne reste ouverte. Cinq décisions de plus ont été
+prises le 2026-10-29 après la relecture d'A0 à A2 par les agents (section
+« Revue des agents sur A0 à A2 »).
 
 ## Portée
 
@@ -44,8 +46,8 @@ Ce que le lot ne fait pas : aucune statistique transversale (performance par
 deck, historique par lieu : Lot 8) ; ni classement détaillé d'une table ou
 d'un tournoi, ni performance des joueurs rencontrés, ni points de tournoi
 (P7 : on ne saisit que ses propres VP et GW, et son classement final se saisit
-et se contrôle) ; aucun
-suivi des decks propres aux adversaires (§ 11, décision 3),
+et se contrôle) ; aucun suivi des decks propres aux adversaires (§ 11,
+décision 3),
 pas de tournoi en draft outillé (le format se note, rien de plus), pas
 d'enregistrement de decklist auprès d'un organisateur, pas de partage entre
 comptes. Les règles de légalité de deck ne changent pas, et une partie ne
@@ -144,8 +146,9 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
   `/parties/{id}/participations` du § 7 est conservé, avec ce seul verbe.
 - **A4 — Le Game Win est vérifié, pas écrasé.** `participation.game_win` reste
   stocké, comme le prévoit le modèle, sur ma seule participation, et il se
-  déclare. Le serveur refuse (422) un GW avec moins de 2 VP. Quand mes VP
-  dépassent la moitié de `player_count` et valent au moins 2, le GW est
+  déclare. Le serveur refuse (422) un GW avec moins de 2 VP, ou sans VP
+  saisis (précisé à l'étape A2 : le bilan compterait sinon un GW à 0 VP).
+  Quand mes VP dépassent la moitié de `player_count` et valent au moins 2, le GW est
   certain : le serveur le pose si le champ est laissé vide et refuse un
   `false`. Hors de ces deux cas, la déclaration fait foi.
 - **A5 — Mes VP sont bornés.** Multiples de 0,5, au plus `player_count` (422).
@@ -199,13 +202,21 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
     règlement, n'est pas suivi (P7) : quand plusieurs decks restent à égalité
     sur GW et VP, tous les decks à égalité sont acceptés, de même que le
     tirage au sort du règlement n'est pas saisi ;
-  - les rondes sans deck sont ignorées ; sans aucune préliminaire jouée avec un
-    deck, ou avec une règle nulle, rien n'est contrôlé.
+  - une saisie incomplète ne fait jamais refuser : sans aucune préliminaire
+    jouée avec un deck, ou avec une règle nulle, rien n'est contrôlé ; en
+    `free_choice`, une ronde sans deck saisi rend le contrôle impossible (elle
+    a pu être jouée avec le deck de la finale) ; en `best_performing`, une
+    ronde dont les VP manquent peut être la meilleure et son deck est admis, et
+    une ronde sans deck qui pourrait égaler la meilleure rend le contrôle
+    impossible. Corrigé après la revue de l'étape A2 : le premier jet ignorait
+    les rondes sans deck et comptait 0 pour des VP manquants, ce qui pouvait
+    refuser une finale légale.
 
   Un refus est un 409 qui nomme le ou les decks attendus. Le contrôle se
   rejoue à chaque écriture qui peut le rompre : création ou modification de la
   finale, modification d'une préliminaire (deck, VP, GW, table) d'un tournoi
-  qui a déjà une finale, changement de `deck_policy`, `final_deck_rule` ou
+  qui a déjà une finale, déplacement d'une partie d'un tournoi à l'autre (sur
+  les deux tournois), changement de `deck_policy`, `final_deck_rule` ou
   `event_tier`. La décision de passer outre (un organisateur qui change de
   méthode en cours de route) se prend en corrigeant `final_deck_rule`, pas en
   désactivant la règle.
@@ -220,7 +231,11 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
   ne se contrôle pas : on peut gagner la finale sans GW, avec 1,5 VP seul en
   tête ou à égalité départagée par les préliminaires. Le règlement place tous
   les finalistes battus deuxièmes ex aequo ; on accepte 2 à 5 parce que
-  beaucoup d'organisateurs publient quand même un ordre complet.
+  beaucoup d'organisateurs publient quand même un ordre complet. Ce contrôle
+  dépend de la finale : il se rejoue au `PATCH` du tournoi et à la création,
+  la modification ou la suppression de la finale (ajouté après la revue
+  d'A2 ; sinon une finale avec GW saisie après un classement de 7 passerait
+  sans rien dire).
 - **A13 — Un adversaire n'a pas de résultat.** Une ligne d'adversaire porte un
   joueur nommé, un siège facultatif et, le cas échéant, un deck prêté (P4).
   Ses `victory_points` et `game_win` sont refusés (422) s'ils sont
@@ -389,7 +404,15 @@ Conséquence à garder en tête : comparer par `fold_text` rend « Marc » et
 « marc » identiques à la création par `/sync`, alors que la contrainte
 d'unicité de la base (`user_id`, `name`) reste sensible à la casse. Le service
 de création en ligne doit faire la même comparaison avant d'écrire, sans quoi
-un « marc » créé en ligne et un « Marc » créé hors ligne coexisteraient.
+un « marc » créé en ligne et un « Marc » créé hors ligne coexisteraient. Le
+renommage (`PATCH /joueurs`, `PATCH /lieux`, `player.update`, `venue.update`)
+fait la même comparaison, pour ne pas recréer le doublon par un autre chemin.
+
+*Précisé le 2026-10-29, après la revue de l'étape A2 :* le « Moi » est **exclu
+de l'upsert**. Un `player.create` dont le nom replié est celui du « Moi » (par
+défaut le `username`) est refusé en `conflict`, « nom déjà porté par votre
+joueur Moi », au lieu de lier la référence d'un adversaire au « Moi », ce qui
+mettrait deux fois ma ligne à la table de la partie qui la désigne.
 
 ### P6 — Le tournoi note-t-il son nombre de joueurs ?
 
@@ -554,6 +577,13 @@ légalité de deck, chacune avec ses tests :
 - `ranking_issues(my_ranking, player_count, played_final, final_game_win)` :
   les bornes de A12.
 
+L'étape A2 a complété cette liste (signatures exactes dans la skill
+`regles-vtes`) : `resolved_game_win`, `round_issues` (A6), `table_issues`
+(A2, A5, sur des `TableLine` déjà résolues), `final_deck_rule_issues`,
+`final_deck_issues`, `date_range_issues`, `tournament_summary` ;
+`mono_deck_issues` et `final_deck_issues` prennent en plus le nom des decks
+pour leurs messages.
+
 Le seuil de 2 VP du GW reste une constante nommée plutôt qu'une valeur en dur,
 pour qu'une évolution du règlement ne touche qu'une ligne.
 
@@ -582,9 +612,10 @@ Soit **21 opérations sur 9 chemins** de plus : 49 opérations sur 29 chemins.
 Changements de schémas par rapport à `schemas/play.py` actuel :
 
 - `ParticipationCreate.player` devient une référence obligatoire :
-  `{"player_id": n}`, `{"client_ref": "…"}` (adversaire créé hors ligne, utile
-  seulement par `/sync`) ou `{"me": true}`. La forme `me` évite au client
-  d'avoir besoin de l'identifiant du « Moi » pour saisir sa première partie ;
+  `{"player_id": n}`, `{"client_ref": "…"}` (adversaire créé hors ligne,
+  accepté par `/sync` seulement, 422 en ligne) ou `{"me": true}`. La forme
+  `me` évite au client d'avoir besoin de l'identifiant du « Moi » pour saisir
+  sa première partie ;
   le serveur la résout. `deck` suit le même patron que `DeckRef`, sur ma ligne
   comme sur celle d'un adversaire (P4).
 - `victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13).
@@ -598,7 +629,10 @@ Changements de schémas par rapport à `schemas/play.py` actuel :
   des préliminaires, nombre de rondes jouées, VP et GW en finale (nuls sans
   finale). `TournamentDetailRead` gagne `admissible_final_decks` (liste de
   `deck_id`, nulle quand rien n'est contrôlable).
-- `VenueRead`, `VenueCreate`, `VenueUpdate` sont à écrire.
+- `VenueRead`, `VenueCreate` et `VenueUpdate` existent depuis le Lot 1
+  (`schemas/reference.py`) ; `VenueRead` gagne à l'étape A2 `game_count` et
+  `tournament_count`, et `PlayerRead` `game_count`, compteurs du Carnet
+  calculés par le serveur.
 - Deux enums nouveaux, `EventTier` et `FinalDeckRule`, en CHECK nommés comme
   les autres.
 
@@ -612,6 +646,174 @@ Le client TS se régénère par `npm run generate:client` ; `API_ROUTE_PREFIXES`
 (`frontend/src/offline/apiRoutes.ts`) reçoit `/joueurs`, `/lieux`, `/tournois`
 et `/parties`, ce que le test qui compare la liste au contrat exigera de toute
 façon.
+
+### Livré à l'étape A2 (2026-10-29)
+
+Schémas dans `backend/app/schemas/play.py` et `backend/app/schemas/refs.py`,
+douze opérations dans `backend/app/schemas/sync.py`, règles dans
+`backend/app/services/vtes_rules.py`. Ce qui a été précisé en écrivant, au-delà
+de ce qui précède :
+
+- **Toutes les écritures désignent par référence**, pas seulement la ligne de
+  table : `GameCreate`, `GameUpdate`, `TournamentCreate` et `TournamentUpdate`
+  portent `venue` (`VenueRef`) et `tournament` (`TournamentRef`) au lieu de
+  `venue_id` et `tournament_id`. C'est la condition pour que les opérations
+  `/sync` reprennent la charge utile de la route telle quelle (principe du
+  Lot 3). Les lectures gardent des identifiants. Une `client_ref` envoyée à
+  une route en ligne est refusée en 422 (décision du 2026-10-29) : le client
+  n'écrit que par la file, et seule `/sync` connaît ses références. Le refus
+  est un contrôle du service, puisque le schéma est commun aux deux chemins.
+  Les références (`DeckRef`, `PlayerRef`,
+  `ParticipantRef`, `VenueRef`, `TournamentRef`, `GameRef`, `ClientRef`)
+  vivent dans `refs.py` ; `DeckRef` y a déménagé, s'importe toujours de
+  `app.schemas.sync` et garde son nom au contrat.
+- **`ParticipationUpdate` disparaît** (A3) ; le corps de
+  `PUT /parties/{id}/participations` est `GameTableReplace`,
+  `{"participations": [...]}`, un objet plutôt qu'une liste nue pour rester
+  extensible. `game.update` le reprend tel quel dans son champ `table`, et son
+  `data` est facultatif (une correction de table seule n'envoie rien d'autre).
+- **Le schéma vérifie la forme, le service les règles** (décision du
+  2026-10-29). Le premier jet faisait refuser par les schémas de création ce
+  que leur charge utile suffisait à trancher (table, ronde, niveau, règle de
+  finale, classement). Par `/sync`, un tel refus fait échouer le lot entier en
+  422, sans verdict, alors que la même règle sur une modification donnait un
+  verdict `invalid`. Toutes ces règles passent donc au service, à la création
+  comme à la modification : leur refus est le verdict `invalid` (ou
+  `conflict`) d'une seule opération, que l'écran Synchronisation sait
+  corriger. Les schémas ne gardent que les bornes de champ (table de 1 à 6
+  lignes, VP par pas de 0,5 et au plus 6, siège au plus 6, `player_count` d'une
+  partie de 2 à 6) et la règle « exactement une désignation » des références.
+- **Un GW déclaré sans VP saisis est refusé**, comme un GW à moins de 2 VP :
+  le bilan compterait sinon un GW à 0 VP.
+- **Fonctions ajoutées à la liste du plan** : `resolved_game_win` (le GW à
+  enregistrer), `round_issues` (A6), `table_issues` (A2, A5, après résolution
+  des joueurs), `final_deck_rule_issues` (le CHECK de R10 rendu en message),
+  `final_deck_issues` (le message qui nomme le deck attendu),
+  `date_range_issues` (fin avant début), `tournament_summary` (le bilan
+  d'A12), et trois structures, `RoundResult`, `TableLine` et
+  `TournamentTally`. `mono_deck_issues` et `final_deck_issues` prennent les
+  noms des decks pour leurs messages.
+- **Lectures dérivées.** `GameRead.me`, `GameRead.tournament_name` et
+  `ParticipationRead.is_me` sont des propriétés de navigation des modèles
+  (`Game.me`, `Game.tournament_name`, `Participation.is_me`) : les services
+  devront charger participations, joueurs et tournoi d'avance. `my_summary` et
+  `admissible_final_decks` sont calculés par le service ; `my_summary` n'a pas
+  de valeur par défaut, pour qu'un oubli échoue.
+- **Table de cas du GW certain partagée** (A14) :
+  `backend/tests/fixtures/certain_game_win_cases.json`, lue par le test Python
+  et à relire par le test TypeScript de `certainGameWin` (C1).
+- **Contrat.** Les douze opérations sont écrites mais n'entrent dans
+  `AnySyncOperation` qu'à l'étape B3, avec leur exécution : `/sync` ne doit pas
+  accepter un type qu'il ne sait pas appliquer. Les schémas de partie, eux,
+  n'apparaissent au contrat qu'avec les routes de B1 et B2. À l'issue d'A2, le
+  contrat ne change donc que par `SyncResourceRef`, qui gagne `player_id`,
+  `venue_id`, `tournament_id` et `game_id` (A10). Corollaire : la partie de
+  C1 qui se code contre les types générés attend B3 ; C1 est donc découpé en
+  C1a et C1b (cf. « Découpage », décision du 2026-10-29).
+
+### Revue des agents sur A0 à A2 (2026-10-29)
+
+Les sept agents ont relu A0 à A2 en lecture seule. Aucun point ne bloquait B1.
+La QA a rejoué R10 sur une copie de `vtes.db` : les 58 lignes du journal sont
+identiques colonne par colonne, un « Moi » est inséré, `foreign_key_check` et
+`integrity_check` sont vides. L'architecte-contrat a entériné les trois
+décisions d'A2 (écritures par références, douze opérations enregistrées à B3,
+GW refusé sans VP).
+
+Corrigé dans la foulée, avant le commit d'A2 : le deck de finale qui pouvait
+refuser une finale légale (A11), le contrôle du classement rejoué quand la
+finale change (A12), l'exclusion du « Moi » de l'upsert par nom (P5), les
+compteurs du Carnet (`game_count`, `tournament_count`), le contrôle des dates
+d'un tournoi, le déplacement des règles du schéma vers le service, les tests
+que la réécriture avait perdus ou affaiblis, et un avertissement provisoire
+dans CLAUDE.md (la base de développement ne doit pas monter à R10 avant
+l'étape F).
+
+Décisions de l'utilisateur, le même jour : une `client_ref` en ligne rend 422 ;
+C1 est découpé ; les règles passent au service ; l'avertissement de CLAUDE.md
+est posé ; le « Moi » est exclu de l'upsert.
+
+Points relevés pour les étapes suivantes, à reprendre dans leurs briefs :
+
+- **B1** : créer le « Moi » dans `create_account` (route et
+  `manage_accounts.py create`) et le renommer dans `claim-legacy`, qui change
+  le `username` sans toucher au « Moi » posé par R10 ; un
+  `get_or_create_me` qui sert aussi à résoudre `{"me": true}` ; une commande
+  ou un contrôle qui liste les comptes sans « Moi » ; `equals_folded` dans
+  `text_search.py` pour l'upsert et le renommage ; les compteurs du Carnet et
+  les messages de refus du handoff (« figure à N tables… ») ;
+  `API_ROUTE_PREFIXES`, la denylist du service worker et `schema.d.ts` à jour
+  dès les premières routes, sans quoi `apiRoutes.test.ts` échoue.
+- **B2** :
+  - remplacer une table en vidant l'ancienne puis en faisant un `flush` avant
+    d'insérer : réassigner `game.participations` émet les INSERT avant les
+    DELETE et heurte les unicités (mesuré par l'architecte et le backend) ;
+  - un seul service et un seul `commit` pour `game.update` (champs et table),
+    le commit relâchant le point de sauvegarde de l'opération ;
+  - résoudre toutes les références avant la première écriture, dans un module
+    `services/refs.py` commun aux routes et à `/sync`, avec une
+    `UnresolvedClientRef` devenue `DomainError` ; refuser une `client_ref` en
+    ligne (422) ; charger chaque ressource désignée en la limitant au compte,
+    pour rendre 404 et non le 409 trompeur d'une clé étrangère composite ;
+  - `table_issues` après résolution (un « Moi » désigné par son identifiant et
+    par `me`, un adversaire désigné deux fois) ; VP et GW refusés sur une ligne
+    d'adversaire (A13) ;
+  - contrôles sur l'état fusionné avant tout `flush`, sans quoi les CHECK de
+    R10 répondent par un 500 : `round_issues` avec `round_count`, niveau et
+    règle de finale, `vp_issues`, `game_win_issues` et sièges contre la table
+    existante quand `player_count` change ; déplacement d'une partie d'un
+    tournoi à l'autre ; baisse de `round_count` sous une ronde déjà saisie
+    (proposé : 409) ;
+  - un deck supprimé n'est refusé que pour une ligne nouvelle ou changée,
+    sinon une table qui garde un ancien deck ne se corrigerait plus (A8) ;
+  - « ronde N déjà saisie » et « finale déjà saisie » vérifiés avant écriture,
+    avec le message du handoff, plutôt que par l'`IntegrityError` des index ;
+  - `lazy="joined"` sur `Participation.player` et `Game.tournament`,
+    `selectinload` des tables dans les listes (sans cela, environ six requêtes
+    par partie) ; une partie sans ligne « Moi » doit lever une erreur
+    explicite, pas un 500 de validation de réponse ; table triée par siège ;
+  - `my_summary` construit explicitement (patron `DeckDetailRead`), `games`
+    d'un détail triés par ronde puis finale ; noms de decks
+    (`nom#discriminant`) passés aux messages des règles ;
+  - paramètres de liste : `from` en `Query(alias="from")`, instants avec
+    fuseau pour `/parties` ; filtre `deck_id` sur ma seule ligne.
+- **B3** : journaliser `client_ref` et l'identifiant de son genre pour les
+  quatre nouvelles créations, et rien d'autre (une `tournament.create` ne doit
+  pas remplir `venue_id`) ; résoudre en filtrant sur `resource_kind` ;
+  généraliser le contrôle de référence déjà prise avant écriture (sinon
+  l'index unique lève une `IntegrityError` en 500 qui annule le lot) ; un
+  `player.create` appliqué par upsert rend l'identifiant existant ; joindre
+  `LOT7_SYNC_OPERATIONS` à l'union ; un rejeu qui rend des identifiants du
+  Lot 7 non nuls ; section « Lot 7 » de `docs/lot3-sync-contrat.md`, qui
+  corrige aussi la ligne disant `invalid` inatteignable.
+- **C1a / C1b** (pwa-offline) : `RefBinding` gagne un genre opaque
+  (`kind?: string`, sans cran Dexie, absent = `deck`), sans quoi la carte
+  inverse id → référence de `overlay.ts` confond un deck et un joueur de même
+  identifiant ; `toVerdict` (`vtes/transport.ts`) lie chaque création par une
+  table type → genre, et non plus `deck.create` seul ; `Outbox.reissue` avec
+  une position (`same` ou `end`) pour une correction qui exige une opération
+  postérieure ; un marcheur des références d'une opération pour regrouper les
+  refus en cascade ; `assertNever` dans les `switch` sur le type d'opération ;
+  miroir des tables de parties (détail de toutes les parties, ou édition de
+  table réservée aux parties dont la table est connue : à trancher au début de
+  C1a) ; élagage de `settled` par famille d'opérations ; gestionnaire
+  `versionchange` de Dexie ; prochaine ronde proposée par
+  `max(round_number) + 1`, et non par le nombre de rondes jouées ; table de
+  cas lue par `readFileSync`, `toBeNull()` pour les cas `null`.
+- **E** : un journal plus riche pour le test de recopie de R10 (huit types,
+  quatre genres, cinq codes d'erreur, deux comptes, identifiants non
+  contigus) ; des lignes de partie et de tournoi qui traversent la montée ; le
+  contrôle « aucune DDL ne référence `_avant_` » ; les gardes de descente
+  paramétrées sur les quatre colonnes. Côté vitest, la cause de la flakiness
+  est identifiée : `StockPage.tsx` lit liste et compteurs par deux requêtes
+  Dexie indépendantes, et `stock.test.tsx` lit les compteurs sans les
+  attendre ; même schéma à chercher dans `decks.test.tsx`.
+- **F** : procédure détaillée de mise en service de R10 proposée par
+  devops-deploiement (contrôle de `DATABASE_URL`, `alembic current`,
+  sauvegarde, essai et aller-retour sur copie, comparaison du journal ligne à
+  ligne, vérification d'un « Moi » par compte), retrait de l'avertissement de
+  CLAUDE.md ; en CI, `timeout-minutes` et le `--check` du contrat avant
+  pytest.
 
 ### `/sync`
 
@@ -633,10 +835,12 @@ Chaque `XRef` vaut `{"x_id": n}` ou `{"client_ref": "…"}`, jamais les deux,
 comme `DeckRef`. `SyncResourceKind` gagne `player`, `venue`, `tournament`,
 `game` ; `SyncResourceRef` gagne les quatre identifiants. Les refus suivent la
 règle du Lot 3 : ceux que la route en ligne aurait opposés, avec le même
-message (`invalid` pour un 422 de règle de score, de niveau ou de classement ;
-`conflict` pour le mono-deck, le deck de finale, un deck supprimé ou une ronde
-déjà saisie ; `not_found` pour une ressource absente ou d'un autre compte). Un
-refus n'interrompt pas le lot.
+message : `invalid` pour une règle de table, de ronde, de score, de niveau, de
+dates ou de classement, à la création comme à la modification, puisque ces
+règles sont au service et non au schéma ; `conflict` pour le mono-deck, le
+deck de finale, un deck supprimé, une ronde déjà saisie ou un nom déjà porté
+par le « Moi » ; `not_found` pour une ressource absente ou d'un autre compte.
+Un refus n'interrompt pas le lot.
 
 Le scénario qui doit marcher de bout en bout, dans un seul lot ou étalé sur
 plusieurs : `deck.create` (veille, hors ligne), `venue.create`,
@@ -755,24 +959,25 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | --- | --- | --- | --- |
 | A0 | architecte-contrat | P1 appliqué : § 5 de CLAUDE.md et skill `regles-vtes` corrigés (GW, finale, retrait, multi-deck ; TP notés comme non suivis) — **fait le 2026-10-29** | rien |
 | A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` — **fait le 2026-10-29** ; l'élargissement des enums de `/sync` change le contrat, exporté et client TS régénéré dès cette étape | A0 |
-| A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS | A1 |
+| A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS — **fait le 2026-10-29** (cf. « Livré à l'étape A2 ») | A1 |
 | B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription | A2 |
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement | B1 |
 | B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence ; section « Lot 7 » du contrat de sync (architecte) | B2 |
-| C1 | pwa-offline | Dexie v5, miroirs, surcouche, actions, calculs portés, libellés et corrections | A2 (types), B3 pour les e2e |
+| C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties | A2 |
+| C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
-| D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1, D0 |
+| D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
 | F | orchestrateur | mise en service de R10 sur `vtes.db`, CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
 
-B et C peuvent avancer en parallèle dès que le contrat d'A2 est exporté : la
-couche offline se code contre les types générés et se branche sur le vrai back
-à la fin. D0 tourne en parallèle de tout le reste ; s'il arrive avant A2, le
-handoff peut encore faire bouger un schéma de lecture (un champ de liste
-manquant, par exemple), ce qui est moins coûteux avant l'export du contrat
-qu'après. Plus aucune proposition ne bloque : A0 et l'envoi du brief peuvent
-partir.
+Le premier jet faisait partir B et C en parallèle dès l'export du contrat
+d'A2. Ce n'est plus possible : les schémas de partie n'entrent au contrat
+qu'avec les routes de B1 et B2, et les douze opérations `/sync` qu'à B3
+(« Livré à l'étape A2 »). D'où le découpage de C1, décidé le 2026-10-29 :
+C1a, qui ne dépend pas des types générés, avance en parallèle de B1 à B3 ;
+C1b attend B3. D0 est livré ; ses demandes de champs de lecture ont été prises
+en compte à A2 avant que les routes ne les figent (compteurs du Carnet).
 
 ### Tests attendus (E)
 
@@ -781,7 +986,9 @@ Back :
 - une famille de tests par fonction pure de `vtes_rules.py`, cas limites
   compris : tables de 4 et de 5, GW certain à 2,5 VP à quatre et à 3 VP à
   cinq (posé si vide, `false` refusé), 2 VP à cinq laissé à la déclaration,
-  GW à 1,5 VP refusé, VP au-delà de la table, VP pas multiple de 0,5 ;
+  GW à 1,5 VP refusé, GW sans VP saisis refusé, VP au-delà de la table, VP
+  pas multiple de 0,5 ; finale en choix libre ou en meilleur deck avec une
+  ronde sans deck ou sans VP, jamais refusée à tort ;
   meilleur deck départagé par les GW, par les VP, et égalité sur les deux qui
   admet deux decks ; choix libre ; niveaux qui interdisent le multi-deck ;
   classement après une finale gagnée avec GW (1 imposé), gagnée sans GW,
