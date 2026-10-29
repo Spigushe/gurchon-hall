@@ -743,7 +743,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
-| A0 | architecte-contrat | P1 appliqué : § 5 de CLAUDE.md et skill `regles-vtes` corrigés (GW, finale, retrait, multi-deck ; TP notés comme non suivis) | rien |
+| A0 | architecte-contrat | P1 appliqué : § 5 de CLAUDE.md et skill `regles-vtes` corrigés (GW, finale, retrait, multi-deck ; TP notés comme non suivis) — **fait le 2026-10-29** | rien |
 | A1 | architecte-contrat | modèles, enums `EventTier` et `FinalDeckRule`, R10, essai aller-retour sur base vide et sur copie de `vtes.db` | A0 |
 | A2 | architecte-contrat | schémas, fonctions pures de `vtes_rules.py` et leurs tests, export du contrat, client TS | A1 |
 | B1 | backend-fastapi | services et routes `/joueurs`, `/lieux` ; « Moi » à l'inscription | A2 |

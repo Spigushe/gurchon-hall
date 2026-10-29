@@ -194,6 +194,14 @@ Repères de conception. Les points **[à confirmer]** doivent être vérifiés d
 règlement officiel VEKN en vigueur avant d'être codés en règles dures — donnés
 ici comme repères, pas comme vérités arrêtées.
 
+Les règles de partie et de tournoi (de « Partie » à « Mono / multi-deck »
+ci-dessous) ont été relues le 2026-10-28 dans les règles de tournoi de la VEKN
+(vekn.net/tournament-rules, sections citées entre parenthèses) et adoptées par
+l'utilisateur pour le Lot 7 (P1 de `docs/lot7-plan-parties.md`). Elles ne sont
+plus des repères à confirmer. Elles corrigent l'ancienne version de cette section
+sur quatre points : seuil du GW, taille de la finale, VP de retrait, limite du
+multi-deck.
+
 - **Carte** : deux catégories — **Crypt** (vampires / *imbued* : capacité, groupe,
   clan, disciplines, sect) et **Library** (un ou plusieurs types : Master, Action,
   Action Modifier, Ally, Combat, Equipment, Event, Political Action, Power,
@@ -215,18 +223,40 @@ ici comme repères, pas comme vérités arrêtées.
   proxies. Un deck intégralement joué en proxy est donc légal et activable sans
   posséder une seule carte — conséquence assumée, pas effet de bord (la légalité ne
   regarde que la composition et le catalogue).
-- **Partie** : en général **4 à 5 joueurs** (5 = table idéale). Table directionnelle
-  (proie / prédateur) → siège éventuellement pertinent à enregistrer.
-- **Score** : **1 VP** par joueur évincé ; **+1 VP** au dernier survivant ; **+0.5 VP**
-  à chaque joueur encore en lice à la fin de la partie.
-- **Game Win (GW)** : au joueur ayant **strictement plus de VP** que tous les
-  autres à la table (pas de GW en cas d'égalité en tête). Mininum de 2 VP à 4 joueurs
-  et 2,5 VP à 5 joueurs.
-- **Tournoi** : rondes préliminaires + finale (table finale de 4 ou 5). Classement
-  par GW puis VP. Format exact **construit** ou **draft**, variable selon l'organisateur.
-- **Mono / multi-deck** : mono = même deck sur toutes les parties du tournoi ;
-  multi = deck variable d'une ronde à l'autre, valable sur des tournois jusqu'à 12
-  joueurs (au-delà, mono-deck obligatoire pour que le tournoi soit sanctionné).
+- **Partie** : en tournoi, **4 ou 5 joueurs** par table (5 = table idéale). Table
+  directionnelle (proie / prédateur) → siège enregistré, facultatif. L'outil accepte
+  de 2 à 6 joueurs pour une partie, borne de saisie et non règle VEKN.
+- **Victory Points (VP)** (3.7.2) : **1 VP** au prédateur chaque fois que **sa proie**
+  est évincée ; **1 VP** au dernier survivant ; **0,5 VP** à chaque joueur encore en
+  lice à la fin du temps ; **0,5 VP** à un joueur qui se retire. Tous les VP sont des
+  multiples de 0,5, et une table de *n* joueurs distribue au plus *n* VP, si bien
+  qu'un joueur seul n'en dépasse jamais *n*.
+- **Game Win (GW)** (3.7.1) : au joueur qui a **au moins 2 VP** et **strictement plus
+  de VP** que chacun des autres ; pas de GW en cas d'égalité en tête. Le seuil vaut
+  2 VP **à toute table** (l'ancien repère « 2,5 VP à 5 joueurs » était faux).
+  Corollaire, seul contrôle possible sans les VP des autres : un joueur qui a plus de
+  *n* / 2 VP est seul en tête, donc a le GW dès qu'il a aussi 2 VP (2,5 VP à quatre,
+  3 VP à cinq).
+- **Points de tournoi (TP)** (3.7.3) : 60 / 48 / 36 / 24 / 12 selon le rang à la
+  table (à 4 joueurs, la 3e place est vide : 60 / 48 / 24 / 12), ex aequo moyennés.
+  **Non suivis par l'outil** : on ne saisit que ses propres VP et GW, ni sa place à la
+  table ni le score des adversaires (P7 du plan du Lot 7).
+- **Tournoi** (3.1) : au moins trois rondes préliminaires, puis une table finale des
+  **cinq** mieux classés, facultative sous 8 joueurs (3.1.6). Classement des
+  préliminaires par GW, puis VP, puis TP ; l'outil s'arrête aux VP. Le vainqueur est
+  celui qui a le plus de VP **en finale seulement**, une égalité étant départagée par
+  le classement des préliminaires ; les autres finalistes sont deuxièmes ex aequo
+  (3.7.5), même si beaucoup d'organisateurs publient un ordre complet. Format
+  **construit** ou **draft**, au choix de l'organisateur.
+- **Mono / multi-deck** (3.1.5) : mono = même deck sur toutes mes parties du
+  tournoi, finale comprise ; multi = deck variable d'une ronde à l'autre, annoncé à
+  l'avance, **interdit en championnat national, en Grand Prix et en championnat
+  continental**. Le règlement ne connaît pas de limite à 12 joueurs, que l'ancienne
+  version de cette section donnait à tort. En multi, l'organisateur annonce avant la
+  ronde 1 la règle du deck en finale (3.1.5a) : **meilleur deck** (celui de la
+  meilleure ronde préliminaire, comparée par GW, puis VP, puis TP ; égalité parfaite :
+  tirage au sort) ou **choix libre** (n'importe quel deck joué en préliminaires).
+  Sans TP, l'outil admet en finale tous les decks à égalité sur GW et VP.
 - **Langues** : stock compté séparément par langue — **FR**, **EN**, **ES** ou
   « autre » (`XX`) —, la liste restant ouverte puisque `language` est une table et
   non un enum. Toute entrée de collection porte un code de langue, jamais vide.
@@ -322,7 +352,7 @@ au format carte × exemplaires, entrée prévue pour verser un produit dans le s
 
 Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
 source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
-possédés) ; VP/GW. La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
+possédés). VP et GW sont tranchés depuis la relecture VEKN du Lot 7 (§5). La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
 deck depuis le Lot 4 (§11).
 Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
 l'expose pas, il reste dans le texte de carte).
@@ -342,7 +372,10 @@ colonne) → en logique de service + tests :
   défaut, pour qu'un oubli échoue au typage au lieu de compter globalement) ;
 - tournoi mono-deck → toutes mes participations pointent le même deck, « mes »
   désignant le joueur `is_me` du compte propriétaire du tournoi (Lot 6) ;
-- cohérence VP/GW **[à confirmer]** ;
+- cohérence VP/GW (§5 : VP en multiples de 0,5 et bornés par la table, GW à 2 VP au
+  moins, GW certain au-delà de la moitié des VP de la table) — *prévu au Lot 7* ;
+- multi-deck interdit aux trois niveaux de championnat, et deck de finale conforme à
+  la règle annoncée (§5) — *prévu au Lot 7* ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
 
 ---
