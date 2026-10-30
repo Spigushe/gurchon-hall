@@ -1,4 +1,5 @@
 import type { Table } from "dexie";
+import type { components } from "../../api-client/schema.d.ts";
 import { CORE_STORES_V1, CORE_STORES_V2, OfflineCoreDb } from "../core/db";
 import type { CardCategory, DeckStatus } from "./types";
 
@@ -129,27 +130,23 @@ export const VTES_STORES_V3 = {
 
 // --- Pratique de jeu (Lot 7) -----------------------------------------------
 //
-// **Types provisoires**, écrits à la main en C1a pour que le schéma Dexie et le
-// miroir puissent exister avant l'entrée des schémas de partie au contrat
-// (B1 à B3). En C1b, les unions de texte ci-dessous et les formes des lignes se
-// réalignent sur les types générés (`components["schemas"]`) : le contrat fait
-// foi, pas ce bloc. Les noms des champs suivent déjà les lectures de
-// `backend/app/schemas/play.py` et `reference.py`.
+// Les unions de texte viennent du contrat généré (`components["schemas"]`) :
+// le contrat fait foi. Les lignes du miroir, elles, sont en camelCase comme les
+// autres miroirs ; `refresh.ts` les construit depuis les types générés, si bien
+// qu'un champ qui bouge au contrat fait échouer `tsc` à cet endroit.
 
-/** Provisoire : `RoundType` du contrat. */
-export type GameRoundType = "casual" | "preliminary" | "final";
-/** Provisoire : `DeckPolicy` du contrat. */
-export type TournamentDeckPolicy = "mono" | "multi";
-/** Provisoire : `TournamentFormat` du contrat. */
-export type TournamentFormatName = "constructed" | "draft";
-/** Provisoire : `EventTier` du contrat. */
-export type TournamentEventTier =
-  | "standard"
-  | "national_championship"
-  | "grand_prix"
-  | "continental_championship";
-/** Provisoire : `FinalDeckRule` du contrat. */
-export type TournamentFinalDeckRule = "best_performing" | "free_choice";
+type Schemas = components["schemas"];
+
+/** `RoundType` du contrat. */
+export type GameRoundType = Schemas["RoundType"];
+/** `DeckPolicy` du contrat. */
+export type TournamentDeckPolicy = Schemas["DeckPolicy"];
+/** `TournamentFormat` du contrat (`constructed`, `draft`, `other`). */
+export type TournamentFormatName = Schemas["TournamentFormat"];
+/** `EventTier` du contrat. */
+export type TournamentEventTier = Schemas["EventTier"];
+/** `FinalDeckRule` du contrat. */
+export type TournamentFinalDeckRule = Schemas["FinalDeckRule"];
 
 /** Joueur (miroir de `GET /joueurs`) : le « Moi » du compte ou un adversaire nommé. */
 export interface PlayerRow {
@@ -181,7 +178,7 @@ export interface TournamentSummaryRow {
   finalGameWin: boolean | null;
 }
 
-/** Tournoi (miroir de `GET /tournois`, détail compris pour `admissibleFinalDecks`). */
+/** Tournoi (miroir de `GET /tournois/{id}` : le bilan et les decks admis ne viennent que du détail). */
 export interface TournamentRow {
   id: number;
   name: string;
@@ -198,7 +195,7 @@ export interface TournamentRow {
   myRanking: number | null;
   /** Bilan calculé par le serveur ; le bilan provisoire d'une saisie en file est recalculé localement. */
   summary: TournamentSummaryRow;
-  /** Decks admis en finale (A11), connus par le détail ; `null` quand rien n'est contrôlable ou pas encore lu. */
+  /** Decks admis en finale (A11), lus par le détail à chaque rafraîchissement ; `null` quand rien n'est contrôlable. */
   admissibleFinalDecks: number[] | null;
   notes: string | null;
   updatedAt: string;

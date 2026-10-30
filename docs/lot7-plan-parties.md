@@ -1186,6 +1186,133 @@ pour les opérations elles-mêmes ; la relecture a ajouté la révision correcti
   verdict `applied` lie la référence à l'identifiant rendu, et il ne faut pas
   supposer qu'un joueur « créé » est neuf.
 
+### Livré à l'étape C1b (2026-10-29)
+
+Tout ce qui se code contre les types générés. Code dans `frontend/src/offline/vtes/`
+et `frontend/src/features/sync/`, tests dans `frontend/tests/unit/` (vitest : 478
+tests sur 35 fichiers avant, 556 sur 40 après, 606 sur 42 après les corrections de relecture). Ni le contrat, ni `backend/`, ni
+`schema.d.ts`, ni `apiRoutes.ts` n'ont été touchés. `tsc --noEmit -p
+tsconfig.app.json` et `npm run lint` sont propres. Le cœur `core/` ne nomme toujours
+ni partie, ni tournoi, ni joueur.
+
+- **Constructeurs** (`operations.ts`) : les douze, typés contre `OperationOf<…>`,
+  désignations par clé de surcouche (`id:<n>` / `ref:<uuid>`) ou par sélecteur
+  (`toPlayerRef`, `toVenueRef`, `toTournamentRef`, `toGameRef`, `toParticipantRef`,
+  `"me"` pour ma ligne). Champs non fournis omis, `null` conservé. `tournamentUpdate`
+  envoie `final_deck_rule: null` avec un passage en `mono` (sauf règle fournie, laissée
+  au serveur). `gameUpdate` n'écrit `data` et `table` que s'ils sont fournis : `data: {}`
+  et `data` omis gardent leurs deux empreintes. `gameCreate` prend l'instant courant
+  comme `played_at` par défaut.
+- **Typage des tables de références** (`references.ts`) : `CREATION_BINDINGS` est écrite
+  `satisfies Record<CreationOperationType, …>`, si bien qu'une création ajoutée au contrat
+  sans entrée fait échouer `tsc` ; `REFERENCE_FIELDS` a pour clés les types de l'union.
+  Les chemins restent des chaînes, couvertes par un test qui les compare à ce que les
+  constructeurs écrivent.
+- **Les deux `switch` exhaustifs** sont complétés : `overlay.ts` et `describeOperation.ts`
+  (le libellé a quitté `useOperationLabels.ts`, qui n'assemble plus que le contexte).
+- **Types de lignes** réalignés : les unions de texte de `db.ts` sont des alias des types
+  générés (`TournamentFormat` gagne `other`), et `refresh.ts` construit chaque ligne depuis
+  les types générés, donc un champ qui bouge au contrat casse la compilation à cet endroit.
+- **Rafraîchissement** (`refresh.ts`) : `refreshPlayers`, `refreshVenues`,
+  `refreshTournaments`, `refreshGames`, ajoutés à `runtime.refresh()` dans cet ordre (les
+  tournois avant les parties : une partie tranchée sort de `settled` quand le miroir des
+  parties est remplacé, et le bilan de son tournoi doit déjà être à jour). Les parties se
+  relisent de façon incrémentale (choix du miroir validé en C1a) ; les tournois, en
+  détail, **à chaque fois** : les decks admis en finale changent avec une partie sans que
+  `updated_at` du tournoi bouge, une relecture conditionnelle par ce champ les aurait
+  laissés périmés. 404 sur un détail : ligne omise ; 401 : miroirs intacts, `authRequired` ;
+  autre erreur : rafraîchissement annulé, ancien miroir intact. Chaque miroir n'élague que
+  sa famille de `settled`.
+- **Projection** (`overlayPlay.ts`, appelé par `overlay.ts`) : joueurs, lieux, tournois et
+  parties créés hors ligne sous `ref:<uuid>`. Chaque ressource porte une clé canonique
+  (`key`) et ses `aliases` (`id:<n>`, chaque `ref:<uuid>` liée) ; `findByKey` et les hooks
+  retrouvent par n'importe laquelle. **Upsert par nom** : une création au nom d'une
+  ressource existante, du miroir ou de la file (casse et accents ignorés), n'ajoute rien et
+  ajoute sa référence aux alias ; le nom du « Moi » est un refus du serveur, donc rien n'est
+  projeté. Deux références liées au même identifiant sont dédupliquées, la plus ancienne
+  liée donnant la clé canonique (à égalité de `boundAt`, l'ordre alphabétique des
+  références : d'où les alias). Bilan de tournoi recalculé localement dès qu'une écriture
+  de partie le touche (création, correction, suppression, changement de tournoi : les deux
+  bilans), `summaryProvisional` vrai tant que l'écriture est en file ; une opération
+  tranchée pas encore reprise recalcule sans marque provisoire. Les decks admis en finale
+  et les compteurs des joueurs et des lieux ne se recalculent pas hors ligne.
+  Avant le premier rafraîchissement, ma ligne de table porte la clé `id:0` (le « Moi » est
+  inconnu du miroir) ; `isMe` fait foi.
+- **Lectures et hooks** : `readPlayers/Venues/Tournaments/Games` et leurs versions « par
+  clé », `useLocalPlayers`, `useLocalVenues`, `useLocalTournaments`, `useLocalGames`,
+  `useLocalPlayer`, `useLocalVenue`, `useLocalTournament`, `useLocalGame` (voir le README).
+- **Actions** (`runtime.ts`) : `createPlayer`, `ensurePlayer`, `updatePlayer`,
+  `deletePlayer`, `createVenue`, `ensureVenue`, `updateVenue`, `deleteVenue`,
+  `createTournament`, `updateTournament`, `deleteTournament`, `createGame`, `updateGame`,
+  `deleteGame`. Les créations rendent `{ clientRef, key, entry }` (une `client_ref` neuve
+  chaque fois). `ensurePlayer` et `ensureVenue` (ajout à la liste du plan) ne mettent rien
+  en file pour un nom connu, utile à la saisie « au fil de la frappe » ; le serveur fait de
+  toute façon l'upsert. `updateGame` avec `table` lève `GameTableUnknownError` (rien en
+  file) pour une table inconnue ou une partie introuvable : le garde-fou de fond du choix du
+  miroir.
+- **Écran Synchronisation** : libellés (« Partie du 24/10, ronde 2 », « Création du tournoi
+  « X » », « Joueur « Marc » : renommage en « Marco » »…), citant les ressources par nom y
+  compris pour une création refusée ; corrections (`playCorrection.ts`, pur, et
+  `PlayCorrectionFields.tsx`) : ronde, joueurs à la table, siège, VP, GW et deck de ma ligne
+  pour une partie ; politique, règle de finale, niveau, rondes, joueurs, classement pour un
+  tournoi (un passage en mono envoie toujours la règle à `null`, et une opération sans
+  `final_deck_rule: null` reçoit la correction automatiquement, avec son explication) ; nom
+  d'un joueur ou d'un lieu, ville ; les decks admis en finale sont cités après un `conflict`
+  quand le tournoi les connaît. Les refus en cascade se rangent sous leur racine
+  (`groupCascades` + `referencesOf`, tous genres) avec la mention « Suite du refus de : … » ;
+  l'ordre de la liste suit les groupes. Le motif `unresolved_client_ref` n'est plus libellé
+  « Deck d'origine… » mais « Création d'origine introuvable ou refusée ».
+- **Tests** : `vtesPlayOperations` (constructeurs, références, cascades), `vtesPlayOverlay`
+  (clés, alias, upsert, bilan provisoire, tables), `vtesPlayRuntime` (scénario du plan hors
+  ligne puis rejoué contre le serveur factice, identifiants qui se recouvrent entre genres,
+  upsert à deux références, incrémental, 404, 401, élagage par famille, garde-fou de table),
+  `features/sync/playLabelsAndCorrections` (libellés, corrections), `ui/syncPlay`
+  (cascade, correction de ronde, correction du mono, libellé sans nom inventé). Le serveur
+  factice (`fakeServer.ts`) connaît désormais les douze opérations et les six `GET`.
+  Un test de l'Atelier (`home.test.tsx`) attendait un archétype que le serveur factice ne
+  conservait pas et ne passait que par un effet de timing de l'affichage : le serveur
+  factice garde désormais l'archétype.
+- **Corrections de relecture (2026-10-30)**, après la relecture de la QA, qui avait muté le
+  code et trouvé quatre défauts reproduits et des cas non couverts.
+  1. *Règle de finale seule.* Corriger un `tournament.update` qui ne porte que
+     `final_deck_rule` effaçait la règle : le brouillon supposait le mono par défaut.
+     La politique du brouillon est maintenant celle de l'opération, ou vide si elle ne la
+     porte pas ; `final_deck_rule` n'est forcé à `null` que si l'opération porte
+     `deck_policy: "mono"`. Le sélecteur « Deck de la finale » reste affiché pour une
+     opération qui ne touche pas à la politique. Je n'ai pas branché la politique du
+     tournoi connu : elle ne changerait rien de ce que la correction envoie.
+  2. *GW omis.* La projection applique `certainGameWin` quand le GW est absent ou nul,
+     comme `resolved_game_win` : trois préliminaires à 1, 2 et 3 VP à quatre joueurs
+     donnent un GW, au local comme au serveur. Testé sur la table de cas partagée, et sur
+     une correction de table (nombre de joueurs de la partie).
+  3. *Nom périmé.* Une partie sans tournoi n'a plus de `tournamentName` ; une partie
+     qui change de tournoi prend le nom du nouveau.
+  4. *Rafraîchissement partiel.* Si la lecture des tournois échoue, les parties ne sont
+     ni relues ni élaguées dans ce passage, sinon une partie tranchée sortait de `settled`
+     avant que son tournoi ne porte le bilan : le tournoi retombait à zéro ronde, sans
+     marque provisoire. Le rapport reste `complete: false` ; le comportement sur 401 est
+     inchangé.
+  Couverture ajoutée : élagage par famille des tournois et des lieux, 404 sur un détail de
+  tournoi, ordre tournois puis parties, filtres et tris des quatre lectures, les quatre
+  hooks par clé (non lu, introuvable, alias, changement de clé), garde du « Moi » à
+  l'upsert, `tournamentName` repris de `GET /parties`. Les nouveaux tests sont dans
+  `vtesPlayCoverage.test.tsx`, `vtesPlayOverlay.test.ts`, `playCorrectionFields.test.tsx` et
+  `playLabelsAndCorrections.test.ts`. Chaque correction a été vérifiée en la défaisant : le
+  test correspondant échoue. Les commentaires de `core/references.ts` ne citent plus de
+  notion VtES.
+- **E2E** : aucun nouveau scénario (le gros des e2e vient avec les écrans). Les 51
+  tests existants passent, après une correction : `offline-db-schema.spec.ts` attendait
+  encore la version 40 du schéma IndexedDB et dix magasins, la version 5 de C1a (50, quatorze
+  magasins) l'avait rendu faux sans qu'on le voie (C1a n'avait pas relancé les e2e).
+- **README** de `frontend/src/offline/` : section « Pratique de jeu », ordre et
+  incrémental du rafraîchissement, limites.
+
+Pour D1 (frontend-react), l'essentiel : écrire par `useVtesOffline().actions`, lire par les
+hooks `useLocal*`, désigner toute ressource par sa clé (`ref:<uuid>` / `id:<n>`), ne jamais
+comparer deux clés à la main (alias), n'offrir « Modifier la table » que si
+`game.table !== null`, proposer la ronde par `nextRoundNumber` et le GW par
+`certainGameWin`. Détail dans le README.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1345,7 +1472,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | B2 | backend-fastapi | services et routes `/tournois`, `/parties`, remplacement de table, bilans, contrôles de mono-deck, de multi-deck et de classement — **fait le 2026-10-29** (cf. « Livré à l'étape B2 ») | B1 |
 | B3 | backend-fastapi | douze types `/sync`, résolution des quatre genres de référence — **fait le 2026-10-29** (cf. « Livré à l'étape B3 ») ; section « Lot 7 » de `docs/lot3-sync-contrat.md` écrite par l'architecte le même jour | B2 |
 | C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties — **fait le 2026-10-29** (cf. « Livré à l'étape C1a » ; miroir des tables validé le même jour) | A2 |
-| C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections | B3 |
+| C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections — **fait le 2026-10-29** (cf. « Livré à l'étape C1b ») | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |

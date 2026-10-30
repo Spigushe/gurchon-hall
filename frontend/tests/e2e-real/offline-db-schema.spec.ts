@@ -60,8 +60,8 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
                 ),
               };
             }
-            // Dexie multiplie la version par 10 : la version 4 du schéma (Lot 4, extension
-            // dans la clé de `stock` et `deckCards`, cf. `offline/vtes/db.ts`) est 40 côté IndexedDB.
+            // Dexie multiplie la version par 10 : la version 5 du schéma (Lot 7, miroirs de la
+            // pratique de jeu, cf. `offline/vtes/db.ts`) est 50 côté IndexedDB.
             const version = db.version;
             db.close();
             resolve({ version, stores });
@@ -71,9 +71,24 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
       }),
   );
 
-  expect(schema.version).toBe(40);
+  expect(schema.version).toBe(50);
   expect(Object.keys(schema.stores).sort()).toEqual(
-    ["cardSets", "cards", "deckCards", "decks", "languages", "meta", "outbox", "refs", "settled", "stock"].sort(),
+    [
+      "cardSets",
+      "cards",
+      "deckCards",
+      "decks",
+      "games",
+      "languages",
+      "meta",
+      "outbox",
+      "players",
+      "refs",
+      "settled",
+      "stock",
+      "tournaments",
+      "venues",
+    ].sort(),
   );
   expect(schema.stores.outbox.keyPath).toBe("operationId");
   expect(schema.stores.outbox.indexes.rank).toBe(true); // rang unique : l'ordre de la file
@@ -82,7 +97,12 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
   // Identité carte × langue × extension (Lot 4) : l'extension entre dans la clé.
   expect(schema.stores.stock.keyPath).toEqual(["cardId", "languageCode", "cardSetId"]);
   expect(schema.stores.deckCards.keyPath).toEqual(["deckId", "cardId", "languageCode", "cardSetId"]);
-  // Copie locale de `GET /moi` (Lot 6, § P3) : une ligne de plus que les dix
+  // Pratique de jeu (Lot 7) : les clés des quatre miroirs.
+  expect(schema.stores.players.keyPath).toBe("id");
+  expect(schema.stores.games.keyPath).toBe("id");
+  expect(Object.keys(schema.stores.games.indexes).sort()).toEqual(["playedAt", "tournamentId"]);
+  expect(Object.keys(schema.stores.tournaments.indexes)).toEqual(["startDate"]);
+  // Copie locale de `GET /moi` (Lot 6, § P3) : une ligne de plus que les quatorze
   // magasins vérifiés ci-dessus, dans `meta` (clé `"account"`), pas un magasin séparé.
 
   await context.setOffline(false);

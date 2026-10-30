@@ -1,14 +1,19 @@
 import { foldText } from "../core/foldText";
 import type { CardRow, CardSetRow, VtesOfflineDb } from "./db";
 import {
+  findByKey,
   project,
   type LocalDeck,
   type LocalDeckCard,
+  type LocalGame,
+  type LocalPlayer,
   type LocalStockEntry,
+  type LocalTournament,
+  type LocalVenue,
   type Projection,
   type Snapshot,
 } from "./overlay";
-import type { CardCategory, DeckKey, VtesOperation } from "./types";
+import type { CardCategory, DeckKey, ResourceKey, VtesOperation } from "./types";
 
 /**
  * Lectures locales : ce que l'UI affiche, en ligne comme hors ligne, sans
@@ -24,18 +29,45 @@ import type { CardCategory, DeckKey, VtesOperation } from "./types";
 export async function readProjection(db: VtesOfflineDb): Promise<Projection> {
   return db.transaction(
     "r",
-    [db.stock, db.decks, db.deckCards, db.cards, db.refs, db.outbox, db.settled],
+    [
+      db.stock,
+      db.decks,
+      db.deckCards,
+      db.cards,
+      db.players,
+      db.venues,
+      db.tournaments,
+      db.games,
+      db.refs,
+      db.outbox,
+      db.settled,
+    ],
     async () => {
-      const [stock, decks, deckCards, cards, refs, queued, settled] = await Promise.all([
-        db.stock.toArray(),
-        db.decks.toArray(),
-        db.deckCards.toArray(),
-        db.cards.toArray(),
-        db.refs.toArray(),
-        db.outbox.orderBy("rank").toArray(),
-        db.settled.orderBy("seq").toArray(),
-      ]);
-      const snapshot: Snapshot = { stock, decks, deckCards, cards, refs };
+      const [stock, decks, deckCards, cards, players, venues, tournaments, games, refs, queued, settled] =
+        await Promise.all([
+          db.stock.toArray(),
+          db.decks.toArray(),
+          db.deckCards.toArray(),
+          db.cards.toArray(),
+          db.players.toArray(),
+          db.venues.toArray(),
+          db.tournaments.toArray(),
+          db.games.toArray(),
+          db.refs.toArray(),
+          db.outbox.orderBy("rank").toArray(),
+          db.settled.orderBy("seq").toArray(),
+        ]);
+      const snapshot: Snapshot = {
+        stock,
+        decks,
+        deckCards,
+        cards,
+        refs,
+        players,
+        venues,
+        tournaments,
+        games,
+      };
       // Les refusées n'ont aucun effet (le serveur n'a rien écrit) ; les
       // `pending` et `sending` sont ce que l'utilisateur a saisi et attend de voir.
       const operations = queued
@@ -184,4 +216,120 @@ export async function readCardSets(db: VtesOfflineDb): Promise<CardSetRow[]> {
     return compare(a.abbrev, b.abbrev);
   });
   return found;
+}
+
+// --- Pratique de jeu (Lot 7) -----------------------------------------------
+//
+// Mêmes lectures locales que les decks : instantané, opérations tranchées pas
+// encore reprises, puis file. Une ressource se retrouve par sa clé canonique ou
+// par l'un de ses alias (`id:<n>` ou `ref:<uuid>`).
+
+export interface PlayerQuery {
+  /** Texte cherché dans le nom (casse et accents ignorés). */
+  q?: string;
+}
+
+/** Le « Moi » en tête, puis l'ordre alphabétique des noms. */
+export async function readPlayers(db: VtesOfflineDb, query: PlayerQuery = {}): Promise<LocalPlayer[]> {
+  const { players } = await readProjection(db);
+  const needle = query.q ? foldText(query.q) : "";
+  return players
+    .filter((player) => !needle || foldText(player.name).includes(needle))
+    .sort((a, b) => Number(b.isMe) - Number(a.isMe) || compare(a.name, b.name));
+}
+
+export async function readPlayer(db: VtesOfflineDb, key: ResourceKey): Promise<LocalPlayer | undefined> {
+  const { players } = await readProjection(db);
+  return findByKey(players, key);
+}
+
+export async function readVenues(db: VtesOfflineDb, query: PlayerQuery = {}): Promise<LocalVenue[]> {
+  const { venues } = await readProjection(db);
+  const needle = query.q ? foldText(query.q) : "";
+  return venues
+    .filter((venue) => !needle || foldText(venue.name).includes(needle))
+    .sort((a, b) => compare(a.name, b.name));
+}
+
+export async function readVenue(db: VtesOfflineDb, key: ResourceKey): Promise<LocalVenue | undefined> {
+  const { venues } = await readProjection(db);
+  return findByKey(venues, key);
+}
+
+export interface TournamentQuery {
+  q?: string;
+  /** Dates locales `AAAA-MM-JJ`, bornes incluses, sur la date de début (comme `GET /tournois`). */
+  from?: string;
+  to?: string;
+}
+
+/** Du plus récent au plus ancien. */
+export async function readTournaments(
+  db: VtesOfflineDb,
+  query: TournamentQuery = {},
+): Promise<LocalTournament[]> {
+  const { tournaments } = await readProjection(db);
+  const needle = query.q ? foldText(query.q) : "";
+  return tournaments
+    .filter(
+      (tournament) =>
+        (!needle || foldText(tournament.name).includes(needle)) &&
+        (!query.from || tournament.startDate >= query.from) &&
+        (!query.to || tournament.startDate <= query.to),
+    )
+    .sort((a, b) => compare(b.startDate, a.startDate) || compare(a.name, b.name));
+}
+
+export async function readTournament(
+  db: VtesOfflineDb,
+  key: ResourceKey,
+): Promise<LocalTournament | undefined> {
+  const { tournaments } = await readProjection(db);
+  return findByKey(tournaments, key);
+}
+
+export interface GameQuery {
+  /** Les parties d'un tournoi (clé canonique ou alias). */
+  tournamentKey?: ResourceKey;
+  /** Vrai : les seules amicales ; faux : les seules parties de tournoi. */
+  casual?: boolean;
+  /** Le deck que j'ai joué (clé canonique ou alias). */
+  deckKey?: DeckKey;
+  venueKey?: ResourceKey;
+  /** Instants ISO avec fuseau, bornes incluses. */
+  from?: string;
+  to?: string;
+}
+
+/**
+ * Du plus récent au plus ancien. Les filtres par ressource liée se comparent à
+ * sa clé canonique, quel que soit l'alias demandé.
+ */
+export async function readGames(db: VtesOfflineDb, query: GameQuery = {}): Promise<LocalGame[]> {
+  const projection = await readProjection(db);
+  const tournament =
+    query.tournamentKey && (findByKey(projection.tournaments, query.tournamentKey)?.key ?? query.tournamentKey);
+  const venue = query.venueKey && (findByKey(projection.venues, query.venueKey)?.key ?? query.venueKey);
+  const deck =
+    query.deckKey && (projection.decks.find((item) => item.key === query.deckKey)?.key ?? query.deckKey);
+  const from = query.from ? Date.parse(query.from) : null;
+  const to = query.to ? Date.parse(query.to) : null;
+  return projection.games
+    .filter((game) => {
+      const at = Date.parse(game.playedAt);
+      return (
+        (!tournament || game.tournamentKey === tournament) &&
+        (query.casual === undefined || (game.tournamentKey === null) === query.casual) &&
+        (!deck || game.me.deckKey === deck) &&
+        (!venue || game.venueKey === venue) &&
+        (from === null || at >= from) &&
+        (to === null || at <= to)
+      );
+    })
+    .sort((a, b) => Date.parse(b.playedAt) - Date.parse(a.playedAt) || compare(b.key, a.key));
+}
+
+export async function readGame(db: VtesOfflineDb, key: ResourceKey): Promise<LocalGame | undefined> {
+  const { games } = await readProjection(db);
+  return findByKey(games, key);
 }

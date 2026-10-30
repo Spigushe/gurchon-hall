@@ -40,6 +40,56 @@ interface Verdict {
   processed_at: string;
 }
 
+/** Pratique de jeu (Lot 7) : état du serveur factice, en snake_case comme le contrat. */
+export interface FakePlayer {
+  id: number;
+  name: string;
+  is_me: boolean;
+}
+export interface FakeVenue {
+  id: number;
+  name: string;
+  city: string | null;
+  notes: string | null;
+}
+export interface FakeTournament {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string | null;
+  venue_id: number | null;
+  deck_policy: string;
+  format: string;
+  event_tier: string;
+  final_deck_rule: string | null;
+  round_count: number | null;
+  player_count: number | null;
+  my_ranking: number | null;
+  notes: string | null;
+  updated_at: string;
+}
+export interface FakeParticipation {
+  player_id: number;
+  is_me: boolean;
+  deck_id: number | null;
+  seat: number | null;
+  victory_points: number | null;
+  game_win: boolean | null;
+  notes: string | null;
+}
+export interface FakeGame {
+  id: number;
+  played_at: string;
+  venue_id: number | null;
+  tournament_id: number | null;
+  round_number: number | null;
+  round_type: string;
+  player_count: number;
+  notes: string | null;
+  updated_at: string;
+  participations: FakeParticipation[];
+}
+
 export interface FakeServer {
   client: ApiClient;
   state: {
@@ -59,6 +109,7 @@ export interface FakeServer {
       discriminator: string;
       client_ref: string | null;
       proxy_allowed: boolean;
+      archetype?: string | null;
       archived_at: string | null;
     }>;
     deckCards: Array<{
@@ -70,6 +121,12 @@ export interface FakeServer {
       proxy_quantity: number;
     }>;
     languages: string[];
+    players: FakePlayer[];
+    venues: FakeVenue[];
+    tournaments: FakeTournament[];
+    games: FakeGame[];
+    /** Decks admis en finale rendus par `GET /tournois/{id}` (par identifiant de tournoi). */
+    admissible: Map<number, number[]>;
     journal: Map<string, { fingerprint: string; verdict: Verdict }>;
     requests: Array<{ method: string; path: string; body: unknown }>;
     /** Nombre de fois où un versement de produit a réellement été appliqué. */
@@ -98,6 +155,11 @@ export function createFakeServer(): FakeServer {
     decks: [],
     deckCards: [],
     languages: ["EN", "FR", "ES", "XX"],
+    players: [{ id: 1, name: "Moi", is_me: true }],
+    venues: [],
+    tournaments: [],
+    games: [],
+    admissible: new Map(),
     journal: new Map(),
     requests: [],
     depositsApplied: 0,
@@ -109,6 +171,21 @@ export function createFakeServer(): FakeServer {
     getStatus: null,
   };
   let nextDeckId = 1;
+  let nextPlayerId = 2;
+  let nextVenueId = 1;
+  let nextTournamentId = 1;
+  let nextGameId = 1;
+  let clockTick = 0;
+  /** Horodatage croissant : `updated_at` change à chaque écriture, comme au serveur. */
+  const tick = () => `2026-09-20T12:${String(Math.floor(clockTick / 60)).padStart(2, "0")}:${String(clockTick++ % 60).padStart(2, "0")}Z`;
+  /** Références client liées, par genre (le journal du serveur). */
+  const bound = new Map<string, { kind: string; id: number }>();
+  const fold = (text: string) =>
+    text
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .trim()
+      .toLowerCase();
 
   const fingerprint = (op: Json) => JSON.stringify(op, Object.keys(op).sort());
   const stockKey = (cardId: unknown, language: unknown, cardSetId: unknown) =>
@@ -118,6 +195,202 @@ export function createFakeServer(): FakeServer {
     return ref.deck_id != null
       ? state.decks.find((deck) => deck.id === ref.deck_id)
       : state.decks.find((deck) => deck.client_ref === ref.client_ref);
+  }
+
+  const resolveRef = (kind: string, ref: Json | null | undefined): number | null => {
+    if (!ref) return null;
+    const idKey = `${kind}_id`;
+    if (typeof ref[idKey] === "number") return ref[idKey] as number;
+    const found = bound.get(String(ref.client_ref));
+    return found && found.kind === kind ? found.id : null;
+  };
+
+  function applyPlay(
+    op: Json,
+    refuse: (code: string, message: string) => Verdict,
+    ok: (resource: Json) => Verdict,
+  ): Verdict {
+    const type = op.type as string;
+    const [kind, action] = type.split(".") as [string, string];
+    const data = (op.data ?? {}) as Json;
+    const tableOf = (rows: Json[]): FakeParticipation[] =>
+      rows.map((line) => {
+        const player = line.player as Json;
+        const playerId = player.me === true ? 1 : resolveRef("player", player);
+        const deck = line.deck as Json | null | undefined;
+        return {
+          player_id: playerId ?? -1,
+          is_me: playerId === 1,
+          deck_id: deck ? ((deck.deck_id as number | undefined) ?? resolveDeck(deck)?.id ?? null) : null,
+          seat: (line.seat as number | null | undefined) ?? null,
+          victory_points: (line.victory_points as number | null | undefined) ?? null,
+          game_win: (line.game_win as boolean | null | undefined) ?? null,
+          notes: (line.notes as string | null | undefined) ?? null,
+        };
+      });
+    const link = (id: number) => {
+      if (typeof op.client_ref === "string") bound.set(op.client_ref, { kind, id });
+      return ok({ kind, [`${kind}_id`]: id });
+    };
+    const missing = () => refuse("not_found", `${kind} introuvable.`);
+
+    if (kind === "player" || kind === "venue") {
+      const list = (kind === "player" ? state.players : state.venues) as Array<FakePlayer & FakeVenue>;
+      if (action === "create") {
+        if (state.players.some((p) => p.is_me && fold(p.name) === fold(data.name as string)) && kind === "player") {
+          return refuse("conflict", "Ce nom est déjà porté par votre joueur Moi.");
+        }
+        const existing = list.find((item) => fold(item.name) === fold(data.name as string));
+        if (existing) return link(existing.id);
+        const id = kind === "player" ? nextPlayerId++ : nextVenueId++;
+        list.push(
+          kind === "player"
+            ? ({ id, name: data.name, is_me: false } as FakePlayer & FakeVenue)
+            : ({ id, name: data.name, city: data.city ?? null, notes: data.notes ?? null } as FakePlayer & FakeVenue),
+        );
+        return link(id);
+      }
+      const id = resolveRef(kind, op[kind] as Json);
+      const found = list.find((item) => item.id === id);
+      if (!found) return missing();
+      if (action === "delete") {
+        list.splice(list.indexOf(found), 1);
+        return ok({ kind, [`${kind}_id`]: found.id });
+      }
+      if (data.name !== undefined) {
+        if (list.some((item) => item !== found && fold(item.name) === fold(data.name as string))) {
+          return refuse("conflict", `Un ${kind === "player" ? "joueur" : "lieu"} nommé '${String(data.name)}' existe déjà.`);
+        }
+        found.name = data.name as string;
+      }
+      if (kind === "venue") {
+        if (data.city !== undefined) found.city = data.city as string | null;
+        if (data.notes !== undefined) found.notes = data.notes as string | null;
+      }
+      return ok({ kind, [`${kind}_id`]: found.id });
+    }
+
+    if (kind === "tournament") {
+      if (action === "create") {
+        const venueId = data.venue ? resolveRef("venue", data.venue as Json) : null;
+        if (data.venue && venueId === null) {
+          return refuse("unresolved_client_ref", "Aucun lieu n'a été créé sous cette référence client.");
+        }
+        const tournament: FakeTournament = {
+          id: nextTournamentId++,
+          name: data.name as string,
+          start_date: data.start_date as string,
+          end_date: (data.end_date as string | null | undefined) ?? null,
+          venue_id: venueId,
+          deck_policy: (data.deck_policy as string | undefined) ?? "mono",
+          format: (data.format as string | undefined) ?? "constructed",
+          event_tier: (data.event_tier as string | undefined) ?? "standard",
+          final_deck_rule: (data.final_deck_rule as string | null | undefined) ?? null,
+          round_count: (data.round_count as number | null | undefined) ?? null,
+          player_count: (data.player_count as number | null | undefined) ?? null,
+          my_ranking: (data.my_ranking as number | null | undefined) ?? null,
+          notes: (data.notes as string | null | undefined) ?? null,
+          updated_at: tick(),
+        };
+        state.tournaments.push(tournament);
+        return link(tournament.id);
+      }
+      const id = resolveRef("tournament", op.tournament as Json);
+      const found = state.tournaments.find((item) => item.id === id);
+      if (!found) return missing();
+      if (action === "delete") {
+        if (state.games.some((game) => game.tournament_id === found.id)) {
+          return refuse("conflict", "Ce tournoi contient des parties.");
+        }
+        state.tournaments.splice(state.tournaments.indexOf(found), 1);
+        return ok({ kind, tournament_id: found.id });
+      }
+      if (data.deck_policy === "mono" && found.deck_policy === "multi" && data.final_deck_rule === undefined) {
+        return refuse("invalid", "La règle du deck de finale n'a pas de sens en mono-deck.");
+      }
+      for (const field of [
+        "name",
+        "start_date",
+        "end_date",
+        "deck_policy",
+        "format",
+        "event_tier",
+        "final_deck_rule",
+        "round_count",
+        "player_count",
+        "my_ranking",
+        "notes",
+      ]) {
+        if (data[field] !== undefined) (found as unknown as Json)[field] = data[field];
+      }
+      if (data.venue !== undefined) found.venue_id = data.venue ? resolveRef("venue", data.venue as Json) : null;
+      found.updated_at = tick();
+      return ok({ kind, tournament_id: found.id });
+    }
+
+    // game
+    if (action === "create") {
+      const tournamentId = data.tournament ? resolveRef("tournament", data.tournament as Json) : null;
+      if (data.tournament && tournamentId === null) {
+        return refuse("unresolved_client_ref", "Aucun tournoi n'a été créé sous cette référence client.");
+      }
+      const venueId = data.venue ? resolveRef("venue", data.venue as Json) : null;
+      const participations = tableOf((data.participations as Json[]) ?? []);
+      if (participations.some((line) => line.player_id === -1)) {
+        return refuse("unresolved_client_ref", "Aucun joueur n'a été créé sous cette référence client.");
+      }
+      const roundType = (data.round_type as string | undefined) ?? "casual";
+      const roundNumber = (data.round_number as number | null | undefined) ?? null;
+      if (
+        tournamentId !== null &&
+        roundType === "preliminary" &&
+        state.games.some(
+          (game) => game.tournament_id === tournamentId && game.round_number === roundNumber && game.round_type === "preliminary",
+        )
+      ) {
+        return refuse("conflict", `La ronde ${roundNumber} est déjà saisie pour ce tournoi (sur un autre appareil ?).`);
+      }
+      const game: FakeGame = {
+        id: nextGameId++,
+        played_at: new Date(data.played_at as string).toISOString().replace(".000Z", "Z"),
+        venue_id: venueId,
+        tournament_id: tournamentId,
+        round_number: roundNumber,
+        round_type: roundType,
+        player_count: data.player_count as number,
+        notes: (data.notes as string | null | undefined) ?? null,
+        updated_at: tick(),
+        participations,
+      };
+      state.games.push(game);
+      return link(game.id);
+    }
+    const id = resolveRef("game", op.game as Json);
+    const found = state.games.find((item) => item.id === id);
+    if (!found) return missing();
+    if (action === "delete") {
+      state.games.splice(state.games.indexOf(found), 1);
+      return ok({ kind, game_id: found.id });
+    }
+    if (op.table) {
+      const next = tableOf(((op.table as Json).participations as Json[]) ?? []);
+      if (next.some((line) => line.player_id === -1)) {
+        return refuse("unresolved_client_ref", "Aucun joueur n'a été créé sous cette référence client.");
+      }
+      found.participations = next;
+    }
+    for (const field of ["round_number", "round_type", "player_count", "notes"]) {
+      if (data[field] !== undefined) (found as unknown as Json)[field] = data[field];
+    }
+    if (data.played_at !== undefined) {
+      found.played_at = new Date(data.played_at as string).toISOString().replace(".000Z", "Z");
+    }
+    if (data.venue !== undefined) found.venue_id = data.venue ? resolveRef("venue", data.venue as Json) : null;
+    if (data.tournament !== undefined) {
+      found.tournament_id = data.tournament ? resolveRef("tournament", data.tournament as Json) : null;
+    }
+    found.updated_at = tick();
+    return ok({ kind, game_id: found.id });
   }
 
   function apply(op: Json): Verdict {
@@ -167,6 +440,7 @@ export function createFakeServer(): FakeServer {
           discriminator: String(1000 + nextDeckId),
           client_ref: op.client_ref as string,
           proxy_allowed: (data.proxy_allowed as boolean | undefined) ?? false,
+          archetype: (data.archetype as string | null | undefined) ?? null,
           archived_at: null,
         };
         state.decks.push(deck);
@@ -246,6 +520,19 @@ export function createFakeServer(): FakeServer {
         });
         return ok({ kind: "bundle", bundle_id: op.bundle_id });
       }
+      case "player.create":
+      case "venue.create":
+      case "tournament.create":
+      case "game.create":
+      case "player.update":
+      case "player.delete":
+      case "venue.update":
+      case "venue.delete":
+      case "tournament.update":
+      case "tournament.delete":
+      case "game.update":
+      case "game.delete":
+        return applyPlay(op, refuse, ok);
       default:
         return refuse("invalid", `type non géré par le serveur factice : ${String(op.type)}`);
     }
@@ -282,6 +569,10 @@ export function createFakeServer(): FakeServer {
             language_code: null,
             card_set_id: null,
             bundle_id: null,
+            player_id: null,
+            venue_id: null,
+            tournament_id: null,
+            game_id: null,
             ...verdict.resource,
           }
         : null;
@@ -348,13 +639,95 @@ export function createFakeServer(): FakeServer {
           page([...state.stock.values()].map((entry) => ({ ...entry, card: cardSummary(entry.card_id) }))),
         );
       }
+      const summaryOf = (game: FakeGame): Json => {
+        const line = game.participations.find((p) => p.is_me);
+        return {
+          deck_id: line?.deck_id ?? null,
+          seat: line?.seat ?? null,
+          victory_points: line?.victory_points ?? null,
+          game_win: line?.game_win ?? null,
+        };
+      };
+      const gameRead = (game: FakeGame): Json => ({
+        id: game.id,
+        played_at: game.played_at,
+        venue_id: game.venue_id,
+        tournament_id: game.tournament_id,
+        tournament_name: state.tournaments.find((t) => t.id === game.tournament_id)?.name ?? null,
+        round_number: game.round_number,
+        round_type: game.round_type,
+        player_count: game.player_count,
+        me: summaryOf(game),
+        notes: game.notes,
+        created_at: "2026-09-20T12:00:00Z",
+        updated_at: game.updated_at,
+      });
+      const tournamentRead = (tournament: FakeTournament): Json => {
+        const own = state.games.filter((g) => g.tournament_id === tournament.id);
+        const prelim = own.filter((g) => g.round_type === "preliminary");
+        const final = own.find((g) => g.round_type === "final");
+        const mine = (g: FakeGame) => g.participations.find((p) => p.is_me);
+        return {
+          ...tournament,
+          my_summary: {
+            preliminary_game_wins: prelim.filter((g) => mine(g)?.game_win === true).length,
+            preliminary_victory_points: prelim.reduce((sum, g) => sum + (mine(g)?.victory_points ?? 0), 0),
+            rounds_played: prelim.length,
+            final_victory_points: final ? (mine(final)?.victory_points ?? 0) : null,
+            final_game_win: final ? mine(final)?.game_win === true : null,
+          },
+          created_at: "2026-09-20T12:00:00Z",
+        };
+      };
+      if (url.pathname === "/joueurs") {
+        return json(
+          state.players.map((p) => ({
+            ...p,
+            game_count: state.games.filter((g) => g.participations.some((l) => l.player_id === p.id)).length,
+          })),
+        );
+      }
+      if (url.pathname === "/lieux") {
+        return json(
+          state.venues.map((v) => ({
+            ...v,
+            game_count: state.games.filter((g) => g.venue_id === v.id).length,
+            tournament_count: state.tournaments.filter((t) => t.venue_id === v.id).length,
+          })),
+        );
+      }
+      if (url.pathname === "/tournois") return json(state.tournaments.map(tournamentRead));
+      const tournamentMatch = url.pathname.match(/^\/tournois\/(\d+)$/);
+      if (tournamentMatch) {
+        const tournament = state.tournaments.find((t) => t.id === Number(tournamentMatch[1]));
+        if (!tournament) return json({ detail: "introuvable" }, 404);
+        return json({
+          ...tournamentRead(tournament),
+          games: state.games.filter((g) => g.tournament_id === tournament.id).map(gameRead),
+          admissible_final_decks: state.admissible.get(tournament.id) ?? null,
+        });
+      }
+      if (url.pathname === "/parties") return json(state.games.map(gameRead));
+      const gameMatch = url.pathname.match(/^\/parties\/(\d+)$/);
+      if (gameMatch) {
+        const game = state.games.find((g) => g.id === Number(gameMatch[1]));
+        if (!game) return json({ detail: "introuvable" }, 404);
+        return json({
+          ...gameRead(game),
+          participations: game.participations.map((line, index) => ({
+            id: index + 1,
+            game_id: game.id,
+            ...line,
+          })),
+        });
+      }
       const deckRead = (deck: FakeServer["state"]["decks"][number]) => ({
         id: deck.id,
         name: deck.name,
         discriminator: deck.discriminator,
         created_on: null,
         status: "draft",
-        archetype: null,
+        archetype: deck.archetype ?? null,
         notes: null,
         proxy_allowed: deck.proxy_allowed,
         archived_at: deck.archived_at,

@@ -1,6 +1,23 @@
 import { assertNever } from "../core/assertNever";
 import type { RefBinding } from "../core/types";
-import type { CardRow, DeckCardRow, DeckRow, StockRow } from "./db";
+import type {
+  CardRow,
+  DeckCardRow,
+  DeckRow,
+  GameRow,
+  PlayerRow,
+  StockRow,
+  TournamentRow,
+  VenueRow,
+} from "./db";
+import {
+  createPlayProjector,
+  findByKey,
+  type LocalGame,
+  type LocalPlayer,
+  type LocalTournament,
+  type LocalVenue,
+} from "./overlayPlay";
 import { bindingsOfKind } from "./references";
 import type { CardCategory, DeckKey, DeckStatus, VtesOperation } from "./types";
 
@@ -55,11 +72,21 @@ export interface Snapshot {
   deckCards: DeckCardRow[];
   cards: CardRow[];
   refs: RefBinding[];
+  /** Pratique de jeu (Lot 7). Facultatifs : un instantané d'avant le Lot 7 n'en a pas. */
+  players?: PlayerRow[];
+  venues?: VenueRow[];
+  tournaments?: TournamentRow[];
+  games?: GameRow[];
 }
 
 export interface Projection {
   stock: LocalStockEntry[];
   decks: LocalDeck[];
+  /** Pratique de jeu (Lot 7) : voir `overlayPlay.ts`. */
+  players: LocalPlayer[];
+  venues: LocalVenue[];
+  tournaments: LocalTournament[];
+  games: LocalGame[];
   /** Composition par clé de deck. */
   deckCards: Map<DeckKey, LocalDeckCard[]>;
 }
@@ -166,6 +193,21 @@ export function project(
     }
     return undefined;
   };
+
+  // Pratique de jeu : sa projection a son propre module, mais résout les decks avec les mêmes tables.
+  const play = createPlayProjector(
+    {
+      players: snapshot.players ?? [],
+      venues: snapshot.venues ?? [],
+      tournaments: snapshot.tournaments ?? [],
+      games: snapshot.games ?? [],
+      refs: snapshot.refs,
+    },
+    {
+      keyOfId: (id) => keyByDeckId.get(id),
+      resolve: (ref) => resolveDeck(ref),
+    },
+  );
 
   // `pending` : l'opération est encore dans la file (le serveur ne l'a pas
   // confirmée) ; sinon elle est tranchée, seul le miroir n'est pas à jour.
@@ -309,6 +351,20 @@ export function project(
       }
       case "bundle.deposit":
         break; // non projeté, cf. la documentation de la fonction
+      case "player.create":
+      case "player.update":
+      case "player.delete":
+      case "venue.create":
+      case "venue.update":
+      case "venue.delete":
+      case "tournament.create":
+      case "tournament.update":
+      case "tournament.delete":
+      case "game.create":
+      case "game.update":
+      case "game.delete":
+        play.apply(operation, pending);
+        break;
       default:
         assertNever(operation, "Type d'opération non projeté");
     }
@@ -321,6 +377,7 @@ export function project(
   return {
     stock: [...stock.values()],
     decks: [...decks.values()],
+    ...play.finish(),
     deckCards: new Map(
       [...deckCards].map(([key, cards]) => [key, [...cards.values()]] as const),
     ),
@@ -365,3 +422,15 @@ export function availableStock(
   }
   return Math.max(0, owned - allocated);
 }
+
+export { findByKey };
+export type {
+  LocalGame,
+  LocalGameMe,
+  LocalPlayer,
+  LocalResource,
+  LocalTableLine,
+  LocalTournament,
+  LocalTournamentSummary,
+  LocalVenue,
+} from "./overlayPlay";

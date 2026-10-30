@@ -1,10 +1,12 @@
 import { apiClient } from "../../api-client/client";
+import { foldText } from "../core/foldText";
 import { newUuid } from "../core/ids";
 import { Outbox, type EnqueueOptions } from "../core/outbox";
 import { SyncEngine, type SyncEngineOptions } from "../core/syncEngine";
 import type { OutboxEntry } from "../core/types";
 import type { OfflineRuntime } from "../react/context";
 import { DEFAULT_DB_NAME, VtesOfflineDb } from "./db";
+import { findByKey } from "./overlay";
 import { readProjection } from "./reads";
 import { knownLanguageCodes, resolveLanguageCode } from "./languages";
 import {
@@ -14,25 +16,59 @@ import {
   deckCreate,
   deckDelete,
   deckUpdate,
+  gameCreate,
+  gameDelete,
+  gameUpdate,
+  playerCreate,
+  playerDelete,
+  playerUpdate,
   stockDelete,
   stockUpsert,
   systemClock,
+  tournamentCreate,
+  tournamentDelete,
+  tournamentUpdate,
+  venueCreate,
+  venueDelete,
+  venueUpdate,
   type DeckCardInput,
   type DeckInput,
   type DeckPatch,
+  type GameInput,
+  type GameUpdate,
   type OperationClock,
+  type PlayerInput,
+  type PlayerPatch,
   type StockInput,
+  type TournamentInput,
+  type TournamentPatch,
+  type VenueInput,
+  type VenuePatch,
 } from "./operations";
 import {
   refreshCardSets,
   refreshCatalog,
   refreshDecks,
+  refreshGames,
   refreshLanguages,
+  refreshPlayers,
   refreshStock,
+  refreshTournaments,
+  refreshVenues,
   RefreshAuthError,
 } from "./refresh";
 import { createVtesSyncTransport } from "./transport";
-import { deckKeyOf, type ApiClient, type DeckKey, type DeckSelector, type VtesOperation } from "./types";
+import {
+  deckKeyOf,
+  parseResourceKey,
+  resourceKeyOf,
+  type ApiClient,
+  type DeckKey,
+  type DeckSelector,
+  type ResourceKey,
+  type ResourceTarget,
+  type VtesOperation,
+} from "./types";
 
 type DeckTarget = DeckSelector | DeckKey;
 type Entry = OutboxEntry<VtesOperation>;
@@ -81,7 +117,60 @@ export interface VtesActions {
     cardSetId: number,
   ): Promise<Entry>;
   depositBundle(bundleId: number, languageCode: string, count?: number): Promise<Entry>;
+
+  // --- Pratique de jeu (Lot 7) ---------------------------------------------
+  //
+  // Une action par type d'opération, toutes par la file. Une création rend la
+  // `client_ref` tirée et la clé `ref:<uuid>` sous laquelle la ressource se lit
+  // aussitôt, avant comme après sa synchronisation.
+
+  /**
+   * Crée un joueur. Le serveur fait un **upsert par nom** : si le nom existe, la
+   * référence se lie au joueur existant. Préférer `ensurePlayer` pour une saisie
+   * « au fil de la frappe » : elle évite d'empiler une opération inutile.
+   */
+  createPlayer(input: PlayerInput): Promise<CreatedResource>;
+  /**
+   * Le joueur de ce nom (hors « Moi »), s'il existe sur l'appareil (file
+   * comprise) : sa clé, sans rien mettre en file. Sinon le crée.
+   */
+  ensurePlayer(name: string): Promise<EnsuredResource>;
+  updatePlayer(player: ResourceTarget, patch: PlayerPatch): Promise<Entry>;
+  deletePlayer(player: ResourceTarget): Promise<Entry>;
+  createVenue(input: VenueInput): Promise<CreatedResource>;
+  /** Comme `ensurePlayer`, pour un lieu : un lieu connu garde sa ville et ses notes. */
+  ensureVenue(name: string): Promise<EnsuredResource>;
+  updateVenue(venue: ResourceTarget, patch: VenuePatch): Promise<Entry>;
+  deleteVenue(venue: ResourceTarget): Promise<Entry>;
+  createTournament(input: TournamentInput): Promise<CreatedResource>;
+  /**
+   * Passer à `deckPolicy: "mono"` envoie `final_deck_rule: null` en même temps
+   * (sans cela le serveur refuse : la règle de finale n'a pas de sens en mono).
+   */
+  updateTournament(tournament: ResourceTarget, patch: TournamentPatch): Promise<Entry>;
+  deleteTournament(tournament: ResourceTarget): Promise<Entry>;
+  createGame(input: GameInput): Promise<CreatedResource>;
+  /**
+   * `fields` : champs de la partie. `table` : la table **complète**, réservée aux
+   * tables connues ; lève `GameTableUnknownError`, sans rien mettre en file, si
+   * la table de la partie est inconnue sur cet appareil (`LocalGame.table === null`)
+   * ou si la partie est introuvable.
+   */
+  updateGame(game: ResourceTarget, update: GameUpdate): Promise<Entry>;
+  deleteGame(game: ResourceTarget): Promise<Entry>;
 }
+
+/** Ressource créée hors ligne : sa référence client et sa clé de surcouche. */
+export interface CreatedResource {
+  clientRef: string;
+  key: ResourceKey;
+  entry: Entry;
+}
+
+/** Résultat de `ensurePlayer` / `ensureVenue`. */
+export type EnsuredResource =
+  | { created: false; key: ResourceKey; clientRef: null; entry: null }
+  | ({ created: true } & CreatedResource);
 
 export interface RefreshOptions {
   /** Relire aussi le catalogue complet (~4 000 cartes) ; coûteux, à demander explicitement. */
@@ -142,6 +231,20 @@ export interface VtesOfflineOptions {
 
 const DEFAULT_REFRESH_TIMEOUT_MS = 60_000;
 
+/**
+ * Édition de la table d'une partie dont la table est inconnue sur cet appareil
+ * (Lot 7) : la remplacer d'un bloc effacerait les adversaires. Rien n'a été mis
+ * en file.
+ */
+export class GameTableUnknownError extends Error {
+  constructor(
+    message = "La table de cette partie n'est pas connue sur cet appareil : elle ne peut pas être modifiée.",
+  ) {
+    super(message);
+    this.name = "GameTableUnknownError";
+  }
+}
+
 /** Acquisition incohérente avec la ligne écrite (Lot 4b) : rien n'a été mis en file. */
 export class AcquisitionBoundError extends Error {
   constructor(message: string) {
@@ -180,6 +283,13 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       ["cardSets", () => refreshCardSets(client, db)],
       ["stock", () => refreshStock(client, db)],
       ["decks", () => refreshDecks(client, db)],
+      // Pratique de jeu : joueurs et lieux d'abord, puis les tournois (leur bilan
+      // doit être à jour avant que les parties tranchées sortent de `settled`),
+      // puis les parties.
+      ["players", () => refreshPlayers(client, db)],
+      ["venues", () => refreshVenues(client, db)],
+      ["tournaments", () => refreshTournaments(client, db)],
+      ["games", () => refreshGames(client, db)],
     ];
     if (opts.catalog) steps.push(["catalog", () => refreshCatalog(client, db)]);
 
@@ -194,12 +304,22 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       await engine.whenDrained();
       const epoch = outbox.settleEpoch;
       report = { complete: true, refreshed: [], errors: [], authRequired: false };
+      let tournamentsFailed = false;
       for (const [name, step] of steps) {
+        // Les parties tranchées ne sortent de `settled` qu'avec un bilan de
+        // tournoi à jour : si les tournois n'ont pas pu être lus, on ne touche
+        // pas aux parties dans ce passage (rafraîchissement incomplet, erreur
+        // déjà rapportée à l'étape des tournois).
+        if (name === "games" && tournamentsFailed) {
+          report.complete = false;
+          continue;
+        }
         try {
           await step();
           report.refreshed.push(name);
         } catch (error) {
           report.complete = false;
+          if (name === "tournaments") tournamentsFailed = true;
           // 401 (Lot 6) : pas une erreur de lecture ordinaire, un signal de
           // reconnexion. Le miroir `name` n'a pas bougé (unwrap lève avant
           // toute écriture) : rien à annoncer comme une perte de données.
@@ -294,6 +414,13 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
   const language = async (code: string) =>
     resolveLanguageCode(code, await knownLanguageCodes(db));
 
+  const created = async (operation: VtesOperation, clientRef: string): Promise<CreatedResource> => {
+    const entry = await enqueue(operation, { createsRef: clientRef });
+    return { clientRef, key: `ref:${clientRef}`, entry };
+  };
+
+  const sameName = (a: string, b: string) => foldText(a.trim()) === foldText(b.trim());
+
   const actions: VtesActions = {
     async saveStock(input) {
       return enqueue(
@@ -377,6 +504,65 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
     },
     async depositBundle(bundleId, languageCode, count) {
       return enqueue(bundleDeposit(clock, bundleId, await language(languageCode), count));
+    },
+
+    async createPlayer(input) {
+      const clientRef = newUuid();
+      return created(playerCreate(clock, clientRef, input), clientRef);
+    },
+    async ensurePlayer(name) {
+      const { players } = await readProjection(db);
+      const known = players.find((player) => !player.isMe && sameName(player.name, name));
+      if (known) return { created: false, key: known.key, clientRef: null, entry: null };
+      return { created: true, ...(await actions.createPlayer({ name })) };
+    },
+    async updatePlayer(player, patch) {
+      return enqueue(playerUpdate(clock, player, patch));
+    },
+    async deletePlayer(player) {
+      return enqueue(playerDelete(clock, player));
+    },
+    async createVenue(input) {
+      const clientRef = newUuid();
+      return created(venueCreate(clock, clientRef, input), clientRef);
+    },
+    async ensureVenue(name) {
+      const { venues } = await readProjection(db);
+      const known = venues.find((venue) => sameName(venue.name, name));
+      if (known) return { created: false, key: known.key, clientRef: null, entry: null };
+      return { created: true, ...(await actions.createVenue({ name })) };
+    },
+    async updateVenue(venue, patch) {
+      return enqueue(venueUpdate(clock, venue, patch));
+    },
+    async deleteVenue(venue) {
+      return enqueue(venueDelete(clock, venue));
+    },
+    async createTournament(input) {
+      const clientRef = newUuid();
+      return created(tournamentCreate(clock, clientRef, input), clientRef);
+    },
+    async updateTournament(tournament, patch) {
+      return enqueue(tournamentUpdate(clock, tournament, patch));
+    },
+    async deleteTournament(tournament) {
+      return enqueue(tournamentDelete(clock, tournament));
+    },
+    async createGame(input) {
+      const clientRef = newUuid();
+      return created(gameCreate(clock, clientRef, input), clientRef);
+    },
+    async updateGame(game, update) {
+      if (update.table !== undefined) {
+        const key = resourceKeyOf(typeof game === "string" ? parseResourceKey(game) : game);
+        const { games } = await readProjection(db);
+        const known = findByKey(games, key);
+        if (!known || known.table === null) throw new GameTableUnknownError();
+      }
+      return enqueue(gameUpdate(clock, game, update));
+    },
+    async deleteGame(game) {
+      return enqueue(gameDelete(clock, game));
     },
   };
 

@@ -13,8 +13,8 @@
 /** Où chercher une référence dans une opération, et de quel genre elle est. */
 export interface ReferenceField {
   /**
-   * Chemin pointé depuis l'opération : `deck`, `data.venue`. Un segment suivi
-   * de `[]` parcourt chaque élément d'un tableau : `data.participations[].player`.
+   * Chemin pointé depuis l'opération : `owner`, `data.parent`. Un segment suivi
+   * de `[]` parcourt chaque élément d'un tableau : `data.rows[].who`.
    * Un segment absent, nul ou d'un autre type n'est pas une erreur (champ facultatif).
    */
   path: string;

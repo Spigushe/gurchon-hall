@@ -1,22 +1,37 @@
 import { useCallback, useMemo } from "react";
-import { cardSetLabelById, plural } from "../../labels";
+import { cardSetLabelById } from "../../labels";
 import { useLiveQuery } from "../../offline/react";
-import { assertNever, type OutboxEntry } from "../../offline/core";
-import { useLocalDecks, useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import type { OutboxEntry } from "../../offline/core";
+import {
+  useLocalDecks,
+  useLocalGames,
+  useLocalPlayers,
+  useLocalTournaments,
+  useLocalVenues,
+  useVtesOffline,
+  type VtesOperation,
+} from "../../offline/vtes";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
+import { describeOperation, gameLabel, quote, type DescribeContext } from "./describeOperation";
 
 type Entry = OutboxEntry<VtesOperation>;
 
-const quote = (name: string) => `« ${name} »`;
+/** Désignation par identifiant serveur ou par référence client, quel que soit le genre. */
+type AnyRef = { id: number | null | undefined; clientRef: string | null | undefined };
 
 /**
- * Décrit une opération de la file en français, avec les noms de cartes et de
- * decks qu'on connaît localement (catalogue, collection, decks, et créations de
- * deck refusées, qui ne figurent plus dans les lectures).
+ * Décrit une opération de la file en français, avec les noms de cartes, de
+ * decks, de joueurs, de lieux, de tournois et de parties qu'on connaît
+ * localement (catalogue, collection, lectures de la surcouche, et créations
+ * refusées, qui ne figurent plus dans les lectures).
  */
 export function useOperationDescriber(entries: readonly Entry[]) {
   const { db } = useVtesOffline();
   const decks = useLocalDecks({ state: "all" });
+  const players = useLocalPlayers();
+  const venues = useLocalVenues();
+  const tournaments = useLocalTournaments();
+  const games = useLocalGames();
   const cardSets = useCardSetOptions();
 
   const cardIds = useMemo(() => {
@@ -46,61 +61,85 @@ export function useOperationDescriber(entries: readonly Entry[]) {
   return useCallback(
     (operation: VtesOperation): string => {
       const card = (id: number) => quote(cardNames?.get(id) ?? `carte n° ${id}`);
+
+      // Une ressource se retrouve par son identifiant, ou par la référence client
+      // de sa création (à ne pas confondre avec sa clé : une création appliquée
+      // porte encore la référence, le miroir la rattache à l'identifiant).
+      const known = <T extends { id: number | null; clientRef: string | null; aliases?: string[] }>(
+        items: readonly T[] | undefined,
+        { id, clientRef }: AnyRef,
+      ) =>
+        items?.find((item) =>
+          id != null
+            ? item.id === id
+            : clientRef != null && (item.clientRef === clientRef || item.aliases?.includes(`ref:${clientRef}`)),
+        );
+      const refused = (type: VtesOperation["type"], clientRef: string | null | undefined) =>
+        clientRef == null
+          ? undefined
+          : entries.find(
+              (entry) =>
+                entry.operation.type === type &&
+                "client_ref" in entry.operation &&
+                entry.operation.client_ref === clientRef,
+            )?.operation;
+
       // Groupe nominal complet, « deck » compris : un deck absent des lectures
       // locales (supprimé depuis, sa création appliquée n'étant plus en file) n'a
       // ni nom ni numéro à citer, et « Deck deck inconnu » doublait le mot.
       const deck = (ref: { deck_id?: number | null; client_ref?: string | null }) => {
-        const known = decks?.find((item) =>
+        const found = decks?.find((item) =>
           ref.deck_id != null ? item.id === ref.deck_id : item.clientRef === ref.client_ref,
         );
-        if (known) return `deck ${quote(known.name)}`;
-        const refused = entries.find(
-          (entry) =>
-            entry.operation.type === "deck.create" && entry.operation.client_ref === ref.client_ref,
-        );
-        if (refused && refused.operation.type === "deck.create") {
-          return `deck ${quote(refused.operation.data.name)}`;
-        }
+        if (found) return `deck ${quote(found.name)}`;
+        const op = refused("deck.create", ref.client_ref);
+        if (op && op.type === "deck.create") return `deck ${quote(op.data.name)}`;
         return ref.deck_id != null ? `deck n° ${ref.deck_id}` : "deck introuvable localement (supprimé ?)";
       };
-      const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
-      const set = (id: number) => cardSetLabelById(id, cardSets.byId);
-      switch (operation.type) {
-        case "stock.upsert": {
-          const { card_id, language_code, card_set_id, quantity_owned = 0 } = operation.data;
-          return `Collection : ${card(card_id)} (${language_code}, ${set(card_set_id)}), ${plural(quantity_owned, "exemplaire")}`;
-        }
-        case "stock.delete":
-          return `Collection : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
-        case "deck.create":
-          return `Création du deck ${quote(operation.data.name)}${operation.data.proxy_allowed ? " (proxies autorisés)" : ""}`;
-        case "deck.update": {
-          const changes: string[] = [];
-          const { data } = operation;
-          if (data.archived === true) changes.push("archivage");
-          if (data.archived === false) changes.push("désarchivage");
-          if (data.status === "active") changes.push("passage en actif");
-          if (data.status === "draft") changes.push("retour en brouillon");
-          if (data.name !== undefined) changes.push(`renommage en ${quote(data.name)}`);
-          if (data.proxy_allowed === true) changes.push("autorisation des proxies");
-          if (data.proxy_allowed === false) changes.push("interdiction des proxies");
-          if (data.archetype !== undefined || data.notes !== undefined) changes.push("informations");
-          return `${sentence(deck(operation.deck))} : ${changes.join(", ") || "modification"}`;
-        }
-        case "deck.delete":
-          return `Suppression du ${deck(operation.deck)}`;
-        case "deck_card.upsert": {
-          const { card_id, language_code, card_set_id, quantity, proxy_quantity = 0 } = operation.data;
-          return `${sentence(deck(operation.deck))} : ${quantity} × ${card(card_id)} (${language_code}, ${set(card_set_id)})${proxy_quantity > 0 ? `, dont ${proxy_quantity} en proxy` : ""}`;
-        }
-        case "deck_card.delete":
-          return `${sentence(deck(operation.deck))} : retrait de ${card(operation.card_id)} (${operation.language_code}, ${set(operation.card_set_id)})`;
-        case "bundle.deposit":
-          return `Versement du produit n° ${operation.bundle_id} (${operation.data.language_code}, ${plural(operation.data.count ?? 1, "exemplaire")})`;
-        default:
-          return assertNever(operation, "Type d'opération sans libellé");
-      }
+
+      const context: DescribeContext = {
+        card,
+        set: (id) => cardSetLabelById(id, cardSets.byId),
+        deck,
+        player: (ref) => {
+          const found = known(players, { id: ref.player_id, clientRef: ref.client_ref });
+          if (found) return `joueur ${quote(found.name)}`;
+          const op = refused("player.create", ref.client_ref);
+          if (op && op.type === "player.create") return `joueur ${quote(op.data.name)}`;
+          return ref.player_id != null ? `joueur n° ${ref.player_id}` : "joueur introuvable localement (supprimé ?)";
+        },
+        venue: (ref) => {
+          const found = known(venues, { id: ref.venue_id, clientRef: ref.client_ref });
+          if (found) return `lieu ${quote(found.name)}`;
+          const op = refused("venue.create", ref.client_ref);
+          if (op && op.type === "venue.create") return `lieu ${quote(op.data.name)}`;
+          return ref.venue_id != null ? `lieu n° ${ref.venue_id}` : "lieu introuvable localement (supprimé ?)";
+        },
+        tournament: (ref) => {
+          const found = known(tournaments, { id: ref.tournament_id, clientRef: ref.client_ref });
+          if (found) return `tournoi ${quote(found.name)}`;
+          const op = refused("tournament.create", ref.client_ref);
+          if (op && op.type === "tournament.create") return `tournoi ${quote(op.data.name)}`;
+          return ref.tournament_id != null
+            ? `tournoi n° ${ref.tournament_id}`
+            : "tournoi introuvable localement (supprimé ?)";
+        },
+        game: (ref) => {
+          const found = known(games, { id: ref.game_id, clientRef: ref.client_ref });
+          if (found) {
+            return gameLabel({
+              played_at: found.playedAt,
+              round_type: found.roundType,
+              round_number: found.roundNumber,
+            }).replace(/^P/, "p");
+          }
+          const op = refused("game.create", ref.client_ref);
+          if (op && op.type === "game.create") return gameLabel(op.data).replace(/^P/, "p");
+          return ref.game_id != null ? `partie n° ${ref.game_id}` : "partie introuvable localement (supprimée ?)";
+        },
+      };
+      return describeOperation(operation, context);
     },
-    [cardNames, cardSets.byId, decks, entries],
+    [cardNames, cardSets.byId, decks, entries, games, players, tournaments, venues],
   );
 }

@@ -67,7 +67,11 @@ suit le même protocole, rien d'autre n'est à écrire dans `core/`.
   chaque miroir n'efface de `settled` que la sienne.
 - `vtes/playRules.ts` : `certainGameWin`, bilan provisoire d'un tournoi et ronde
   suivante, les règles de partie que le client suggère sans les imposer.
-- `vtes/operations.ts` : un constructeur par type d'opération du contrat.
+- `vtes/operations.ts` : un constructeur par type d'opération du contrat (vingt
+  depuis le Lot 7, dont les douze de la pratique de jeu).
+- `vtes/overlayPlay.ts` (Lot 7) : projection des joueurs, lieux, tournois et parties
+  (clés `ref:<uuid>`, alias, upsert par nom, bilan provisoire). `overlay.ts` l'appelle
+  pour ces douze types.
 - `vtes/transport.ts` : `POST /sync` par le client typé généré.
 - `vtes/overlay.ts`, `vtes/reads.ts` : ce que l'UI lit.
 - `vtes/refresh.ts` : rafraîchissement des miroirs depuis les `GET`.
@@ -196,6 +200,19 @@ la couche le lance au démarrage, au retour du réseau et après chaque rejeu.
   pendant la lecture donnent une seconde lecture, avec catalogue.
 - **Il attend la fin de l'envoi en cours** (`engine.whenDrained()`), pour ne pas lire un
   serveur à mi-chemin d'un lot.
+- **Ordre des miroirs** : langues, extensions, stock, decks, puis (Lot 7) joueurs,
+  lieux, tournois, parties. Les tournois passent avant les parties pour que leur bilan
+  soit à jour quand une partie tranchée sort de `settled`. Si les tournois n'ont pas pu
+  être lus (401 ou autre erreur), les parties ne sont pas rafraîchies dans ce passage :
+  leurs opérations restent dans `settled`, donc projetées avec le bilan recalculé, et le
+  rapport est `complete: false`.
+- **Les parties se relisent de façon incrémentale** : `GET /parties` ne rend que mon
+  résumé, la table vient de `GET /parties/{id}`, lu seulement pour une partie nouvelle
+  ou dont `updated_at` a changé. Les tournois, eux, sont relus en détail à chaque fois
+  (`GET /tournois/{id}` : bilan et decks admis en finale, qui changent avec une
+  *partie* sans que `updated_at` du tournoi bouge). Un 404 sur un détail (ressource
+  supprimée entre la liste et le détail) omet la ligne ; un 401 laisse tous les miroirs
+  tels quels et se signale par `authRequired`.
 - **Garde-fou** : `refreshTimeoutMs` (60 s par défaut). Une lecture qui ne répond jamais
   rend un rapport d'échec et libère la place, au lieu de rendre muets tous les appels
   suivants.
@@ -459,6 +476,80 @@ demande à l'adaptateur, et que le cœur ne sait pas faire seul :
 - **Un miroir ne vide que sa famille de `settled`** (`vtes/families.ts`) : relire les
   joueurs n'efface pas une partie tranchée dont le miroir n'est pas encore à jour.
 
+## Pratique de jeu : joueurs, lieux, tournois, parties (Lot 7)
+
+**Écrire.** Une action par type d'opération, toutes par la file :
+
+```ts
+const { actions } = useVtesOffline();
+const club = await actions.ensureVenue("Club de Lyon");     // { created, key, clientRef, entry }
+const tournoi = await actions.createTournament({
+  name: "Régionaux", startDate: "2026-10-24", venue: club.key,
+  deckPolicy: "multi", finalDeckRule: "free_choice",
+});
+const marc = await actions.ensurePlayer("Marc");
+const partie = await actions.createGame({
+  tournament: tournoi.key, venue: club.key, roundType: "preliminary", roundNumber: 1,
+  playerCount: 4,                                   // playedAt : maintenant par défaut
+  participations: [
+    { player: "me", deck: "ref:<uuid du deck>", seat: 2, victoryPoints: 2.5, gameWin: true },
+    { player: marc.key, seat: 1 },
+  ],
+});
+await actions.updateGame(partie.key, { table: [...] });   // table COMPLÈTE, table connue seulement
+await actions.updateTournament(tournoi.key, { deckPolicy: "mono" }); // envoie final_deck_rule: null
+```
+
+- Les créations rendent `{ clientRef, key, entry }` ; la clé `ref:<uuid>` désigne la
+  ressource aussitôt, avant et après le verdict. Toute désignation (`venue`, `tournament`,
+  `player`, un deck…) accepte une clé `id:<n>` / `ref:<uuid>` ou un sélecteur
+  (`{ id }`, `{ clientRef }`) ; `"me"` désigne ma ligne.
+- Les champs non fournis sont omis, un `null` explicite part (remettre à zéro). `data`
+  et `table` d'un `game.update` ne sont écrits que s'ils sont fournis : `data: {}` et
+  `data` omis n'ont pas la même empreinte, la file garde le corps exact.
+- `ensurePlayer` / `ensureVenue` ne mettent rien en file si le nom existe déjà
+  (casse et accents ignorés, « Moi » exclu pour les joueurs). Le serveur fait de toute
+  façon un **upsert par nom** : un `applied` ne veut pas dire « créé », et deux
+  références peuvent désigner le même joueur.
+- `updateGame` avec `table` lève `GameTableUnknownError` si la table de la partie est
+  inconnue (`LocalGame.table === null`) : la remplacer d'un bloc effacerait les adversaires.
+
+**Lire.** `useLocalPlayers`, `useLocalVenues`, `useLocalTournaments({ q, from, to })`,
+`useLocalGames({ tournamentKey, casual, deckKey, venueKey, from, to })` rendent une liste
+(`undefined` tant qu'elle n'est pas lue) ; `useLocalPlayer`, `useLocalVenue`,
+`useLocalTournament`, `useLocalGame` prennent une clé et rendent `undefined` (pas lu),
+`null` (introuvable ici) ou la ressource. Les versions sans hook sont les `read*` de
+`reads.ts`. Les parties se trient de la plus récente à la plus ancienne, les tournois par
+date de début décroissante, les joueurs avec le « Moi » en tête.
+
+- **Clé canonique et alias.** Chaque ressource porte `key` et `aliases` (`id:<n>`,
+  chaque `ref:<uuid>` liée) ; les hooks « par clé » et les filtres retrouvent par n'importe
+  laquelle, donc une sélection tenue par l'UI survit au verdict. Dans le cas rare d'un
+  upsert, la clé canonique d'un joueur peut passer d'une référence à l'autre entre la file
+  et le miroir : toujours retrouver par `findByKey` / les hooks, ne pas comparer des clés
+  à la main.
+- **Table d'une partie.** `LocalGame.table` : `LocalTableLine[]` (`playerKey`, `isMe`,
+  `deckKey`, `seat`, VP et GW sur ma seule ligne), ou `null` si inconnue. Une partie saisie
+  hors ligne la porte d'emblée. Tant que le miroir des joueurs n'a jamais été lu, ma ligne
+  porte la clé `id:0` : se fier à `isMe`, pas à la clé.
+- **Bilan d'un tournoi.** `LocalTournament.summary` : celui du serveur, recalculé
+  localement dès qu'une partie du tournoi a bougé ; `summaryProvisional` est vrai tant
+  qu'une saisie du tournoi est encore en file. `admissibleFinalDecks` (`DeckKey[] | null`)
+  vient du dernier rafraîchissement et n'est jamais recalculé hors ligne.
+- **GW omis.** Comme le serveur (`resolved_game_win`), la projection prend pour GW d'une
+  ligne le GW déclaré, sinon le GW certain que donnent ses VP (`certainGameWin`), sinon
+  rien : le bilan provisoire compte donc le même GW que le serveur comptera.
+- **Nom du tournoi d'une partie.** Recopié du tournoi projeté ; `null` dès que la partie
+  n'a plus de tournoi.
+- **Compteurs** (`gameCount`, `tournamentCount`) : ceux du serveur, qui ne suivent pas la file.
+- Pour la ronde à proposer : `nextRoundNumber(parties du tournoi.map(roundNumber))` ;
+  pour le GW : `certainGameWin` (`playRules.ts`).
+
+**Libellés et corrections** (hors de ce dossier, `features/sync/`) : `describeOperation.ts`
+(pur, un libellé par type), `playCorrection.ts` (pur, champs et brouillon de correction)
+et `PlayCorrectionFields.tsx`. L'écran Synchronisation range les refus en cascade sous
+leur racine (`groupCascades` + `referencesOf`).
+
 ## Entre le verdict et le rafraîchissement
 
 Une opération tranchée sort de la file, mais l'instantané du serveur n'est relu que
@@ -589,8 +680,15 @@ dédié ou un routeur à hash.
 - `bundle.deposit` n'est pas projeté dans les lectures : le contenu du produit n'est
   pas mis en cache. Le stock correspondant apparaît au rafraîchissement qui suit la
   synchronisation.
-- Les miroirs se rafraîchissent en entier, pas en delta. Pour la taille de ce projet
-  c'est sans conséquence ; à revoir si Barrin a des volumes plus grands.
+- Les miroirs se rafraîchissent en entier, pas en delta, à une exception près : les
+  tables des parties (Lot 7), qu'on ne relit que si `updated_at` a changé. Pour la taille
+  de ce projet c'est sans conséquence ; à revoir si Barrin a des volumes plus grands.
+- Lot 7 : la liste des parties se lit en une requête, mais les tables en une par partie
+  nouvelle ou modifiée (sérielles), et les tournois en une par tournoi à chaque
+  rafraîchissement. Un premier chargement d'un long carnet est donc lent ; la suite ne
+  coûte que ce qui a changé.
+- Lot 7 : les compteurs des joueurs et des lieux, et les decks admis en finale, ne suivent
+  pas la file ; ils redeviennent exacts au rafraîchissement.
 - Le tri local compare les chaînes par unités de code, comme le tri binaire de SQLite
   pour la plupart des textes ; il partage la limite connue du back (majuscules avant
   minuscules, accents en fin).

@@ -6,11 +6,23 @@ import type {
   CardSetRow,
   DeckCardRow,
   DeckRow,
+  GameRow,
+  GameTableLineRow,
   LanguageRow,
+  PlayerRow,
   StockRow,
+  TournamentRow,
+  VenueRow,
   VtesOfflineDb,
 } from "./db";
-import { isDeckOperation, isStockOperation } from "./families";
+import {
+  isDeckOperation,
+  isGameOperation,
+  isPlayerOperation,
+  isStockOperation,
+  isTournamentOperation,
+  isVenueOperation,
+} from "./families";
 import type { ApiClient } from "./types";
 
 type Schemas = components["schemas"];
@@ -226,6 +238,170 @@ export async function refreshCatalog(client: ApiClient, db: VtesOfflineDb): Prom
   await db.transaction("rw", db.cards, async () => {
     await db.cards.clear();
     await db.cards.bulkPut(rows);
+  });
+  return rows.length;
+}
+
+// --- Pratique de jeu (Lot 7) -----------------------------------------------
+//
+// Ordre de rafraîchissement (`runtime.ts`) : joueurs, lieux, tournois, puis
+// parties. Une partie tranchée sort de `settled` quand le miroir des parties est
+// remplacé, et son tournoi doit alors déjà porter son bilan à jour ; un tournoi
+// ou une partie qui désigne un joueur ou un lieu le trouve déjà en place.
+
+export async function refreshPlayers(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const settledUpTo = await lastSettledSeq(db);
+  const players = unwrap(await client.GET("/joueurs"), "GET /joueurs");
+  const rows: PlayerRow[] = players.map((player) => ({
+    id: player.id,
+    name: player.name,
+    foldedName: foldText(player.name),
+    isMe: player.is_me,
+    gameCount: player.game_count,
+  }));
+  await db.transaction("rw", db.players, db.settled, async () => {
+    await db.players.clear();
+    await db.players.bulkPut(rows);
+    await pruneSettled(db, settledUpTo, isPlayerOperation);
+  });
+  return rows.length;
+}
+
+export async function refreshVenues(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const settledUpTo = await lastSettledSeq(db);
+  const venues = unwrap(await client.GET("/lieux"), "GET /lieux");
+  const rows: VenueRow[] = venues.map((venue) => ({
+    id: venue.id,
+    name: venue.name,
+    foldedName: foldText(venue.name),
+    city: venue.city,
+    notes: venue.notes,
+    gameCount: venue.game_count,
+    tournamentCount: venue.tournament_count,
+  }));
+  await db.transaction("rw", db.venues, db.settled, async () => {
+    await db.venues.clear();
+    await db.venues.bulkPut(rows);
+    await pruneSettled(db, settledUpTo, isVenueOperation);
+  });
+  return rows.length;
+}
+
+/**
+ * Tournois, détail compris : le bilan et les decks admis en finale ne se lisent
+ * que sur `GET /tournois/{id}`, et les decks admis changent quand une **partie**
+ * change (sans que `updated_at` du tournoi bouge) : on relit donc le détail de
+ * chaque tournoi à chaque rafraîchissement, comme les decks. Un tournoi supprimé
+ * entre la liste et le détail (404) est simplement omis.
+ */
+export async function refreshTournaments(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const settledUpTo = await lastSettledSeq(db);
+  const listed = unwrap(await client.GET("/tournois"), "GET /tournois");
+  const rows: TournamentRow[] = [];
+  for (const tournament of listed) {
+    const result = await client.GET("/tournois/{tournament_id}", {
+      params: { path: { tournament_id: tournament.id } },
+    });
+    if (result.data === undefined && result.response.status === 404) continue;
+    const detail = unwrap(result, `GET /tournois/${tournament.id}`);
+    rows.push({
+      id: detail.id,
+      name: detail.name,
+      startDate: detail.start_date,
+      endDate: detail.end_date,
+      venueId: detail.venue_id,
+      deckPolicy: detail.deck_policy,
+      format: detail.format,
+      eventTier: detail.event_tier,
+      finalDeckRule: detail.final_deck_rule,
+      roundCount: detail.round_count,
+      playerCount: detail.player_count,
+      myRanking: detail.my_ranking,
+      summary: {
+        preliminaryGameWins: detail.my_summary.preliminary_game_wins,
+        preliminaryVictoryPoints: detail.my_summary.preliminary_victory_points,
+        roundsPlayed: detail.my_summary.rounds_played,
+        finalVictoryPoints: detail.my_summary.final_victory_points,
+        finalGameWin: detail.my_summary.final_game_win,
+      },
+      admissibleFinalDecks: detail.admissible_final_decks,
+      notes: detail.notes,
+      updatedAt: detail.updated_at,
+    });
+  }
+  await db.transaction("rw", db.tournaments, db.settled, async () => {
+    await db.tournaments.clear();
+    await db.tournaments.bulkPut(rows);
+    await pruneSettled(db, settledUpTo, isTournamentOperation);
+  });
+  return rows.length;
+}
+
+function gameRow(game: Schemas["GameRead"], table: GameTableLineRow[] | null): GameRow {
+  return {
+    id: game.id,
+    playedAt: game.played_at,
+    venueId: game.venue_id,
+    tournamentId: game.tournament_id,
+    tournamentName: game.tournament_name,
+    roundNumber: game.round_number,
+    roundType: game.round_type,
+    playerCount: game.player_count,
+    me: {
+      deckId: game.me.deck_id,
+      seat: game.me.seat,
+      victoryPoints: game.me.victory_points,
+      gameWin: game.me.game_win,
+    },
+    notes: game.notes,
+    updatedAt: game.updated_at,
+    table,
+  };
+}
+
+function tableLine(line: Schemas["ParticipationRead"]): GameTableLineRow {
+  return {
+    playerId: line.player_id,
+    isMe: line.is_me,
+    deckId: line.deck_id,
+    seat: line.seat,
+    victoryPoints: line.victory_points,
+    gameWin: line.game_win,
+    notes: line.notes,
+  };
+}
+
+/**
+ * Parties, tables comprises, **de façon incrémentale** (choix validé le
+ * 2026-10-29, `docs/lot7-plan-parties.md`) : la liste ne rend que mon résumé, la
+ * table d'une partie se lit par `GET /parties/{id}`. Une partie déjà connue avec sa
+ * table, dont `updated_at` n'a pas changé, n'est pas relue (le serveur pose
+ * `updated_at` aussi quand seule la table change). Une partie disparue entre la
+ * liste et le détail (404) est omise. Toute autre erreur annule le
+ * rafraîchissement, l'ancien miroir restant intact.
+ */
+export async function refreshGames(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const settledUpTo = await lastSettledSeq(db);
+  const listed = unwrap(await client.GET("/parties"), "GET /parties");
+  const known = new Map((await db.games.toArray()).map((row) => [row.id, row]));
+  const rows: GameRow[] = [];
+  for (const game of listed) {
+    const previous = known.get(game.id);
+    if (previous && previous.table !== null && previous.updatedAt === game.updated_at) {
+      rows.push(gameRow(game, previous.table));
+      continue;
+    }
+    const result = await client.GET("/parties/{game_id}", {
+      params: { path: { game_id: game.id } },
+    });
+    if (result.data === undefined && result.response.status === 404) continue;
+    const detail = unwrap(result, `GET /parties/${game.id}`);
+    rows.push(gameRow(detail, detail.participations.map(tableLine)));
+  }
+  await db.transaction("rw", db.games, db.settled, async () => {
+    await db.games.clear();
+    await db.games.bulkPut(rows);
+    await pruneSettled(db, settledUpTo, isGameOperation);
   });
   return rows.length;
 }

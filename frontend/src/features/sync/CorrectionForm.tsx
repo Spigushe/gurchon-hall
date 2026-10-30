@@ -8,6 +8,8 @@ import { useIsDesktop } from "../../components/useIsDesktop";
 import { DECK_STATUS_LABELS, REJECTION_LABELS, type DeckStatus } from "../../labels";
 import type { OutboxEntry } from "../../offline/core";
 import { useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import { applyDraft, initialDraft, isPlayCorrectable, type PlayDraft } from "./playCorrection";
+import { PlayCorrectionFields } from "./PlayCorrectionFields";
 import { useOperationDescriber } from "./useOperationLabels";
 
 type Entry = OutboxEntry<VtesOperation>;
@@ -72,6 +74,9 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
     operation.type === "deck.update" ? (operation.data.status ?? "draft") : "draft",
   );
   const [invalid, setInvalid] = useState<string | null>(null);
+  // Pratique de jeu (Lot 7) : un brouillon par opération, champs limités à ce qu'elle porte.
+  const playCorrectable = isPlayCorrectable(operation);
+  const [playDraft, setPlayDraft] = useState<PlayDraft>(() => initialDraft(operation));
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -133,8 +138,12 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
             : op;
         break;
       }
-      default:
-        return;
+      default: {
+        if (!playCorrectable) return;
+        const result = applyDraft(operation, playDraft);
+        if ("error" in result) return setInvalid(result.error);
+        transform = () => result.operation;
+      }
     }
     setInvalid(null);
     const done = await action.run(() => outbox.reissue(entry.operationId, transform));
@@ -206,6 +215,15 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
               <option value="active">{DECK_STATUS_LABELS.active}</option>
             </select>
           </div>
+        )}
+
+        {playCorrectable && (
+          <PlayCorrectionFields
+            operation={operation}
+            draft={playDraft}
+            setDraft={setPlayDraft}
+            rejectionCode={entry.rejection?.code}
+          />
         )}
 
         <p className="hint">

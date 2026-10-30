@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { REJECTION_LABELS, formatDateTime, plural } from "../../labels";
 import { useRejectedOperations } from "../../offline/react";
-import { type OutboxEntry } from "../../offline/core";
-import { useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import { groupCascades, type OutboxEntry } from "../../offline/core";
+import { referencesOf, useVtesOffline, type VtesOperation } from "../../offline/vtes";
 import { isCorrectable } from "./correctable";
 import { CorrectionForm } from "./CorrectionForm";
 import { useOperationDescriber } from "./useOperationLabels";
@@ -35,12 +35,15 @@ function RejectedItem({
   isDesktop,
   selected,
   onSelect,
+  cascadeOf,
 }: {
   entry: Entry;
   describe: (op: VtesOperation) => string;
   isDesktop: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Libellé du refus dont celui-ci n'est que la suite (création refusée qu'il désigne). */
+  cascadeOf?: string;
 }) {
   const { outbox } = useVtesOffline();
   const action = useGuardedAction();
@@ -79,6 +82,11 @@ function RejectedItem({
               {rejection ? REJECTION_LABELS[rejection.code] : "Opération refusée"}
               {rejection?.message ? ` : ${rejection.message}` : ""}
             </p>
+            {cascadeOf && (
+              <p className="row__meta" data-testid="rejected-cascade">
+                Suite du refus de : {cascadeOf}
+              </p>
+            )}
             <p className="row__meta" data-testid="rejected-recorded-at">
               Saisie du {formatDateTime(entry.recordedAt)}
             </p>
@@ -103,6 +111,11 @@ function RejectedItem({
         {rejection ? REJECTION_LABELS[rejection.code] : "Opération refusée"}
         {rejection?.message ? ` : ${rejection.message}` : ""}
       </p>
+      {cascadeOf && (
+        <p className="row__meta" data-testid="rejected-cascade">
+          Suite du refus de : {cascadeOf}. Corrigez d'abord celui-ci.
+        </p>
+      )}
       <p className="row__meta">Saisie du {formatDateTime(entry.recordedAt)}</p>
 
       {action.error && (
@@ -194,6 +207,18 @@ export function RejectedOperations({
 } = {}) {
   const entries = useRejectedVtesOperations();
   const describe = useOperationDescriber(entries ?? NO_ENTRIES);
+  // Les refus en cascade se rangent sous leur racine : une création refusée
+  // (deck, joueur, lieu, tournoi, partie) entraîne le refus de tout ce qui la désigne.
+  const ordered = useMemo(
+    () =>
+      groupCascades(entries ?? NO_ENTRIES, (entry) => referencesOf(entry.operation)).flatMap(
+        (group) => [
+          { entry: group.root, root: null as Entry | null },
+          ...group.dependents.map((entry) => ({ entry, root: group.root as Entry | null })),
+        ],
+      ),
+    [entries],
+  );
   if (!entries) return null;
 
   if (entries.length === 0) {
@@ -212,12 +237,12 @@ export function RejectedOperations({
         </h2>
         <p className="accent-block__detail">
           Le serveur n'a pas appliqué ces saisies. Elles n'ont aucun effet sur vos données : corrigez
-          puis renvoyez, ou abandonnez. Une création de deck refusée entraîne le refus de ses
-          opérations suivantes : renvoyez d'abord la création.
+          puis renvoyez, ou abandonnez. Une création refusée (deck, joueur, lieu, tournoi, partie)
+          entraîne le refus de ce qui la désigne : renvoyez d'abord la création.
         </p>
       </div>
       <ul className="list">
-        {entries.map((entry) => (
+        {ordered.map(({ entry, root }) => (
           <RejectedItem
             key={entry.operationId}
             entry={entry}
@@ -225,6 +250,7 @@ export function RejectedOperations({
             isDesktop={isDesktop}
             selected={selectedId === entry.operationId}
             onSelect={() => onSelect?.(entry.operationId)}
+            cascadeOf={root ? describe(root.operation) : undefined}
           />
         ))}
       </ul>

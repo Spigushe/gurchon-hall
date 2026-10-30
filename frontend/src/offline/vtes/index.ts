@@ -1,6 +1,8 @@
 // Adaptateur VtES de la couche offline : c'est la seule partie propre au domaine.
-export { AcquisitionBoundError, createVtesOffline } from "./runtime";
+export { AcquisitionBoundError, GameTableUnknownError, createVtesOffline } from "./runtime";
 export type {
+  CreatedResource,
+  EnsuredResource,
   RefreshOptions,
   RefreshReport,
   VtesActions,
@@ -60,7 +62,7 @@ export {
   kindOfBinding,
   referencesOf,
 } from "./references";
-export type { ReferenceKind } from "./references";
+export type { CreationBinding, ReferenceKind } from "./references";
 export {
   isDeckOperation,
   isGameOperation,
@@ -79,27 +81,77 @@ export {
   resolveLanguageCode,
 } from "./languages";
 export * as operations from "./operations";
-export type { DeckCardInput, DeckInput, DeckPatch, OperationClock, StockInput } from "./operations";
-export { availableStock, project } from "./overlay";
-export type { LocalDeck, LocalDeckCard, LocalStockEntry, Projection, Snapshot } from "./overlay";
+export type {
+  DeckCardInput,
+  DeckInput,
+  DeckPatch,
+  GameInput,
+  GamePatch,
+  GameUpdate,
+  OperationClock,
+  ParticipationInput,
+  PlayerInput,
+  PlayerPatch,
+  StockInput,
+  TournamentInput,
+  TournamentPatch,
+  VenueInput,
+  VenuePatch,
+} from "./operations";
+export { availableStock, findByKey, project } from "./overlay";
+export type {
+  LocalDeck,
+  LocalDeckCard,
+  LocalGame,
+  LocalGameMe,
+  LocalPlayer,
+  LocalResource,
+  LocalStockEntry,
+  LocalTableLine,
+  LocalTournament,
+  LocalTournamentSummary,
+  LocalVenue,
+  Projection,
+  Snapshot,
+} from "./overlay";
 export {
   readCardSets,
   readDeck,
   readDeckCards,
   readDeckCountByCard,
   readDecks,
+  readGame,
+  readGames,
+  readPlayer,
+  readPlayers,
   readProjection,
   readStock,
+  readTournament,
+  readTournaments,
+  readVenue,
+  readVenues,
   searchCards,
 } from "./reads";
-export type { CardQuery, DeckListState, DeckQuery, StockQuery } from "./reads";
+export type {
+  CardQuery,
+  DeckListState,
+  DeckQuery,
+  GameQuery,
+  PlayerQuery,
+  StockQuery,
+  TournamentQuery,
+} from "./reads";
 export {
   RefreshAuthError,
   refreshCardSets,
   refreshCatalog,
   refreshDecks,
+  refreshGames,
   refreshLanguages,
+  refreshPlayers,
   refreshStock,
+  refreshTournaments,
+  refreshVenues,
 } from "./refresh";
 export { createVtesSyncTransport, describeErrorBody, toVerdict } from "./transport";
 export {
@@ -110,6 +162,11 @@ export {
   playerKeyOf,
   resourceKeyOf,
   toDeckRef,
+  toGameRef,
+  toParticipantRef,
+  toPlayerRef,
+  toTournamentRef,
+  toVenueRef,
   tournamentKeyOf,
   venueKeyOf,
 } from "./types";
@@ -117,11 +174,21 @@ export type {
   ApiClient,
   DeckKey,
   DeckSelector,
+  CreationOperationType,
+  DeckPolicy,
+  EventTier,
+  FinalDeckRule,
   GameKey,
   OperationOf,
+  ParticipantTarget,
   PlayerKey,
+  PlayOperation,
+  PlayOperationType,
   ResourceKey,
   ResourceSelector,
+  ResourceTarget,
+  RoundType,
+  TournamentFormat,
   TournamentKey,
   VenueKey,
   VtesOperation,
@@ -136,5 +203,13 @@ export {
   useLocalDeck,
   useLocalDeckCards,
   useLocalDecks,
+  useLocalGame,
+  useLocalGames,
+  useLocalPlayer,
+  useLocalPlayers,
   useLocalStock,
+  useLocalTournament,
+  useLocalTournaments,
+  useLocalVenue,
+  useLocalVenues,
 } from "./hooks";

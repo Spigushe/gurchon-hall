@@ -73,3 +73,61 @@ export const playerKeyOf: (selector: ResourceSelector) => PlayerKey = resourceKe
 export const venueKeyOf: (selector: ResourceSelector) => VenueKey = resourceKeyOf;
 export const tournamentKeyOf: (selector: ResourceSelector) => TournamentKey = resourceKeyOf;
 export const gameKeyOf: (selector: ResourceSelector) => GameKey = resourceKeyOf;
+
+// --- Désignations du Lot 7 --------------------------------------------------
+
+/**
+ * Ce qu'on peut passer à une action ou à un constructeur pour désigner un
+ * joueur, un lieu, un tournoi ou une partie : sa clé de surcouche
+ * (`id:<n>` / `ref:<uuid>`) ou un sélecteur. Les deux mènent à la même
+ * référence du contrat (`{player_id}` ou `{client_ref}`).
+ */
+export type ResourceTarget = ResourceKey | ResourceSelector;
+
+/** Un participant à une table : « moi », ou un joueur désigné. */
+export type ParticipantTarget = "me" | ResourceTarget;
+
+const selectorOf = (target: ResourceTarget): ResourceSelector =>
+  typeof target === "string" ? parseResourceKey(target) : target;
+
+export function toPlayerRef(target: ResourceTarget): Schemas["PlayerRef"] {
+  const selector = selectorOf(target);
+  return "id" in selector ? { player_id: selector.id } : { client_ref: selector.clientRef };
+}
+
+export function toVenueRef(target: ResourceTarget): Schemas["VenueRef"] {
+  const selector = selectorOf(target);
+  return "id" in selector ? { venue_id: selector.id } : { client_ref: selector.clientRef };
+}
+
+export function toTournamentRef(target: ResourceTarget): Schemas["TournamentRef"] {
+  const selector = selectorOf(target);
+  return "id" in selector ? { tournament_id: selector.id } : { client_ref: selector.clientRef };
+}
+
+export function toGameRef(target: ResourceTarget): Schemas["GameRef"] {
+  const selector = selectorOf(target);
+  return "id" in selector ? { game_id: selector.id } : { client_ref: selector.clientRef };
+}
+
+export function toParticipantRef(target: ParticipantTarget): Schemas["ParticipantRef"] {
+  if (target === "me") return { me: true };
+  const selector = selectorOf(target);
+  return "id" in selector ? { player_id: selector.id } : { client_ref: selector.clientRef };
+}
+
+// Les enums de la pratique de jeu viennent du contrat généré.
+export type RoundType = Schemas["RoundType"];
+export type DeckPolicy = Schemas["DeckPolicy"];
+export type TournamentFormat = Schemas["TournamentFormat"];
+export type EventTier = Schemas["EventTier"];
+export type FinalDeckRule = Schemas["FinalDeckRule"];
+
+/** Types d'opération de la pratique de jeu (Lot 7). */
+export type PlayOperationType = Extract<
+  VtesOperationType,
+  `${"player" | "venue" | "tournament" | "game"}.${string}`
+>;
+export type PlayOperation = OperationOf<PlayOperationType>;
+/** Créations : celles qui portent une `client_ref` à plat. */
+export type CreationOperationType = Extract<VtesOperationType, `${string}.create`>;
