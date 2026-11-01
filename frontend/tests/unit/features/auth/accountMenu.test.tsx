@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { AccountMenu } from "../../../../src/features/auth/AccountMenu";
+import { ReconnectBanner } from "../../../../src/features/auth/ReconnectBanner";
 import { AuthActionsContext, type AuthActions } from "../../../../src/features/auth/context";
 import { OfflineProvider } from "../../../../src/offline/react";
 import type { SyncStatus } from "../../../../src/offline/core/syncEngine";
@@ -125,7 +126,6 @@ function makeSyncStatus(overrides: Partial<SyncStatus> = {}): SyncStatus {
 
 describe("<ReconnectBanner />", () => {
   it("ne s'affiche pas tant que le moteur n'est pas en pause d'authentification", async () => {
-    const { ReconnectBanner } = await import("../../../../src/features/auth/ReconnectBanner");
     const status = makeSyncStatus({ authRequired: false });
     render(
       <OfflineProvider
@@ -144,7 +144,6 @@ describe("<ReconnectBanner />", () => {
   });
 
   it("s'affiche et ouvre un panneau de reconnexion quand le moteur est en pause", async () => {
-    const { ReconnectBanner } = await import("../../../../src/features/auth/ReconnectBanner");
     const status = makeSyncStatus({ authRequired: true, pending: 2 });
     render(
       <OfflineProvider

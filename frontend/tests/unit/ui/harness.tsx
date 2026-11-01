@@ -27,6 +27,14 @@ export function setOnline(value: boolean) {
   window.dispatchEvent(new Event(value ? "online" : "offline"));
 }
 
+/**
+ * Laisse React poser ses effets passifs en attente. `findBy*` rend la main dès que
+ * le DOM a changé, parfois avant que les effets du même rendu aient tourné : un
+ * raccourci clavier lit alors ses liaisons du rendu précédent (`useKeyboardShortcuts`
+ * les met à jour dans un effet). À appeler entre l'attente d'un écran et la frappe.
+ */
+export const flushEffects = () => act(async () => {});
+
 export interface UiServer {
   /** Réponses pour les lectures sans miroir local (légalité, produits). */
   legality: { status: number; body: unknown };

@@ -700,7 +700,8 @@ describe("collection : vue tableau bureau (Lot 5bis, étape 8)", () => {
     expect(screen.getByTestId("bundle-open-desktop")).toBeInTheDocument();
     expect(screen.getByTestId("stock-language-select-desktop")).toBeInTheDocument();
 
-    expect(screen.getByTestId("stock-tab-count-all")).toHaveTextContent("2");
+    // Les compteurs viennent d'une lecture locale distincte de la liste : on attend la valeur.
+    await waitFor(() => expect(screen.getByTestId("stock-tab-count-all")).toHaveTextContent("2"));
     expect(screen.getByTestId("stock-tab-count-crypt")).toHaveTextContent("1");
     expect(screen.getByTestId("stock-tab-count-library")).toHaveTextContent("1");
     expect(screen.getByTestId("stock-tab-count-proxy")).toHaveTextContent("1");
@@ -722,7 +723,7 @@ describe("collection : vue tableau bureau (Lot 5bis, étape 8)", () => {
     expect(screen.queryByTestId("stock-language-select-desktop")).not.toBeInTheDocument();
     // Adapté au Lot 5c (étape 3) : les compteurs d'onglets sont désormais aussi visibles en
     // mobile (écart n°4 de l'audit) ; ce test affirmait leur absence.
-    expect(screen.getByTestId("stock-tab-count-all")).toBeInTheDocument();
+    expect(await screen.findByTestId("stock-tab-count-all")).toBeInTheDocument();
   });
 });
 
@@ -767,10 +768,10 @@ describe("collection mobile : méta, compteurs et tri (Lot 5c, étape 3)", () =>
 
   it("compteurs d'onglets et total d'exemplaires visibles", async () => {
     await mobileWithCards();
-    expect(screen.getByTestId("stock-tab-count-all")).toHaveTextContent("2");
+    await waitFor(() => expect(screen.getByTestId("stock-tab-count-all")).toHaveTextContent("2"));
     expect(screen.getByTestId("stock-tab-count-crypt")).toHaveTextContent("1");
     expect(screen.getByTestId("stock-tab-count-library")).toHaveTextContent("1");
-    expect(screen.getByTestId("stock-total-copies")).toHaveTextContent("7 exemplaires");
+    await waitFor(() => expect(screen.getByTestId("stock-total-copies")).toHaveTextContent("7 exemplaires"));
   });
 
   it("la feuille de filtres trie la liste (critère + sens), comme les en-têtes du tableau bureau", async () => {

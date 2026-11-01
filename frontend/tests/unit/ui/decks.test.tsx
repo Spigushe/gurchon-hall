@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { hrefFor } from "../../../src/app/routes";
 import type { DeckKey } from "../../../src/offline/vtes";
-import { renderApp, setOnline, type AppOptions } from "./harness";
+import { flushEffects, renderApp, setOnline, type AppOptions } from "./harness";
 
 type App = Awaited<ReturnType<typeof renderApp>>;
 
@@ -268,6 +268,7 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
       window.location.hash = "#/decks";
     });
     await screen.findByTestId("decks-detail-title");
+    await flushEffects();
     fireEvent.keyDown(document, { key: "Enter" });
     expect((await screen.findByTestId("deck-page")).getAttribute("data-deck-key")).toBe(key);
   });
@@ -279,6 +280,7 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
 
     fireEvent.keyDown(document, { key: "n" });
     await screen.findByTestId("deck-form-sheet");
+    await flushEffects();
 
     // Entrée ne doit jamais agir derrière une feuille ouverte (elle démonterait
     // la feuille en changeant de route, cf. le commentaire de `DecksPage.tsx`).
@@ -959,6 +961,7 @@ describe("decks : raccourci Entrée (Lot 5c, étape 7)", () => {
     await runtime.actions.createDeck({ name: "Assamite" });
     await runtime.actions.createDeck({ name: "Brujah" });
     await screen.findByTestId("decks-detail-title");
+    await flushEffects();
 
     const select = screen.getAllByTestId("deck-select")[1];
     select.focus();

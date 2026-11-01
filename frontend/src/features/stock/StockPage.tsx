@@ -199,29 +199,26 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
     );
   const deferred = useDeferredValue(term.trim());
   const category = filter === "crypt" || filter === "library" ? filter : undefined;
-  const rawEntries = useLocalStock({
-    q: deferred || undefined,
-    languageCode: languageCode || undefined,
-    cardSetId: cardSetId ?? undefined,
-    category,
-  });
-  const entries = rawEntries?.filter((entry) => {
-    if (filter === "proxy" && entry.quantityOwned !== 0) return false;
-    if (ownedFilter === "owned" && entry.quantityOwned === 0) return false;
-    if (ownedFilter === "zero" && entry.quantityOwned !== 0) return false;
-    return true;
-  });
-
-  // Base sans catégorie, pour les compteurs des onglets bureau (« Toutes · 412 »,
-  // handoff « d02 ») : la requête principale ci-dessus reste inchangée (elle ne
-  // porte qu'un seul onglet à la fois), ce second appel `useLocalStock` reste
-  // local (aucun réseau) et sert uniquement d'affichage — même état, mêmes
-  // filtres (langue, extension, recherche), juste sans restreindre la catégorie.
+  // Une seule lecture locale (langue, extension, recherche) nourrit à la fois la
+  // liste et les compteurs d'onglets : deux requêtes Dexie indépendantes pouvaient
+  // se montrer l'une avant l'autre (liste affichée, compteurs absents ou en retard).
+  // La catégorie, un simple prédicat, s'applique ici sur la même lecture.
   const countBase = useLocalStock({
     q: deferred || undefined,
     languageCode: languageCode || undefined,
     cardSetId: cardSetId ?? undefined,
   });
+  const entries = useMemo(
+    () =>
+      countBase?.filter((entry) => {
+        if (category && entry.category !== category) return false;
+        if (filter === "proxy" && entry.quantityOwned !== 0) return false;
+        if (ownedFilter === "owned" && entry.quantityOwned === 0) return false;
+        if (ownedFilter === "zero" && entry.quantityOwned !== 0) return false;
+        return true;
+      }),
+    [countBase, category, filter, ownedFilter],
+  );
   const tabCounts = useMemo(() => {
     if (!countBase) return undefined;
     const passesOwned = (entry: LocalStockEntry) =>
