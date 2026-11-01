@@ -1300,6 +1300,31 @@ ni partie, ni tournoi, ni joueur.
   `playLabelsAndCorrections.test.ts`. Chaque correction a été vérifiée en la défaisant : le
   test correspondant échoue. Les commentaires de `core/references.ts` ne citent plus de
   notion VtES.
+- **Flakiness vitest (2026-10-30)** : trois causes, toutes sans lien avec le Lot 7.
+  1. *Compteurs de la collection en retard sur la liste* (`StockPage.tsx`) : la liste et
+     les compteurs d'onglets venaient de deux `useLocalStock` indépendants, donc de deux
+     `liveQuery` Dexie qui aboutissent dans un ordre quelconque ; `stock.test.tsx` lisait
+     les compteurs dès que la liste était là. Défaut visible aussi à l'écran (liste
+     affichée, compteurs absents un instant). Correction **du composant**, minimale : une
+     seule lecture (langue, extension, recherche), la catégorie s'applique ensuite comme
+     simple prédicat (elle l'était déjà côté client dans `readStock`) ; les tests attendent
+     la valeur des compteurs par `waitFor` / `findBy*`.
+  2. *Raccourci Entrée lu avant la pose des effets* (`decks.test.tsx`, « ouvre le
+     deckbuilder… raccourci Entrée », et deux voisins) : `useKeyboardShortcuts` met ses
+     liaisons à jour dans un effet passif, et `findBy*` rend la main dès que le DOM a
+     changé, parfois avant cet effet ; la frappe voyait alors `selectedDeck` du rendu
+     précédent (`null`). Correction de test : `flushEffects()` (nouveau, `harness.tsx`)
+     entre l'attente de l'écran et la frappe. Le hook est inchangé : un humain ne frappe pas
+     dans la milliseconde qui suit le rendu.
+  3. *`import()` dynamique froid sous charge* (`accountMenu.test.tsx`, `<ReconnectBanner />`) :
+     le test importait le composant dans le corps du test ; sur une machine saturée la
+     transformation à froid du module a pris 22 s pour 15 s de délai. Import statique. Les
+     `import()` de `client.test.ts` et `barrel.test.ts` sont voulus (ils testent l'import
+     même) et restent exposés au même risque en cas de saturation extrême.
+  Aucun `retry`, aucun délai relevé. Mesure : un lancement complet sous forte charge (4
+  coeurs saturés) a échoué sur la cause 3 ; les causes 1 et 2 ne se reproduisent pas en
+  isolation, elles ont été établies par lecture du code. Après correction, 12 lancements
+  complets consécutifs (606 tests sur 42 fichiers) sont verts.
 - **E2E** : aucun nouveau scénario (le gros des e2e vient avec les écrans). Les 51
   tests existants passent, après une correction : `offline-db-schema.spec.ts` attendait
   encore la version 40 du schéma IndexedDB et dix magasins, la version 5 de C1a (50, quatorze
