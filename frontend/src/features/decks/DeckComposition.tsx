@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ClockCountdown, Trash } from "@phosphor-icons/react";
+import { ClockCountdownIcon, TrashIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
@@ -226,7 +226,7 @@ function CompositionRow({
           </p>
           {line.pending && (
             <p className="row__pending" data-testid="pending-badge">
-              <ClockCountdown size={14} />
+              <ClockCountdownIcon size={14} />
               En attente de synchronisation
             </p>
           )}
@@ -271,7 +271,7 @@ function CompositionRow({
             )
           }
         >
-          <Trash size={16} />
+          <TrashIcon size={16} />
           Retirer
         </button>
       </div>

@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import type { LanguageOption } from "../features/stock/useLanguageOptions";
 
 const MAIN_CODES = ["EN", "FR", "ES"];
@@ -58,7 +58,7 @@ export function LanguageChips({
             }}
             disabled={disabled || otherOptions.length === 0}
           />
-          Autre <CaretDown size={12} />
+          Autre <CaretDownIcon size={12} />
         </label>
       </div>
       {isOther && (

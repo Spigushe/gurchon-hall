@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type FormEvent } from "react";
-import { Trash } from "@phosphor-icons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
 import { BackRow, Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
@@ -302,7 +302,7 @@ export function StockForm({
                 data-testid="stock-entry-delete"
                 onClick={() => setConfirming(true)}
               >
-                <Trash size={16} />
+                <TrashIcon size={16} />
                 Retirer
               </button>
             )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Cards } from "@phosphor-icons/react";
+import { CardsIcon } from "@phosphor-icons/react";
 import { useConnectivity } from "../offline/react";
 
 /**
@@ -72,7 +72,7 @@ export function CardImage({
         />
       ) : (
         <span className="card-image__placeholder" role="img" aria-label={alt}>
-          <Cards size={PLACEHOLDER_ICON_SIZE[size]} weight="light" aria-hidden="true" />
+          <CardsIcon size={PLACEHOLDER_ICON_SIZE[size]} weight="light" aria-hidden="true" />
         </span>
       )}
     </span>

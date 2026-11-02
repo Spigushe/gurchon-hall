@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { CaretDown, CaretUp, ClockCountdown, Funnel, Plus } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, FunnelIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { consumeIntent, type GamesIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
@@ -114,7 +114,7 @@ function GameItem({ game, lookups }: { game: LocalGame; lookups: Lookups }) {
           <span className="row__meta">{meta}</span>
           {game.pending && (
             <span className="row__pending" data-testid="pending-badge">
-              <ClockCountdown size={14} />
+              <ClockCountdownIcon size={14} />
               En attente de synchronisation
             </span>
           )}
@@ -254,7 +254,7 @@ function GamesTable({
             >
               {column.label}
               {sort.column === column.key &&
-                (sort.dir === "asc" ? <CaretUp size={12} /> : <CaretDown size={12} />)}
+                (sort.dir === "asc" ? <CaretUpIcon size={12} /> : <CaretDownIcon size={12} />)}
             </button>
           </span>
         ))}
@@ -278,7 +278,7 @@ function GamesTable({
               <span className="games-table__cell">
                 {shortDateTime(game.playedAt)}
                 {game.pending && (
-                  <ClockCountdown size={13} className="games-table__pending" data-testid="pending-badge" aria-label="En attente de synchronisation" />
+                  <ClockCountdownIcon size={13} className="games-table__pending" data-testid="pending-badge" aria-label="En attente de synchronisation" />
                 )}
               </span>
               <span className="games-table__cell games-table__cell--strong">{lookups.deckName(game)}</span>
@@ -459,7 +459,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
                 aria-keyshortcuts="n"
                 onClick={() => setCreating(true)}
               >
-                <Plus size={16} />
+                <PlusIcon size={16} />
                 Nouvelle partie
                 <Kbd>N</Kbd>
               </button>
@@ -480,7 +480,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
                 onClick={() => setFiltersOpen(true)}
                 data-testid="game-filters-open"
               >
-                <Funnel size={16} />
+                <FunnelIcon size={16} />
                 Deck, lieu
               </button>
             </div>
@@ -499,7 +499,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
                   data-testid="games-empty-create"
                   onClick={() => setCreating(true)}
                 >
-                  <Plus size={18} />
+                  <PlusIcon size={18} />
                   Nouvelle partie
                 </button>
               </div>
@@ -543,7 +543,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
 
       <div className="floating-actions">
         <Pill onClick={() => setCreating(true)} data-testid="game-add">
-          <Plus size={20} />
+          <PlusIcon size={20} />
           Nouvelle partie
         </Pill>
       </div>

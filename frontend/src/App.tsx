@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
-import { Cards, House, MagnifyingGlass, Stack, Trophy, WarningCircle, WifiSlash } from "@phosphor-icons/react";
+import { CardsIcon, HouseIcon, MagnifyingGlassIcon, StackIcon, TrophyIcon, WarningCircleIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
@@ -199,24 +199,24 @@ function TabBar({ route }: { route: Route }) {
         className="tabbar__item"
         data-testid="nav-home"
       >
-        <House size={22} weight={active.home ? "fill" : "regular"} />
+        <HouseIcon size={22} weight={active.home ? "fill" : "regular"} />
         <span>Atelier</span>
         {status.rejected > 0 && <span className="tabbar__badge" aria-label={rejectedLabel} />}
       </Link>
       <Link to={{ name: "stock" }} current={active.stock} className="tabbar__item" data-testid="nav-stock">
-        <Stack size={22} weight={active.stock ? "fill" : "regular"} />
+        <StackIcon size={22} weight={active.stock ? "fill" : "regular"} />
         <span>Collection</span>
       </Link>
       <Link to={{ name: "decks" }} current={active.decks} className="tabbar__item" data-testid="nav-decks">
-        <Cards size={22} weight={active.decks ? "fill" : "regular"} />
+        <CardsIcon size={22} weight={active.decks ? "fill" : "regular"} />
         <span>Decks</span>
       </Link>
       <Link to={{ name: "games" }} current={active.games} className="tabbar__item" data-testid="nav-games">
-        <Trophy size={22} weight={active.games ? "fill" : "regular"} />
+        <TrophyIcon size={22} weight={active.games ? "fill" : "regular"} />
         <span>Parties</span>
       </Link>
       <span className="tabbar__item" aria-disabled="true">
-        <MagnifyingGlass size={22} weight="regular" />
+        <MagnifyingGlassIcon size={22} weight="regular" />
         <span>Chercher</span>
       </span>
     </nav>
@@ -312,7 +312,7 @@ function TopBar({ route }: { route: Route }) {
         <div className="topbar__actions">
           {hasProblem && (
             <Link to={{ name: "sync" }} className="topbar__alert" data-testid="topbar-sync-alert">
-              <WarningCircle size={14} weight="fill" />
+              <WarningCircleIcon size={14} weight="fill" />
               {problems.join(" · ")}
             </Link>
           )}
@@ -397,7 +397,7 @@ function App() {
           <h1 className="shell-bar__brand">Gurchon Hall</h1>
           <AccountMenu />
           <p className="shell-bar__status" role="status" data-online={online}>
-            {!online && <WifiSlash size={14} weight="fill" />}
+            {!online && <WifiSlashIcon size={14} weight="fill" />}
             {online ? "En ligne" : "Hors ligne"}
           </p>
         </div>

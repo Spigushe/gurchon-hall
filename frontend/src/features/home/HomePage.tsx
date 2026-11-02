@@ -1,4 +1,4 @@
-import { ArrowUpRight, Cards, Database, Plus } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, CardsIcon, DatabaseIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
@@ -131,7 +131,7 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
       >
         {display.label}
       </span>
-      <ArrowUpRight size={18} className="home-deck-row__arrow" />
+      <ArrowUpRightIcon size={18} className="home-deck-row__arrow" />
     </Link>
   );
 }
@@ -165,7 +165,7 @@ function HomeDeckListItem({ deck }: { deck: LocalDeck }) {
             )}
           </p>
         </span>
-        <ArrowUpRight size={18} className="row__arrow" />
+        <ArrowUpRightIcon size={18} className="row__arrow" />
       </Link>
     </li>
   );
@@ -257,7 +257,7 @@ export function HomePage() {
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-deck"
             >
-              <Cards size={18} />
+              <CardsIcon size={18} />
               Nouveau deck
             </Link>
             <Link
@@ -265,7 +265,7 @@ export function HomePage() {
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-stock"
             >
-              <Plus size={18} />
+              <PlusIcon size={18} />
               Ajouter une carte
             </Link>
             <Link
@@ -273,7 +273,7 @@ export function HomePage() {
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-bundle"
             >
-              <Database size={18} />
+              <DatabaseIcon size={18} />
               Verser un produit
             </Link>
           </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ClockCountdown, Trash } from "@phosphor-icons/react";
+import { ClockCountdownIcon, TrashIcon } from "@phosphor-icons/react";
 import { Kbd } from "../../components/Kbd";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
@@ -149,7 +149,7 @@ export function GameDetail({
           data-testid="game-delete"
           onClick={() => setConfirming(true)}
         >
-          <Trash size={16} />
+          <TrashIcon size={16} />
           Supprimer
         </button>
       )}
@@ -171,7 +171,7 @@ export function GameDetail({
 
       {game.pending && (
         <p className="row__pending" data-testid="pending-badge">
-          <ClockCountdown size={14} />
+          <ClockCountdownIcon size={14} />
           En attente de synchronisation
         </p>
       )}

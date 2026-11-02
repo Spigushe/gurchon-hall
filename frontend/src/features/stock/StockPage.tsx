@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Database, DotsThree, Funnel, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { DatabaseIcon, DotsThreeIcon, FunnelIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { consumeIntent, type StockIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { Pill } from "../../components/Pill";
@@ -337,7 +337,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
               aria-keyshortcuts="n"
               onClick={openCreate}
             >
-              <Plus size={18} />
+              <PlusIcon size={18} />
               Ajouter une carte
               <Kbd>N</Kbd>
             </button>
@@ -348,7 +348,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
       {catalog.count === 0 && <CatalogPanel compact />}
 
       <div className="search-field">
-        <MagnifyingGlass size={18} className="search-field__icon" />
+        <MagnifyingGlassIcon size={18} className="search-field__icon" />
         <label htmlFor={searchId} className="sr-only">
           Chercher dans ma collection
         </label>
@@ -429,12 +429,12 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
         >
           {isDesktop ? (
             <>
-              <Funnel size={16} />
+              <FunnelIcon size={16} />
               Filtrer le tableau
               <Kbd>F</Kbd>
             </>
           ) : (
-            <DotsThree size={22} />
+            <DotsThreeIcon size={22} />
           )}
         </button>
       </div>
@@ -487,7 +487,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
       {showActions && (
         <div className="floating-actions">
           <Pill onClick={openCreate} data-testid="stock-add">
-            <Plus size={20} />
+            <PlusIcon size={20} />
             Ajouter une carte
           </Pill>
           <button
@@ -497,7 +497,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
             data-testid="bundle-open"
             onClick={() => setBundleOpen(true)}
           >
-            <Database size={20} />
+            <DatabaseIcon size={20} />
           </button>
         </div>
       )}

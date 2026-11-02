@@ -1,4 +1,4 @@
-import { ClockCountdown } from "@phosphor-icons/react";
+import { ClockCountdownIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { plural } from "../../labels";
 import { useLocalGames, useLocalTournaments, type LocalTournament } from "../../offline/vtes";
@@ -14,7 +14,7 @@ function TournamentItem({ tournament }: { tournament: LocalTournament }) {
       </span>
       {tournament.pending && (
         <span className="row__pending" data-testid="pending-badge">
-          <ClockCountdown size={14} />
+          <ClockCountdownIcon size={14} />
           En attente de synchronisation
         </span>
       )}

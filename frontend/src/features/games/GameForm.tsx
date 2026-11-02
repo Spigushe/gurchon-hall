@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { CaretDown, CaretUp, HandArrowUp, LockSimple, UserPlus, X } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon, HandArrowUpIcon, LockSimpleIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
 import { Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
@@ -947,7 +947,7 @@ function GameFormBody({
                 label="Game Win"
                 labelIcon={
                   advice.locked ? (
-                    <LockSimple size={14} className="switch-row__lock" data-testid="game-form-gw-lock" />
+                    <LockSimpleIcon size={14} className="switch-row__lock" data-testid="game-form-gw-lock" />
                   ) : undefined
                 }
                 hint={advice.help}
@@ -978,7 +978,7 @@ function GameFormBody({
                       : draft.opponents.map((opponent) => opponent.name).join(", ")}
                   </span>
                 </span>
-                {opponentsOpen ? <CaretUp size={18} /> : <CaretDown size={18} />}
+                {opponentsOpen ? <CaretUpIcon size={18} /> : <CaretDownIcon size={18} />}
               </button>
               {opponentsOpen && (
                 <div className="opponents" data-testid="game-form-opponents">
@@ -1004,7 +1004,7 @@ function GameFormBody({
                       <div className="opponent-row__body">
                         <span className="opponent-row__name">{opponent.name}</span>
                         <label className="opponent-row__lend">
-                          <HandArrowUp size={14} aria-hidden="true" />
+                          <HandArrowUpIcon size={14} aria-hidden="true" />
                           <select
                             aria-label={`Deck prêté à ${opponent.name}`}
                             value={opponent.deckKey ?? ""}
@@ -1033,7 +1033,7 @@ function GameFormBody({
                           }))
                         }
                       >
-                        <X size={18} />
+                        <XIcon size={18} />
                       </button>
                     </div>
                   ))}
@@ -1042,7 +1042,7 @@ function GameFormBody({
                       Ajouter un adversaire
                     </label>
                     <div className="opponent-add">
-                      <UserPlus size={18} aria-hidden="true" />
+                      <UserPlusIcon size={18} aria-hidden="true" />
                       <input
                         id={`${formId}-opponent`}
                         className="underline-field"

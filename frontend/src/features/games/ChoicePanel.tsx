@@ -1,5 +1,5 @@
 import { useId, type RefObject } from "react";
-import { Check, Plus } from "@phosphor-icons/react";
+import { CheckIcon, PlusIcon } from "@phosphor-icons/react";
 import { SheetHeader } from "../../components/Sheet";
 
 export interface ChoiceOption {
@@ -95,7 +95,7 @@ export function ChoicePanel({
                 <span className="choice-row__label">{option.label}</span>
                 {option.meta && <span className="row__meta">{option.meta}</span>}
               </span>
-              {selected === option.value && <Check size={18} weight="bold" aria-hidden="true" />}
+              {selected === option.value && <CheckIcon size={18} weight="bold" aria-hidden="true" />}
             </button>
           </li>
         ))}
@@ -109,7 +109,7 @@ export function ChoicePanel({
               data-testid={testId ? `${testId}-create` : undefined}
             >
               <span className="choice-row__label">{create.label}</span>
-              <Plus size={18} aria-hidden="true" />
+              <PlusIcon size={18} aria-hidden="true" />
             </button>
           </li>
         )}

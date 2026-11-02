@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, X } from "@phosphor-icons/react";
+import { ArrowLeftIcon, XIcon } from "@phosphor-icons/react";
 import { Kbd } from "./Kbd";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
 
@@ -276,7 +276,7 @@ export function SheetHeader({
           aria-label={closeLabel}
           aria-keyshortcuts="Escape"
         >
-          <X size={20} />
+          <XIcon size={20} />
         </button>
       </div>
     </div>
@@ -345,7 +345,7 @@ export function BackRow({
 }) {
   return (
     <button type="button" className="back-row" onClick={onClick} data-testid={testId}>
-      <ArrowLeft size={20} />
+      <ArrowLeftIcon size={20} />
       {label}
     </button>
   );
