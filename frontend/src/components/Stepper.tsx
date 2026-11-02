@@ -15,6 +15,7 @@ export function Stepper({
   incrementLabel,
   min,
   max,
+  step = 1,
   disabled = false,
   variant = "form",
 }: {
@@ -25,6 +26,8 @@ export function Stepper({
   incrementLabel?: string;
   min?: number;
   max?: number;
+  /** Pas des boutons − / + (1 par défaut ; 0,5 pour des VP). */
+  step?: number;
   disabled?: boolean;
   variant?: "form" | "row";
 }) {
@@ -50,7 +53,7 @@ export function Stepper({
           className="stepper__btn"
           aria-label={decrementLabel ?? `Retirer : ${label}`}
           disabled={disabled || atMin}
-          onClick={() => onChange(value - 1)}
+          onClick={() => onChange(value - step)}
         >
           −
         </button>
@@ -62,6 +65,7 @@ export function Stepper({
           value={value}
           min={min}
           max={max}
+          step={step}
           disabled={disabled}
           onChange={(event) => commit(event.target.value)}
         />
@@ -70,7 +74,7 @@ export function Stepper({
           className="stepper__btn stepper__btn--accent"
           aria-label={incrementLabel ?? `Ajouter : ${label}`}
           disabled={disabled || atMax}
-          onClick={() => onChange(value + 1)}
+          onClick={() => onChange(value + step)}
         >
           +
         </button>

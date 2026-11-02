@@ -103,15 +103,20 @@ joueurs distribue au plus *n* VP en tout (chaque éviction rapporte 1 VP à un
 seul joueur, le dernier survivant en prend 1, un retrait ou une fin au temps
 en rend moins), et un joueur seul ne peut dépasser *n* VP. Tous les VP sont des
 multiples de 0,5. Corollaire, le seul contrôle croisé possible sans les VP des
-autres : avec plus de *n* / 2 VP, je suis seul en tête de ma table, donc j'ai
-le GW dès que j'ai aussi au moins 2 VP.
+autres : avec plus de la moitié des VP que la table peut distribuer, je suis
+seul en tête de ma table, donc j'ai le GW dès que j'ai aussi au moins 2 VP.
+Cette borne vaut *n*, et *n* − 0,5 quand mes VP ne sont pas entières : une
+demi-VP suppose une fin au temps (au moins deux survivants à 0,5 VP, donc au
+moins 1 VP de moins au total) ou un retrait (0,5 VP au joueur, rien à son
+prédateur, donc 0,5 VP de moins). Le règlement ne l'écrit pas, c'est une
+déduction du barème (correction du 2026-11-02, cf. A4).
 
 **Ce qui est suivi (P7).** Mes VP et mon GW, rien d'autre : ni les VP des
 adversaires, ni ma place à la table, ni les points de tournoi. VP et GW sont
 le dénominateur commun, ce que tout joueur sait de sa partie en se levant de
 table et ce que tout organisateur publie. Le GW se déclare ; le corollaire
-ci-dessus permet de le déduire dans un cas (3 VP à cinq joueurs, 2,5 VP à
-quatre) et de refuser une déclaration qui le contredit. Le TP n'intervient
+ci-dessus permet de le déduire dans un cas (2,5 VP à quatre ou à cinq
+joueurs, 3,5 VP à six) et de refuser une déclaration qui le contredit. Le TP n'intervient
 dans le règlement que comme dernier départage, du classement des
 préliminaires et du meilleur deck en finale : ces départages se font ici sur
 GW puis VP, et une égalité qui resterait n'est pas tranchée.
@@ -148,9 +153,23 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
   stocké, comme le prévoit le modèle, sur ma seule participation, et il se
   déclare. Le serveur refuse (422) un GW avec moins de 2 VP, ou sans VP
   saisis (précisé à l'étape A2 : le bilan compterait sinon un GW à 0 VP).
-  Quand mes VP dépassent la moitié de `player_count` et valent au moins 2, le GW est
-  certain : le serveur le pose si le champ est laissé vide et refuse un
-  `false`. Hors de ces deux cas, la déclaration fait foi.
+  Quand mes VP dépassent la moitié des VP que la table peut distribuer
+  (`player_count`, ou `player_count` − 0,5 si mes VP ne sont pas entières) et
+  valent au moins 2, le GW est certain : le serveur le pose si le champ est
+  laissé vide et refuse un `false`. Hors de ces deux cas, la déclaration fait
+  foi.
+  - *Corrigé le 2026-11-02, sur décision de l'utilisateur.* La première
+    version prenait la moitié de `player_count` dans tous les cas, soit 3 VP
+    à cinq joueurs. Or une demi-VP ne vient que d'une fin au temps ou d'un
+    retrait, qui ôtent chacun au moins 0,5 VP au total de la table : à cinq,
+    2,5 VP laissent au plus 2 VP aux autres, et le GW est certain. Seule la
+    table à cinq change (2,5 VP à quatre et 3,5 VP à six restent les seuils ;
+    à six, deux joueurs peuvent finir à 2,5 VP). Règle **déduite** du barème
+    3.7.2, pas écrite dans le règlement ; un test l'éprouve contre
+    l'énumération de toutes les fins de partie possibles, de deux à six
+    joueurs (`test_certain_game_win_matches_every_possible_end_of_game`).
+    Python, TypeScript, table de cas partagée et tests mis à jour ensemble ;
+    pas de migration, pas de changement de contrat.
 - **A5 — Mes VP sont bornés.** Multiples de 0,5, au plus `player_count` (422).
   Un siège vaut au plus `player_count`, une table compte au plus
   `player_count` participations.
@@ -250,8 +269,9 @@ précisions sur P7. Elles peuvent être rouvertes à la demande de l'utilisateur
 - **A14 — Hors ligne, une suggestion de GW et un bilan provisoire.** Une
   partie saisie au club coche le GW d'elle-même quand il est certain (A4),
   avant toute synchronisation, et un tournoi saisi hors ligne affiche son
-  bilan GW et VP, marqué provisoire. La règle tient en une ligne, sans barème :
-  elle est écrite en TypeScript dans l'adaptateur `vtes/` avec la même table
+  bilan GW et VP, marqué provisoire. La règle tient en quelques lignes, sans
+  barème (borne de la table à *n* ou *n* − 0,5 selon que mes VP sont entières,
+  depuis la correction du 2026-11-02, cf. A4) : elle est écrite en TypeScript dans l'adaptateur `vtes/` avec la même table
   de cas que son test Python, sans générateur de vecteurs (il se justifiait
   pour le barème des TP, abandonné). Le serveur reste seul juge : le client
   suggère, il ne refuse pas. Le meilleur deck (A11) n'est calculé qu'au
@@ -613,7 +633,9 @@ légalité de deck, chacune avec ses tests :
 - `vp_issues(player_count, vp)` : multiples de 0,5, au plus `player_count`
   (A5) ;
 - `certain_game_win(player_count, vp, minimum=2.0)` : `True` quand mes VP
-  dépassent la moitié de la table et le minimum, `None` sinon (A4) ;
+  atteignent le minimum et dépassent la moitié des VP que la table peut
+  distribuer (*n*, ou *n* − 0,5 avec une demi-VP, corrigé le 2026-11-02),
+  `None` sinon (A4) ;
 - `game_win_issues(player_count, vp, declared)` : les contradictions de A4 ;
 - `mono_deck_issues(deck_ids)` : plus d'un deck distinct parmi les valeurs non
   nulles (A7) ;
@@ -1338,6 +1360,131 @@ comparer deux clés à la main (alias), n'offrir « Modifier la table » que si
 `game.table !== null`, proposer la ronde par `nextRoundNumber` et le GW par
 `certainGameWin`. Détail dans le README.
 
+### Livré à l'étape D1 (2026-11-02)
+
+Navigation, liste des parties, saisie et détail, en mobile puis en bureau. Code dans
+`frontend/src/features/games/`, tests dans `frontend/tests/unit/ui/games.test.tsx`
+(vitest : 606 tests sur 42 fichiers avant, 660 sur 43 après les corrections de relecture QA) et deux e2e contre le vrai
+back (`tests/e2e-real/games-saisie.spec.ts` à 390 × 844,
+`tests/e2e-desktop-real/games-saisie.spec.ts` à 1440 × 900 ; 51 tests Playwright avant, 53
+après). Ni le contrat, ni `backend/`, ni `schema.d.ts`, ni la couche offline n'ont été
+touchés. `tsc --noEmit -p tsconfig.app.json` et `npm run lint` sont propres.
+
+- **Navigation (P2).** Cinquième onglet « Parties » (`ph-trophy`, `nav-games`) entre Decks
+  et Chercher, tab bar à cinq colonnes `minmax(0, 1fr)` et marge `10px 6px 26px` ; onglet
+  bureau `topnav-games` entre Decks et Synchronisation, chord `G P` dans
+  `NAV_SHORTCUT_BINDINGS` (dérivé de `TOP_NAV_ITEMS`). L'onglet est actif sur `#/parties`,
+  `#/parties/<clé>` et `#/tournois`. Trois routes à hash (`games`, `game`, `tournaments`) et
+  l'intention `#/parties?action=nouvelle`, consommée une fois par `consumeIntent` comme
+  `#/decks?action=nouveau`. Aucune ne porte un nom de ressource de l'API.
+- **Sélecteur Parties | Tournois** (`PlaySwitcher`) : deux liens, donc deux routes, segmenté
+  au mobile et en onglets soulignés avec compteurs au bureau, par la seule feuille de style.
+  `#/tournois` rend `TournamentsPage`, en lecture seule : liste locale ou « Aucun tournoi »,
+  sans création ni lien vers le Carnet. C'est le seul composant que D2 remplace.
+- **Liste** (`GamesPage`). Mobile : groupes par jour, onglets Toutes / Tournoi / Amicale,
+  feuille « Deck, lieu », pastille « En attente de synchronisation », pilule « Nouvelle
+  partie ». Bureau : tableau triable (Date décroissante par défaut, un clic sur un en-tête
+  inverse le sens), trois sélecteurs texte Type / Deck / Lieu sur le même état que le mobile,
+  détail dense à droite, raccourci `N`. États vide, chargement, « Aucune partie ne
+  correspond à ces filtres. ». Les compteurs « Parties · N » comptent le total, le sous-titre
+  la liste filtrée (patron des Decks).
+- **Saisie** (`GameForm`, `ChoicePanel`). Une seule `Sheet` : mobile plein écran à pilule
+  flottante, bureau panneau de 460 px à pied `SheetFooter` et `⌘↵`. Contexte deviné (quand
+  en `datetime-local`, lieu du dernier jeu, tournoi, ronde proposée par `nextRoundNumber`),
+  joueurs 4 / 5 / « Autre » (2 à 6), mon deck (actifs d'abord, le dernier joué en tête de son
+  groupe, aide « Dernier joué · ronde 2 »), siège, VP au pas de 0,5, GW, adversaires repliés,
+  notes. Le lieu et l'adversaire se créent au fil de la frappe par `ensureVenue` /
+  `ensurePlayer`. Les messages vérifiables sur place de l'écran 25 sont tous là : mono-deck
+  avec le lien « Reprendre … », VP au-delà de la table (« Au plus 4 VP à quatre joueurs. »),
+  GW sous 2 VP. En finale multi-deck la liste se réduit aux decks admis du tournoi
+  (`admissibleFinalDecks`, lus au dernier rafraîchissement), avec la meilleure ronde de
+  chacun. En correction, seuls les champs modifiés partent, et la table seulement si elle a
+  changé ; les notes de chaque ligne sont reportées telles quelles.
+- **Règles locales** (`gameFormModel.ts`, pures, testées sans interface) : `gameWinAdvice`
+  (GW certain verrouillé, incertain à déclarer, interdit sous 2 VP), `vpOverTable`,
+  `buildParticipations`, `formErrors`. Le GW certain ne se décoche pas, et les erreurs
+  vérifiables sur place bloquent l'envoi (cf. ci-dessous) ; le reste est suggéré ou signalé.
+- **Détail** (`GameDetail`, `GameDetailPage`) : titre « 3 VP · Game Win », faits, table par
+  siège (les sièges libres en « non nommé », les lignes sans siège sous la table, le deck
+  prêté en « avec mon X, prêté »), « Modifier », « Modifier la table » (masqué quand
+  `game.table === null`, et la saisie de la table alors absente), « Supprimer » en deux
+  temps. Au bureau, le même composant fait le panneau de droite (`dense`) et la page
+  `#/parties/<clé>`, avec `E` et `T`, inactifs dans un champ et derrière une feuille.
+- **Écarts au handoff**, tous voulus :
+  1. Le sélecteur de lieu, de tournoi, de ronde, de deck et de nombre de joueurs **remplace
+     le formulaire dans la même feuille** au lieu d'empiler une seconde feuille : deux
+     `Sheet` ouvertes répondraient ensemble à `Échap` (chacune écoute le document) et
+     fermeraient la saisie. `Échap` dans un sélecteur revient donc à la saisie.
+  2. Le siège d'un adversaire et le deck prêté sont des `<select>` natifs (carré de 44 px
+     pour le siège), non un tap qui cycle ou une feuille : le choix au pouce reste celui du
+     système, et l'ensemble tient dans la même feuille.
+  3. La feuille de filtres du mobile utilise deux `<select>` (deck, lieu) comme celle de la
+     Collection, non des listes à cocher.
+  4. Le champ « Quand » est un `datetime-local` natif, non un sélecteur dessiné.
+  5. Le sélecteur de tournoi ne propose pas de création : elle appartient à D2.
+  6. La ronde proposée à la saisie est toujours une préliminaire ; « Finale » se choisit dans
+     le sélecteur de ronde, sans règle sur le nombre de rondes prévues.
+  7. Le sélecteur de lieu n'a ni section « Récents » ni mention « dernier utilisé » : le lieu
+     de la dernière partie est seulement proposé par défaut.
+  8. Le bureau n'a pas de « Nommer la table ⌄ » : le bloc « Adversaires » est le même,
+     replié, qu'au mobile.
+  9. Les actions du détail sont des boutons (patron du détail de deck), non des pilules de
+     44 px.
+  10. VP et siège ne sont pas côte à côte quand la place manque (écran 14) : ils se suivent.
+  11. La ligne de deck sélectionnée du sélecteur n'a ni fond `accent-900` ni `check-circle`
+      plein : elle est en `accent-200` avec une coche, comme les autres sélecteurs.
+- **Saisies invalides : l'envoi est refusé (décision de l'utilisateur, 2026-11-02).** Le
+  handoff disait « le client suggère, il ne bloque pas » ; l'utilisateur a tranché le
+  contraire pour les erreurs vérifiables sur place. Tant que l'une d'elles est affichée
+  (GW coché sous 2 VP, VP au-delà de la table, table trop pleine), « Enregistrer » reste actif
+  mais refuse l'envoi et met le focus sur la première alerte (`role="alert"`, `tabIndex=-1`) :
+  plus accessible qu'un bouton grisé, qui ne dit pas pourquoi. Les VP tapés au clavier sont
+  arrondis au demi-point. Le mono-deck et le deck de finale restent des avertissements (le
+  client ne connaît pas toujours la règle exacte), le serveur les tranche.
+- **Corrections après la relecture QA (2026-11-02).**
+  1. *Focus.* Vers un sélecteur, le focus va à son titre ; au retour, au bouton qui l'avait
+     ouvert (`data-return-focus`).
+  2. *Table trop pleine.* L'alerte sort du bloc replié, sous le choix du nombre de joueurs ;
+     passer à une table plus petite signale aussi le siège retiré (« le siège 5 de David »).
+  3. *`N` pendant une modification.* `GameDetail` remonte `onEditingChange` ; `GamesPage`
+     coupe `N` pendant la feuille « Modifier ».
+  4. *Blocage* : voir ci-dessus.
+  5. *Deck.* Le sélecteur propose « Aucun deck » (hors finale restreinte). Un deck absent du
+     miroir est dit « Deck inconnu sur cet appareil », jamais « supprimé » : le miroir ne garde
+     pas les decks supprimés. Côté serveur (`games.py`, lecture seule), le remplacement d'une
+     table n'oppose le refus « deck supprimé » qu'à une ligne nouvelle ou dont le deck change
+     (`kept_decks`, A8) : renvoyer la table avec un deck supprimé depuis, inchangé, passe, et
+     la saisie n'a rien à éviter. Le choisir de nouveau, lui, serait refusé.
+  6. *Vides.* `vp` et `gameWin` du brouillon sont nullables : une partie corrigée dont les VP
+     n'étaient pas saisis les garde `null`, ne renvoie pas la table pour une correction des
+     seules notes, et ne les transforme jamais en 0 ou en `false` sans action. Les notes de
+     chaque ligne d'adversaire sont reportées ; le modèle n'a rien d'autre à préserver (VP,
+     GW et notes de ligne sont les seules données d'une ligne, A13).
+  7. *Créations.* `ensureVenue` / `ensurePlayer` passent par `useGuardedAction` (erreur
+     affichée), et le brouillon se met à jour par fonction, sans état périmé.
+  8. *GW mémorisé.* Dès qu'il devient certain, `gameWin: true` entre dans le brouillon et y
+     reste : si les VP baissent ensuite, il reste coché, l'aide devient « À vous de le dire ».
+  9. *Copie.* Plus de renvoi vers l'onglet Tournois ; l'aide des decks admis passe au pluriel
+     (« Decks à égalité de meilleure ronde… ») ; « Aujourd'hui, 21:42 » s'affiche sous le champ
+     « Quand » ; `TournamentsPage` et le sélecteur de tournoi donnent une date lisible.
+  10. *Sélection au bureau.* La partie créée devient la ligne sélectionnée (`onSaved`).
+  11. *Style.* La teinte des cases désactivées ne vise plus que les sièges (`.chip--square`).
+  Le GW certain n'est jamais codé en dur dans l'interface : tout passe par `certainGameWin`.
+- **Petits ajouts aux composants communs** : `Stepper` gagne une prop `step` (1 par défaut,
+  0,5 pour les VP), `Switch` deux props facultatives (`labelIcon` pour le cadenas,
+  `hintTestId`). Aucune classe de style n'a changé de comportement ; les nouvelles sont
+  groupées en fin d'`index.css`, sans token nouveau.
+- **Ce qui manque à la couche offline** : rien qui ait bloqué un écran. Deux remarques pour
+  D2 : les decks admis en finale ne se recalculent pas hors ligne (déjà noté), donc une finale
+  saisie dans une même séance que la ronde qui la détermine n'est restreinte qu'au
+  rafraîchissement suivant ; et `updateGame` n'accepte `table` que complète, ce que la saisie
+  respecte en reportant les notes et en ne renvoyant la table qu'une fois modifiée.
+- **Reste pour D2** : création, détail, classement et suppression de tournoi (`TournamentsPage`
+  à remplacer, route `tournament`), « Ajouter la ronde N » / « Saisir la finale » (la saisie
+  accepte déjà `initial={{ tournamentKey, roundType }}`), Carnet et son bouton, carte
+  « Tournoi en cours » et raccourci « Nouvelle partie » de l'Atelier, extension de l'actif de
+  l'onglet Parties à la route du Carnet, raccourcis `R` et `F`.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1499,7 +1646,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | C1a | pwa-offline | ce qui ne dépend pas des types du contrat : magasins Dexie v5, genre dans `RefBinding`, `toVerdict` par genre, `reissue` à position, marcheur de références, `certainGameWin` sur la table de cas, bilan provisoire, clés de surcouche, et le choix du miroir des tables de parties — **fait le 2026-10-29** (cf. « Livré à l'étape C1a » ; miroir des tables validé le même jour) | A2 |
 | C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections — **fait le 2026-10-29** (cf. « Livré à l'étape C1b ») | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
-| D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau | C1b, D0 |
+| D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D1 ») | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
 | F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
@@ -1517,8 +1664,10 @@ en compte à A2 avant que les routes ne les figent (compteurs du Carnet).
 Back :
 
 - une famille de tests par fonction pure de `vtes_rules.py`, cas limites
-  compris : tables de 4 et de 5, GW certain à 2,5 VP à quatre et à 3 VP à
-  cinq (posé si vide, `false` refusé), 2 VP à cinq laissé à la déclaration,
+  compris : tables de 4 et de 5, GW certain à 2,5 VP à quatre et à 2,5 VP à
+  cinq (posé si vide, `false` refusé ; 3 VP à cinq avant la correction du
+  2026-11-02), 2 VP à cinq laissé à la déclaration, 2,5 VP à six non certain
+  et 3,5 VP à six certain, seuils confrontés à l'énumération des fins de partie,
   GW à 1,5 VP refusé, GW sans VP saisis refusé, VP au-delà de la table, VP
   pas multiple de 0,5 ; finale en choix libre ou en meilleur deck avec une
   ronde sans deck ou sans VP, jamais refusée à tort ;
@@ -1594,7 +1743,7 @@ pour la raison OneDrive notée au § 11 (Lot 4).
   ce qui bloque (« la finale a été jouée avec X, le meilleur deck deviendrait
   Y ») et l'écran Synchronisation proposer de corriger la règle ou la finale.
 - **Deux écritures de la même règle.** Le GW certain existe en Python et en
-  TypeScript (A14). Une ligne de chaque côté et une table de cas commune
+  TypeScript (A14). Quelques lignes de chaque côté et une table de cas commune
   suffisent, mais toute évolution du seuil doit toucher les deux, sous peine
   d'un écart entre la suggestion hors ligne et le verdict du serveur.
 - **Mono-deck et saisie hors ligne.** Deux appareils peuvent saisir deux rondes
