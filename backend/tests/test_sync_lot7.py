@@ -491,6 +491,24 @@ def test_a_game_with_a_bad_table_is_invalid_and_leaves_nothing(me_api, db):
     assert db.scalar(select(func.count()).select_from(Game)) == 1
 
 
+def test_two_and_a_half_vp_at_five_is_a_certain_game_win_by_sync(me_api):
+    # Correction du 2026-11-02 : même seuil qu'en ligne, déduit du barème.
+    results = send(
+        me_api,
+        game("g1", [line(victory_points=2.5)]),  # GW omis : posé par le serveur
+        game("g2", [line(victory_points=2.5, game_win=False)]),  # contredit
+        game("g3", [line(victory_points=2.0)]),  # 2 VP à cinq : laissé vide
+        game("g4", [line(victory_points=2.5)], player_count=6),  # incertain à six
+    )
+    first = applied(results[0])["game_id"]
+    assert me_api.get(f"/parties/{first}").json()["me"]["game_win"] is True
+    rejected(results[1], "invalid")
+    assert "le Game Win est acquis" in results[1]["error"]["message"]
+    for result in (results[2], results[3]):
+        game_id = applied(result)["game_id"]
+        assert me_api.get(f"/parties/{game_id}").json()["me"]["game_win"] is None
+
+
 def test_a_refused_game_update_changes_nothing(me_api):
     created = send(me_api, game("g1", [line(victory_points=1.0)]))
     game_id = applied(created[0])["game_id"]

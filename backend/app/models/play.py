@@ -288,10 +288,10 @@ class Participation(Base):
     `victory_points` est un flottant : le barème du §5 accorde des demi-points
     (0,5 VP par survivant en fin de partie ou par retrait). `game_win` est
     déclaré par le joueur et stocké : sans les VP des adversaires, le serveur ne
-    peut le déduire que lorsqu'il est certain (plus de la moitié des VP de la
-    table et au moins 2, CLAUDE.md §5). Ces contrôles, comme l'absence de VP et
-    de GW sur la ligne d'un adversaire, sont des règles de service (Lot 7, A4 et
-    A13).
+    peut le déduire que lorsqu'il est certain (plus de la moitié des VP que la
+    table peut distribuer et au moins 2, CLAUDE.md §5). Ces contrôles, comme
+    l'absence de VP et de GW sur la ligne d'un adversaire, sont des règles de
+    service (Lot 7, A4 et A13).
     """
 
     __tablename__ = "participation"

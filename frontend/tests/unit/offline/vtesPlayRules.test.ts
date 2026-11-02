@@ -28,6 +28,14 @@ describe("certainGameWin (A4, A14)", () => {
     else expect(result).toBe(true);
   });
 
+  it("une demi-VP borne la table à n − 0,5 : 2,5 VP certains à cinq, pas à six (2026-11-02)", () => {
+    expect(certainGameWin(5, 2.5)).toBe(true);
+    expect(certainGameWin(5, 2)).toBeNull(); // VP entières : laissé à la déclaration
+    expect(certainGameWin(4, 2.5)).toBe(true);
+    expect(certainGameWin(6, 2.5)).toBeNull(); // deux joueurs peuvent finir à 2,5
+    expect(certainGameWin(6, 3.5)).toBe(true);
+  });
+
   it("accepte des VP absents (champ non rempli)", () => {
     expect(certainGameWin(4, undefined)).toBeNull();
   });

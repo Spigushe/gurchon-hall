@@ -246,8 +246,14 @@ multi-deck.
   de VP** que chacun des autres ; pas de GW en cas d'égalité en tête. Le seuil vaut
   2 VP **à toute table** (l'ancien repère « 2,5 VP à 5 joueurs » était faux).
   Corollaire, seul contrôle possible sans les VP des autres : un joueur qui a plus de
-  *n* / 2 VP est seul en tête, donc a le GW dès qu'il a aussi 2 VP (2,5 VP à quatre,
-  3 VP à cinq).
+  la moitié des VP que la table peut distribuer est seul en tête, donc a le GW dès
+  qu'il a aussi 2 VP. Cette borne vaut *n*, mais *n* − 0,5 quand ses VP ne sont pas
+  entières : une demi-VP suppose une fin au temps (au moins deux survivants à 0,5)
+  ou un retrait (0,5 au joueur, rien à son prédateur), qui ôtent chacun au moins
+  0,5 VP au total. Seuils : 2 VP à deux et à trois, 2,5 VP à quatre **et à cinq**,
+  3,5 VP à six ; 2 VP à cinq restent à la déclaration. Règle **déduite** du barème,
+  qui ne l'écrit pas, vérifiée par énumération de toutes les fins de partie
+  (correction du 2026-11-02, décidée par l'utilisateur : elle posait 3 VP à cinq).
 - **Points de tournoi (TP)** (3.7.3) : 60 / 48 / 36 / 24 / 12 selon le rang à la
   table (à 4 joueurs, la 3e place est vide : 60 / 48 / 24 / 12), ex aequo moyennés.
   **Non suivis par l'outil** : on ne saisit que ses propres VP et GW, ni sa place à la
@@ -384,7 +390,8 @@ colonne) → en logique de service + tests :
 - tournoi mono-deck → toutes mes participations pointent le même deck, « mes »
   désignant le joueur `is_me` du compte propriétaire du tournoi (Lot 6) ;
 - cohérence VP/GW (§5 : VP en multiples de 0,5 et bornés par la table, GW à 2 VP au
-  moins, GW certain au-delà de la moitié des VP de la table) — *prévu au Lot 7* ;
+  moins, GW certain au-delà de la moitié des VP que la table peut distribuer) — *prévu
+  au Lot 7* ;
 - multi-deck interdit aux trois niveaux de championnat, et deck de finale conforme à
   la règle annoncée (§5) — *prévu au Lot 7* ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).

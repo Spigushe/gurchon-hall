@@ -2,7 +2,8 @@
 
 Règles (CLAUDE.md §5, relues dans les règles de tournoi de la VEKN) : VP par
 demi-points, au plus la taille de la table ; GW à 2 VP au moins, à toute table,
-certain au-delà de la moitié des VP de la table ; multi-deck interdit à trois
+certain au-delà de la moitié des VP que la table peut distribuer (règle
+déduite du barème, corrigée le 2026-11-02) ; multi-deck interdit à trois
 niveaux de championnat ; deck de finale selon la règle annoncée ; classement
 final borné. On ne suit que ses propres VP et GW (P7).
 """
@@ -100,17 +101,84 @@ def test_certain_game_win_follows_the_shared_case_table(case):
 def test_the_shared_table_covers_the_edges_named_by_the_plan():
     seen = {(c["player_count"], c["vp"]): c["expected"] for c in CASES}
     assert seen[(4, 2.5)] is True  # plus de la moitié à quatre
-    assert seen[(5, 3)] is True  # plus de la moitié à cinq
-    assert seen[(5, 2)] is None  # 2 VP à cinq : laissé à la déclaration
     assert seen[(4, 2)] is None  # la moitié tout juste ne suffit pas
+    assert seen[(5, 3)] is True  # plus de la moitié à cinq
+    # Correction du 2026-11-02 : une demi-VP borne la table à 4,5 VP à cinq.
+    assert seen[(5, 2.5)] is True
+    assert seen[(5, 2)] is None  # 2 VP à cinq : laissé à la déclaration
+    assert seen[(6, 2.5)] is None  # deux joueurs peuvent finir à 2,5 à six
+    assert seen[(6, 3)] is None
+    assert seen[(6, 3.5)] is True
+
+
+def _reachable_outcomes(player_count: int) -> set[tuple[int, ...]]:
+    """Toutes les fins de partie possibles d'une table, en demi-VP par siège.
+
+    Énumération du barème 3.7.2, indépendante de `certain_game_win` : table
+    circulaire où chaque joueur a pour proie le prochain joueur en lice. Tant
+    que deux joueurs au moins sont en lice, l'un d'eux peut être évincé (1 VP
+    à son prédateur) ou se retirer (0,5 VP pour lui, rien au prédateur), ou le
+    temps peut s'achever (0,5 VP à chaque joueur en lice). Le dernier en lice
+    gagne 1 VP. Les fins plus rares (évictions simultanées, VP non attribuée)
+    ne font que baisser le total de la table : elles ne rendent aucun GW
+    certain incertain.
+    """
+    outcomes: set[tuple[int, ...]] = set()
+    seen: set[tuple[tuple[int, ...], tuple[int, ...]]] = set()
+
+    def play(alive: tuple[int, ...], halves: tuple[int, ...]) -> None:
+        if (alive, halves) in seen:
+            return
+        seen.add((alive, halves))
+        if len(alive) == 1:
+            final = list(halves)
+            final[alive[0]] += 2
+            outcomes.add(tuple(final))
+            return
+        timed_out = list(halves)
+        for seat in alive:
+            timed_out[seat] += 1
+        outcomes.add(tuple(timed_out))
+        for index, seat in enumerate(alive):
+            predator = alive[index - 1]
+            rest = alive[:index] + alive[index + 1 :]
+            ousted = list(halves)
+            ousted[predator] += 2
+            play(rest, tuple(ousted))
+            withdrawn = list(halves)
+            withdrawn[seat] += 1
+            play(rest, tuple(withdrawn))
+
+    play(tuple(range(player_count)), (0,) * player_count)
+    return outcomes
+
+
+@pytest.mark.parametrize("player_count", [2, 3, 4, 5, 6])
+def test_certain_game_win_matches_every_possible_end_of_game(player_count):
+    """La règle déduite (correction du 2026-11-02) contre l'énumération : un GW
+    déclaré certain laisse toujours le joueur seul en tête avec 2 VP au moins,
+    et tout score atteignable non certain peut être égalé ou dépassé par un
+    autre joueur. Le seuil n'est donc ni trop bas ni trop haut."""
+    alone: dict[int, bool] = {}
+    for outcome in _reachable_outcomes(player_count):
+        for seat, mine in enumerate(outcome):
+            best_other = max(outcome[:seat] + outcome[seat + 1 :])
+            alone[mine] = alone.get(mine, True) and mine > best_other
+    for halves, always_alone in alone.items():
+        vp = halves / 2
+        expected = True if always_alone and vp >= GAME_WIN_MINIMUM_VP else None
+        assert certain_game_win(player_count, vp) is expected, (player_count, vp)
 
 
 def test_a_certain_game_win_leaves_no_one_able_to_catch_up():
-    """Invariant indépendant de la table de cas : si le GW est certain, les VP
-    restants de la table ne peuvent pas égaler les miens."""
+    """Invariant de la table de cas : si le GW est certain, les VP que la table
+    peut encore distribuer (au plus n, au plus n − 0,5 avec une demi-VP) ne
+    peuvent pas égaler les miens."""
     for case in CASES:
         if certain_game_win(case["player_count"], case["vp"]):
-            assert case["vp"] > case["player_count"] - case["vp"]
+            vp, table = case["vp"], case["player_count"]
+            ceiling = table - 0.5 if vp % 1 == 0.5 else table
+            assert vp > ceiling - vp
 
 
 def test_certain_game_win_threshold_is_a_parameter():
@@ -138,10 +206,22 @@ def test_a_certain_game_win_cannot_be_declared_absent():
     assert issue.startswith("2,5 VP à une table de 4 joueurs")
 
 
+def test_two_and_a_half_at_five_cannot_be_declared_absent():
+    # Correction du 2026-11-02 : une demi-VP borne la table à 4,5 VP.
+    (issue,) = game_win_issues(5, 2.5, False)
+    assert issue == (
+        "2,5 VP à une table de 5 joueurs : seul en tête avec au moins 2 VP, le "
+        "Game Win est acquis."
+    )
+    (issue,) = game_win_issues(6, 3.5, False)
+    assert issue.startswith("3,5 VP à une table de 6 joueurs")
+
+
 def test_half_the_table_is_not_enough_to_impose_the_game_win():
     assert game_win_issues(4, 2, False) == []
     assert game_win_issues(4, 2, True) == []
-    assert game_win_issues(5, 2.5, False) == []
+    assert game_win_issues(6, 3, False) == []
+    assert game_win_issues(6, 2.5, False) == []
 
 
 @pytest.mark.parametrize(
@@ -149,7 +229,9 @@ def test_half_the_table_is_not_enough_to_impose_the_game_win():
     [
         (5, 2, True),  # 2 VP à cinq : la déclaration fait foi
         (5, 2, False),
-        (5, 2.5, False),
+        (5, 2.5, True),
+        (5, 2.5, None),  # vide : le service le pose
+        (6, 2.5, False),
         (5, 3, True),
         (5, 1.5, False),
         (5, None, None),
@@ -167,7 +249,10 @@ def test_declarations_that_nothing_contradicts(player_count, vp, declared):
         (5, 3, None, True),  # certain : posé
         (5, 2, None, None),  # incertain : laissé vide
         (5, 2, True, True),
-        (5, 2.5, False, False),
+        (5, 2.5, None, True),  # certain depuis le 2026-11-02 : posé
+        (6, 2.5, None, None),
+        (6, 2.5, False, False),
+        (6, 3.5, None, True),
         (4, 2.5, None, True),
     ],
 )

@@ -116,7 +116,7 @@ def test_create_an_amicable_game_with_only_my_line(me_api):
         "deck_id": None,
         "seat": 3,
         "victory_points": 2.5,
-        "game_win": None,
+        "game_win": True,  # 2,5 VP à cinq : GW certain, posé par le serveur
     }
     assert [p["is_me"] for p in game["participations"]] == [True]
     assert game["played_at"] == "2026-10-24T18:00:00Z"
@@ -126,10 +126,21 @@ def test_a_certain_game_win_is_set_by_the_server_when_left_empty(me_api):
     # 3 VP à cinq joueurs : plus de la moitié de la table et au moins 2.
     game = _game(me_api, table=_table(vp=3)).json()
     assert game["me"]["game_win"] is True
+    # 2,5 VP à cinq (correction du 2026-11-02) : avec une demi-VP, la table
+    # distribue au plus 4,5 VP, les autres en ont donc 2 au plus.
+    game = _game(me_api, table=_table(vp=2.5)).json()
+    assert game["me"]["game_win"] is True
+    game = _game(me_api, player_count=6, table=_table(vp=3.5)).json()
+    assert game["me"]["game_win"] is True
 
 
 def test_an_uncertain_game_win_stays_as_declared(me_api):
     assert _game(me_api, table=_table(vp=2)).json()["me"]["game_win"] is None
+    # À six, deux joueurs peuvent finir à 2,5 VP chacun.
+    six = _game(me_api, player_count=6, table=_table(vp=2.5)).json()
+    assert six["me"]["game_win"] is None
+    six = _game(me_api, player_count=6, table=_table(vp=2.5, gw=False)).json()
+    assert six["me"]["game_win"] is False
     declared = _game(me_api, table=_table(vp=2, gw=True)).json()
     assert declared["me"]["game_win"] is True
 
@@ -227,6 +238,7 @@ def test_more_lines_than_players_and_a_seat_beyond_the_table(me_api):
         ({"table": _table(vp=1.5, gw=True)}, "Game Win avec 1,5 VP"),
         ({"table": _table(gw=True)}, "sans VP saisis"),
         ({"table": _table(vp=3, gw=False)}, "le Game Win est acquis"),
+        ({"table": _table(vp=2.5, gw=False)}, "le Game Win est acquis"),
         (
             {"player_count": 4, "table": _table(vp=2.5, gw=False)},
             "le Game Win est acquis",
@@ -461,9 +473,9 @@ def test_patch_player_count_rechecks_the_existing_table(me_api):
 
 
 def test_patch_player_count_can_make_a_game_win_certain(me_api):
-    game = _game(me_api, table=_table(vp=2.5), player_count=5).json()
+    game = _game(me_api, table=_table(vp=2.5), player_count=6).json()
     assert game["me"]["game_win"] is None
-    updated = me_api.patch(f"/parties/{game['id']}", json={"player_count": 4}).json()
+    updated = me_api.patch(f"/parties/{game['id']}", json={"player_count": 5}).json()
     assert updated["me"]["game_win"] is True
 
 
@@ -636,7 +648,7 @@ def test_tournament_summary_and_detail_order(me_api):
     detail = me_api.get(f"/tournois/{tournament['id']}").json()
     assert [g["id"] for g in detail["games"]] == [r1["id"], r2["id"], final["id"]]
     assert detail["my_summary"] == {
-        "preliminary_game_wins": 1,
+        "preliminary_game_wins": 2,  # 3 VP puis 2,5 VP à cinq : deux GW certains
         "preliminary_victory_points": 5.5,
         "rounds_played": 2,
         "final_victory_points": 1.5,

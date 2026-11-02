@@ -179,7 +179,8 @@ Motifs (13 px `--color-accent-200`, préfixés du `REJECTION_LABELS`) :
 - « Données invalides : les VP vont par demi-points. »
 - « Données invalides : au plus 5 VP à cinq joueurs. »
 - « Données invalides : un Game Win demande au moins 2 VP. »
-- « Données invalides : 3 VP à cinq joueurs, le Game Win est certain. »
+- « Données invalides : 2,5 VP à cinq joueurs, le Game Win est certain. » (seuil corrigé
+  le 2026-11-02 : 2,5 VP suffisent à cinq, cf. A4 de `docs/lot7-plan-parties.md`)
 - « Conflit : tournoi mono-deck, vos rondes sont jouées avec Banu Princes. »
 - « Conflit : la règle « meilleur deck » impose Banu Princes, la finale a été saisie avec
   Toreador Mass Vote. »

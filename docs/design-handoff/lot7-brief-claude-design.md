@@ -83,8 +83,9 @@ L'écran le plus important. Champs, dans l'ordre :
 | Adversaires | aucun | bloc facultatif, replié par défaut : des noms (choisir ou créer), chacun avec un siège et, s'il joue l'un de mes decks prêté, ce deck ; aucun score |
 | Notes | vide | |
 
-Le Game Win se déclare. Il est certain quand mes VP dépassent la moitié du
-nombre de joueurs et valent au moins 2 (2,5 VP à quatre, 3 VP à cinq) :
+Le Game Win se déclare. Il est certain quand mes VP dépassent la moitié de ce
+que la table peut distribuer et valent au moins 2 (2,5 VP à quatre comme à
+cinq, 3,5 VP à six ; seuil corrigé le 2026-11-02, il donnait 3 VP à cinq) :
 l'interrupteur se coche alors de lui-même, avant même la synchronisation, et
 le serveur refusera qu'on le décoche. Dans les autres cas (2 VP à cinq, par exemple), c'est
 au joueur de dire s'il a gagné.

@@ -30,9 +30,19 @@ ne sont plus **[à confirmer]**. Le § 5 de CLAUDE.md en est la version de réf�
   à un joueur qui se retire. Multiples de 0,5 ; une table de *n* joueurs
   distribue au plus *n* VP, donc un joueur n'en dépasse jamais *n*.
 - **Game Win** (3.7.1) : au moins **2 VP**, à toute table, et strictement plus que
-  chacun des autres ; pas de GW sur égalité en tête. **GW certain** : plus de
-  *n* / 2 VP et au moins 2 (le joueur est forcément seul en tête). Règle de
-  l'outil, pas de la VEKN : un GW déclaré sans VP saisis est refusé.
+  chacun des autres ; pas de GW sur égalité en tête. **GW certain** : au moins
+  2 VP et plus de la moitié des VP que la table peut distribuer, soit *n*, ou
+  *n* − 0,5 quand mes VP ne sont pas entières (le joueur est forcément seul en
+  tête). Seuils : 2 VP à deux et à trois, 2,5 VP à quatre et à cinq, 3,5 VP à
+  six. **Règle déduite, pas écrite** dans le barème 3.7.2 (correction du
+  2026-11-02, décidée par l'utilisateur ; elle posait 3 VP à cinq) : une
+  demi-VP ne vient que d'une fin au temps (au moins deux survivants à 0,5 VP,
+  total ≤ *n* − 1) ou d'un retrait (0,5 au joueur, rien au prédateur, total
+  ≤ *n* − 0,5). Le test `test_certain_game_win_matches_every_possible_end_of_game`
+  la confronte à l'énumération de toutes les fins de partie, de deux à six
+  joueurs : un seuil plus bas serait faux, un seuil plus haut laisserait passer
+  un GW certain. Règle de l'outil, pas de la VEKN : un GW déclaré sans VP saisis
+  est refusé.
 - **Points de tournoi** (3.7.3) : 60 / 48 / 36 / 24 / 12 selon le rang, 60 / 48 /
   24 / 12 à quatre, ex aequo moyennés. **Non suivis** par l'outil (P7) : ne pas
   les calculer, ne pas saisir de place à la table.

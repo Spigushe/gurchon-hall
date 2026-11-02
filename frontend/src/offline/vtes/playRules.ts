@@ -9,12 +9,22 @@
 /** Seuil du Game Win (VEKN 3.7.1), à toute table : au moins 2 VP. */
 export const GAME_WIN_MINIMUM_VP = 2;
 
+/** Tous les VP sont des multiples de 0,5 (VEKN 3.7.2), comme `VP_STEP` côté serveur. */
+export const VP_STEP = 0.5;
+
 /**
  * `true` quand mon Game Win est certain, `null` quand rien ne le dit (jamais
  * `false` : moins de 2 VP interdit le GW, mais le serveur le dit, ce n'est pas
- * une déduction). Avec plus de la moitié des VP de la table on est seul en
- * tête ; avec au moins `minimum` VP en plus, on a le GW (2,5 VP à quatre, 3 VP
- * à cinq). Miroir de `certain_game_win`, vérifié sur la même table de cas
+ * une déduction). Avec plus de la moitié des VP que la table peut encore
+ * distribuer on est seul en tête ; avec au moins `minimum` VP en plus, on a le
+ * GW (2 VP à deux et à trois, 2,5 VP à quatre et à cinq, 3,5 VP à six).
+ *
+ * Règle **déduite** du barème VEKN 3.7.2, qui ne l'écrit pas (correction du
+ * 2026-11-02) : une table de n joueurs distribue au plus n VP, et une demi-VP
+ * (fin au temps à deux survivants au moins, ou retrait) ôte au moins 0,5 VP à
+ * ce total. Des VP non entières bornent donc le total à n − 0,5. Détail dans
+ * la docstring de `certain_game_win`, dont cette fonction est le miroir,
+ * vérifié sur la même table de cas
  * (`backend/tests/fixtures/certain_game_win_cases.json`).
  */
 export function certainGameWin(
@@ -22,8 +32,9 @@ export function certainGameWin(
   vp: number | null | undefined,
   minimum: number = GAME_WIN_MINIMUM_VP,
 ): true | null {
-  if (vp !== null && vp !== undefined && vp > playerCount / 2 && vp >= minimum) return true;
-  return null;
+  if (vp === null || vp === undefined || vp < minimum) return null;
+  const tableTotal = vp % 1 === VP_STEP ? playerCount - VP_STEP : playerCount;
+  return vp > tableTotal - vp ? true : null;
 }
 
 /** Ma participation à une ronde, réduite à ce que le bilan regarde (`RoundResult`). */

@@ -231,13 +231,28 @@ def certain_game_win(
 ) -> bool | None:
     """`True` quand mon GW est certain, `None` quand rien ne le dit (A4).
 
-    Avec plus de la moitié des VP de la table, je suis forcément seul en tête ;
-    avec au moins `minimum` VP en plus, j'ai le GW (2,5 VP à quatre, 3 VP à
-    cinq). Hors de ce cas, le GW dépend des VP des autres, qu'on ne saisit pas,
-    et la déclaration fait foi. Jamais `False` : moins de 2 VP interdit le GW,
-    mais c'est `game_win_issues` qui le dit, pas une déduction.
+    Avec plus de la moitié des VP que la table peut encore distribuer, je suis
+    forcément seul en tête ; avec au moins `minimum` VP en plus, j'ai le GW.
+    Hors de ce cas, le GW dépend des VP des autres, qu'on ne saisit pas, et la
+    déclaration fait foi. Jamais `False` : moins de 2 VP interdit le GW, mais
+    c'est `game_win_issues` qui le dit, pas une déduction.
+
+    Règle **déduite** du barème 3.7.2, qui ne l'écrit pas (correction du
+    2026-11-02, décidée par l'utilisateur). Une table de *n* joueurs distribue
+    au plus *n* VP. Une demi-VP ne vient que d'une fin au temps (0,5 à chaque
+    survivant, deux au moins) ou d'un retrait (0,5 au joueur, rien à son
+    prédateur) : chacun de ces cas ôte au moins 0,5 VP au total, qui vaut alors
+    au plus *n* − 1 ou *n* − 0,5. Avec des VP non entières, le total de la table
+    est donc borné par *n* − 0,5, et je suis seul en tête dès que
+    `vp > (n − 0,5) − vp` ; avec des VP entières, la borne reste *n*. Seuils
+    obtenus : 2 VP à deux et à trois, 2,5 VP à quatre **et à cinq**, 3,5 VP à
+    six. Vérifiés par énumération de toutes les fins de partie possibles
+    (`backend/tests/test_vtes_rules_play.py`).
     """
-    if vp is not None and vp > player_count / 2 and vp >= minimum:
+    if vp is None or vp < minimum:
+        return None
+    table_total = player_count - VP_STEP if vp % 1 == VP_STEP else player_count
+    if vp > table_total - vp:
         return True
     return None
 
