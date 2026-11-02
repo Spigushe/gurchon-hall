@@ -30,6 +30,10 @@ raison.
 import os
 
 os.environ.setdefault("SESSION_COOKIE_SECURE", "false")
+# Le lifespan contrôlerait la révision de `app.db.session.engine`, c'est-à-dire
+# `backend/vtes.db` (jamais touchée par les tests, et volontairement en retard
+# pendant le Lot 7). Les tests de ce contrôle le réactivent explicitement.
+os.environ.setdefault("SCHEMA_REVISION_CHECK", "false")
 
 import shutil  # noqa: E402
 

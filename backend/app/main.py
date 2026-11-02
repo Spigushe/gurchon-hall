@@ -8,6 +8,8 @@ Lot 4.
 """
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +18,8 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app import __version__
+from app.db import session as db_session
+from app.db.schema_check import enforce_schema_revision
 from app.routers.auth import router as auth_router
 from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
@@ -59,7 +63,16 @@ def _allowed_origins() -> list[str]:
 _WRITE_METHODS = {"POST", "PATCH", "DELETE"}
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Refuse de démarrer si la base n'est pas à la révision Alembic du code
+    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route."""
+    enforce_schema_revision(db_session.engine)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Suivi VtES API",
     description=(
         "API du suivi de pratique VtES (collection EN/FR, decks, parties, "
