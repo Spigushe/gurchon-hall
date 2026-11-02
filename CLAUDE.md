@@ -54,6 +54,13 @@ Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 416 tests s
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
+Score CRAP (depuis le 2026-11-02, `docs/qa-crap.md`) : `scripts/run.ps1 crap` pour les
+deux couches ; côté back `uv run coverage run -m pytest`, `uv run coverage json -q` puis
+`uv run python scripts/crap_report.py` ; côté front `npm run test:coverage` puis
+`npm run crap`. Les deux rapports échouent sur une fonction nouvelle au-dessus de 30 ou
+sur un score en hausse par rapport à `docs/qa-baselines/crap/` ; `--update-baseline`
+resserre la référence. `run.ps1 test` et la CI font tourner pytest et vitest sous
+couverture et passent ce contrôle.
 
 **Avertissement provisoire, Lot 7 en cours** (à retirer à l'étape F de
 `docs/lot7-plan-parties.md`) : la tête Alembic du code est `e2a7819dd4a2`
@@ -187,7 +194,8 @@ code offline est packagé de façon réutilisable pour Barrin.
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md), handoffs de
 │                               design (design-handoff/, Lot 5 et 5bis), fiches
-│                               d'incident (issues/), références QA (qa-baselines/)
+│                               d'incident (issues/), références QA (qa-baselines/,
+│                               dont les références CRAP crap/, règles dans qa-crap.md)
 │                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
@@ -564,6 +572,10 @@ Vue par agent :
 - **Offline** : toute écriture front doit fonctionner hors-ligne puis se
   synchroniser (pas d'appel API bloquant dans le chemin de saisie).
 - **Docs** rédigées avec la skill `ecriture-naturelle`.
+- **Score CRAP** : aucune fonction nouvelle au-dessus de 30, aucun score en hausse par
+  rapport aux références `docs/qa-baselines/crap/` (`docs/qa-crap.md`, propriétaire
+  `qa-tests`). On corrige par des tests ou en découpant la fonction ; ajouter une entrée
+  à une référence est une décision justifiée dans la PR, pas un correctif.
 
 ---
 
@@ -1251,6 +1263,44 @@ Limites connues à la clôture du Lot 6 :
   ciblés de l'étape A3 restent dans `backend/tests/test_lot6_isolation.py`, de portée
   plus réduite ; les trois scénarios de bout en bout sont dans
   `frontend/tests/e2e-real/lot6-comptes.spec.ts`.
+
+Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles complètes dans
+`docs/qa-crap.md` :
+
+- **Métrique et seuil.** CRAP = comp² × (1 − cov)³ + comp, par fonction, seuil 30
+  (strictement au-dessus = en défaut), celui de crap4j. Une fonction de complexité 31
+  reste en défaut même couverte à 100 % : seul un découpage la corrige.
+- **Deux analyseurs écrits dans le dépôt, pas d'outil tiers.** `backend/scripts/crap_report.py`
+  (module `ast`) et `frontend/scripts/crap-report.mjs` (compilateur TypeScript déjà
+  installé) appliquent le même barème McCabe, testé par deux suites miroirs
+  (`backend/tests/test_crap_report.py`, `frontend/tests/unit/crapReport.test.ts`). radon,
+  lizard ou la règle `complexity` d'ESLint auraient compté différemment d'une couche à
+  l'autre (ESLint compte `?.` et les valeurs par défaut), et aucun ne croise la
+  couverture. Ne comptent pas : `?.`, valeurs par défaut, décorateurs ; une fonction
+  imbriquée est mesurée à part.
+- **Couverture en lignes, vitest seul côté front.** Deux dépendances de développement
+  ajoutées : `coverage` (7.17, `[tool.coverage.run] source = ["app"]`) et
+  `@vitest/coverage-v8` (5.0.3, même version que vitest, qu'il exige). La ligne `def` est
+  retirée de la couverture d'une fonction Python, coverage.py la marquant exécutée à
+  l'import. Les e2e Playwright n'entrent pas dans la mesure.
+- **Cliquet plutôt que seuil sec.** Les références `docs/qa-baselines/crap/backend.json`
+  et `frontend.json` listent les fonctions déjà au-dessus de 30 : le contrôle échoue
+  sur une fonction nouvelle ou un score en hausse, et signale une entrée qui a baissé
+  pour qu'on resserre la référence. Désignation par fichier et nom qualifié, jamais par
+  ligne. État de départ : back, 305 fonctions et aucune au-dessus de 30 (pire 21), donc
+  une référence vide ; front, 1439 fonctions dont 13 au-dessus de 30 (pire 159,5,
+  `describeOperation`), deux seulement corrigibles par des tests, les onze autres
+  dépassant 30 en complexité seule.
+- **Intégration.** pytest et vitest passent sous couverture dans `run.ps1 test` /
+  `run.sh test` et dans les deux jobs de la CI, chacun suivi du contrôle ; une
+  sous-commande `crap` ne fait que cela. L'agent `qa-tests` est propriétaire du score,
+  des références et des deux analyseurs ; les découpages reviennent aux agents de
+  couche.
+- **Durée.** Surcoût mesuré sur le poste de développement le 2026-11-02, coûts Argon2
+  abaissés comme en CI : pytest 712 s sans couverture contre 701 s avec (écart dans le
+  bruit, coverage.py passant par `sys.monitoring` sous Python 3.14) ; vitest 179 s
+  contre 191 s (+7 %). Deux passages successifs de vitest sous couverture donnent les
+  mêmes scores, donc pas de contrôle instable à craindre de ce côté.
 
 ---
 

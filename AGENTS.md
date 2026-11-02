@@ -18,7 +18,7 @@ This repository is the VtES tracking app and PWA pilot described in [CLAUDE.md](
 - frontend/ — React + TypeScript + Vite app, PWA assets, the reusable offline package (`src/offline/`), and vitest/Playwright tests.
 - contracts/ — generated OpenAPI contract used as the shared API source of truth.
 - docs/ — per-lot plans and briefs, design handoffs, incident notes, and the deployment note.
-- scripts/ — single tooling entry point (`run.ps1` / `run.sh` with `install`, `test`, `build`, `dev`) and the PWA installability check.
+- scripts/ — single tooling entry point (`run.ps1` / `run.sh` with `install`, `test`, `crap`, `build`, `dev`) and the PWA installability check.
 
 ## Working conventions
 
@@ -41,4 +41,5 @@ This repository is the VtES tracking app and PWA pilot described in [CLAUDE.md](
 - Confirm any backend API change is reflected in the OpenAPI contract and generated client types.
 - Validate that offline-write flows remain functional without a network and then sync cleanly when connectivity returns.
 - Cover business rules in tests, especially VtES validation and offline synchronization behavior.
+- Keep the CRAP gate green (`docs/qa-crap.md`): no new function above a CRAP score of 30, no score increase over the baselines in `docs/qa-baselines/crap/`. Fix with tests or by splitting the function, never by editing the baseline without a written justification.
 - Keep changes compatible with the reusable Barrin porting goal.

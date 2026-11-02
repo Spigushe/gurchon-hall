@@ -7,11 +7,17 @@ description: Pipeline monorepo — lint + tests + build pour back et front, HTTP
 
 ## Pipeline (à chaque changement)
 `.github/workflows/ci.yml`, sur push vers `main` et sur toute PR, deux jobs :
-1. **backend** : `uv sync --extra dev`, `uv run ruff check .`, `uv run pytest`,
-   puis `uv run python scripts/export_openapi.py --check`.
+1. **backend** : `uv sync --extra dev`, `uv run ruff check .`,
+   `uv run coverage run -m pytest`, le score CRAP (`coverage json` puis
+   `scripts/crap_report.py`), puis `uv run python scripts/export_openapi.py --check`.
 2. **frontend** (Node 22) : `npm ci`, `npm run lint`, build (`tsc -b && vite
-   build`), `scripts/check-pwa-installability.mjs`, `npm run test`, puis
+   build`), `scripts/check-pwa-installability.mjs`, `npm run test:coverage`,
+   `npm run crap`, puis
    `npm run test:e2e` (Playwright, dont les projets contre un vrai back).
+Le score CRAP (`docs/qa-crap.md`, propriétaire `qa-tests`) échoue sur une
+fonction nouvelle au-dessus de 30 ou sur un score en hausse par rapport aux
+références `docs/qa-baselines/crap/` ; ne jamais réécrire une référence pour
+débloquer un pipeline.
 Coûts Argon2 abaissés au niveau du workflow (`ARGON2_MEMORY_COST_KIB=8192`,
 `ARGON2_TIME_COST=1`), jamais en production. Gate de merge : les deux jobs verts.
 En local, le même enchaînement passe par `scripts/run.ps1 test` / `run.sh test`

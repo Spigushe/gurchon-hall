@@ -11,3 +11,6 @@ build/
 dist/
 .env
 .env.local
+# couverture du score CRAP (docs/qa-crap.md)
+.coverage
+coverage.json

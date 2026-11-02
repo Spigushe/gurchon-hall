@@ -1,0 +1,18 @@
+{
+  "threshold": 30,
+  "functions": {
+    "src/features/games/GameDetail.tsx::GameDetail": 31,
+    "src/features/games/GameForm.tsx::GameFormBody": 77,
+    "src/features/games/GamesPage.tsx::GamesPage": 35,
+    "src/features/games/GamesPage.tsx::compareGames.<retournée>": 34.1,
+    "src/features/games/TournamentDetail.tsx::TournamentDetail": 47,
+    "src/features/games/TournamentForm.tsx::TournamentFormBody": 36,
+    "src/features/stock/StockForm.tsx::StockForm": 42,
+    "src/features/stock/StockPage.tsx::StockPage": 45,
+    "src/features/sync/CorrectionForm.tsx::CorrectionForm.submit": 96,
+    "src/features/sync/describeOperation.ts::describeOperation": 159.5,
+    "src/features/sync/playCorrection.ts::applyDraft": 49.4,
+    "src/offline/vtes/overlay.ts::project.apply": 71.7,
+    "src/offline/vtes/overlayPlay.ts::createPlayProjector.applyTournament": 34.3
+  }
+}

@@ -30,5 +30,16 @@ export default defineConfig({
     // les premiers.
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    // Couverture pour le score CRAP (`npm run test:coverage`, puis
+    // `npm run crap`, docs/qa-crap.md). Désactivée par défaut : `npm run test`
+    // n'instrumente rien. `include` fait apparaître à 0 % les fichiers
+    // qu'aucun test n'importe, au lieu de les omettre.
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.d.ts"],
+      reporter: ["json", "text-summary"],
+      reportsDirectory: "./coverage",
+    },
   },
 });

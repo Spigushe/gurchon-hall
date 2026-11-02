@@ -13,6 +13,21 @@ Tests dans `frontend/tests/unit/`, lancés par `npm run test`. Vérifier aussi l
 typage par `npx tsc --noEmit -p tsconfig.app.json` (sans `-p`, rien n'est
 vérifié).
 
+## Score CRAP
+`npm run test:coverage` (vitest, fournisseur v8, `coverage/coverage-final.json`)
+puis `npm run crap` (`scripts/crap-report.mjs`) : score
+`comp² × (1 − cov)³ + comp` pour chaque fonction de `src/`, seuil 30, comparé à
+`docs/qa-baselines/crap/frontend.json` (13 fonctions au départ, surtout des
+composants de page dont le JSX fait la complexité). Règles et politique de la
+référence dans `docs/qa-crap.md`.
+- Seule la couverture vitest compte : un chemin testé uniquement en e2e paraît
+  non couvert. Pour faire baisser un score, un test unitaire est nécessaire.
+- Une entrée de la référence qui baisse se resserre aussitôt
+  (`npm run crap -- --update-baseline`) ; en ajouter une demande une
+  justification écrite.
+- Le comptage est testé dans `tests/unit/crapReport.test.ts`, miroir de
+  `backend/tests/test_crap_report.py`.
+
 ## E2E (Playwright)
 `npm run test:e2e` (build, build `dist-real`, puis Playwright). Quatre projets
 (`frontend/playwright.config.ts`) :
