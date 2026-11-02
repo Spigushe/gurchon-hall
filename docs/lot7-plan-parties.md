@@ -1690,6 +1690,23 @@ Aucun défaut du code n'a été trouvé.
 - **Reste du critère de fin de lot, hors E** : la vérification à la main sur téléphone (une
   partie en mode avion, synchronisée au retour du réseau) et l'étape F.
 
+### Livré à l'étape F (2026-11-02)
+
+- **Base de développement.** `backend/vtes.db` est à `e2a7819dd4a2` (R10 puis R11 en un
+  seul `upgrade head`), sauvegarde d'avant migration dans `backend/vtes.db.lot-7-etape-e.bak`
+  (à `89695b77ef45` ; le nom diffère du `pre-lot7-<horodatage>` prévu ci-dessus). Comparée
+  ligne à ligne à la sauvegarde : les 58 opérations du journal, les 28 entrées de stock, le
+  deck et ses 20 lignes, `deleted_deck_card` et le compte sont identiques ; un « Moi » pour
+  l'unique compte ; `player`, `venue`, `tournament` et `game` en `AUTOINCREMENT`,
+  `participation` non (voulu, R11) ; `foreign_key_check` vide, `integrity_check` à `ok`.
+- **Vérification sur téléphone** faite par l'utilisateur le même jour. Elle a laissé en base
+  deux lieux, un adversaire, un tournoi et deux parties, soit huit opérations de plus au
+  journal (66), toutes `applied`.
+- **Documentation.** CLAUDE.md mis à jour (en-tête, § 5, 6, 7, 11, 12, P9 reporté,
+  avertissement provisoire retiré). Le README de `frontend/src/offline/` avait déjà reçu
+  ses sections Lot 7 aux étapes C1a et C1b (« Chaîner des références de plusieurs genres
+  dans un même lot », « Pratique de jeu », limites) : rien à y ajouter.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1854,7 +1871,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D1 ») | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D2 ») | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau — **fait le 2026-11-02** (cf. « Livré à l'étape E ») | B3, D2 |
-| F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
+| F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline — **fait le 2026-11-02** (cf. « Livré à l'étape F ») | E |
 
 Le premier jet faisait partir B et C en parallèle dès l'export du contrat
 d'A2. Ce n'est plus possible : les schémas de partie n'entrent au contrat
