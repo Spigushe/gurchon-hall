@@ -639,6 +639,11 @@ Tranchées (contexte VtES, avant Lot 1) :
    possible pour les exemplaires possédés, d'où une table `language` ouverte.
 3. **Adversaires** : on suit uniquement **mes propres parties/résultats**, pas
    les decks ou résultats détaillés des autres joueurs.
+   *Revu le 2026-11-02, pour le Lot 8* : le **deck** d'un adversaire nommé
+   (nom et archétype) entrera dans le suivi, pour analyser les résultats d'un de
+   mes decks selon le deck de ma proie et celui de mon prédateur. Ses
+   **résultats** restent hors suivi (A13 et P7 de `docs/lot7-plan-parties.md`).
+   Le Lot 7 applique encore la règle d'origine.
 4. **Langue au niveau de la carte** (pas seulement du stock ni du deck) : un
    deck peut donc contenir des cartes de langues différentes d'un exemplaire à
    l'autre.
@@ -1418,13 +1423,30 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
    `backend/vtes.db.pre-lot6-20261002-201755.bak`. Compte historique réclamé par
    l'utilisateur le même jour (`manage_accounts.py claim-legacy`).
 8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
-9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
+9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date. Ajouté le
+   2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
+   table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
+   deck de sa proie et à celui de son prédateur. Proposition : deux colonnes
+   facultatives en texte libre sur la ligne d'adversaire de `participation`,
+   comme `deck.archetype`, avec en suggestion les valeurs déjà saisies, et sans
+   effet sur une ligne qui joue un de mes decks prêtés (P4 du Lot 7). Restent à
+   trancher : la convention de siège (la proie du siège *n* est-elle le siège
+   *n* + 1, le dernier ayant le premier pour proie ?), une analyse limitée aux
+   tables dont les sièges sont saisis (le siège est facultatif), et la table à
+   deux, où proie et prédateur sont le même joueur.
 10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
    collection, un deck ne s'alimentant que du stock possédé (§11.2).
+   Ajouté le 2026-11-02, faisabilité à évaluer à l'ouverture du lot :
+   **synchroniser un tournoi depuis Archon** (archon.vekn.net). Le numéro VEKN
+   du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un tournoi reçoit
+   son lien Archon, et un bouton, grisé hors connexion, lance l'import. L'API
+   publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
+   identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
+   Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
 11. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
   le déploiement de gurchon-hall lui-même est traité au Lot 11.
 12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
