@@ -3070,3 +3070,515 @@ fieldset:disabled .chip {
     vertical-align: -2px;
   }
 }
+
+/*
+ * — Tournois, Carnet et Atelier (Lot 7, étape D2 ; `docs/design-handoff/LOT7.md`) —
+ * Aucun token nouveau. Mobile d'abord, la disposition bureau (≥ 1024px) vient dans le
+ * `@media` en fin de bloc.
+ */
+
+/* Segmenté à deux options (Mono-deck | Multi-deck, Adversaires | Lieux) : patron `.seg` de Nocturne. */
+.seg-field {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.seg-field legend {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  padding: 0;
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.seg__option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  color: var(--color-neutral-400);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.seg__option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.seg__option:has(input:checked) {
+  color: var(--color-accent);
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.seg__option:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.seg__option:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* Feuille « Nouveau tournoi » */
+.language-chips__row--wrap {
+  flex-wrap: wrap;
+}
+
+.tournament-form__dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+
+.tournament-form__dates > .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.tournament-form__counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 20px;
+}
+
+.tournament-form__more {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 14px;
+}
+
+/* En-tête commun des listes Parties et Tournois : titre, puis Carnet (et création au bureau). */
+.play-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.play-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Liste des tournois */
+.tournament-row__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tournament-row__summary {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.tournament-row__rank {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.tournament-row__rank-total {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.tournament-row__running {
+  font-size: 12px;
+  color: var(--color-accent-300);
+  white-space: nowrap;
+}
+
+/* Détail d'un tournoi */
+.tournament-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.tournament-stats .stat__value {
+  font-size: 30px;
+}
+
+.tournament-final-deck {
+  border-left: 2px solid var(--color-accent);
+  padding-left: 16px;
+}
+
+.tournament-final-deck__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 18px;
+}
+
+.tournament-final-deck__help {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--color-neutral-300);
+}
+
+.round-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.round-list--final {
+  margin-top: 10px;
+}
+
+.round-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--color-divider);
+  color: inherit;
+  text-decoration: none;
+}
+
+.round-list > li:last-child > .round-row,
+.round-row--idle {
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.round-row__name {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 17px;
+}
+
+.round-row__meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.round-row__result {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.round-row__idle {
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+.round-row__pending {
+  color: var(--color-accent-300);
+  vertical-align: -2px;
+}
+
+.round-row--head {
+  display: none;
+}
+
+/* Classement final */
+.ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ranking__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 14px;
+}
+
+.ranking__label {
+  font-size: 14px;
+  color: var(--color-neutral-300);
+  padding-bottom: 10px;
+}
+
+.ranking__field {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.ranking__input {
+  width: 72px;
+  font-size: 24px;
+  text-align: right;
+}
+
+.ranking__suffix {
+  font-size: 13px;
+  color: var(--color-neutral-500);
+  padding-bottom: 10px;
+}
+
+/* Carnet */
+.notebook-grid {
+  display: block;
+}
+
+.notebook-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.notebook-row {
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.notebook-row__line {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  min-height: 56px;
+  padding: 8px 0;
+}
+
+.notebook-row__main {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.notebook-row__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.notebook-row__sub,
+.notebook-row__usage {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.notebook-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notebook-row__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.notebook-row__action-label {
+  display: none;
+}
+
+.notebook-badge {
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-900);
+  color: var(--color-accent-200);
+}
+
+.notebook-rename {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+}
+
+.notebook-rename__hint {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  white-space: nowrap;
+}
+
+.notebook-refusal {
+  margin: 0 0 12px;
+  padding-left: 12px;
+  border-left: 2px solid var(--color-accent);
+  font-size: 13px;
+  color: var(--color-accent-200);
+}
+
+/* Atelier : carte « Tournoi en cours » et raccourci « Nouvelle partie » */
+.current-tournament {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.current-tournament__name {
+  font-size: 22px;
+}
+
+.current-tournament__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.current-tournament__last {
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.current-tournament__cta {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.home-new-game {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border: 1px solid var(--color-divider);
+  border-radius: 999px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 14px;
+}
+
+@media (min-width: 1024px) {
+  .tournament-form__dates {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .tournament-form__dates > .field:last-child {
+    grid-column: auto;
+  }
+
+  .play-header__actions .btn {
+    min-height: 36px;
+  }
+
+  .tournaments-detail {
+    min-width: 0;
+  }
+
+  .tournament-stats {
+    gap: 0;
+  }
+
+  .tournament-stats .stat {
+    flex: 1;
+    padding-left: 0;
+  }
+
+  .tournament-stats .stat + .stat::before {
+    display: none;
+  }
+
+  .tournament-stats .stat__value {
+    font-size: 26px;
+  }
+
+  .round-row--table,
+  .round-row--head {
+    display: grid;
+    grid-template-columns: 90px 1.2fr 56px 1.6fr 84px;
+    gap: 16px;
+    align-items: center;
+    padding: 10px 0;
+    font-size: 13px;
+  }
+
+  .round-row--head {
+    color: var(--color-neutral-500);
+    font-size: 12px;
+    padding: 8px 0;
+    border-top: none;
+  }
+
+  .round-row--table .round-row__name {
+    font-size: 14px;
+  }
+
+  .round-row--table .round-row__table {
+    color: var(--color-neutral-300);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .round-row--table .round-row__result,
+  .round-row--head .round-row__result {
+    text-align: right;
+  }
+
+  .notebook-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: start;
+  }
+
+  .notebook-row__line {
+    flex-wrap: nowrap;
+    min-height: 44px;
+  }
+
+  .notebook-row__name {
+    font-size: 15px;
+  }
+
+  .notebook-row__action {
+    font-size: 13px;
+  }
+
+  .notebook-row__icon {
+    display: none;
+  }
+
+  .notebook-row__action-label {
+    display: inline;
+  }
+
+  .home-tournament-slot {
+    padding: 22px 0;
+    border-top: 1px solid var(--color-divider);
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .current-tournament__cta {
+    width: auto;
+    align-self: flex-start;
+  }
+}

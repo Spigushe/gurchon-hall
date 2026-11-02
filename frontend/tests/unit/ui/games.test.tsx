@@ -651,14 +651,15 @@ describe("détail d'une partie", () => {
   });
 });
 
-describe("tournois (lecture seule, étape D1)", () => {
-  it("affiche l'état vide, sans création de tournoi ni lien vers le carnet", async () => {
+describe("tournois (liste, étape D2)", () => {
+  it("affiche l'état vide avec son bouton de création et le lien vers le carnet", async () => {
     await renderApp({ online: false, hash: "#/tournois" });
     expect(await screen.findByTestId("tournaments-empty")).toHaveTextContent("Aucun tournoi");
     expect(screen.getByTestId("tournaments-empty")).toHaveTextContent(
       "Créez le tournoi en arrivant : les rondes s'y rattachent ensuite.",
     );
-    expect(screen.queryByText("Carnet")).not.toBeInTheDocument();
+    expect(screen.getByTestId("tournaments-empty-create")).toHaveTextContent("Nouveau tournoi");
+    expect(screen.getByTestId("notebook-open")).toHaveAttribute("href", "#/carnet");
     expect(screen.getByTestId("play-switch-tournaments")).toHaveAttribute("aria-current", "page");
   });
 

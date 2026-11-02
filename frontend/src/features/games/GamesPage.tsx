@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
-import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, FunnelIcon, PlusIcon } from "@phosphor-icons/react";
+import { AddressBookIcon, CaretDownIcon, CaretUpIcon, ClockCountdownIcon, FunnelIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { consumeIntent, type GamesIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
@@ -443,7 +443,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
     <div className="page page--with-floating page--games" data-testid="games-page">
       <div className="games-grid">
         <div className="games-master">
-          <div className="decks-header">
+          <div className="decks-header play-header">
             <div>
               <h2 className="page-title">Parties</h2>
               <p className="page-meta" data-testid="games-count">
@@ -451,19 +451,25 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
                 {isDesktop && tournaments ? ` · ${plural(tournaments.length, "tournoi")}` : ""} · lecture locale
               </p>
             </div>
-            {isDesktop && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="games-new-desktop"
-                aria-keyshortcuts="n"
-                onClick={() => setCreating(true)}
-              >
-                <PlusIcon size={16} />
-                Nouvelle partie
-                <Kbd>N</Kbd>
-              </button>
-            )}
+            <div className="play-header__actions">
+              <Link to={{ name: "notebook" }} className="btn btn-secondary" data-testid="notebook-open">
+                <AddressBookIcon size={16} />
+                Carnet
+              </Link>
+              {isDesktop && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  data-testid="games-new-desktop"
+                  aria-keyshortcuts="n"
+                  onClick={() => setCreating(true)}
+                >
+                  <PlusIcon size={16} />
+                  Nouvelle partie
+                  <Kbd>N</Kbd>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="games-toolbar">

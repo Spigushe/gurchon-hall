@@ -1485,6 +1485,156 @@ touchés. `tsc --noEmit -p tsconfig.app.json` et `npm run lint` sont propres.
   « Tournoi en cours » et raccourci « Nouvelle partie » de l'Atelier, extension de l'actif de
   l'onglet Parties à la route du Carnet, raccourcis `R` et `F`.
 
+### Livré à l'étape D2 (2026-11-02)
+
+Tournois, Carnet et Atelier, en mobile puis en bureau. Code dans `frontend/src/features/games/`
+(`TournamentsPage`, `TournamentDetail`, `TournamentDetailPage`, `TournamentForm`,
+`NotebookPage`, et deux modules purs, `tournamentModel.ts` et `notebookModel.ts`) et dans
+`frontend/src/features/home/HomePage.tsx`. Tests dans
+`frontend/tests/unit/ui/tournaments.test.tsx` (51 tests) et, après la relecture QA,
+`frontend/tests/unit/tournamentModelEdges.test.ts` (8 tests de cas limites) ; vitest passe de 660
+tests sur 43 fichiers à 719 sur 45 (708 avant le correctif des rondes prévues, voir « Rondes prévues
+et finale »). La relecture QA du correctif ajoute ensuite `tests/unit/roundCountEffectEdges.test.ts`
+(5 tests) et `tests/unit/optionalStepper.test.tsx` (3 tests), ce qui porte la suite à 727 tests
+sur 47 fichiers, verts sur une exécution complète (2026-11-02).
+`games.test.tsx` et `routes.test.ts` ont suivi les routes
+devenues vraies. Aucun e2e n'a été ajouté (53 tests Playwright avant comme après) : les parcours
+de tournoi contre le vrai back sont à l'étape E. Sur quatre runs complets, trois ont donné 53 sur 53
+et un 52 sur 53 : `tests/e2e-real/rejections.spec.ts:202` (deck archivé entre-temps), sans
+rapport avec D2, a échoué une fois puis est repassé à chaque exécution suivante. Son message
+d'erreur n'a pas été conservé. C'est une flakiness e2e à surveiller à l'étape E. Ni le contrat, ni `backend/`, ni `schema.d.ts`, ni la couche offline
+n'ont été touchés. `tsc --noEmit -p tsconfig.app.json` et `npm run lint` sont propres.
+
+- **Routes.** `#/tournois/<clé>` (même forme de clé que les parties, `id:<n>` ou
+  `ref:<uuid>`) et `#/carnet`, deux hash : le service worker ne les voit jamais, et aucune ne porte
+  un nom de ressource de l'API. L'onglet Parties est actif sur ces deux routes, tab bar comme barre
+  haute ; `routeId` porte la clé du tournoi, si bien que le focus revient au contenu en passant d'un
+  tournoi à l'autre. Les deux pages sont chargées à la demande et préchauffées comme les autres.
+- **Liste des tournois** (écran 17, d12). Une ligne : nom, méta « 24 oct. · Le Bar à Dés ·
+  multi-deck » (l'année n'apparaît que si elle n'est pas l'année courante), bilan « 2 GW · 7,5 VP ·
+  3 rondes » (+ « · finaliste »), classement « 3e / 27 » ou « en cours », pastille « en attente ».
+  Mobile : la ligne mène au détail, la création aussi. Bureau : maître/détail `380px / 1fr`, la ligne
+  sélectionne, la création sélectionne le nouveau tournoi, `N` ouvre la création d'un tournoi (et non
+  d'une partie : la page Parties garde le sien). État vide avec son bouton « Nouveau tournoi ».
+- **Feuille de création** (écran 18, d13). Les champs du handoff ; un niveau qui interdit le
+  multi-deck (championnat national, Grand Prix, championnat continental) grise l'option, bascule en
+  mono et retire « Deck en finale ». En modification, seuls les champs changés partent ; passer en
+  mono envoie `final_deck_rule: null` d'office (la couche offline s'en charge). Le lieu se choisit ou
+  se crée au fil de la frappe, dans la même feuille.
+- **Détail** (écrans 19 et 20, d12). Bilan GW et VP préliminaires | finale (« — » avant la finale),
+  ligne « Bilan provisoire : la ronde 3 attend le réseau » quand une partie du tournoi est en file ;
+  bloc « deck de la finale » (mono : le deck de mes rondes ; multi : les decks admis lus au dernier
+  rafraîchissement, avec « ici la ronde 2 » pour la règle « meilleur deck » ; rien tant que la règle
+  n'est pas annoncée) ; mes rondes (chacune mène à sa partie), la finale à part ; « Ajouter la
+  ronde N » (disparaît une fois `round_count` atteint, et dès qu'une finale existe, que
+  `round_count` soit connu ou non) et « Saisir la finale » (disparaît quand elle existe) ouvrent la
+  saisie préremplie ; « Modifier » ; « Supprimer le tournoi ». Voir « Rondes prévues et finale »
+  plus bas pour le détail du comportement.
+- **Classement final.** « Ma place [ ] sur [ ] joueurs ». Place 1 préremplie avec un GW en
+  finale ; le nombre de joueurs est redemandé s'il manque, avec l'aide du brief ; un finaliste lit
+  « votre place va de 1 à 5 ». Même règle que la saisie d'une partie (décision du 2026-11-02) :
+  « Enregistrer le classement » est actif dès qu'une place est saisie, mais tant qu'une erreur
+  vérifiable s'affiche (au-delà du nombre de joueurs, autre place que la première avec un GW en
+  finale, au-delà de la cinquième après une finale), il refuse l'envoi et met le focus sur
+  l'alerte (`role="alert"`, `tabIndex=-1`). Rien n'est envoyé si ni la place ni le nombre de joueurs
+  n'ont changé.
+- **Suppression.** Refusée sur place, sans rien mettre en file, quand le tournoi contient des
+  parties (« Ce tournoi contient 4 parties : supprimez-les ou détachez-les du tournoi d'abord. ») ;
+  sinon deux temps, « Confirmer la suppression » / « Garder ». Le bouton attend que les parties
+  soient lues, pour ne pas laisser passer un tournoi non vide.
+- **Raccourcis bureau `R` et `F`** (ajouter la ronde, saisir la finale), même mécanique que `E` et
+  `T` du détail d'une partie : inactifs dans un champ et derrière une feuille, et la page parente
+  coupe `N` pendant qu'une feuille du détail est ouverte.
+- **Carnet** (écrans 21 et d14). Bouton « Carnet » en tête de l'écran Parties et de l'onglet
+  Tournois. Mobile : segmenté « Adversaires · N | Lieux · N » ; bureau : deux colonnes. « Moi » en
+  tête, avec son étiquette, renommable et jamais supprimable. Renommage en place (`Entrée` valide,
+  `Échap` annule), doublon refusé par comparaison repliée (casse et accents ignorés, comme
+  `fold_text`, Moi compris). Suppression refusée avec son motif quand l'adversaire ou le lieu
+  est utilisé, sinon deux temps. L'usage retenu est le plus grand du compteur serveur et de ce que
+  montrent les parties et tournois lus sur l'appareil : le compteur ne suit pas la file, mais une
+  partie saisie hors ligne doit déjà compter.
+- **Atelier** (P8, écrans 22 et d15). Carte « Tournoi en cours » (commencé aujourd'hui ou hier, en
+  date locale, sans classement final) : nom, dernière ronde, « Saisir la ronde N » ou « Saisir la
+  finale » qui ouvre la saisie préremplie ; au bureau, `↵` hors d'un contrôle interactif fait de
+  même. Une fois la finale saisie, le bouton devient un lien « Saisir le classement » vers le détail.
+  Raccourci « Nouvelle partie » vers `#/parties?action=nouvelle` : pilule de 44 px au mobile, premier
+  raccourci (accent, trophée) au bureau. Pas de statistiques.
+- **Rondes prévues et finale** (décision de l'utilisateur, 2026-11-02, qui solde le point
+  ouvert « une ronde de plus reste proposée après la finale quand `round_count` est inconnu »).
+  `round_count` est le nombre de rondes **préliminaires** ; la finale n'a pas de numéro et il n'y
+  en a qu'une. Le calcul (`nextRoundOf`, `canAddRound`, `roundCountEffect` dans
+  `tournamentModel.ts`) suit la valeur courante de `round_count`, si bien qu'une modification du
+  tournoi se reflète aussitôt dans le détail et dans l'Atelier :
+  - `round_count` inconnu : « Ajouter la ronde N+1 » (principal) et « Saisir la finale »
+    (secondaire) ; dès que la finale est saisie, plus aucun bouton de ronde.
+  - connu, non atteint : « Ajouter la ronde N+1 » reste le bouton principal.
+  - connu et atteint, sans finale : « Ajouter la ronde » a disparu et « Saisir la finale » devient
+    le bouton principal (accent) ; l'Atelier propose « Saisir la finale ».
+  - finale saisie : ni ronde de plus, ni finale ; l'Atelier propose le classement.
+  - hausse de `round_count` : la ronde suivante revient ; baisse jusqu'à la plus haute ronde
+    saisie : la finale prend la main.
+  - baisse d'**une** ronde sous la plus haute ronde saisie, sans finale (aussi quand on passe de
+    « inconnu » à N − 1) : la partie de cette ronde devient la finale. La feuille « Modifier »
+    l'annonce (« La ronde N, déjà saisie, deviendra la finale. ») ; à l'envoi, deux opérations
+    **dans cet ordre** : `game.update` (`round_type: "final"`, `round_number: null`), puis
+    `tournament.update` avec le nouveau `round_count`. Dans l'autre ordre, le serveur refuserait la
+    baisse (`backend/app/services/tournaments.py`). La surcouche reflète les deux opérations en
+    attente : la partie apparaît en finale hors ligne et le bilan provisoire suit ; aucune
+    modification de la couche offline n'a été nécessaire.
+  - baisse de **plus d'une** ronde, ou sous la plus haute ronde alors qu'une finale existe : refus
+    local et bloquant. « Enregistrer » reste actif mais n'envoie rien et met le focus sur l'alerte
+    (`role="alert"`, `tabIndex=-1`), avec le message du 409 : « La ronde N est déjà saisie : le
+    tournoi ne peut pas compter moins de N ronde(s). »
+  - **Règle du deck de finale (A11) : non contrôlée sur place.** Le client ne sait pas calculer les
+    decks admis (`admissibleFinalDecks` n'est qu'un miroir de la dernière lecture du serveur, sans
+    fonction pure équivalente dans `offline/vtes/`). Si la partie convertie joue un deck que la
+    règle `best_performing` ou `free_choice` n'admet pas parmi les préliminaires restantes, ou si
+    retirer la dernière préliminaire change le deck attendu en finale, c'est le serveur qui
+    tranche au rejeu, par un refus visible sur l'écran Synchronisation. Rien n'est établi côté
+    client. La relecture QA l'a vérifié contre le service par pytest sur base éphémère, par les
+    routes `PATCH` (le chemin `/sync` appelle le même service, sans avoir été rejoué) : le cas
+    nominal passe dans l'ordre annoncé, et l'ordre inverse rend 409. Dans les trois refus essayés
+    (`free_choice`, `best_performing`, classement contredit par un GW de la partie convertie),
+    la conversion est refusée, puis la baisse l'est aussi, puisqu'une préliminaire reste au-dessus
+    du nouveau `round_count`. Les deux refus s'affichent et rien n'est appliqué à moitié.
+  - **Limite connue** : deux parties locales sur la même plus haute ronde (deux appareils hors
+    ligne ; le serveur, lui, l'interdit par un index unique). `roundCountEffect` convertit la plus
+    récente, l'autre reste préliminaire, et la baisse est refusée en 409 au rejeu. Rien
+    d'incohérent n'est écrit. Pas de correctif prévu.
+  - Pendant la lecture locale des parties (quelques millisecondes), « Enregistrer » patiente quand
+    le nombre de rondes a changé, pour que la conversion ou le refus soient jugés sur les rondes
+    réelles.
+- **Écarts au handoff**, tous voulus :
+  1. Les actions du détail de tournoi sont des boutons (patron du détail de deck et de partie),
+     non des pilules flottantes de 50 px ; « Ajouter la ronde N » est le bouton accent.
+  2. Le classement final est toujours affiché, pas seulement « en fin de tournoi » (écran 20) :
+     rien ne dit à l'outil qu'un tournoi est fini, et d12 le grisait « tant que le tournoi n'est pas
+     fini », ce que la décision du 2026-11-02 remplace par le refus d'une saisie invalide.
+  3. « Tournoi introuvable » renvoie à « Retour aux tournois → », non « Retour aux parties → ».
+  4. Le renommage du Carnet a un bouton « OK » et un bouton « Annuler » aux deux largeurs (le
+     handoff ne montre que le clavier au bureau), avec le rappel « ↵ valider · Échap annuler » au
+     bureau. Les actions du bureau sont du texte, celles du mobile des icônes de 44 px.
+  5. La carte « Tournoi en cours » n'est rendue qu'à un emplacement à la fois, choisi par la
+     largeur (sous le titre au mobile, entre les chiffres et « En cours » au bureau), et la pilule
+     « Nouvelle partie » du mobile est un lien stylé, non un `Pill`.
+  6. Au bureau, la colonne « Table » des rondes dit le nombre de joueurs et nomme les adversaires,
+     tronqués à la largeur ; la page `#/tournois/<clé>` ouverte à la main au bureau garde la forme
+     mobile du détail (le tableau est propre au panneau).
+  7. Le sélecteur `.seg` (segmenté) sert aussi au Carnet ; les classes `.seg`, `.seg__option`,
+     `.seg-field` et celles de la feuille de tournoi sont groupées en fin d'`index.css`, sans token
+     nouveau.
+- **Ce qui manque à la couche offline** : rien qui ait bloqué un écran. Deux limites déjà
+  annoncées se voient maintenant à l'écran : les decks admis en finale ne se recalculent pas hors
+  ligne (le bloc se contente alors de dire que le deck de la meilleure ronde sera lu au prochain
+  rafraîchissement) ; les compteurs `gameCount` et `tournamentCount` ne suivent pas la file (le
+  Carnet les croise avec les lectures locales). `LocalTournament` ne porte ni le nombre de parties
+  ni la date de dernière écriture : le refus de suppression compte les parties lues localement.
+- **Reste pour E** : e2e mobile et bureau des trois écrans contre le vrai back (création hors
+  ligne, rondes, classement, Carnet, carte de l'Atelier), matrice d'autorisation étendue, et
+  vérification de bout en bout des libellés et des corrections de l'écran Synchronisation pour les
+  opérations de tournoi (écrits à l'étape C1b, pas encore exercés par un e2e). Toujours en suspens, hors D2 : la légende
+  des raccourcis `?` et le champ de recherche global, qui reviennent avec Chercher.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1647,7 +1797,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | C1b | pwa-offline | ce qui se code contre les types générés : constructeurs d'opérations, miroirs et rafraîchissement, projection, actions, libellés et corrections — **fait le 2026-10-29** (cf. « Livré à l'étape C1b ») | B3 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D1 ») | C1b, D0 |
-| D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau | D1 |
+| D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D2 ») | D1 |
 | E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
 | F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
 

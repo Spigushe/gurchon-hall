@@ -68,8 +68,18 @@ describe("routes clientes", () => {
     expect(parseHash("#/parties/n-importe-quoi")).toEqual({ name: "not-found" });
     expect(parseHash("#/parties/id:abc")).toEqual({ name: "not-found" });
     expect(parseHash("#/parties/%E0%A4%A")).toEqual({ name: "not-found" });
-    // Le détail d'un tournoi et le carnet viennent à l'étape D2.
-    expect(parseHash("#/tournois/id:1")).toEqual({ name: "not-found" });
+    // Étape D2 : le détail d'un tournoi (même forme de clé que les parties) et le carnet.
+    expect(parseHash("#/tournois/id:1")).toEqual({ name: "tournament", key: "id:1" });
+    expect(parseHash("#/tournois/ref:3f2a-9c")).toEqual({ name: "tournament", key: "ref:3f2a-9c" });
+    expect(parseHash("#/tournois/n-importe-quoi")).toEqual({ name: "not-found" });
+    expect(parseHash("#/tournois/id:abc")).toEqual({ name: "not-found" });
+    expect(parseHash("#/carnet")).toEqual({ name: "notebook" });
+    expect(hrefFor({ name: "tournament", key: "ref:3f2a-9c" })).toBe("#/tournois/ref%3A3f2a-9c");
+    expect(hrefFor({ name: "notebook" })).toBe("#/carnet");
+    expect(parseHash(hrefFor({ name: "tournament", key: "ref:3f2a-9c" }))).toEqual({
+      name: "tournament",
+      key: "ref:3f2a-9c",
+    });
   });
 
   it("tolère l'adresse vide, la barre finale et une query", () => {

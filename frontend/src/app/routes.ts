@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { DeckKey, GameKey } from "../offline/vtes";
+import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
 
 /**
  * Routage à hash (`#/collection`, `#/decks`, `#/decks/<clé>`).
@@ -31,11 +31,13 @@ export type Route =
   | { name: "games"; intent?: GamesIntent }
   | { name: "game"; key: GameKey }
   | { name: "tournaments" }
+  | { name: "tournament"; key: ResourceKey }
+  | { name: "notebook" }
   | { name: "sync" }
   | { name: "not-found" };
 
 const DECK_KEY = /^(?:id:\d+|ref:[A-Za-z0-9-]+)$/;
-/** Même forme de clé pour une partie (`id:<n>` ou `ref:<uuid>`). */
+/** Même forme de clé pour une partie ou un tournoi (`id:<n>` ou `ref:<uuid>`). */
 const RESOURCE_KEY = DECK_KEY;
 
 const STOCK_ACTIONS: Record<string, StockIntent> = { ajouter: "add", verser: "bundle" };
@@ -74,6 +76,7 @@ export function parseHash(hash: string): Route {
     return intent ? { name: "games", intent } : { name: "games" };
   }
   if (path === "/tournois") return { name: "tournaments" };
+  if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
@@ -84,6 +87,11 @@ export function parseHash(hash: string): Route {
   if (gameMatch) {
     const key = decodeKey(gameMatch[1]);
     if (key !== null && RESOURCE_KEY.test(key)) return { name: "game", key: key as GameKey };
+  }
+  const tournamentMatch = /^\/tournois\/(.+)$/.exec(path);
+  if (tournamentMatch) {
+    const key = decodeKey(tournamentMatch[1]);
+    if (key !== null && RESOURCE_KEY.test(key)) return { name: "tournament", key: key as ResourceKey };
   }
   return { name: "not-found" };
 }
@@ -104,6 +112,10 @@ export function hrefFor(route: Route): string {
       return `#/parties/${encodeURIComponent(route.key)}`;
     case "tournaments":
       return "#/tournois";
+    case "tournament":
+      return `#/tournois/${encodeURIComponent(route.key)}`;
+    case "notebook":
+      return "#/carnet";
     case "sync":
       return "#/synchronisation";
     case "not-found":

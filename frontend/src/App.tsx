@@ -33,6 +33,10 @@ const GameDetailPage = lazy(() =>
 const TournamentsPage = lazy(() =>
   import("./features/games/TournamentsPage").then((m) => ({ default: m.TournamentsPage })),
 );
+const TournamentDetailPage = lazy(() =>
+  import("./features/games/TournamentDetailPage").then((m) => ({ default: m.TournamentDetailPage })),
+);
+const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
 
 // Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
@@ -65,6 +69,8 @@ for (const importRoute of [
   () => import("./features/games/GamesPage"),
   () => import("./features/games/GameDetailPage"),
   () => import("./features/games/TournamentsPage"),
+  () => import("./features/games/TournamentDetailPage"),
+  () => import("./features/games/NotebookPage"),
   () => import("./features/sync/SyncPage"),
 ]) {
   importRoute().catch(() => {});
@@ -87,8 +93,13 @@ function navActive(route: Route): Record<NavKey, boolean> {
     home: route.name === "home",
     stock: route.name === "stock",
     decks: route.name === "decks" || route.name === "deck",
-    // Parties : actif sur toutes les routes parties, tournois (et, à l'étape D2, carnet).
-    games: route.name === "games" || route.name === "game" || route.name === "tournaments",
+    // Parties : actif sur toutes les routes parties, tournois et carnet.
+    games:
+      route.name === "games" ||
+      route.name === "game" ||
+      route.name === "tournaments" ||
+      route.name === "tournament" ||
+      route.name === "notebook",
     sync: route.name === "sync",
   };
 }
@@ -168,6 +179,10 @@ function Page({ route }: { route: Route }) {
       return <GameDetailPage key={route.key} gameKey={route.key} />;
     case "tournaments":
       return <TournamentsPage />;
+    case "tournament":
+      return <TournamentDetailPage key={route.key} tournamentKey={route.key} />;
+    case "notebook":
+      return <NotebookPage />;
     case "sync":
       return <SyncPage />;
     case "not-found":
@@ -361,7 +376,9 @@ function App() {
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.
   const routeId =
-    route.name === "deck" || route.name === "game" ? `${route.name}:${route.key}` : route.name;
+    route.name === "deck" || route.name === "game" || route.name === "tournament"
+      ? `${route.name}:${route.key}`
+      : route.name;
   const previousId = useRef(routeId);
   useEffect(() => {
     if (previousId.current !== routeId) {
