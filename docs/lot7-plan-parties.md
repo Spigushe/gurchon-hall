@@ -1635,6 +1635,61 @@ n'ont été touchés. `tsc --noEmit -p tsconfig.app.json` et `npm run lint` sont
   opérations de tournoi (écrits à l'étape C1b, pas encore exercés par un e2e). Toujours en suspens, hors D2 : la légende
   des raccourcis `?` et le champ de recherche global, qui reviennent avec Chercher.
 
+### Livré à l'étape E (2026-11-02)
+
+Audit des tests contre « Tests attendus (E) », puis ajout de ce qui manquait. Seuls des
+fichiers de test ont été touchés : ni le code de l'app, ni le contrat, ni `data-testid`.
+Aucun défaut du code n'a été trouvé.
+
+- **Back.** La plupart des puces étaient déjà couvertes par les étapes A2 à B3 (matrice
+  d'autorisation à 49 opérations, `test_vtes_rules_play.py`, `test_play_routes.py`,
+  `test_sync_lot7.py`, `test_migrations.py`). 19 tests comblent les trous : 18 dans
+  `backend/tests/test_lot7_qa_gaps.py`, et un dans `test_migrations.py` (base au Lot 6 avec un
+  deck et un journal, montée à la tête puis descente, deck et journal identiques à chaque
+  étape). Les manques comblés : VP hors de la grille de 0,5 par la route (refusé dès le schéma,
+  422 `multiple_of`) ; les trois niveaux de championnat par création et par `PATCH` (seul le
+  continental l'était par `PATCH`) ; VP ou GW d'un adversaire par `PUT` de table et par `/sync` ;
+  deck prêté sans effet sur les decks admis et sur le meilleur deck ; table réduite à ma seule
+  ligne ; « Moi » unique de `POST /inscription` à la reconnexion ; deck de finale refusé par
+  `/sync` ; et la conversion « dernière ronde → finale puis baisse de `round_count` » **par
+  `/sync`**, que D2 n'avait vérifiée que par `PATCH` (ordre nominal appliqué, ordre inverse :
+  baisse refusée en `conflict` et conversion appliquée seule, rejeu en `replayed`).
+  `uv run pytest` sous couverture : 2258 passés, 2 `xfail` connus ; `ruff check` propre ;
+  CRAP back vide (pire 21, `admissible_final_decks`, couverte à 100 %).
+- **Front, e2e contre le vrai back.** Six tests, 59 Playwright sur 28 fichiers au lieu de 53
+  (8 `chromium`, 30 `real-backend`, 3 `desktop`, 18 `desktop-real-backend`, vérifié par
+  `--list` et à l'exécution), deux passages complets verts. Helpers partagés dans
+  `tests/e2e-real/support/play.ts`.
+  - `club-sans-reseau.spec.ts`, **aux deux largeurs** : le scénario « au club sans réseau » du
+    plan. Hors ligne, un tournoi multi (meilleur deck) et son lieu, deux rondes avec Marc (deck
+    prêté) et Léa, bilan provisoire « 1 GW · 4 VP » lu avant la synchronisation, rechargement
+    hors ligne, puis un seul `POST /sync` sans refus ; le serveur a chaque objet une fois, et le
+    rejeu du lot capturé rend six `replayed`.
+  - `finale-refusee.spec.ts` (mobile) : finale `free_choice` jouée avec un deck hors des
+    préliminaires, refusée, corrigée depuis l'écran Synchronisation ; puis un
+    `tournament.update` refusé et corrigé. C'est le premier e2e qui exerce les libellés et les
+    corrections des opérations de tournoi écrits à C1b.
+  - `partie-amicale-deck-hors-ligne.spec.ts` (bureau) : `deck.create`, `player.create` et
+    `game.create` dans un même lot, la partie et le prêt pointant l'`id` du deck.
+  - `tournoi-en-cours-classement.spec.ts` (mobile) : carte « Tournoi en cours » de l'Atelier,
+    ronde 2 préremplie, puis « Saisir la finale », puis « Saisir le classement » ; deux places
+    invalides refusées sur place sans rien envoyer, puis « 3e / 27 ».
+  - `carnet.spec.ts` (bureau) : « Moi » renommable et non supprimable, doublon replié refusé,
+    suppressions refusées avec motif puis acceptées sur des noms inutilisés, cinq opérations
+    reflétées par le serveur.
+  Une largeur seulement pour les quatre derniers, chaque fois celle que les e2e existants ne
+  couvraient pas déjà ou la plus contrainte. Vitest : 752 tests sur 49 fichiers, aucun à ajouter
+  (`certainGameWin` sur la table partagée et Dexie 4 → 5 étaient couverts) ; lint, `tsc` et
+  CRAP front propres (pire 30,0, aucune hausse). `rejections.spec.ts:202` n'a pas échoué.
+- **Précision sur la projection.** Après synchronisation, la clé d'un objet créé hors ligne
+  reste `ref:<uuid>` et `id:<n>` s'y ajoute comme alias : `#/tournois/id:<n>` ouvre le même
+  tournoi. C'est voulu (clé stable) ; les e2e le vérifient sous cette forme.
+- **Observation sans correctif.** La carte de l'Atelier désigne la dernière ronde par
+  `played_at`, arrondi à la minute à la saisie : deux rondes saisies la même minute peuvent se
+  départager mal. Sans effet en usage réel.
+- **Reste du critère de fin de lot, hors E** : la vérification à la main sur téléphone (une
+  partie en mode avion, synchronisée au retour du réseau) et l'étape F.
+
 ### `/sync`
 
 Douze types de plus, au nom calqué sur les huit existants :
@@ -1798,7 +1853,7 @@ place (`game-*`, `tournament-*`, `nav-games`, `topnav-games`).
 | D0 | utilisateur, Claude Design | handoff mobile et bureau à partir de `docs/design-handoff/lot7-brief-claude-design.md`, versé dans `docs/design-handoff/` — **fait le 2026-10-29** (`LOT7.md` ; arbitrages dans « Handoff reçu », sous P3) | rien |
 | D1 | frontend-react | navigation (P2), liste et saisie de partie, mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D1 ») | C1b, D0 |
 | D2 | frontend-react | tournois, carnet et Atelier (P8), mobile puis bureau — **fait le 2026-11-02** (cf. « Livré à l'étape D2 ») | D1 |
-| E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau | B3, D2 |
+| E | qa-tests | matrice d'autorisation étendue, règles, sync, e2e mobile et bureau — **fait le 2026-11-02** (cf. « Livré à l'étape E ») | B3, D2 |
 | F | orchestrateur | mise en service de R10 et R11 sur `vtes.db` (un seul `upgrade head`), CLAUDE.md (§ 5, 6, 7, 11, 12, avec P9), README offline | E |
 
 Le premier jet faisait partir B et C en parallèle dès l'export du contrat

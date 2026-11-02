@@ -2949,3 +2949,32 @@ def test_the_ids_revision_renders_offline_in_both_directions(empty_db):
     assert down.stdout.count("CREATE TABLE") == 4
     assert "AUTOINCREMENT" not in down.stdout
     assert not empty_db.exists()
+
+
+def test_a_populated_lot6_database_crosses_r10_and_r11_without_loss(empty_db):
+    """Lot 7, étape E : base au Lot 6 avec un deck et un journal, montée d'une
+    traite jusqu'à la tête (R10 puis R11), puis redescendue au Lot 6. Deck et
+    journal sont identiques aux trois étapes ; le « Moi » du compte historique
+    apparaît à la montée et repart à la descente."""
+    alembic(empty_db, "upgrade", OWNER_REVISION)
+    execute(
+        empty_db,
+        "INSERT INTO deck (id, user_id, name, discriminator, status)"
+        " VALUES (1, 1, 'Banu Princes', '0001', 'active')",
+    )
+    seed_a_journal(empty_db)
+    decks_before = rows(empty_db, "SELECT * FROM deck ORDER BY id")
+    journal_before = journal(empty_db)
+
+    alembic(empty_db, "upgrade", "head")
+
+    assert rows(empty_db, "SELECT * FROM deck ORDER BY id") == decks_before
+    assert journal(empty_db) == journal_before
+    assert rows(empty_db, "SELECT user_id, is_me FROM player") == [(1, 1)]
+    assert foreign_key_violations(empty_db) == []
+
+    alembic(empty_db, "downgrade", OWNER_REVISION)
+
+    assert rows(empty_db, "SELECT * FROM deck ORDER BY id") == decks_before
+    assert journal(empty_db) == journal_before
+    assert rows(empty_db, "SELECT COUNT(*) FROM player") == [(0,)]
