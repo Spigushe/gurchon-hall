@@ -139,15 +139,23 @@ message, les deux noms étant des sites distincts pour le navigateur.
 ```
 
 La sous-commande `test` lance, dans le même ordre que la CI : le lint backend (`uv run ruff check .`),
-les tests backend (`uv run pytest`), le garde-fou de contrat
+les tests backend sous couverture (`uv run coverage run -m pytest`) suivis du
+contrôle du score CRAP, le garde-fou de contrat
 (`uv run python scripts/export_openapi.py --check`), le lint frontend
-(`npm run lint`, ESLint), puis les tests frontend (`npm run test`,
-`npm run test:e2e`) **si** ces scripts existent déjà dans
+(`npm run lint`, ESLint), puis les tests frontend (`npm run test:coverage`
+suivi de `npm run crap`, puis `npm run test:e2e`) **si** ces scripts existent déjà dans
 `frontend/package.json` — sinon l'étape correspondante est annoncée comme
 ignorée plutôt que de faire échouer le script. Option `-SkipFrontendE2e` /
 `--skip-frontend-e2e` pour sauter les tests Playwright (plus lents,
 nécessitent les navigateurs Playwright installés localement via
 `npx playwright install`).
+
+La sous-commande `crap` (`.\scripts\run.ps1 crap`, `./scripts/run.sh crap`)
+ne lance que les tests unitaires des deux couches sous couverture et le
+contrôle du score CRAP : complexité cyclomatique croisée avec la couverture,
+fonction par fonction, seuil 30, comparée aux références de
+`docs/qa-baselines/crap/`. Règles de comptage et politique de la référence
+dans `docs/qa-crap.md`.
 
 ## Build et validation d'installabilité PWA
 
@@ -265,12 +273,14 @@ Résumé :
 `.github/workflows/ci.yml` définit deux jobs, sur push/PR vers `main` :
 
 - **backend** : `astral-sh/setup-uv` (avec cache), `uv sync --extra dev`,
-  `uv run ruff check .`, `uv run pytest`, puis
+  `uv run ruff check .`, `uv run coverage run -m pytest` puis le score CRAP
+  (`scripts/crap_report.py`), puis
   `uv run python scripts/export_openapi.py --check` en étape séparée
   (garde-fou contract-first explicite, même si un test pytest le couvre
   déjà) ;
 - **frontend** : `npm ci`, `npm run lint` (ESLint), build, validation
-  d'installabilité PWA, puis tests `vitest` et `test:e2e` (Playwright) —
+  d'installabilité PWA, puis tests `vitest` sous couverture, score CRAP
+  (`npm run crap`) et `test:e2e` (Playwright) —
   détectés dynamiquement dans `frontend/package.json` plutôt que présumés,
   avec un avertissement CI explicite si l'un de ces scripts venait à
   manquer.

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /** Interrupteur 46×28 (handoff Nocturne) : `<input type="checkbox" role="switch">` stylé. */
 export function Switch({
   id,
@@ -5,6 +7,8 @@ export function Switch({
   onChange,
   label,
   hint,
+  labelIcon,
+  hintTestId,
   disabled = false,
   "data-testid": testId,
 }: {
@@ -13,14 +17,24 @@ export function Switch({
   onChange: (next: boolean) => void;
   label: string;
   hint?: string;
+  /** Icône après le libellé (un cadenas pour un interrupteur verrouillé). */
+  labelIcon?: ReactNode;
+  hintTestId?: string;
   disabled?: boolean;
   "data-testid"?: string;
 }) {
   return (
     <label className="switch-row" htmlFor={id}>
       <span className="switch-row__text">
-        <span className="switch-row__label">{label}</span>
-        {hint && <span className="switch-row__hint">{hint}</span>}
+        <span className="switch-row__label">
+          {label}
+          {labelIcon}
+        </span>
+        {hint && (
+          <span className="switch-row__hint" data-testid={hintTestId}>
+            {hint}
+          </span>
+        )}
       </span>
       <input
         id={id}

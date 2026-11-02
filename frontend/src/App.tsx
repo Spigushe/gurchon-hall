@@ -1,5 +1,5 @@
 import { Component, lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
-import { Cards, House, MagnifyingGlass, Stack, WarningCircle, WifiSlash } from "@phosphor-icons/react";
+import { CardsIcon, HouseIcon, MagnifyingGlassIcon, StackIcon, TrophyIcon, WarningCircleIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
@@ -26,6 +26,17 @@ const DecksPage = lazy(() => import("./features/decks/DecksPage").then((m) => ({
 const DeckDetailPage = lazy(() =>
   import("./features/decks/DeckDetailPage").then((m) => ({ default: m.DeckDetailPage })),
 );
+const GamesPage = lazy(() => import("./features/games/GamesPage").then((m) => ({ default: m.GamesPage })));
+const GameDetailPage = lazy(() =>
+  import("./features/games/GameDetailPage").then((m) => ({ default: m.GameDetailPage })),
+);
+const TournamentsPage = lazy(() =>
+  import("./features/games/TournamentsPage").then((m) => ({ default: m.TournamentsPage })),
+);
+const TournamentDetailPage = lazy(() =>
+  import("./features/games/TournamentDetailPage").then((m) => ({ default: m.TournamentDetailPage })),
+);
+const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
 
 // Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
@@ -55,13 +66,18 @@ for (const importRoute of [
   () => import("./features/stock/StockPage"),
   () => import("./features/decks/DecksPage"),
   () => import("./features/decks/DeckDetailPage"),
+  () => import("./features/games/GamesPage"),
+  () => import("./features/games/GameDetailPage"),
+  () => import("./features/games/TournamentsPage"),
+  () => import("./features/games/TournamentDetailPage"),
+  () => import("./features/games/NotebookPage"),
   () => import("./features/sync/SyncPage"),
 ]) {
   importRoute().catch(() => {});
 }
 
-/** Les quatre onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
-type NavKey = "home" | "stock" | "decks" | "sync";
+/** Les cinq onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
+type NavKey = "home" | "stock" | "decks" | "games" | "sync";
 
 /**
  * Route active par onglet. Factorisée pour que `TabBar` (< 1024px) et
@@ -77,6 +93,13 @@ function navActive(route: Route): Record<NavKey, boolean> {
     home: route.name === "home",
     stock: route.name === "stock",
     decks: route.name === "decks" || route.name === "deck",
+    // Parties : actif sur toutes les routes parties, tournois et carnet.
+    games:
+      route.name === "games" ||
+      route.name === "game" ||
+      route.name === "tournaments" ||
+      route.name === "tournament" ||
+      route.name === "notebook",
     sync: route.name === "sync",
   };
 }
@@ -150,6 +173,16 @@ function Page({ route }: { route: Route }) {
       return <DecksPage intent={route.intent} />;
     case "deck":
       return <DeckDetailPage key={route.key} deckKey={route.key} />;
+    case "games":
+      return <GamesPage intent={route.intent} />;
+    case "game":
+      return <GameDetailPage key={route.key} gameKey={route.key} />;
+    case "tournaments":
+      return <TournamentsPage />;
+    case "tournament":
+      return <TournamentDetailPage key={route.key} tournamentKey={route.key} />;
+    case "notebook":
+      return <NotebookPage />;
     case "sync":
       return <SyncPage />;
     case "not-found":
@@ -167,7 +200,7 @@ function Page({ route }: { route: Route }) {
   }
 }
 
-/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Chercher (désactivé). */
+/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Parties, Chercher (désactivé). */
 function TabBar({ route }: { route: Route }) {
   const status = useSyncStatus();
   const active = navActive(route);
@@ -181,20 +214,24 @@ function TabBar({ route }: { route: Route }) {
         className="tabbar__item"
         data-testid="nav-home"
       >
-        <House size={22} weight={active.home ? "fill" : "regular"} />
+        <HouseIcon size={22} weight={active.home ? "fill" : "regular"} />
         <span>Atelier</span>
         {status.rejected > 0 && <span className="tabbar__badge" aria-label={rejectedLabel} />}
       </Link>
       <Link to={{ name: "stock" }} current={active.stock} className="tabbar__item" data-testid="nav-stock">
-        <Stack size={22} weight={active.stock ? "fill" : "regular"} />
+        <StackIcon size={22} weight={active.stock ? "fill" : "regular"} />
         <span>Collection</span>
       </Link>
       <Link to={{ name: "decks" }} current={active.decks} className="tabbar__item" data-testid="nav-decks">
-        <Cards size={22} weight={active.decks ? "fill" : "regular"} />
+        <CardsIcon size={22} weight={active.decks ? "fill" : "regular"} />
         <span>Decks</span>
       </Link>
+      <Link to={{ name: "games" }} current={active.games} className="tabbar__item" data-testid="nav-games">
+        <TrophyIcon size={22} weight={active.games ? "fill" : "regular"} />
+        <span>Parties</span>
+      </Link>
       <span className="tabbar__item" aria-disabled="true">
-        <MagnifyingGlass size={22} weight="regular" />
+        <MagnifyingGlassIcon size={22} weight="regular" />
         <span>Chercher</span>
       </span>
     </nav>
@@ -212,11 +249,12 @@ const TOP_NAV_ITEMS: Array<{
   { key: "home", route: { name: "home" }, label: "Atelier", chordKey: "a", testId: "topnav-home" },
   { key: "stock", route: { name: "stock" }, label: "Collection", chordKey: "c", testId: "topnav-stock" },
   { key: "decks", route: { name: "decks" }, label: "Decks", chordKey: "d", testId: "topnav-decks" },
+  { key: "games", route: { name: "games" }, label: "Parties", chordKey: "p", testId: "topnav-games" },
   { key: "sync", route: { name: "sync" }, label: "Synchronisation", chordKey: "s", testId: "topnav-sync" },
 ];
 
 /**
- * Raccourcis de navigation `G` puis `A/C/D/S` (handoff bureau, § « Style kbd »), seul
+ * Raccourcis de navigation `G` puis `A/C/D/P/S` (handoff bureau, § « Style kbd »), seul
  * comportement de raccourci câblé de bout en bout à l'étape 2 du Lot 5bis
  * (`docs/lot5bis-plan-design.md`) : c'est le seul dont la cible (une route existante)
  * est déjà livrée. `/`, `N`, `V`, `?`, `⌘↵`/`Ctrl↵` restent non câblés (voir `App`
@@ -240,7 +278,7 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
  * distinguables par les tests indépendamment de ce que CSS masque.
  *
  * Les kbd affichés restent un gabarit visuel porté par ce composant ; l'écoute des
- * touches (`G` puis `A/C/D/S`) est câblée dans `App` via `useKeyboardShortcuts`
+ * touches (`G` puis `A/C/D/P/S`) est câblée dans `App` via `useKeyboardShortcuts`
  * (étape 2 du Lot 5bis, `docs/lot5bis-plan-design.md`), pas ici, pour que la
  * navigation clavier fonctionne quel que soit l'écran affiché et pas seulement quand
  * `TopBar` a le focus. Le champ de recherche global n'est plus rendu
@@ -289,7 +327,7 @@ function TopBar({ route }: { route: Route }) {
         <div className="topbar__actions">
           {hasProblem && (
             <Link to={{ name: "sync" }} className="topbar__alert" data-testid="topbar-sync-alert">
-              <WarningCircle size={14} weight="fill" />
+              <WarningCircleIcon size={14} weight="fill" />
               {problems.join(" · ")}
             </Link>
           )}
@@ -317,7 +355,7 @@ function App() {
   const mainRef = useRef<HTMLElement>(null);
 
   // Raccourcis globaux (handoff bureau, § « Style kbd ») : seule la navigation
-  // `G` puis `A/C/D/S` est câblée à l'étape 2 du Lot 5bis. Le reste de la liste du
+  // `G` puis `A/C/D/P/S` est câblée à l'étape 2 du Lot 5bis. Le reste de la liste du
   // handoff est explicitement laissé de côté ici, pas oublié :
   //  - `Échap` et `⌘↵`/`Ctrl↵` restent gérés **localement** par chaque instance de
   //    `Sheet` (décidé à l'étape 3, `docs/lot5bis-plan-design.md`) : chaque feuille
@@ -337,7 +375,10 @@ function App() {
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.
-  const routeId = route.name === "deck" ? `deck:${route.key}` : route.name;
+  const routeId =
+    route.name === "deck" || route.name === "game" || route.name === "tournament"
+      ? `${route.name}:${route.key}`
+      : route.name;
   const previousId = useRef(routeId);
   useEffect(() => {
     if (previousId.current !== routeId) {
@@ -373,7 +414,7 @@ function App() {
           <h1 className="shell-bar__brand">Gurchon Hall</h1>
           <AccountMenu />
           <p className="shell-bar__status" role="status" data-online={online}>
-            {!online && <WifiSlash size={14} weight="fill" />}
+            {!online && <WifiSlashIcon size={14} weight="fill" />}
             {online ? "En ligne" : "Hors ligne"}
           </p>
         </div>

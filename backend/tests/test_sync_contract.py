@@ -399,8 +399,21 @@ def test_the_batch_is_a_discriminated_union_usable_from_typescript():
         "deck_card.upsert",
         "deck_card.delete",
         "bundle.deposit",
+        # Lot 7 (étape B3)
+        "player.create",
+        "player.update",
+        "player.delete",
+        "venue.create",
+        "venue.update",
+        "venue.delete",
+        "tournament.create",
+        "tournament.update",
+        "tournament.delete",
+        "game.create",
+        "game.update",
+        "game.delete",
     }
-    assert len(items["oneOf"]) == len(items["discriminator"]["mapping"])
+    assert len(items["oneOf"]) == len(items["discriminator"]["mapping"]) == 20
 
 
 def test_the_batch_reuses_the_payloads_of_the_online_routes():

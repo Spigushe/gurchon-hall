@@ -98,6 +98,34 @@ class DeckPolicy(StrEnum):
     MULTI = "multi"
 
 
+class EventTier(StrEnum):
+    """Niveau d'un tournoi, au sens où le règlement VEKN le distingue (Lot 7, A11).
+
+    Le niveau ne sert qu'à une règle : le multi-deck est interdit en championnat
+    national, en Grand Prix et en championnat continental (VEKN 3.1.5, CLAUDE.md
+    §5). Tout autre tournoi est `standard`, valeur par défaut.
+    """
+
+    STANDARD = "standard"
+    NATIONAL_CHAMPIONSHIP = "national_championship"
+    GRAND_PRIX = "grand_prix"
+    CONTINENTAL_CHAMPIONSHIP = "continental_championship"
+
+
+class FinalDeckRule(StrEnum):
+    """Règle du deck de finale d'un tournoi multi-deck (VEKN 3.1.5a, Lot 7, A11).
+
+    Annoncée par l'organisateur avant la première ronde. `BEST_PERFORMING` : le
+    deck de la meilleure ronde préliminaire, comparée par GW puis VP (le TP
+    n'est pas suivi, CLAUDE.md §5). `FREE_CHOICE` : n'importe quel deck joué en
+    préliminaires. Sans objet en mono-deck ; une colonne nulle dit que la règle
+    n'est pas (encore) connue.
+    """
+
+    BEST_PERFORMING = "best_performing"
+    FREE_CHOICE = "free_choice"
+
+
 class TournamentFormat(StrEnum):
     """Format de tournoi.
 
@@ -152,12 +180,14 @@ _ROLE_LEVELS: dict[UserRole, int] = {
 class SyncOperationType(StrEnum):
     """Écritures qu'une file hors ligne peut rejouer par `POST /sync` (Lot 3).
 
-    Une valeur par intention de l'utilisateur, limitée aux ressources qui
-    existent déjà : collection, decks, composition, versement d'un produit. Le
-    catalogue reste en lecture seule (il ne bouge que par l'import, CLAUDE.md
-    §11) et les parties, tournois et participations attendent le Lot 4 — les
-    ajouter ici avant qu'elles aient une route serait promettre une
-    synchronisation sans destination.
+    Une valeur par intention de l'utilisateur : collection, decks, composition,
+    versement d'un produit, et depuis le Lot 7 joueurs, lieux, tournois et
+    parties. Le catalogue reste en lecture seule (il ne bouge que par l'import,
+    CLAUDE.md §11). Les douze valeurs du Lot 7 sont entrées dans la contrainte
+    de la base par la révision R10, avant que `/sync` sache les appliquer :
+    élargir ce CHECK oblige à recréer le journal, et on ne le fait qu'une fois.
+    Une participation n'a pas d'opération propre : la table d'une partie se
+    remplace d'un bloc avec la partie (`game.create`, `game.update`).
 
     Les langues n'y sont pas non plus : `POST /langues` reste une écriture en
     ligne. Une saisie hors ligne dans une langue inconnue du serveur doit se
@@ -181,6 +211,18 @@ class SyncOperationType(StrEnum):
     DECK_CARD_UPSERT = "deck_card.upsert"
     DECK_CARD_DELETE = "deck_card.delete"
     BUNDLE_DEPOSIT = "bundle.deposit"
+    PLAYER_CREATE = "player.create"
+    PLAYER_UPDATE = "player.update"
+    PLAYER_DELETE = "player.delete"
+    VENUE_CREATE = "venue.create"
+    VENUE_UPDATE = "venue.update"
+    VENUE_DELETE = "venue.delete"
+    TOURNAMENT_CREATE = "tournament.create"
+    TOURNAMENT_UPDATE = "tournament.update"
+    TOURNAMENT_DELETE = "tournament.delete"
+    GAME_CREATE = "game.create"
+    GAME_UPDATE = "game.update"
+    GAME_DELETE = "game.delete"
 
 
 class SyncOperationStatus(StrEnum):
@@ -220,3 +262,7 @@ class SyncResourceKind(StrEnum):
     DECK = "deck"
     DECK_CARD = "deck_card"
     BUNDLE = "bundle"
+    PLAYER = "player"
+    VENUE = "venue"
+    TOURNAMENT = "tournament"
+    GAME = "game"

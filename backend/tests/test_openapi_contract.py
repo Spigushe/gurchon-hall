@@ -116,6 +116,29 @@ EXPECTED_OPERATIONS = {
         "/decks/{deck_id}/cartes/{card_id}/{language_code}/{card_set_id}",
     ): "removeDeckCard",
     ("post", "/sync"): "syncOperations",
+    # Lot 7, étape B1 : le Carnet.
+    ("get", "/joueurs"): "listPlayers",
+    ("post", "/joueurs"): "createPlayer",
+    ("get", "/joueurs/{player_id}"): "getPlayer",
+    ("patch", "/joueurs/{player_id}"): "updatePlayer",
+    ("delete", "/joueurs/{player_id}"): "deletePlayer",
+    ("get", "/lieux"): "listVenues",
+    ("post", "/lieux"): "createVenue",
+    ("get", "/lieux/{venue_id}"): "getVenue",
+    ("patch", "/lieux/{venue_id}"): "updateVenue",
+    ("delete", "/lieux/{venue_id}"): "deleteVenue",
+    # Lot 7, étape B2 : tournois et parties.
+    ("get", "/tournois"): "listTournaments",
+    ("post", "/tournois"): "createTournament",
+    ("get", "/tournois/{tournament_id}"): "getTournament",
+    ("patch", "/tournois/{tournament_id}"): "updateTournament",
+    ("delete", "/tournois/{tournament_id}"): "deleteTournament",
+    ("get", "/parties"): "listGames",
+    ("post", "/parties"): "createGame",
+    ("get", "/parties/{game_id}"): "getGame",
+    ("patch", "/parties/{game_id}"): "updateGame",
+    ("put", "/parties/{game_id}/participations"): "replaceGameParticipations",
+    ("delete", "/parties/{game_id}"): "deleteGame",
 }
 
 

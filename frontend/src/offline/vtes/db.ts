@@ -1,4 +1,5 @@
 import type { Table } from "dexie";
+import type { components } from "../../api-client/schema.d.ts";
 import { CORE_STORES_V1, CORE_STORES_V2, OfflineCoreDb } from "../core/db";
 import type { CardCategory, DeckStatus } from "./types";
 
@@ -127,6 +128,135 @@ export const VTES_STORES_V3 = {
   deckCards: "[deckId+cardId+languageCode+cardSetId], deckId",
 } as const;
 
+// --- Pratique de jeu (Lot 7) -----------------------------------------------
+//
+// Les unions de texte viennent du contrat généré (`components["schemas"]`) :
+// le contrat fait foi. Les lignes du miroir, elles, sont en camelCase comme les
+// autres miroirs ; `refresh.ts` les construit depuis les types générés, si bien
+// qu'un champ qui bouge au contrat fait échouer `tsc` à cet endroit.
+
+type Schemas = components["schemas"];
+
+/** `RoundType` du contrat. */
+export type GameRoundType = Schemas["RoundType"];
+/** `DeckPolicy` du contrat. */
+export type TournamentDeckPolicy = Schemas["DeckPolicy"];
+/** `TournamentFormat` du contrat (`constructed`, `draft`, `other`). */
+export type TournamentFormatName = Schemas["TournamentFormat"];
+/** `EventTier` du contrat. */
+export type TournamentEventTier = Schemas["EventTier"];
+/** `FinalDeckRule` du contrat. */
+export type TournamentFinalDeckRule = Schemas["FinalDeckRule"];
+
+/** Joueur (miroir de `GET /joueurs`) : le « Moi » du compte ou un adversaire nommé. */
+export interface PlayerRow {
+  id: number;
+  name: string;
+  /** `foldText(name)`, calculé à l'écriture, comme les autres miroirs. */
+  foldedName: string;
+  isMe: boolean;
+  gameCount: number;
+}
+
+/** Lieu (miroir de `GET /lieux`), privé au compte. */
+export interface VenueRow {
+  id: number;
+  name: string;
+  foldedName: string;
+  city: string | null;
+  notes: string | null;
+  gameCount: number;
+  tournamentCount: number;
+}
+
+/** Mon bilan d'un tournoi (`TournamentSummary`, A12). */
+export interface TournamentSummaryRow {
+  preliminaryGameWins: number;
+  preliminaryVictoryPoints: number;
+  roundsPlayed: number;
+  finalVictoryPoints: number | null;
+  finalGameWin: boolean | null;
+}
+
+/** Tournoi (miroir de `GET /tournois/{id}` : le bilan et les decks admis ne viennent que du détail). */
+export interface TournamentRow {
+  id: number;
+  name: string;
+  /** Date locale `YYYY-MM-DD` : indexée, elle trie la liste. */
+  startDate: string;
+  endDate: string | null;
+  venueId: number | null;
+  deckPolicy: TournamentDeckPolicy;
+  format: TournamentFormatName;
+  eventTier: TournamentEventTier;
+  finalDeckRule: TournamentFinalDeckRule | null;
+  roundCount: number | null;
+  playerCount: number | null;
+  myRanking: number | null;
+  /** Bilan calculé par le serveur ; le bilan provisoire d'une saisie en file est recalculé localement. */
+  summary: TournamentSummaryRow;
+  /** Decks admis en finale (A11), lus par le détail à chaque rafraîchissement ; `null` quand rien n'est contrôlable. */
+  admissibleFinalDecks: number[] | null;
+  notes: string | null;
+  updatedAt: string;
+}
+
+/** Ligne de la table d'une partie, rangée dans la ligne de la partie (A3). */
+export interface GameTableLineRow {
+  playerId: number;
+  isMe: boolean;
+  deckId: number | null;
+  seat: number | null;
+  /** Renseignés sur ma seule ligne (A13). */
+  victoryPoints: number | null;
+  gameWin: boolean | null;
+  notes: string | null;
+}
+
+/** Ma ligne d'une partie en résumé (`ParticipationSummary`), ce que la liste affiche. */
+export interface GameMeRow {
+  deckId: number | null;
+  seat: number | null;
+  victoryPoints: number | null;
+  gameWin: boolean | null;
+}
+
+/**
+ * Partie (miroir de `GET /parties`). La table (`table`) se remplace d'un bloc
+ * (A3), elle vit donc dans la ligne de la partie : `null` tant que le détail
+ * n'a pas été lu, `GameTableLineRow[]` sinon. L'édition de la table n'est offerte
+ * que pour une table connue (cf. `docs/lot7-plan-parties.md`, « Livré à
+ * l'étape C1a ») : remplacer une table qu'on ignore effacerait les adversaires.
+ */
+export interface GameRow {
+  id: number;
+  /** Instant UTC (« …Z »), indexé. */
+  playedAt: string;
+  venueId: number | null;
+  tournamentId: number | null;
+  tournamentName: string | null;
+  roundNumber: number | null;
+  roundType: GameRoundType;
+  playerCount: number;
+  me: GameMeRow;
+  notes: string | null;
+  /** `updated_at` du serveur : le détail n'est relu que pour les parties qui ont changé. */
+  updatedAt: string;
+  table: GameTableLineRow[] | null;
+}
+
+/**
+ * Lot 7, cran unique (déclaré en version 5 de la base) : les quatre miroirs de
+ * la pratique de jeu. Ajout de magasins seulement, aucune clé existante ne
+ * change : aucune donnée perdue, aucun `upgrade`.
+ */
+export const VTES_STORES_V4 = {
+  players: "id, foldedName",
+  venues: "id, foldedName",
+  tournaments: "id, startDate",
+  games: "id, tournamentId, playedAt",
+} as const;
+
 export const DEFAULT_DB_NAME = "gurchon-hall-offline";
 
 export class VtesOfflineDb extends OfflineCoreDb {
@@ -136,6 +266,10 @@ export class VtesOfflineDb extends OfflineCoreDb {
   declare stock: Table<StockRow, [number, string, number]>;
   declare decks: Table<DeckRow, number>;
   declare deckCards: Table<DeckCardRow, [number, number, string, number]>;
+  declare players: Table<PlayerRow, number>;
+  declare venues: Table<VenueRow, number>;
+  declare tournaments: Table<TournamentRow, number>;
+  declare games: Table<GameRow, number>;
 
   constructor(name: string = DEFAULT_DB_NAME) {
     super(name);
@@ -159,5 +293,8 @@ export class VtesOfflineDb extends OfflineCoreDb {
         await tx.table("cards").clear();
         await tx.table("decks").clear();
       });
+    // Version 5 (Lot 7) : les miroirs joueurs, lieux, tournois et parties
+    // (`VTES_STORES_V4`). Ajout de magasins seulement.
+    this.version(5).stores({ ...VTES_STORES_V4 });
   }
 }

@@ -121,12 +121,21 @@ class BundleRead(ReadModel):
 
 
 class VenueRead(ReadModel):
-    """Lieu de jeu."""
+    """Lieu de jeu, privé au compte (Lot 6)."""
 
     id: int
     name: str
     city: str | None = None
     notes: str | None = None
+    game_count: int = Field(
+        description=(
+            "Parties jouées dans ce lieu, calculé par le serveur (Lot 7). Un lieu "
+            "référencé ne se supprime pas."
+        )
+    )
+    tournament_count: int = Field(
+        description="Tournois tenus dans ce lieu, calculé par le serveur (Lot 7)."
+    )
 
 
 class VenueCreate(WriteModel):

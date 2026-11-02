@@ -1,5 +1,5 @@
 <#
-Point d'entree unique pour le tooling du monorepo : install, test, build, dev.
+Point d'entree unique pour le tooling du monorepo : install, test, crap, build, dev.
 Remplace les anciens scripts separes (install.ps1 / test.ps1 / build.ps1 /
 dev.ps1), regroupes ici en sous-commandes plutot qu'en fichiers distincts.
 Comportement inchange par rapport aux anciens scripts (uv, ruff, eslint,
@@ -9,13 +9,14 @@ l'interface. Equivalent bash : scripts/run.sh <commande>.
 Usage :
   scripts\run.ps1 install
   scripts\run.ps1 test [-SkipFrontendE2e]
+  scripts\run.ps1 crap        (tests unitaires sous couverture + score CRAP, docs/qa-crap.md)
   scripts\run.ps1 build
   scripts\run.ps1 dev [-BackendPort <int>] [-FrontendPort <int>]
 #>
 
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet("install", "test", "build", "dev")]
+    [ValidateSet("install", "test", "crap", "build", "dev")]
     [string]$Command,
 
     [switch]$SkipFrontendE2e,
@@ -78,10 +79,9 @@ function Invoke-TestCommand {
         try { uv run ruff check . } finally { Pop-Location }
     }
 
-    Invoke-Step "Backend : pytest" {
-        Push-Location $backendDir
-        try { uv run pytest } finally { Pop-Location }
-    }
+    # pytest tourne sous couverture pour le score CRAP (docs/qa-crap.md),
+    # controle juste apres la suite.
+    Invoke-BackendCrap
 
     Invoke-Step "Backend : contrat OpenAPI a jour (export --check)" {
         Push-Location $backendDir
@@ -94,10 +94,7 @@ function Invoke-TestCommand {
     }
 
     if (Test-NpmScript "test") {
-        Invoke-Step "Frontend : tests unitaires (npm run test)" {
-            Push-Location $frontendDir
-            try { npm run test } finally { Pop-Location }
-        }
+        Invoke-FrontendCrap
     } else {
         Write-Warning "frontend/package.json n'a pas encore de script 'test' (vitest) - etape ignoree."
     }
@@ -115,6 +112,50 @@ function Invoke-TestCommand {
 
     Write-Host ""
     Write-Host "Tests termines." -ForegroundColor Green
+}
+
+function Invoke-BackendCrap {
+    Invoke-Step "Backend : pytest sous couverture (coverage run -m pytest)" {
+        Push-Location $backendDir
+        try { uv run coverage run -m pytest } finally { Pop-Location }
+    }
+
+    Invoke-Step "Backend : rapport de couverture (coverage json)" {
+        Push-Location $backendDir
+        try { uv run coverage json -q } finally { Pop-Location }
+    }
+
+    Invoke-Step "Backend : score CRAP (scripts/crap_report.py)" {
+        Push-Location $backendDir
+        try { uv run python scripts/crap_report.py } finally { Pop-Location }
+    }
+}
+
+function Invoke-FrontendCrap {
+    Invoke-Step "Frontend : tests unitaires sous couverture (npm run test:coverage)" {
+        Push-Location $frontendDir
+        try { npm run test:coverage } finally { Pop-Location }
+    }
+
+    Invoke-Step "Frontend : score CRAP (npm run crap)" {
+        Push-Location $frontendDir
+        try { npm run crap } finally { Pop-Location }
+    }
+}
+
+function Invoke-CrapCommand {
+    if (-not (Test-Path (Join-Path $backendDir ".venv"))) {
+        throw "venv backend introuvable dans backend/.venv (lancer scripts\run.ps1 install d'abord)"
+    }
+    if (-not (Test-Path (Join-Path $frontendDir "node_modules"))) {
+        throw "node_modules introuvable dans frontend/ (lancer scripts\run.ps1 install d'abord)"
+    }
+
+    Invoke-BackendCrap
+    Invoke-FrontendCrap
+
+    Write-Host ""
+    Write-Host "Score CRAP controle (references dans docs/qa-baselines/crap/)." -ForegroundColor Green
 }
 
 function Invoke-BuildCommand {
@@ -175,6 +216,14 @@ function Invoke-DevCommand {
     }
     $env:BACKEND_CORS_ORIGINS = ($corsOrigins -join ",")
 
+    # Le navigateur ne garde un cookie Secure sur http:// que pour localhost : depuis
+    # http://<ip-lan> (telephone), la connexion repond 200 mais la session est perdue
+    # et tout le reste rend 401. En dev sur le reseau local, cookie sans Secure,
+    # sauf si la variable est deja positionnee.
+    if ($lanIp -and -not $env:SESSION_COOKIE_SECURE) {
+        $env:SESSION_COOKIE_SECURE = "false"
+    }
+
     Write-Host ""
     Write-Host "Backend  (FastAPI) : http://localhost:$BackendPort" -ForegroundColor Cyan
     if ($lanIp) {
@@ -202,6 +251,7 @@ function Invoke-DevCommand {
 switch ($Command) {
     "install" { Invoke-InstallCommand }
     "test"    { Invoke-TestCommand }
+    "crap"    { Invoke-CrapCommand }
     "build"   { Invoke-BuildCommand }
     "dev"     { Invoke-DevCommand }
 }

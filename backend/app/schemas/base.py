@@ -77,7 +77,10 @@ def _to_utc(value: datetime) -> datetime:
             "un fuseau est obligatoire (ex. 2026-02-01T20:00:00+01:00 ou "
             "2026-02-01T19:00:00Z) : sans lui, l'instant est ambigu."
         )
-    return value.astimezone(UTC)
+    try:
+        return value.astimezone(UTC)
+    except OverflowError as error:  # 0001-01-01T00:00:00+14:00, par exemple
+        raise ValueError("instant hors des bornes représentables.") from error
 
 
 AwareDateTime = Annotated[datetime, AfterValidator(_to_utc)]

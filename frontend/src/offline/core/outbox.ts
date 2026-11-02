@@ -28,6 +28,17 @@ export interface EnqueueOptions {
   createsRef?: string;
 }
 
+export interface ReissueOptions {
+  /**
+   * Place de la nouvelle opération dans la file : `same` (défaut) reprend celle
+   * de l'opération refusée ; `end` la range en fin de file, pour une correction
+   * qui exige une opération postérieure à ce qui a déjà été saisi (la
+   * ressource qu'elle désigne doit exister avant elle, et n'a été créée
+   * qu'après la saisie refusée).
+   */
+  position?: "same" | "end";
+}
+
 export class DuplicateOperationError extends Error {
   constructor(operationId: string) {
     super(
@@ -192,10 +203,15 @@ export class Outbox<TOp extends OperationEnvelope = OperationEnvelope> {
    *
    * La référence client d'une création refusée est conservée (le serveur ne
    * réserve une référence que pour une création appliquée).
+   *
+   * `options.position` : `same` garde le rang de l'opération refusée, `end` la
+   * range après tout ce qui est en file. Les autres opérations gardent leur
+   * ordre relatif.
    */
   async reissue(
     operationId: string,
     transform: (operation: TOp) => TOp = (operation) => operation,
+    options: ReissueOptions = {},
   ): Promise<OutboxEntry<TOp>> {
     const { outbox } = this.db;
     const created = await this.db.transaction("rw", outbox, async () => {
@@ -207,9 +223,12 @@ export class Outbox<TOp extends OperationEnvelope = OperationEnvelope> {
         operation_id: newUuid(),
         recorded_at: now,
       };
+      await outbox.delete(old.operationId);
+      const rank =
+        options.position === "end" ? ((await outbox.orderBy("rank").last())?.rank ?? 0) + 1 : old.rank;
       const entry: OutboxEntry<TOp> = {
         operationId: operation.operation_id,
-        rank: old.rank,
+        rank,
         type: operation.type,
         state: "pending",
         operation,
@@ -218,7 +237,6 @@ export class Outbox<TOp extends OperationEnvelope = OperationEnvelope> {
         ...(old.clientRef !== undefined ? { clientRef: old.clientRef } : {}),
         reissuedFrom: old.operationId,
       };
-      await outbox.delete(old.operationId);
       await outbox.add(entry as OutboxEntry<OperationEnvelope>);
       return entry;
     });
@@ -312,8 +330,8 @@ export class Outbox<TOp extends OperationEnvelope = OperationEnvelope> {
             settledAt: boundAt,
           });
         }
-        for (const { ref, id } of verdict.refs) {
-          await refs.put({ ref, id, boundAt });
+        for (const { ref, id, kind } of verdict.refs) {
+          await refs.put({ ref, id, boundAt, ...(kind !== undefined ? { kind } : {}) });
         }
         tally[verdict.outcome === "replayed" ? "replayed" : "applied"]++;
       }

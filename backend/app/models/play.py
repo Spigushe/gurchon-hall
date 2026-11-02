@@ -1,11 +1,16 @@
 """Pratique de jeu : joueurs, parties, tournois, participations.
 
 Portée volontairement réduite côté adversaires (CLAUDE.md §11 point 3) : on
-suit **mes** parties et **mes** résultats. `Player` sert surtout à identifier
+suit **mes** parties et **mes** résultats, VP et GW seulement (Lot 7, P7 : ni
+points de tournoi, ni place à la table). `Player` sert surtout à identifier
 « Moi » et, au besoin, à mettre un nom en face d'un siège ; on ne modélise ni
-les decks des adversaires, ni le détail de leurs résultats. Une `Participation`
-d'adversaire peut donc rester quasi vide (pas de deck, pas de VP) sans que ce
-soit une anomalie.
+les decks des adversaires, ni leurs résultats. Une `Participation`
+d'adversaire reste donc sans VP ni GW, ce que le service impose (Lot 7, A13) ;
+elle peut porter l'un de **mes** decks, prêté pour la partie (P4).
+
+**« Moi » existe toujours (Lot 7, A1).** Un compte a exactement un joueur
+`is_me`, créé par le serveur : par la révision R10 pour les comptes
+antérieurs, à l'inscription pour les suivants.
 
 **Propriétaire (Lot 6, décision D7).** Les quatre tables portent un `user_id`
 dès maintenant, alors qu'elles sont encore vides et sans route : le Lot 7
@@ -39,9 +44,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin
+from app.models.base import NEVER_REUSE_IDS, Base, TimestampMixin
 from app.models.collection import Deck
-from app.models.enums import DeckPolicy, RoundType, TournamentFormat, enum_column
+from app.models.enums import (
+    DeckPolicy,
+    EventTier,
+    FinalDeckRule,
+    RoundType,
+    TournamentFormat,
+    enum_column,
+)
 from app.models.reference import Venue
 from app.models.types import UtcDateTime
 
@@ -50,6 +62,11 @@ from app.models.types import UtcDateTime
 # booléen à un entier, d'où sa variante propre.
 _IS_ME = text("is_me = 1")
 _IS_ME_POSTGRES = text("is_me")
+
+# Conditions des index partiels de `game` (Lot 7, A6) : une préliminaire par
+# numéro de ronde, une finale par tournoi. Même texte pour les deux moteurs.
+_PRELIMINARY = text("round_type = 'preliminary'")
+_FINAL = text("round_type = 'final'")
 
 
 class Player(Base):
@@ -69,6 +86,8 @@ class Player(Base):
         UniqueConstraint("user_id", "name"),
         # Cible de la clé composite de `participation`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -78,15 +97,34 @@ class Player(Base):
 
 
 class Tournament(Base, TimestampMixin):
-    """Un tournoi : des parties consécutives, éventuellement une finale."""
+    """Un tournoi : des parties consécutives, éventuellement une finale.
+
+    Niveau et règle du deck de finale (Lot 7, A11) : les deux contraintes
+    croisées ci-dessous ne portent que sur la ligne, et la base les tient. Le
+    contrôle des decks joués, lui, porte sur plusieurs parties et reste au
+    service.
+    """
 
     __tablename__ = "tournament"
     __table_args__ = (
         CheckConstraint("round_count >= 1", name="round_count_positive"),
         CheckConstraint("my_ranking >= 1", name="my_ranking_positive"),
+        CheckConstraint("player_count >= 2", name="player_count_minimum"),
+        # La règle du deck de finale n'a de sens qu'en multi-deck.
+        CheckConstraint(
+            "deck_policy = 'multi' OR final_deck_rule IS NULL",
+            name="final_deck_rule_only_multi",
+        ),
+        # Multi-deck interdit hors tournoi standard (VEKN 3.1.5).
+        CheckConstraint(
+            "deck_policy = 'mono' OR event_tier = 'standard'",
+            name="multi_only_standard_tier",
+        ),
         ForeignKeyConstraint(["venue_id", "user_id"], ["venue.id", "venue.user_id"]),
         # Cible de la clé composite de `game`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -103,7 +141,20 @@ class Tournament(Base, TimestampMixin):
         enum_column(TournamentFormat, "tournament_format"),
         default=TournamentFormat.CONSTRUCTED,
     )
+    # Défaut aussi côté base, comme `deck.proxy_allowed` : une insertion qui
+    # ignore le niveau (SQL brut, outil) obtient le tournoi standard.
+    event_tier: Mapped[EventTier] = mapped_column(
+        enum_column(EventTier, "event_tier"),
+        default=EventTier.STANDARD,
+        server_default=EventTier.STANDARD.value,
+    )
+    final_deck_rule: Mapped[FinalDeckRule | None] = mapped_column(
+        enum_column(FinalDeckRule, "final_deck_rule")
+    )
     round_count: Mapped[int | None] = mapped_column()
+    player_count: Mapped[int | None] = mapped_column()
+    """Nombre d'inscrits (Lot 7, P6) : souvent inconnu à l'arrivée, d'où nul
+    permis ; borne du classement saisi."""
     my_ranking: Mapped[int | None] = mapped_column()
     notes: Mapped[str | None] = mapped_column(Text())
 
@@ -138,6 +189,34 @@ class Game(Base, TimestampMixin):
         # contrainte de schéma. On refuse seulement l'absurde.
         CheckConstraint("player_count >= 2", name="player_count_minimum"),
         CheckConstraint("round_number >= 1", name="round_number_positive"),
+        # Tournoi et ronde se tiennent (Lot 7, A6) : une amicale n'a pas de
+        # tournoi, une partie de tournoi est une préliminaire ou la finale, et
+        # seule une préliminaire porte un numéro de ronde.
+        CheckConstraint(
+            "(round_type = 'casual') = (tournament_id IS NULL)",
+            name="casual_iff_no_tournament",
+        ),
+        CheckConstraint(
+            "(round_type = 'preliminary') = (round_number IS NOT NULL)",
+            name="round_number_iff_preliminary",
+        ),
+        Index(
+            "ux_game_preliminary_round",
+            "user_id",
+            "tournament_id",
+            "round_number",
+            unique=True,
+            sqlite_where=_PRELIMINARY,
+            postgresql_where=_PRELIMINARY,
+        ),
+        Index(
+            "ux_game_final",
+            "user_id",
+            "tournament_id",
+            unique=True,
+            sqlite_where=_FINAL,
+            postgresql_where=_FINAL,
+        ),
         ForeignKeyConstraint(["venue_id", "user_id"], ["venue.id", "venue.user_id"]),
         ForeignKeyConstraint(
             ["tournament_id", "user_id"],
@@ -145,6 +224,8 @@ class Game(Base, TimestampMixin):
         ),
         # Cible de la clé composite de `participation`.
         UniqueConstraint("id", "user_id"),
+        # Identifiant jamais réattribué après une suppression (Lot 7, R11).
+        NEVER_REUSE_IDS,
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -166,6 +247,8 @@ class Game(Base, TimestampMixin):
         primaryjoin="and_(Game.venue_id == Venue.id, Game.user_id == Venue.user_id)",
         foreign_keys="Game.venue_id",
     )
+    # `lazy="joined"` : `GameRead.tournament_name` lit le tournoi de chaque
+    # partie d'une liste ; sans jointure, une requête par partie (Lot 7, B2).
     tournament: Mapped[Tournament | None] = relationship(
         back_populates="games",
         primaryjoin=(
@@ -173,6 +256,7 @@ class Game(Base, TimestampMixin):
             "Game.user_id == Tournament.user_id)"
         ),
         foreign_keys="Game.tournament_id",
+        lazy="joined",
     )
     participations: Mapped[list[Participation]] = relationship(
         back_populates="game",
@@ -184,15 +268,30 @@ class Game(Base, TimestampMixin):
         foreign_keys="Participation.game_id",
     )
 
+    # Lectures dérivées pour `GameRead` (Lot 7) : de la navigation, aucun
+    # calcul. Le service charge `participations`, leurs joueurs et le tournoi
+    # d'avance, sans quoi une liste ferait une requête par partie.
+
+    @property
+    def me(self) -> Participation | None:
+        """Ma ligne de la table ; une partie en a toujours une (A2)."""
+        return next((p for p in self.participations if p.player.is_me), None)
+
+    @property
+    def tournament_name(self) -> str | None:
+        return self.tournament.name if self.tournament is not None else None
+
 
 class Participation(Base):
     """La place et le résultat d'un joueur sur une partie.
 
     `victory_points` est un flottant : le barème du §5 accorde des demi-points
-    (0,5 VP par survivant en fin de partie). `game_win` est stocké plutôt que
-    recalculé à la volée, mais reste nullable tant que la table n'est pas
-    complètement saisie ; son calcul est une règle de service (Lot 2), et la
-    règle VEKN exacte est marquée [à confirmer] au §5.
+    (0,5 VP par survivant en fin de partie ou par retrait). `game_win` est
+    déclaré par le joueur et stocké : sans les VP des adversaires, le serveur ne
+    peut le déduire que lorsqu'il est certain (plus de la moitié des VP que la
+    table peut distribuer et au moins 2, CLAUDE.md §5). Ces contrôles, comme
+    l'absence de VP et de GW sur la ligne d'un adversaire, sont des règles de
+    service (Lot 7, A4 et A13).
     """
 
     __tablename__ = "participation"
@@ -228,12 +327,14 @@ class Participation(Base):
         ),
         foreign_keys="Participation.game_id",
     )
+    # `lazy="joined"` : `is_me` et `Game.me` lisent le joueur de chaque ligne.
     player: Mapped[Player] = relationship(
         primaryjoin=(
             "and_(Participation.player_id == Player.id, "
             "Participation.user_id == Player.user_id)"
         ),
         foreign_keys="Participation.player_id",
+        lazy="joined",
     )
     deck: Mapped[Deck | None] = relationship(
         primaryjoin=(
@@ -242,3 +343,9 @@ class Participation(Base):
         ),
         foreign_keys="Participation.deck_id",
     )
+
+    @property
+    def is_me(self) -> bool:
+        """Ma ligne, la seule à porter VP et GW (A13) ; lu pour
+        `ParticipationRead`."""
+        return self.player.is_me

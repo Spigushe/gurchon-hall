@@ -43,6 +43,24 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // Depuis @phosphor-icons/react 2.1, les noms nus (`Trophy`) sont des alias
+      // dépréciés de `TrophyIcon`. Le lint n'étant pas typé, `no-deprecated` ne
+      // les voit pas : on refuse donc tout import qui ne finit pas par `Icon`
+      // (sauf les exports `Icon…` de la bibliothèque, comme `IconContext`).
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@phosphor-icons/react"],
+              importNamePattern: "^(?!Icon|.*Icon$)",
+              message: "Importer l'icône sous son nom suffixé (`TrophyIcon`, pas `Trophy`).",
+            },
+          ],
+        },
+      ],
+    },
   },
   {
     files: ["*.config.ts", "tests/**/*.{ts,tsx}"],

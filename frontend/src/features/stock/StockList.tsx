@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretDown, CaretUp, ClockCountdown, Plus } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, PlusIcon } from "@phosphor-icons/react";
 import { CardImage } from "../../components/CardImage";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
@@ -107,7 +107,7 @@ function StockRow({
         {entry.notes && <span className="row__meta">{entry.notes}</span>}
         {entry.pending && (
           <span className="row__pending" data-testid="pending-badge">
-            <ClockCountdown size={14} />
+            <ClockCountdownIcon size={14} />
             En attente de synchronisation
           </span>
         )}
@@ -280,9 +280,9 @@ function StockTable({
                   {column.label}
                   {active &&
                     (sortDir === "asc" ? (
-                      <CaretUp size={11} weight="bold" aria-hidden="true" />
+                      <CaretUpIcon size={11} weight="bold" aria-hidden="true" />
                     ) : (
-                      <CaretDown size={11} weight="bold" aria-hidden="true" />
+                      <CaretDownIcon size={11} weight="bold" aria-hidden="true" />
                     ))}
                 </button>
               </div>
@@ -336,7 +336,7 @@ function StockTable({
                 </button>
                 {entry.pending && (
                   <span className="row__pending" data-testid="pending-badge">
-                    <ClockCountdown size={14} />
+                    <ClockCountdownIcon size={14} />
                     En attente de synchronisation
                   </span>
                 )}
@@ -482,7 +482,7 @@ export function StockList({
         </p>
         <div className="empty-state__actions">
           <button type="button" className="btn btn-primary btn--pill" data-testid="stock-add" onClick={onAdd}>
-            <Plus size={18} />
+            <PlusIcon size={18} />
             Ajouter une carte
           </button>
           <button

@@ -1,5 +1,5 @@
 import { useId, useRef, useState, type FormEvent } from "react";
-import { ClockCountdown, Plus, Trash } from "@phosphor-icons/react";
+import { ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { navigate } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
@@ -245,7 +245,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
 
       {deck.pending && (
         <p className="row__pending" data-testid="pending-badge">
-          <ClockCountdown size={14} />
+          <ClockCountdownIcon size={14} />
           En attente de synchronisation
         </p>
       )}
@@ -379,7 +379,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
               data-testid="deck-delete"
               onClick={() => setConfirmingDelete(true)}
             >
-              <Trash size={16} />
+              <TrashIcon size={16} />
               Supprimer
             </button>
           )}
@@ -389,7 +389,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       {!archived && !isDesktop && (
         <div className="floating-actions">
           <Pill onClick={() => setAdding(true)} data-testid="deck-card-add">
-            <Plus size={20} />
+            <PlusIcon size={20} />
             Ajouter des cartes
           </Pill>
         </div>

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { DeckKey } from "../offline/vtes";
+import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
 
 /**
  * Routage à hash (`#/collection`, `#/decks`, `#/decks/<clé>`).
@@ -21,26 +21,43 @@ import type { DeckKey } from "../offline/vtes";
  */
 export type StockIntent = "add" | "bundle";
 export type DecksIntent = "new";
+export type GamesIntent = "new";
 
 export type Route =
   | { name: "home" }
   | { name: "stock"; intent?: StockIntent }
   | { name: "decks"; intent?: DecksIntent }
   | { name: "deck"; key: DeckKey }
+  | { name: "games"; intent?: GamesIntent }
+  | { name: "game"; key: GameKey }
+  | { name: "tournaments" }
+  | { name: "tournament"; key: ResourceKey }
+  | { name: "notebook" }
   | { name: "sync" }
   | { name: "not-found" };
 
 const DECK_KEY = /^(?:id:\d+|ref:[A-Za-z0-9-]+)$/;
+/** Même forme de clé pour une partie ou un tournoi (`id:<n>` ou `ref:<uuid>`). */
+const RESOURCE_KEY = DECK_KEY;
 
 const STOCK_ACTIONS: Record<string, StockIntent> = { ajouter: "add", verser: "bundle" };
 const STOCK_ACTION_PARAMS: Record<StockIntent, string> = { add: "ajouter", bundle: "verser" };
 const DECKS_ACTIONS: Record<string, DecksIntent> = { nouveau: "new" };
+const GAMES_ACTIONS: Record<string, GamesIntent> = { nouvelle: "new" };
 
 /** Valeur du paramètre `action` du hash, `null` s'il est absent ou inconnu de la table. */
 function actionOf<T>(hash: string, table: Record<string, T>): T | null {
   const query = hash.split("?")[1];
   const value = query ? new URLSearchParams(query).get("action") : null;
   return value !== null && Object.hasOwn(table, value) ? table[value] : null;
+}
+
+function decodeKey(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
 }
 
 export function parseHash(hash: string): Route {
@@ -54,16 +71,27 @@ export function parseHash(hash: string): Route {
     const intent = actionOf(hash, DECKS_ACTIONS);
     return intent ? { name: "decks", intent } : { name: "decks" };
   }
+  if (path === "/parties") {
+    const intent = actionOf(hash, GAMES_ACTIONS);
+    return intent ? { name: "games", intent } : { name: "games" };
+  }
+  if (path === "/tournois") return { name: "tournaments" };
+  if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
-    let key: string;
-    try {
-      key = decodeURIComponent(match[1]);
-    } catch {
-      return { name: "not-found" };
-    }
-    if (DECK_KEY.test(key)) return { name: "deck", key: key as DeckKey };
+    const key = decodeKey(match[1]);
+    if (key !== null && DECK_KEY.test(key)) return { name: "deck", key: key as DeckKey };
+  }
+  const gameMatch = /^\/parties\/(.+)$/.exec(path);
+  if (gameMatch) {
+    const key = decodeKey(gameMatch[1]);
+    if (key !== null && RESOURCE_KEY.test(key)) return { name: "game", key: key as GameKey };
+  }
+  const tournamentMatch = /^\/tournois\/(.+)$/.exec(path);
+  if (tournamentMatch) {
+    const key = decodeKey(tournamentMatch[1]);
+    if (key !== null && RESOURCE_KEY.test(key)) return { name: "tournament", key: key as ResourceKey };
   }
   return { name: "not-found" };
 }
@@ -78,6 +106,16 @@ export function hrefFor(route: Route): string {
       return route.intent ? "#/decks?action=nouveau" : "#/decks";
     case "deck":
       return `#/decks/${encodeURIComponent(route.key)}`;
+    case "games":
+      return route.intent ? "#/parties?action=nouvelle" : "#/parties";
+    case "game":
+      return `#/parties/${encodeURIComponent(route.key)}`;
+    case "tournaments":
+      return "#/tournois";
+    case "tournament":
+      return `#/tournois/${encodeURIComponent(route.key)}`;
+    case "notebook":
+      return "#/carnet";
     case "sync":
       return "#/synchronisation";
     case "not-found":
@@ -96,7 +134,7 @@ export function navigate(route: Route): void {
  * rendue ne change pas sous les pieds de la page.
  */
 export function consumeIntent(route: Route): void {
-  if (route.name !== "stock" && route.name !== "decks") return;
+  if (route.name !== "stock" && route.name !== "decks" && route.name !== "games") return;
   if (!route.intent) return;
   const bare = hrefFor({ name: route.name });
   if (window.location.hash !== bare) window.history.replaceState(window.history.state, "", bare);

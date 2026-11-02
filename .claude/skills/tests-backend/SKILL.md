@@ -33,6 +33,18 @@ description: Tests backend avec pytest — unités, services, conformité au con
 - Limites assumées documentées par `xfail(strict=True)` (2 aujourd'hui, §11) :
   ne pas les « corriger » en retirant le marqueur.
 
+## Score CRAP
+La suite tourne sous couverture (`uv run coverage run -m pytest`, puis
+`uv run coverage json -q`) et `uv run python scripts/crap_report.py` calcule
+`comp² × (1 − cov)³ + comp` pour chaque fonction de `app/`. Seuil 30, référence
+`docs/qa-baselines/crap/backend.json`, vide au départ : toute fonction qui
+dépasse 30 fait échouer la CI. Règles de comptage dans `docs/qa-crap.md`.
+- Une fonction en défaut de complexité ≤ 30 se corrige par des tests ; au-delà,
+  par un découpage, demandé à backend-fastapi.
+- Le comptage est testé dans `tests/test_crap_report.py`, miroir de
+  `frontend/tests/unit/crapReport.test.ts` : un changement de règle passe dans
+  les deux.
+
 ## Organisation
 `backend/tests/`, un fichier par sujet (`test_api_*`, `test_sync_*`,
 `test_models_*`, `test_migrations.py`…) ; fixtures partagées dans `conftest.py`,

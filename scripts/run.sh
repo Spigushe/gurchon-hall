@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Point d'entree unique pour le tooling du monorepo : install, test, build,
+# Point d'entree unique pour le tooling du monorepo : install, test, crap, build,
 # dev. Remplace les anciens scripts separes (install.sh / test.sh / build.sh /
 # dev.sh), regroupes ici en sous-commandes plutot qu'en fichiers distincts.
 # Comportement inchange par rapport aux anciens scripts (uv, ruff, eslint,
@@ -9,6 +9,7 @@
 # Usage :
 #   scripts/run.sh install
 #   scripts/run.sh test [--skip-frontend-e2e]
+#   scripts/run.sh crap           (tests unitaires sous couverture + score CRAP, docs/qa-crap.md)
 #   scripts/run.sh build
 #   scripts/run.sh dev            (BACKEND_PORT / FRONTEND_PORT en env pour changer les ports)
 
@@ -19,7 +20,7 @@ backend_dir="$repo_root/backend"
 frontend_dir="$repo_root/frontend"
 
 usage() {
-    echo "Usage: $(basename "$0") <install|test|build|dev> [options]" >&2
+    echo "Usage: $(basename "$0") <install|test|crap|build|dev> [options]" >&2
     exit 1
 }
 
@@ -80,8 +81,9 @@ cmd_test() {
     step "Backend : lint (ruff check)"
     (cd "$backend_dir" && uv run ruff check .)
 
-    step "Backend : pytest"
-    (cd "$backend_dir" && uv run pytest)
+    # pytest tourne sous couverture pour le score CRAP (docs/qa-crap.md),
+    # controle juste apres la suite.
+    backend_crap
 
     step "Backend : contrat OpenAPI a jour (export --check)"
     (cd "$backend_dir" && uv run python scripts/export_openapi.py --check)
@@ -90,8 +92,7 @@ cmd_test() {
     (cd "$frontend_dir" && npm run lint)
 
     if [ "$(has_npm_script test)" = "true" ]; then
-        step "Frontend : tests unitaires (npm run test)"
-        (cd "$frontend_dir" && npm run test)
+        frontend_crap
     else
         echo "ATTENTION : frontend/package.json n'a pas encore de script 'test' (vitest) - etape ignoree." >&2
     fi
@@ -107,6 +108,34 @@ cmd_test() {
 
     echo ""
     echo "Tests termines."
+}
+
+backend_crap() {
+    step "Backend : pytest sous couverture (coverage run -m pytest)"
+    (cd "$backend_dir" && uv run coverage run -m pytest)
+
+    step "Backend : score CRAP (scripts/crap_report.py)"
+    (cd "$backend_dir" && uv run coverage json -q && uv run python scripts/crap_report.py)
+}
+
+frontend_crap() {
+    step "Frontend : tests unitaires sous couverture (npm run test:coverage)"
+    (cd "$frontend_dir" && npm run test:coverage)
+
+    step "Frontend : score CRAP (npm run crap)"
+    (cd "$frontend_dir" && npm run crap)
+}
+
+cmd_crap() {
+    if [ ! -d "$backend_dir/.venv" ] || [ ! -d "$frontend_dir/node_modules" ]; then
+        echo "venv backend ou node_modules introuvable (lancer scripts/run.sh install d'abord)" >&2
+        exit 1
+    fi
+    backend_crap
+    frontend_crap
+
+    echo ""
+    echo "Score CRAP controle (references dans docs/qa-baselines/crap/)."
 }
 
 cmd_build() {
@@ -162,6 +191,14 @@ cmd_dev() {
     fi
     export BACKEND_CORS_ORIGINS="$origins"
 
+    # Le navigateur ne garde un cookie Secure sur http:// que pour localhost : depuis
+    # http://<ip-lan> (telephone), la connexion repond 200 mais la session est perdue
+    # et tout le reste rend 401. En dev sur le reseau local, cookie sans Secure,
+    # sauf si la variable est deja positionnee.
+    if [ -n "$lan_ip" ] && [ -z "${SESSION_COOKIE_SECURE:-}" ]; then
+        export SESSION_COOKIE_SECURE=false
+    fi
+
     echo ""
     echo "Backend  (FastAPI) : http://localhost:${backend_port}"
     [ -n "$lan_ip" ] && echo "                     http://${lan_ip}:${backend_port}  (reseau Wifi)"
@@ -188,6 +225,7 @@ cmd_dev() {
 case "$subcommand" in
     install) cmd_install "$@" ;;
     test) cmd_test "$@" ;;
+    crap) cmd_crap "$@" ;;
     build) cmd_build "$@" ;;
     dev) cmd_dev "$@" ;;
     *) usage ;;

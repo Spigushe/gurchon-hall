@@ -4,6 +4,7 @@ Usage, depuis `backend/` :
 
     uv run python scripts/manage_accounts.py claim-legacy --email E --username U
     uv run python scripts/manage_accounts.py create --email E --username U [--role ...]
+    uv run python scripts/manage_accounts.py check-me [--fix]
     uv run python scripts/manage_accounts.py set-password --email E
     uv run python scripts/manage_accounts.py set-role --email E --role user|admin
     uv run python scripts/manage_accounts.py revoke-sessions --email E
@@ -21,6 +22,11 @@ fois : la commande refuse si son mot de passe n'est plus la valeur
 inutilisable posée par la migration R8 (`UNUSABLE_PASSWORD_HASH`). C'est la
 seule façon de réclamer ce compte — il ne se crée pas par `POST /inscription`,
 qui laisserait la première personne à s'inscrire hériter de la collection.
+
+**`check-me`** liste les comptes sans joueur « Moi » (Lot 7, A1) et sort en
+code 1 s'il en reste ; `--fix` le crée. `claim-legacy` et `create` s'occupent
+eux-mêmes du « Moi » : le premier renomme celui que R10 a posé, le second le
+crée avec le compte.
 
 **`set-password`** révoque au passage toutes les sessions du compte visé : un
 secret qui change invalide ce qui a été ouvert avec l'ancien.
@@ -46,6 +52,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from app.db.session import SessionLocal  # noqa: E402
+from app.models import Player  # noqa: E402
 from app.models.account import (  # noqa: E402
     LEGACY_ACCOUNT_ID,
     UNUSABLE_PASSWORD_HASH,
@@ -59,7 +66,7 @@ from app.schemas.account import (  # noqa: E402
     EmailAddress,
     check_password_complexity,
 )
-from app.services import auth  # noqa: E402
+from app.services import auth, players  # noqa: E402
 from app.services.errors import ConflictError  # noqa: E402
 
 _email_adapter = TypeAdapter(EmailAddress)
@@ -151,10 +158,14 @@ def cmd_claim_legacy(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
             return 1
+        previous_username = account.username
         account.email = email
         account.username = username
         account.password_hash = auth.hash_password(password)
         db.add(account)
+        # Le « Moi » posé par R10 porte l'ancien nom d'utilisateur (Lot 7, A1) :
+        # il suit le nouveau, tant que l'utilisateur ne l'a pas déjà renommé.
+        warning = _follow_username(db, account.id, previous_username, username)
         try:
             db.commit()
         except IntegrityError:
@@ -162,7 +173,33 @@ def cmd_claim_legacy(args: argparse.Namespace) -> int:
             print("Conflit à l'écriture (adresse ou nom déjà pris).", file=sys.stderr)
             return 1
     print(f"Compte historique réclamé : {email} / {username}.")
+    if warning:
+        print(warning, file=sys.stderr)
     return 0
+
+
+def _follow_username(
+    db: Session, user_id: int, previous_username: str, username: str
+) -> str | None:
+    """Renomme le « Moi » du compte pour qu'il suive son nouveau `username`.
+
+    Le crée s'il manque. Ne touche pas à un « Moi » déjà renommé à la main, ni
+    ne le renomme sur un nom qu'un autre joueur porte déjà (repli sur un
+    avertissement). Ne valide pas : la transaction reste à l'appelant.
+    """
+    me = players.get_me(db, user_id)
+    if me is None:
+        players.get_or_create_me(db, user_id, username)
+        return None
+    if me.name != previous_username or me.name == username:
+        return None
+    if players.find_by_name(db, user_id, username, exclude_id=me.id) is not None:
+        return (
+            f"Le joueur Moi garde le nom {me.name!r} : un autre joueur porte déjà "
+            f"{username!r}. À renommer par l'application."
+        )
+    me.name = username
+    return None
 
 
 def cmd_create(args: argparse.Namespace) -> int:
@@ -180,6 +217,39 @@ def cmd_create(args: argparse.Namespace) -> int:
             return 1
         print(f"Compte créé : #{account.id} {account.email} ({account.role.value}).")
     return 0
+
+
+def cmd_check_me(args: argparse.Namespace) -> int:
+    """Liste les comptes sans joueur « Moi » ; `--fix` le crée (nom = `username`).
+
+    Un compte sans « Moi » ne devrait pas exister (Lot 7, A1) : R10 en pose un
+    aux comptes existants, `create_account` aux suivants. La commande sert de
+    contrôle après une mise en service. Code de sortie 1 s'il en reste.
+    """
+    with SessionLocal() as db:
+        missing = list(
+            db.scalars(
+                select(UserAccount)
+                .where(
+                    ~select(Player.id)
+                    .where(Player.user_id == UserAccount.id, Player.is_me.is_(True))
+                    .exists()
+                )
+                .order_by(UserAccount.id)
+            )
+        )
+        for account in missing:
+            print(f"#{account.id} {account.email} ({account.username}) : pas de Moi.")
+        if not missing:
+            print("Tous les comptes ont un joueur Moi.")
+            return 0
+        if args.fix:
+            for account in missing:
+                players.get_or_create_me(db, account.id, account.username)
+            db.commit()
+            print(f"{len(missing)} joueur(s) Moi créé(s).")
+            return 0
+    return 1
 
 
 def cmd_set_password(args: argparse.Namespace) -> int:
@@ -250,6 +320,12 @@ def main() -> int:
         default=UserRole.USER.value,
     )
     create.set_defaults(func=cmd_create)
+
+    check_me = subparsers.add_parser(
+        "check-me", help="Liste les comptes sans joueur Moi (--fix pour le créer)."
+    )
+    check_me.add_argument("--fix", action="store_true")
+    check_me.set_defaults(func=cmd_check_me)
 
     set_password = subparsers.add_parser(
         "set-password",

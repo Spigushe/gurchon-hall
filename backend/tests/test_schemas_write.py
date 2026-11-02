@@ -28,7 +28,14 @@ from app.models import (
     Tournament,
     Venue,
 )
-from app.models.enums import DeckPolicy, DeckStatus, RoundType, TournamentFormat
+from app.models.enums import (
+    DeckPolicy,
+    DeckStatus,
+    EventTier,
+    FinalDeckRule,
+    RoundType,
+    TournamentFormat,
+)
 from app.schemas.base import MAX_DB_INT, WriteModel
 from app.schemas.collection import (
     BundleDeposit,
@@ -41,10 +48,11 @@ from app.schemas.collection import (
     DeckUpdate,
 )
 from app.schemas.play import (
+    MAX_TABLE_SIZE,
     GameCreate,
+    GameTableReplace,
     GameUpdate,
     ParticipationCreate,
-    ParticipationUpdate,
     PlayerCreate,
     PlayerUpdate,
     TournamentCreate,
@@ -62,6 +70,9 @@ from tests.helpers import (
 )
 
 PLAYED_AT = datetime(2026, 2, 1, 14, 0, tzinfo=UTC)
+ME = {"player": {"me": True}}
+"""Ma ligne de table, la plus courte possible : une partie en a toujours une
+(Lot 7, A2)."""
 
 # schéma de création -> charge utile minimale valide
 MINIMAL_CREATE = {
@@ -77,8 +88,9 @@ MINIMAL_CREATE = {
     },
     BundleDeposit: {"language_code": "EN"},
     PlayerCreate: {"name": "Alice"},
-    ParticipationCreate: {"player_id": 1},
-    GameCreate: {"played_at": PLAYED_AT, "player_count": 4},
+    ParticipationCreate: ME,
+    GameCreate: {"played_at": PLAYED_AT, "player_count": 4, "participations": [ME]},
+    GameTableReplace: {"participations": [ME]},
     TournamentCreate: {"name": "Open", "start_date": date(2026, 2, 1)},
 }
 
@@ -88,7 +100,6 @@ UPDATE_SCHEMAS = [
     DeckUpdate,
     DeckCardUpdate,
     PlayerUpdate,
-    ParticipationUpdate,
     GameUpdate,
     TournamentUpdate,
 ]
@@ -158,8 +169,10 @@ def test_update_schema_has_only_optional_fields(schema):
         (DeckUpdate, "notes"),
         (GameUpdate, "notes"),
         (TournamentUpdate, "end_date"),
-        (ParticipationUpdate, "deck_id"),
-        (ParticipationUpdate, "victory_points"),
+        (GameUpdate, "venue"),
+        (GameUpdate, "tournament"),
+        (TournamentUpdate, "venue"),
+        (TournamentUpdate, "final_deck_rule"),
         (CardCopyUpdate, "notes"),
     ],
 )
@@ -193,8 +206,9 @@ def test_every_write_schema_is_covered_by_this_module():
         (DeckCardCreate, {"card_id", "language_code", "card_set_id", "quantity"}),
         (BundleDeposit, {"language_code"}),
         (PlayerCreate, {"name"}),
-        (ParticipationCreate, {"player_id"}),
-        (GameCreate, {"played_at", "player_count"}),
+        (ParticipationCreate, {"player"}),
+        (GameCreate, {"played_at", "player_count", "participations"}),
+        (GameTableReplace, {"participations"}),
         (TournamentCreate, {"name", "start_date"}),
     ],
     ids=lambda v: v.__name__ if isinstance(v, type) else None,
@@ -435,7 +449,6 @@ UPDATE_TO_MODEL = {
     DeckUpdate: Deck,
     DeckCardUpdate: DeckCard,
     PlayerUpdate: Player,
-    ParticipationUpdate: Participation,
     GameUpdate: Game,
     TournamentUpdate: Tournament,
 }
@@ -473,16 +486,14 @@ def test_update_refuses_explicit_null_on_a_not_null_column(schema, field):
         (CardCopyCreate, "quantity_owned", 0, -1),
         (CardCopyUpdate, "quantity_owned", 0, -1),
         (DeckCardCreate, "quantity", 1, 0),
+        (GameCreate, "round_number", 1, 0),
         (BundleDeposit, "count", 1, 0),
         (DeckCardUpdate, "quantity", 1, 0),
         (DeckCardCreate, "proxy_quantity", 0, -1),
         (DeckCardUpdate, "proxy_quantity", 0, -1),
         (LanguageCreate, "sort_order", 0, -1),
         (ParticipationCreate, "seat", 1, 0),
-        (ParticipationUpdate, "seat", 1, 0),
         (ParticipationCreate, "victory_points", 0, -0.5),
-        (ParticipationUpdate, "victory_points", 0, -0.5),
-        (GameCreate, "round_number", 1, 0),
         (GameUpdate, "round_number", 1, 0),
         (GameCreate, "player_count", 2, 1),
         (GameUpdate, "player_count", 2, 1),
@@ -514,15 +525,11 @@ UPPER_BOUNDED = [
     (DeckCardUpdate, "quantity"),
     (DeckCardUpdate, "proxy_quantity"),
     (BundleDeposit, "count"),
-    (ParticipationCreate, "player_id"),
-    (ParticipationCreate, "deck_id"),
-    (ParticipationUpdate, "deck_id"),
-    (GameCreate, "venue_id"),
-    (GameCreate, "tournament_id"),
-    (GameCreate, "player_count"),
-    (GameUpdate, "venue_id"),
-    (TournamentCreate, "venue_id"),
-    (TournamentUpdate, "venue_id"),
+    (GameCreate, "round_number"),
+    (GameUpdate, "round_number"),
+    (TournamentCreate, "round_count"),
+    (TournamentCreate, "player_count"),
+    (TournamentUpdate, "player_count"),
 ]
 
 
@@ -553,9 +560,6 @@ def test_integers_are_capped_at_the_database_maximum(schema, field):
         (CardCopyCreate, "card_set_id"),
         (DeckCardCreate, "card_id"),
         (DeckCardCreate, "card_set_id"),
-        (ParticipationCreate, "player_id"),
-        (ParticipationCreate, "deck_id"),
-        (GameCreate, "venue_id"),
     ],
     ids=lambda v: v.__name__ if isinstance(v, type) else None,
 )
@@ -585,18 +589,34 @@ def test_max_db_int_is_the_signed_32_bit_ceiling():
 
 
 def test_victory_points_accept_half_points():
-    """0,5 VP par survivant en fin de partie (§5)."""
-    for value in (0.5, 1, 2.5, 5):
-        assert (
-            ParticipationCreate(player_id=1, victory_points=value).victory_points
-            == value
-        )
+    """0,5 VP par survivant en fin de partie ou par retrait (§5)."""
+    for value in (0, 0.5, 1, 2.5, 5):
+        assert ParticipationCreate(**ME, victory_points=value).victory_points == value
 
 
-def test_no_upper_bound_on_victory_points_or_player_count():
-    """Pas de plafond inventé : 4-5 joueurs est un standard, pas une règle."""
-    assert GameCreate(played_at=PLAYED_AT, player_count=8).player_count == 8
-    assert ParticipationCreate(player_id=1, victory_points=10).victory_points == 10
+@pytest.mark.parametrize("value", [0.25, 1.3, 2.75])
+def test_victory_points_are_half_points_only(value):
+    with pytest.raises(ValidationError) as excinfo:
+        ParticipationCreate(**ME, victory_points=value)
+    assert excinfo.value.errors()[0]["type"] == "multiple_of"
+
+
+def test_table_size_is_capped_at_six():
+    """Borne de saisie du Lot 7, pas règle VEKN : une table de tournoi compte
+    4 ou 5 joueurs, l'outil en accepte de 2 à 6 et refuse une faute de frappe.
+    Le plafond borne aussi les sièges et les VP d'une ligne."""
+    assert MAX_TABLE_SIZE == 6
+    game = {"played_at": PLAYED_AT, "participations": [ME]}
+    assert GameCreate(**game, player_count=6).player_count == 6
+    with pytest.raises(ValidationError):
+        GameCreate(**game, player_count=7)
+    with pytest.raises(ValidationError):
+        GameUpdate(player_count=7)
+    assert ParticipationCreate(**ME, seat=6, victory_points=6).seat == 6
+    with pytest.raises(ValidationError):
+        ParticipationCreate(**ME, seat=7)
+    with pytest.raises(ValidationError):
+        ParticipationCreate(**ME, victory_points=6.5)
 
 
 # --------------------------------------------------------------------------
@@ -613,13 +633,14 @@ def test_create_defaults():
     assert deck.proxy_allowed is False
     line = DeckCardCreate(card_id=1, language_code="EN", card_set_id=1, quantity=2)
     assert line.proxy_quantity == 0
-    assert PlayerCreate(name="A").is_me is False
-    game = GameCreate(played_at=PLAYED_AT, player_count=4)
+    game = GameCreate(played_at=PLAYED_AT, player_count=4, participations=[ME])
     assert game.round_type is RoundType.CASUAL
-    assert game.participations == []
+    assert (game.venue, game.tournament) == (None, None)
     tournament = TournamentCreate(name="T", start_date=date(2026, 1, 1))
     assert tournament.deck_policy is DeckPolicy.MONO
     assert tournament.format is TournamentFormat.CONSTRUCTED
+    assert tournament.event_tier is EventTier.STANDARD
+    assert tournament.final_deck_rule is None
 
 
 def test_create_defaults_match_the_model_defaults(db):
@@ -635,7 +656,9 @@ def test_create_defaults_match_the_model_defaults(db):
     db.add(deck)
     tournament = Tournament(
         user_id=user_id,
-        **TournamentCreate(name="T", start_date=date(2026, 1, 1)).model_dump(),
+        **TournamentCreate(name="T", start_date=date(2026, 1, 1)).model_dump(
+            exclude={"venue"}
+        ),
     )
     db.add(tournament)
     db.flush()
@@ -648,13 +671,10 @@ def test_create_defaults_match_the_model_defaults(db):
         tournament.format
         is TournamentCreate(name="T", start_date=date(2026, 1, 1)).format
     )
-
-
-def test_game_participations_default_is_not_shared_between_instances():
-    first = GameCreate(played_at=PLAYED_AT, player_count=4)
-    second = GameCreate(played_at=PLAYED_AT, player_count=4)
-    first.participations.append(ParticipationCreate(player_id=1))
-    assert second.participations == []
+    assert (
+        tournament.event_tier
+        is TournamentCreate(name="T", start_date=date(2026, 1, 1)).event_tier
+    )
 
 
 # --------------------------------------------------------------------------
@@ -673,6 +693,10 @@ def test_game_participations_default_is_not_shared_between_instances():
         (TournamentUpdate, "deck_policy", DeckPolicy),
         (TournamentCreate, "format", TournamentFormat),
         (TournamentUpdate, "format", TournamentFormat),
+        (TournamentCreate, "event_tier", EventTier),
+        (TournamentUpdate, "event_tier", EventTier),
+        (TournamentCreate, "final_deck_rule", FinalDeckRule),
+        (TournamentUpdate, "final_deck_rule", FinalDeckRule),
     ],
     ids=lambda v: v.__name__ if isinstance(v, type) else None,
 )
@@ -834,12 +858,12 @@ def test_ids_reject_non_numeric_strings():
     with pytest.raises(ValidationError):
         CardCopyCreate(card_id="abc", language_code="EN", card_set_id=1)
     with pytest.raises(ValidationError):
-        ParticipationCreate(player_id="abc")
+        ParticipationCreate(player={"player_id": "abc"})
 
 
 def test_played_at_is_parsed_from_iso_8601():
     game = GameCreate.model_validate(
-        {"played_at": "2026-02-01T14:00:00Z", "player_count": 4}
+        {"played_at": "2026-02-01T14:00:00Z", "player_count": 4, "participations": [ME]}
     )
     assert game.played_at == PLAYED_AT
     assert game.played_at.tzinfo is not None
@@ -847,7 +871,9 @@ def test_played_at_is_parsed_from_iso_8601():
 
 def test_played_at_rejects_garbage():
     with pytest.raises(ValidationError):
-        GameCreate.model_validate({"played_at": "hier soir", "player_count": 4})
+        GameCreate.model_validate(
+            {"played_at": "hier soir", "player_count": 4, "participations": [ME]}
+        )
 
 
 def test_dates_are_parsed_from_iso_8601():
@@ -865,27 +891,39 @@ def test_dates_are_parsed_from_iso_8601():
 
 
 def test_game_create_accepts_a_whole_table_in_one_payload():
+    """Ma ligne, un adversaire connu, un adversaire créé hors ligne avec l'un de
+    mes decks prêté (P4), désignés par référence."""
     game = GameCreate.model_validate(
         {
             "played_at": "2026-02-01T14:00:00Z",
             "player_count": 5,
             "round_type": "preliminary",
+            "round_number": 1,
+            "tournament": {"client_ref": "t-1"},
+            "venue": {"venue_id": 3},
             "participations": [
                 {
-                    "player_id": 1,
-                    "deck_id": 7,
+                    "player": {"me": True},
+                    "deck": {"deck_id": 7},
                     "seat": 3,
                     "victory_points": 2.5,
                     "game_win": True,
                 },
-                {"player_id": 2, "seat": 1},
-                {"player_id": 3},
+                {"player": {"player_id": 2}, "seat": 1},
+                {"player": {"client_ref": "p-1"}, "deck": {"client_ref": "d-1"}},
             ],
         }
     )
-    assert [p.player_id for p in game.participations] == [1, 2, 3]
+    players = [line.player for line in game.participations]
+    assert [(p.me, p.player_id, p.client_ref) for p in players] == [
+        (True, None, None),
+        (None, 2, None),
+        (None, None, "p-1"),
+    ]
     assert game.participations[0].victory_points == 2.5
-    assert game.participations[2].seat is None
+    assert game.participations[2].deck.client_ref == "d-1"
+    assert game.tournament.client_ref == "t-1"
+    assert game.venue.venue_id == 3
 
 
 def test_nested_participation_errors_are_located_in_the_payload():
@@ -894,7 +932,7 @@ def test_nested_participation_errors_are_located_in_the_payload():
             {
                 "played_at": "2026-02-01T14:00:00Z",
                 "player_count": 4,
-                "participations": [{"player_id": 1}, {"player_id": 2, "seat": 0}],
+                "participations": [ME, {"player": {"player_id": 2}, "seat": 0}],
             }
         )
     assert error_locations(excinfo) == {("participations", 1, "seat")}
@@ -906,25 +944,124 @@ def test_nested_participation_rejects_unknown_fields():
             {
                 "played_at": "2026-02-01T14:00:00Z",
                 "player_count": 4,
-                "participations": [{"player_id": 1, "opponent_deck": "x"}],
+                "participations": [{**ME, "opponent_deck": "x"}],
             }
         )
     assert error_locations(excinfo) == {("participations", 0, "opponent_deck")}
 
 
-def test_game_create_does_not_check_table_consistency():
-    """Hors périmètre du schéma (Lot 2) : pas de contrôle nb de joueurs / sièges.
+@pytest.mark.parametrize("schema", [GameCreate, GameTableReplace])
+def test_a_table_is_never_empty(schema):
+    """Une partie contient toujours ma ligne (A2)."""
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({**MINIMAL_CREATE[schema], "participations": []})
+    assert error_locations(excinfo) == {("participations",)}
 
-    Le contrat n'impose ici ni `len(participations) == player_count`, ni
-    l'unicité des sièges ; ces règles, si elles existent, sont des règles de
-    service. Le test consigne la frontière pour qu'elle soit réévaluée en Lot 2.
-    """
-    game = GameCreate(
-        played_at=PLAYED_AT,
-        player_count=5,
-        participations=[ParticipationCreate(player_id=1, seat=1)],
-    )
-    assert len(game.participations) == 1
+
+RULE_BREAKING_GAMES = [
+    pytest.param({"participations": [ME, ME]}, id="deux-fois-moi"),
+    pytest.param(
+        {
+            "participations": [
+                {**ME, "seat": 1},
+                {"player": {"player_id": 2}, "seat": 1},
+            ]
+        },
+        id="meme-siege",
+    ),
+    pytest.param(
+        {
+            "player_count": 2,
+            "participations": [
+                ME,
+                {"player": {"player_id": 2}},
+                {"player": {"player_id": 3}},
+            ],
+        },
+        id="plus-de-lignes-que-de-joueurs",
+    ),
+    pytest.param({"tournament": {"tournament_id": 1}}, id="amicale-en-tournoi"),
+    pytest.param({"round_type": "final"}, id="finale-hors-tournoi"),
+    pytest.param({"round_number": 1}, id="numero-hors-preliminaire"),
+    pytest.param(
+        {"participations": [{"player": {"player_id": 2}, "victory_points": 4}]},
+        id="sans-moi-et-vp-adversaire",
+    ),
+]
+
+
+@pytest.mark.parametrize("fields", RULE_BREAKING_GAMES)
+def test_game_rules_are_left_to_the_service(fields):
+    """Décision du 2026-10-29 : le schéma vérifie la forme, le service les
+    règles (table, ronde, VP, GW). Par `/sync`, un refus du schéma ferait
+    échouer le lot entier sans verdict ; au service, c'est le verdict `invalid`
+    d'une seule opération. Les règles ont leurs tests dans
+    `test_vtes_rules_play.py`."""
+    GameCreate.model_validate({**MINIMAL_CREATE[GameCreate], **fields})
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"deck_policy": "multi", "event_tier": "grand_prix"},
+        {"final_deck_rule": "free_choice"},
+        {"player_count": 27, "my_ranking": 28},
+        {"start_date": "2026-10-24", "end_date": "2026-10-23"},
+    ],
+)
+def test_tournament_rules_are_left_to_the_service(fields):
+    TournamentCreate.model_validate({**MINIMAL_CREATE[TournamentCreate], **fields})
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {},
+        {
+            "tournament": {"tournament_id": 1},
+            "round_type": "preliminary",
+            "round_number": 3,
+        },
+        {"tournament": {"client_ref": "t"}, "round_type": "final"},
+    ],
+)
+def test_game_create_accepts_each_kind_of_round(fields):
+    GameCreate.model_validate({**MINIMAL_CREATE[GameCreate], **fields})
+
+
+@pytest.mark.parametrize("value", [0, MAX_DB_INT + 1])
+def test_game_round_number_is_bounded(value):
+    """Garantie reprise d'avant le Lot 7 : la borne vaut quel que soit le reste
+    de la charge utile."""
+    with pytest.raises(ValidationError) as excinfo:
+        GameCreate.model_validate({**MINIMAL_CREATE[GameCreate], "round_number": value})
+    assert error_locations(excinfo) == {("round_number",)}
+
+
+@pytest.mark.parametrize("schema", [PlayerCreate, PlayerUpdate])
+def test_is_me_cannot_be_written(schema):
+    """Le « Moi » est créé par le serveur, jamais par l'API (A1)."""
+    with pytest.raises(ValidationError) as excinfo:
+        schema.model_validate({"name": "Alice", "is_me": True})
+    assert error_locations(excinfo) == {("is_me",)}
+    assert excinfo.value.errors()[0]["type"] == "extra_forbidden"
+
+
+@pytest.mark.parametrize(
+    ("schema", "field"),
+    [
+        (GameUpdate, "venue"),
+        (GameUpdate, "tournament"),
+        (GameUpdate, "round_number"),
+        (TournamentUpdate, "venue"),
+        (TournamentUpdate, "final_deck_rule"),
+    ],
+)
+def test_omitted_and_null_are_two_different_updates(schema, field):
+    """Le service lit `model_fields_set` : « retirer le lieu » n'est pas « ne
+    pas y toucher »."""
+    assert schema.model_validate({}).model_fields_set == set()
+    assert schema.model_validate({field: None}).model_fields_set == {field}
 
 
 # --------------------------------------------------------------------------
@@ -946,12 +1083,14 @@ SCHEMA_TO_MODEL = [
     (DeckCardUpdate, DeckCard, {"acquired_quantity"}),
     (PlayerCreate, Player, set()),
     (PlayerUpdate, Player, set()),
-    (ParticipationCreate, Participation, set()),
-    (ParticipationUpdate, Participation, set()),
-    (GameCreate, Game, {"participations"}),
-    (GameUpdate, Game, set()),
-    (TournamentCreate, Tournament, set()),
-    (TournamentUpdate, Tournament, set()),
+    # Lot 7 : les écritures désignent joueur, deck, lieu et tournoi par une
+    # référence (`app.schemas.refs`), que le service résout en identifiant ; le
+    # champ porte le nom de la relation, pas celui de la colonne.
+    (ParticipationCreate, Participation, {"player", "deck"}),
+    (GameCreate, Game, {"participations", "venue", "tournament"}),
+    (GameUpdate, Game, {"venue", "tournament"}),
+    (TournamentCreate, Tournament, {"venue"}),
+    (TournamentUpdate, Tournament, {"venue"}),
 ]
 
 
@@ -1010,7 +1149,7 @@ def test_participation_bounds_agree_between_schema_and_database(
     player = make_player(db, user_id=game.user_id)
 
     try:
-        ParticipationCreate(player_id=player.id, **{field: value})
+        ParticipationCreate(player={"player_id": player.id}, **{field: value})
         schema_accepts = True
     except ValidationError:
         schema_accepts = False
@@ -1033,7 +1172,7 @@ def test_game_player_count_bound_agrees_between_schema_and_database(db):
     for count, valid in [(1, False), (2, True)]:
         schema_accepts = True
         try:
-            GameCreate(played_at=PLAYED_AT, player_count=count)
+            GameCreate(played_at=PLAYED_AT, player_count=count, participations=[ME])
         except ValidationError:
             schema_accepts = False
         assert schema_accepts is valid

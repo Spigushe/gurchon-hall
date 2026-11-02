@@ -17,7 +17,7 @@ export const REJECTION_LABELS: Record<RejectionCode, string> = {
   not_found: "Élément introuvable",
   conflict: "Règle de gestion non respectée",
   invalid: "Données invalides",
-  unresolved_client_ref: "Deck d'origine introuvable ou refusé",
+  unresolved_client_ref: "Création d'origine introuvable ou refusée",
   mismatched_replay: "Clé d'opération déjà utilisée avec un autre contenu",
   invalid_request: "Opération mal formée",
 };
@@ -57,4 +57,11 @@ export function formatTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleTimeString("fr-FR", { timeStyle: "medium" });
+}
+
+/** « 24/10 » : jour et mois, pour les libellés de parties (Lot 7). */
+export function formatDayMonth(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 }

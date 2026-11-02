@@ -1,12 +1,25 @@
-import { ArrowUpRight, Cards, Database, Plus } from "@phosphor-icons/react";
+import { useState } from "react";
+import { ArrowUpRightIcon, CardsIcon, DatabaseIcon, PlusIcon, TrophyIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
+import { Kbd } from "../../components/Kbd";
 import { useIsDesktop } from "../../components/useIsDesktop";
+import { isInteractiveTarget, useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { CATEGORY_LABELS, DECK_STATUS_LABELS, formatTime, plural } from "../../labels";
 import { useConnectivity, useFlush, useSyncStatus } from "../../offline/react";
-import { useLocalDeckCards, useLocalDecks, useLocalStock, type LocalDeck } from "../../offline/vtes";
+import {
+  useLocalDeckCards,
+  useLocalDecks,
+  useLocalGames,
+  useLocalStock,
+  useLocalTournaments,
+  type LocalDeck,
+  type LocalTournament,
+} from "../../offline/vtes";
 import { CatalogPanel } from "../catalog/CatalogPanel";
+import { GameForm } from "../games/GameForm";
+import { lastRoundLine, nextRoundOf, roundsOf, tournamentInProgress } from "../games/tournamentModel";
 import { useDeckLegality, type LegalityOutcome } from "../decks/useDeckLegality";
 import { useLocalDeckCounts } from "../decks/useLocalDeckCounts";
 
@@ -131,7 +144,7 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
       >
         {display.label}
       </span>
-      <ArrowUpRight size={18} className="home-deck-row__arrow" />
+      <ArrowUpRightIcon size={18} className="home-deck-row__arrow" />
     </Link>
   );
 }
@@ -165,9 +178,77 @@ function HomeDeckListItem({ deck }: { deck: LocalDeck }) {
             )}
           </p>
         </span>
-        <ArrowUpRight size={18} className="row__arrow" />
+        <ArrowUpRightIcon size={18} className="row__arrow" />
       </Link>
     </li>
+  );
+}
+
+/**
+ * Carte « Tournoi en cours » (P8, écran 22, d15) : un tournoi commencé depuis moins de deux
+ * jours, sans classement final saisi. Son nom, ma dernière ronde, et le bouton « Saisir la
+ * ronde N » (ou « Saisir la finale » quand les rondes prévues sont jouées) qui ouvre la
+ * saisie pré-remplie. Au bureau, `↵` hors d'un contrôle interactif fait de même. Rien n'est
+ * lu en ligne : tout vient du miroir local.
+ */
+function CurrentTournament({ tournament }: { tournament: LocalTournament }) {
+  const isDesktop = useIsDesktop();
+  const games = useLocalGames({ tournamentKey: tournament.key });
+  const decks = useLocalDecks({ state: "all" });
+  const [entering, setEntering] = useState(false);
+
+  const rounds = roundsOf(games ?? [], [tournament], tournament);
+  const next = nextRoundOf(tournament, rounds);
+  const last = lastRoundLine(rounds, (game) =>
+    game.me.deckKey === null ? null : (decks?.find((deck) => deck.key === game.me.deckKey)?.name ?? null),
+  );
+  const label = next === null ? null : next.kind === "final" ? "Saisir la finale" : `Saisir la ronde ${next.number}`;
+
+  useKeyboardShortcuts(
+    [{ keys: ["enter"], ignoreTarget: isInteractiveTarget, onTrigger: () => setEntering(true) }],
+    { enabled: isDesktop && next !== null && games !== undefined && !entering },
+  );
+
+  return (
+    <section className="current-tournament" data-testid="home-tournament">
+      <p className="kicker">Tournoi en cours</p>
+      <h3 className="current-tournament__name" data-testid="home-tournament-name">
+        <Link to={{ name: "tournament", key: tournament.key }} className="current-tournament__link">
+          {tournament.name}
+        </Link>
+      </h3>
+      {games !== undefined && (
+        <p className="current-tournament__last" data-testid="home-tournament-last">
+          {last}
+        </p>
+      )}
+      {label !== null ? (
+        <button
+          type="button"
+          className="btn btn-primary btn--pill current-tournament__cta"
+          disabled={games === undefined}
+          onClick={() => setEntering(true)}
+          data-testid="home-tournament-enter"
+        >
+          {label}
+          {isDesktop && <Kbd>↵</Kbd>}
+        </button>
+      ) : (
+        <Link
+          to={{ name: "tournament", key: tournament.key }}
+          className="btn btn-primary btn--pill current-tournament__cta"
+          data-testid="home-tournament-ranking"
+        >
+          Saisir le classement
+        </Link>
+      )}
+      {entering && next !== null && (
+        <GameForm
+          initial={{ tournamentKey: tournament.key, roundType: next.kind === "final" ? "final" : "preliminary" }}
+          onClose={() => setEntering(false)}
+        />
+      )}
+    </section>
   );
 }
 
@@ -178,6 +259,9 @@ export function HomePage() {
   const activeCount = decks?.filter((deck) => deck.status === "active").length;
   const draftCount = decks?.filter((deck) => deck.status === "draft").length;
   const isDesktop = useIsDesktop();
+  const tournaments = useLocalTournaments();
+  const current = tournaments ? tournamentInProgress(tournaments) : null;
+  const tournamentCard = current ? <CurrentTournament key={current.key} tournament={current} /> : null;
 
   return (
     <div className="page page--atelier" data-testid="home-page">
@@ -198,6 +282,15 @@ export function HomePage() {
             <p className="page-meta">{TODAY.charAt(0).toUpperCase() + TODAY.slice(1)} · tout est local</p>
           </div>
 
+          {!isDesktop && tournamentCard}
+
+          {!isDesktop && (
+            <Link to={{ name: "games", intent: "new" }} className="home-new-game" data-testid="home-shortcut-game">
+              <TrophyIcon size={18} />
+              Nouvelle partie
+            </Link>
+          )}
+
           {stock === undefined || decks === undefined ? (
             <LoadingState />
           ) : (
@@ -216,6 +309,8 @@ export function HomePage() {
               </span>
             </div>
           )}
+
+          {isDesktop && tournamentCard && <div className="home-tournament-slot">{tournamentCard}</div>}
 
           <SyncAlert />
 
@@ -252,12 +347,22 @@ export function HomePage() {
          */}
         <div className="home-aside">
           <div className="home-shortcuts" data-testid="home-shortcuts">
+            {isDesktop && (
+              <Link
+                to={{ name: "games", intent: "new" }}
+                className="btn btn-primary home-shortcuts__item"
+                data-testid="home-shortcut-game"
+              >
+                <TrophyIcon size={18} />
+                Nouvelle partie
+              </Link>
+            )}
             <Link
               to={{ name: "decks", intent: "new" }}
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-deck"
             >
-              <Cards size={18} />
+              <CardsIcon size={18} />
               Nouveau deck
             </Link>
             <Link
@@ -265,7 +370,7 @@ export function HomePage() {
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-stock"
             >
-              <Plus size={18} />
+              <PlusIcon size={18} />
               Ajouter une carte
             </Link>
             <Link
@@ -273,7 +378,7 @@ export function HomePage() {
               className="btn btn-secondary home-shortcuts__item"
               data-testid="home-shortcut-bundle"
             >
-              <Database size={18} />
+              <DatabaseIcon size={18} />
               Verser un produit
             </Link>
           </div>

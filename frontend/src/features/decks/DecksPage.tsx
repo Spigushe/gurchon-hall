@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowUpRight, ClockCountdown, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { ArrowUpRightIcon, ClockCountdownIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { consumeIntent, navigate, type DecksIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
@@ -206,12 +206,12 @@ function DeckItem({
         </span>
         {deck.pending && (
           <span className="row__pending" data-testid="pending-badge">
-            <ClockCountdown size={14} />
+            <ClockCountdownIcon size={14} />
             En attente de synchronisation
           </span>
         )}
       </span>
-      <ArrowUpRight size={18} className="row__arrow" />
+      <ArrowUpRightIcon size={18} className="row__arrow" />
     </>
   );
 
@@ -474,7 +474,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
           </div>
 
           <div className="search-field">
-            <MagnifyingGlass size={18} className="search-field__icon" />
+            <MagnifyingGlassIcon size={18} className="search-field__icon" />
             <label htmlFor={searchId} className="sr-only">
               Filtrer par nom
             </label>
@@ -523,7 +523,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
                     data-testid="decks-empty-create"
                     onClick={() => setCreating(true)}
                   >
-                    <Plus size={18} />
+                    <PlusIcon size={18} />
                     Nouveau deck
                   </button>
                 </div>
@@ -559,7 +559,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
 
       <div className="floating-actions">
         <Pill onClick={() => setCreating(true)} data-testid="deck-add">
-          <Plus size={20} />
+          <PlusIcon size={20} />
           Nouveau deck
         </Pill>
       </div>

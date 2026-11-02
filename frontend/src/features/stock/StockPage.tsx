@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
-import { Database, DotsThree, Funnel, MagnifyingGlass, Plus } from "@phosphor-icons/react";
+import { DatabaseIcon, DotsThreeIcon, FunnelIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { consumeIntent, type StockIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { Pill } from "../../components/Pill";
@@ -199,29 +199,26 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
     );
   const deferred = useDeferredValue(term.trim());
   const category = filter === "crypt" || filter === "library" ? filter : undefined;
-  const rawEntries = useLocalStock({
-    q: deferred || undefined,
-    languageCode: languageCode || undefined,
-    cardSetId: cardSetId ?? undefined,
-    category,
-  });
-  const entries = rawEntries?.filter((entry) => {
-    if (filter === "proxy" && entry.quantityOwned !== 0) return false;
-    if (ownedFilter === "owned" && entry.quantityOwned === 0) return false;
-    if (ownedFilter === "zero" && entry.quantityOwned !== 0) return false;
-    return true;
-  });
-
-  // Base sans catégorie, pour les compteurs des onglets bureau (« Toutes · 412 »,
-  // handoff « d02 ») : la requête principale ci-dessus reste inchangée (elle ne
-  // porte qu'un seul onglet à la fois), ce second appel `useLocalStock` reste
-  // local (aucun réseau) et sert uniquement d'affichage — même état, mêmes
-  // filtres (langue, extension, recherche), juste sans restreindre la catégorie.
+  // Une seule lecture locale (langue, extension, recherche) nourrit à la fois la
+  // liste et les compteurs d'onglets : deux requêtes Dexie indépendantes pouvaient
+  // se montrer l'une avant l'autre (liste affichée, compteurs absents ou en retard).
+  // La catégorie, un simple prédicat, s'applique ici sur la même lecture.
   const countBase = useLocalStock({
     q: deferred || undefined,
     languageCode: languageCode || undefined,
     cardSetId: cardSetId ?? undefined,
   });
+  const entries = useMemo(
+    () =>
+      countBase?.filter((entry) => {
+        if (category && entry.category !== category) return false;
+        if (filter === "proxy" && entry.quantityOwned !== 0) return false;
+        if (ownedFilter === "owned" && entry.quantityOwned === 0) return false;
+        if (ownedFilter === "zero" && entry.quantityOwned !== 0) return false;
+        return true;
+      }),
+    [countBase, category, filter, ownedFilter],
+  );
   const tabCounts = useMemo(() => {
     if (!countBase) return undefined;
     const passesOwned = (entry: LocalStockEntry) =>
@@ -249,8 +246,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
   const [editing, setEditing] = useState<LocalStockEntry | null>(null);
   const [bundleOpen, setBundleOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const isFiltered =
-    deferred !== "" || languageCode !== "" || cardSetId !== null || ownedFilter !== "all" || filter !== "all";
+  const isFiltered = isStockFiltered(deferred, languageCode, cardSetId, ownedFilter, filter);
   // Collection vide sans filtre : les deux actions passent dans l'état vide (une seule paire de boutons).
   const showActions = entries !== undefined && !(entries.length === 0 && !isFiltered);
 
@@ -304,54 +300,12 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
       className={showActions ? "page page--with-floating page--stock" : "page page--stock"}
       data-testid="stock-page"
     >
-      <div className="stock-header">
-        <div>
-          <h2 className="page-title">Collection</h2>
-          <p className="page-meta">
-            {entries ? plural(entries.length, "entrée") : "…"} · une ligne par carte, langue et extension
-            {entries && (
-              <>
-                {" · "}
-                <span data-testid="stock-total-copies">{plural(totalCopies, "exemplaire")}</span>
-              </>
-            )}
-          </p>
-        </div>
-        {/* Bureau (handoff « d02 ») : boutons d'en-tête, kbd V/N. Sur mobile, ces
-            deux actions restent portées par la pilule flottante et le rond
-            « Verser un produit » en pied d'écran (inchangés, cf. `.floating-actions`
-            plus bas), masqués sur bureau par CSS (`index.css`, comme `.page--decks`). */}
-        {isDesktop && (
-          <div className="stock-header__actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              data-testid="bundle-open-desktop"
-              aria-keyshortcuts="v"
-              onClick={() => setBundleOpen(true)}
-            >
-              Verser un produit
-              <Kbd>V</Kbd>
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              data-testid="stock-add-desktop"
-              aria-keyshortcuts="n"
-              onClick={openCreate}
-            >
-              <Plus size={18} />
-              Ajouter une carte
-              <Kbd>N</Kbd>
-            </button>
-          </div>
-        )}
-      </div>
+      <StockHeader entries={entries} totalCopies={totalCopies} isDesktop={isDesktop} onDeposit={() => setBundleOpen(true)} onCreate={openCreate} />
 
       {catalog.count === 0 && <CatalogPanel compact />}
 
       <div className="search-field">
-        <MagnifyingGlass size={18} className="search-field__icon" />
+        <MagnifyingGlassIcon size={18} className="search-field__icon" />
         <label htmlFor={searchId} className="sr-only">
           Chercher dans ma collection
         </label>
@@ -422,36 +376,15 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
          * bureau, libellé « Filtrer le tableau » avec kbd `F` (handoff « d02 »,
          * le sélecteur de langue en sort pour rejoindre l'en-tête ci-dessus).
          */}
-        <button
-          type="button"
-          className={isDesktop ? "btn btn-secondary" : "round-btn round-btn--flat"}
-          aria-label={isDesktop ? "Filtrer le tableau" : "Plus de filtres"}
-          aria-keyshortcuts={isDesktop ? "f" : undefined}
-          data-testid="stock-filters-open"
-          onClick={() => setFiltersOpen(true)}
-        >
-          {isDesktop ? (
-            <>
-              <Funnel size={16} />
-              Filtrer le tableau
-              <Kbd>F</Kbd>
-            </>
-          ) : (
-            <DotsThree size={22} />
-          )}
-        </button>
+        <FiltersButton isDesktop={isDesktop} onOpen={() => setFiltersOpen(true)} />
       </div>
-      {(languageCode !== "" || cardSetId !== null || ownedFilter !== "all") && (
-        <p className="hint" data-testid="stock-language-active">
-          {languageCode !== "" &&
-            `Langue : ${languages.find((language) => language.code === languageCode)?.label ?? languageCode} (${languageCode})`}
-          {languageCode !== "" && (cardSetId !== null || ownedFilter !== "all") && " · "}
-          {cardSetId !== null &&
-            `Extension : ${cardSets.byId.has(cardSetId) ? cardSets.byId.get(cardSetId)!.abbrev : cardSetId}`}
-          {cardSetId !== null && ownedFilter !== "all" && " · "}
-          {ownedFilter !== "all" && OWNED_FILTERS.find((option) => option.value === ownedFilter)?.label}
-        </p>
-      )}
+      <ActiveFiltersHint
+        languageCode={languageCode}
+        cardSetId={cardSetId}
+        ownedFilter={ownedFilter}
+        languages={languages}
+        cardSets={cardSets}
+      />
 
       <StockList
         entries={entries}
@@ -490,7 +423,7 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
       {showActions && (
         <div className="floating-actions">
           <Pill onClick={openCreate} data-testid="stock-add">
-            <Plus size={20} />
+            <PlusIcon size={20} />
             Ajouter une carte
           </Pill>
           <button
@@ -500,10 +433,134 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
             data-testid="bundle-open"
             onClick={() => setBundleOpen(true)}
           >
-            <Database size={20} />
+            <DatabaseIcon size={20} />
           </button>
         </div>
       )}
     </div>
+  );
+}
+
+/** Un filtre au moins est posé (recherche, langue, extension, possédé, onglet). */
+function isStockFiltered(
+  term: string,
+  languageCode: string,
+  cardSetId: number | null,
+  ownedFilter: OwnedFilter,
+  filter: Filter,
+): boolean {
+  return term !== "" || languageCode !== "" || cardSetId !== null || ownedFilter !== "all" || filter !== "all";
+}
+
+/** Rappel des filtres posés hors des onglets : langue, extension, possédé ou à 0. */
+function ActiveFiltersHint({
+  languageCode,
+  cardSetId,
+  ownedFilter,
+  languages,
+  cardSets,
+}: {
+  languageCode: string;
+  cardSetId: number | null;
+  ownedFilter: OwnedFilter;
+  languages: ReturnType<typeof useLanguageOptions>;
+  cardSets: ReturnType<typeof useCardSetOptions>;
+}) {
+  if (languageCode === "" && cardSetId === null && ownedFilter === "all") return null;
+  return (
+    <p className="hint" data-testid="stock-language-active">
+      {languageCode !== "" &&
+        `Langue : ${languages.find((language) => language.code === languageCode)?.label ?? languageCode} (${languageCode})`}
+      {languageCode !== "" && (cardSetId !== null || ownedFilter !== "all") && " · "}
+      {cardSetId !== null &&
+        `Extension : ${cardSets.byId.has(cardSetId) ? cardSets.byId.get(cardSetId)!.abbrev : cardSetId}`}
+      {cardSetId !== null && ownedFilter !== "all" && " · "}
+      {ownedFilter !== "all" && OWNED_FILTERS.find((option) => option.value === ownedFilter)?.label}
+    </p>
+  );
+}
+
+/** Titre, décompte, et sur bureau les boutons « Verser un produit » et « Ajouter une carte ». */
+function StockHeader({
+  entries,
+  totalCopies,
+  isDesktop,
+  onDeposit,
+  onCreate,
+}: {
+  entries: LocalStockEntry[] | undefined;
+  totalCopies: number;
+  isDesktop: boolean;
+  onDeposit: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <div className="stock-header">
+      <div>
+        <h2 className="page-title">Collection</h2>
+        <p className="page-meta">
+          {entries ? plural(entries.length, "entrée") : "…"} · une ligne par carte, langue et extension
+          {entries && (
+            <>
+              {" · "}
+              <span data-testid="stock-total-copies">{plural(totalCopies, "exemplaire")}</span>
+            </>
+          )}
+        </p>
+      </div>
+      {/* Bureau (handoff « d02 ») : boutons d'en-tête, kbd V/N. Sur mobile, ces
+          deux actions restent portées par la pilule flottante et le rond
+          « Verser un produit » en pied d'écran (inchangés, cf. `.floating-actions`
+          plus bas), masqués sur bureau par CSS (`index.css`, comme `.page--decks`). */}
+      {isDesktop && (
+        <div className="stock-header__actions">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-testid="bundle-open-desktop"
+            aria-keyshortcuts="v"
+            onClick={onDeposit}
+          >
+            Verser un produit
+            <Kbd>V</Kbd>
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="stock-add-desktop"
+            aria-keyshortcuts="n"
+            onClick={onCreate}
+          >
+            <PlusIcon size={18} />
+            Ajouter une carte
+            <Kbd>N</Kbd>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** « Plus de filtres » (rond, mobile) ou « Filtrer le tableau » (bureau) : la même feuille. */
+function FiltersButton({ isDesktop, onOpen }: { isDesktop: boolean; onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      className={isDesktop ? "btn btn-secondary" : "round-btn round-btn--flat"}
+      aria-label={isDesktop ? "Filtrer le tableau" : "Plus de filtres"}
+      aria-keyshortcuts={isDesktop ? "f" : undefined}
+      data-testid="stock-filters-open"
+      onClick={onOpen}
+    >
+      {isDesktop ? (
+        <>
+          <FunnelIcon size={16} />
+          Filtrer le tableau
+          <Kbd>F</Kbd>
+        </>
+      ) : (
+        <DotsThreeIcon size={22} />
+      )}
+    </button>
   );
 }

@@ -8,6 +8,8 @@ Lot 4.
 """
 
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,12 +18,18 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app import __version__
+from app.db import session as db_session
+from app.db.schema_check import enforce_schema_revision
 from app.routers.auth import router as auth_router
 from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
+from app.routers.games import router as games_router
 from app.routers.health import router as health_router
+from app.routers.players import router as players_router
 from app.routers.stock import router as stock_router
 from app.routers.sync import router as sync_router
+from app.routers.tournaments import router as tournaments_router
+from app.routers.venues import router as venues_router
 from app.services.errors import DomainError, InvalidRequestError
 from app.services.rate_limit import limiter
 
@@ -55,7 +63,16 @@ def _allowed_origins() -> list[str]:
 _WRITE_METHODS = {"POST", "PATCH", "DELETE"}
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Refuse de démarrer si la base n'est pas à la révision Alembic du code
+    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route."""
+    enforce_schema_revision(db_session.engine)
+    yield
+
+
 app = FastAPI(
+    lifespan=lifespan,
     title="Suivi VtES API",
     description=(
         "API du suivi de pratique VtES (collection EN/FR, decks, parties, "
@@ -132,6 +149,10 @@ app.include_router(auth_router)
 app.include_router(catalog_router)
 app.include_router(stock_router)
 app.include_router(decks_router)
+app.include_router(players_router)
+app.include_router(venues_router)
+app.include_router(tournaments_router)
+app.include_router(games_router)
 app.include_router(sync_router)
 
 

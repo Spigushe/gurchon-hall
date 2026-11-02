@@ -61,9 +61,19 @@ jobs:
         working-directory: backend
         run: uv run ruff check .
 
-      - name: Tests backend (pytest)
+      # La suite tourne sous coverage.py pour le score CRAP (docs/qa-crap.md) :
+      # même enchaînement qu'en local (scripts/run.* test), un seul passage de
+      # pytest. Le contrôle échoue si une fonction de app/ dépasse 30 sans
+      # figurer dans docs/qa-baselines/crap/backend.json, ou y a monté.
+      - name: Tests backend (pytest sous couverture)
         working-directory: backend
-        run: uv run pytest
+        run: uv run coverage run -m pytest
+
+      - name: Score CRAP backend
+        working-directory: backend
+        run: |
+          uv run coverage json -q
+          uv run python scripts/crap_report.py
 
       # Étape séparée et explicite (garde-fou contract-first, cf. CLAUDE.md
       # §7/§10) : même si test_openapi_contract.py couvre déjà cette
@@ -141,10 +151,17 @@ jobs:
       - name: Validation d'installabilité PWA (manifest, icônes, service worker)
         run: node scripts/check-pwa-installability.mjs
 
-      - name: Tests unitaires frontend (vitest)
+      # vitest sous couverture (fournisseur v8) pour le score CRAP
+      # (docs/qa-crap.md) ; la couverture des e2e n'y entre pas.
+      - name: Tests unitaires frontend (vitest sous couverture)
         if: steps.fe_scripts.outputs.has_test == 'true'
         working-directory: frontend
-        run: npm run test
+        run: npm run test:coverage
+
+      - name: Score CRAP frontend
+        if: steps.fe_scripts.outputs.has_test == 'true'
+        working-directory: frontend
+        run: npm run crap
 
       - name: Installer les navigateurs Playwright
         if: steps.fe_scripts.outputs.has_e2e == 'true'

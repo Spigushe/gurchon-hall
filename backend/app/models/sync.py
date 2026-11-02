@@ -37,8 +37,9 @@ existe. Le lier aux ressources qu'il mentionne le rendrait dépendant de leur
 cycle de vie (un jour, une purge des decks), et le couplerait au schéma métier
 alors que toute la mécanique doit pouvoir être portée telle quelle sur
 barrins-project (CLAUDE.md §1). Les colonnes `user_id`, `deck_id`, `card_id`,
-`language_code`, `card_set_id` et `bundle_id` sont donc des identifiants, pas
-des relations — `user_id` compris, par le même principe.
+`language_code`, `card_set_id`, `bundle_id` et, depuis le Lot 7, `player_id`,
+`venue_id`, `tournament_id` et `game_id` sont donc des identifiants, pas des
+relations — `user_id` compris, par le même principe.
 """
 
 from datetime import datetime
@@ -135,7 +136,8 @@ class SyncOperation(Base):
     client_ref: Mapped[str | None] = mapped_column(String(CLIENT_REF_LENGTH))
     """Référence que **cette** opération a attribuée à l'objet qu'elle a créé.
 
-    Renseignée par les seules opérations de création (`deck.create` à ce jour),
+    Renseignée par les seules opérations de création (`deck.create`, et au
+    Lot 7 `player.create`, `venue.create`, `tournament.create`, `game.create`),
     jamais par celles qui se contentent de *désigner* un objet par sa référence
     (`DeckRef.client_ref`) : sans quoi l'index unique partiel ci-dessus
     refuserait la deuxième opération portant sur le même deck. Ce qui est
@@ -154,6 +156,14 @@ class SyncOperation(Base):
     opérations journalisées avant le Lot 4 et pour celles qui ne visent pas
     une entrée précise."""
     bundle_id: Mapped[int | None] = mapped_column()
+    # Lot 7 (A10) : une colonne par genre de ressource que la pratique de jeu
+    # crée, sur le patron de `deck_id`, plutôt qu'un `resource_id` générique.
+    # La résolution d'une `client_ref` lit la colonne du genre attendu : une
+    # référence de deck ne se résout jamais en tournoi.
+    player_id: Mapped[int | None] = mapped_column()
+    venue_id: Mapped[int | None] = mapped_column()
+    tournament_id: Mapped[int | None] = mapped_column()
+    game_id: Mapped[int | None] = mapped_column()
 
     # --- Horodatages (UTC) --------------------------------------------------
     recorded_at: Mapped[datetime] = mapped_column(UtcDateTime())

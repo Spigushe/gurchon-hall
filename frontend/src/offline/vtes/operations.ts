@@ -2,9 +2,21 @@ import type { components } from "../../api-client/schema.d.ts";
 import { newUuid, toLocalIso } from "../core/ids";
 import {
   toDeckRef,
+  toGameRef,
+  toParticipantRef,
+  toPlayerRef,
+  toTournamentRef,
+  toVenueRef,
   type DeckKey,
+  type DeckPolicy,
   type DeckSelector,
+  type EventTier,
+  type FinalDeckRule,
   type OperationOf,
+  type ParticipantTarget,
+  type ResourceTarget,
+  type RoundType,
+  type TournamentFormat,
 } from "./types";
 
 /**
@@ -233,5 +245,338 @@ export function bundleDeposit(
     recorded_at: clock.now(),
     bundle_id: bundleId,
     data: defined({ language_code: languageCode, count }),
+  };
+}
+
+// --- Pratique de jeu (Lot 7) -----------------------------------------------
+//
+// Mêmes règles que ci-dessus : champs non fournis omis, `null` explicite
+// conservé (remettre à zéro une note, un lieu, une règle de finale). Une
+// création prend sa `client_ref` en paramètre : l'appelant en tire une neuve
+// par création (`newUuid()`), jamais deux fois la même dans un lot.
+
+/** `null` reste `null` (effacer), `undefined` reste omis, sinon la désignation du contrat. */
+function refField<T, R>(
+  target: T | null | undefined,
+  toRef: (value: T) => R,
+): R | null | undefined {
+  if (target === undefined) return undefined;
+  return target === null ? null : toRef(target);
+}
+
+export interface PlayerInput {
+  name: string;
+}
+
+/**
+ * Le serveur traite une création de joueur en **upsert par nom** : un nom connu
+ * (casse et accents ignorés) rend le joueur existant, `applied`, et la
+ * `client_ref` se lie à lui. Un `applied` ne veut donc pas dire « créé ».
+ */
+export function playerCreate(
+  clock: OperationClock,
+  clientRef: string,
+  input: PlayerInput,
+): OperationOf<"player.create"> {
+  return {
+    type: "player.create",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    client_ref: clientRef,
+    data: { name: input.name },
+  };
+}
+
+export interface PlayerPatch {
+  name?: string;
+}
+
+export function playerUpdate(
+  clock: OperationClock,
+  player: ResourceTarget,
+  patch: PlayerPatch,
+): OperationOf<"player.update"> {
+  return {
+    type: "player.update",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    player: toPlayerRef(player),
+    data: defined({ name: patch.name }),
+  };
+}
+
+export function playerDelete(
+  clock: OperationClock,
+  player: ResourceTarget,
+): OperationOf<"player.delete"> {
+  return {
+    type: "player.delete",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    player: toPlayerRef(player),
+  };
+}
+
+export interface VenueInput {
+  name: string;
+  city?: string | null;
+  notes?: string | null;
+}
+
+/** Upsert par nom, comme un joueur : un lieu connu garde sa ville et ses notes. */
+export function venueCreate(
+  clock: OperationClock,
+  clientRef: string,
+  input: VenueInput,
+): OperationOf<"venue.create"> {
+  return {
+    type: "venue.create",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    client_ref: clientRef,
+    data: defined({ name: input.name, city: input.city, notes: input.notes }),
+  };
+}
+
+export interface VenuePatch {
+  name?: string;
+  city?: string | null;
+  notes?: string | null;
+}
+
+export function venueUpdate(
+  clock: OperationClock,
+  venue: ResourceTarget,
+  patch: VenuePatch,
+): OperationOf<"venue.update"> {
+  return {
+    type: "venue.update",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    venue: toVenueRef(venue),
+    data: defined({ name: patch.name, city: patch.city, notes: patch.notes }),
+  };
+}
+
+export function venueDelete(
+  clock: OperationClock,
+  venue: ResourceTarget,
+): OperationOf<"venue.delete"> {
+  return {
+    type: "venue.delete",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    venue: toVenueRef(venue),
+  };
+}
+
+export interface TournamentInput {
+  name: string;
+  /** Date locale `AAAA-MM-JJ`. */
+  startDate: string;
+  endDate?: string | null;
+  venue?: ResourceTarget | null;
+  deckPolicy?: DeckPolicy;
+  format?: TournamentFormat;
+  eventTier?: EventTier;
+  finalDeckRule?: FinalDeckRule | null;
+  roundCount?: number | null;
+  playerCount?: number | null;
+  myRanking?: number | null;
+  notes?: string | null;
+}
+
+export function tournamentCreate(
+  clock: OperationClock,
+  clientRef: string,
+  input: TournamentInput,
+): OperationOf<"tournament.create"> {
+  return {
+    type: "tournament.create",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    client_ref: clientRef,
+    data: defined({
+      name: input.name,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      venue: refField(input.venue, toVenueRef),
+      deck_policy: input.deckPolicy,
+      format: input.format,
+      event_tier: input.eventTier,
+      final_deck_rule: input.finalDeckRule,
+      round_count: input.roundCount,
+      player_count: input.playerCount,
+      my_ranking: input.myRanking,
+      notes: input.notes,
+    }),
+  };
+}
+
+export type TournamentPatch = Partial<TournamentInput>;
+
+/**
+ * Passer un tournoi à `mono` sans dire ce que devient la règle de finale est un
+ * refus du serveur (`invalid`) : elle n'a pas de sens en mono-deck et il ne
+ * l'efface pas de lui-même. Le constructeur envoie donc `final_deck_rule: null`
+ * en même temps, sauf si l'appelant a fourni une valeur (que le serveur jugera).
+ */
+export function tournamentUpdate(
+  clock: OperationClock,
+  tournament: ResourceTarget,
+  patch: TournamentPatch,
+): OperationOf<"tournament.update"> {
+  const finalDeckRule =
+    patch.deckPolicy === "mono" && patch.finalDeckRule === undefined ? null : patch.finalDeckRule;
+  return {
+    type: "tournament.update",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    tournament: toTournamentRef(tournament),
+    data: defined({
+      name: patch.name,
+      start_date: patch.startDate,
+      end_date: patch.endDate,
+      venue: refField(patch.venue, toVenueRef),
+      deck_policy: patch.deckPolicy,
+      format: patch.format,
+      event_tier: patch.eventTier,
+      final_deck_rule: finalDeckRule,
+      round_count: patch.roundCount,
+      player_count: patch.playerCount,
+      my_ranking: patch.myRanking,
+      notes: patch.notes,
+    }),
+  };
+}
+
+export function tournamentDelete(
+  clock: OperationClock,
+  tournament: ResourceTarget,
+): OperationOf<"tournament.delete"> {
+  return {
+    type: "tournament.delete",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    tournament: toTournamentRef(tournament),
+  };
+}
+
+/** Une ligne de la table d'une partie. Les adversaires n'ont ni VP ni GW (A13). */
+export interface ParticipationInput {
+  /** `"me"` pour ma ligne, sinon le joueur désigné par sa clé ou son sélecteur. */
+  player: ParticipantTarget;
+  deck?: DeckTarget | null;
+  seat?: number | null;
+  victoryPoints?: number | null;
+  gameWin?: boolean | null;
+  notes?: string | null;
+}
+
+function participation(input: ParticipationInput): Schemas["ParticipationCreate"] {
+  return defined({
+    player: toParticipantRef(input.player),
+    deck: refField(input.deck, toDeckRef),
+    seat: input.seat,
+    victory_points: input.victoryPoints,
+    game_win: input.gameWin,
+    notes: input.notes,
+  });
+}
+
+export interface GameInput {
+  /** Instant ISO 8601 **avec fuseau** ; maintenant (heure locale) si omis. */
+  playedAt?: string;
+  venue?: ResourceTarget | null;
+  tournament?: ResourceTarget | null;
+  roundNumber?: number | null;
+  roundType?: RoundType;
+  playerCount: number;
+  notes?: string | null;
+  /** La table complète, avec ma ligne. */
+  participations: readonly ParticipationInput[];
+}
+
+export function gameCreate(
+  clock: OperationClock,
+  clientRef: string,
+  input: GameInput,
+): OperationOf<"game.create"> {
+  return {
+    type: "game.create",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    client_ref: clientRef,
+    data: defined({
+      played_at: input.playedAt ?? clock.now(),
+      venue: refField(input.venue, toVenueRef),
+      tournament: refField(input.tournament, toTournamentRef),
+      round_number: input.roundNumber,
+      round_type: input.roundType,
+      player_count: input.playerCount,
+      notes: input.notes,
+      participations: input.participations.map(participation),
+    }),
+  };
+}
+
+export interface GamePatch {
+  playedAt?: string;
+  venue?: ResourceTarget | null;
+  tournament?: ResourceTarget | null;
+  roundNumber?: number | null;
+  roundType?: RoundType;
+  playerCount?: number;
+  notes?: string | null;
+}
+
+export interface GameUpdate {
+  /** Champs de la partie. Omis : `data` est omis de l'opération (pas `{}`). */
+  fields?: GamePatch;
+  /**
+   * La table **complète** voulue, jamais une partie de table : le serveur la
+   * remplace d'un bloc. À ne fournir que pour une table connue.
+   */
+  table?: readonly ParticipationInput[];
+}
+
+/**
+ * `data` n'est écrit que si `fields` est fourni, `table` que s'il l'est : la file
+ * garde le corps exact, et `data: {}` et `data` omis ont deux empreintes.
+ */
+export function gameUpdate(
+  clock: OperationClock,
+  game: ResourceTarget,
+  update: GameUpdate,
+): OperationOf<"game.update"> {
+  const { fields, table } = update;
+  return {
+    type: "game.update",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    game: toGameRef(game),
+    ...(fields === undefined
+      ? {}
+      : {
+          data: defined({
+            played_at: fields.playedAt,
+            venue: refField(fields.venue, toVenueRef),
+            tournament: refField(fields.tournament, toTournamentRef),
+            round_number: fields.roundNumber,
+            round_type: fields.roundType,
+            player_count: fields.playerCount,
+            notes: fields.notes,
+          }),
+        }),
+    ...(table === undefined ? {} : { table: { participations: table.map(participation) } }),
+  };
+}
+
+export function gameDelete(clock: OperationClock, game: ResourceTarget): OperationOf<"game.delete"> {
+  return {
+    type: "game.delete",
+    operation_id: clock.newId(),
+    recorded_at: clock.now(),
+    game: toGameRef(game),
   };
 }

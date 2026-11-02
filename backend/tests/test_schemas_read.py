@@ -59,9 +59,11 @@ from app.schemas.play import (
     GameDetailRead,
     GameRead,
     ParticipationRead,
+    ParticipationSummary,
     PlayerRead,
     TournamentDetailRead,
     TournamentRead,
+    TournamentSummary,
 )
 from app.schemas.reference import (
     BundleRead,
@@ -81,6 +83,14 @@ from tests.helpers import (
     make_copy,
     make_deck,
 )
+
+
+def columns_and(obj, **computed) -> dict:
+    """Les colonnes d'une ligne, plus les champs que le service calcule
+    (compteurs du Carnet, bilan d'un tournoi) : ils ne sont pas des attributs
+    du modèle."""
+    return {c.key: getattr(obj, c.key) for c in type(obj).__table__.c} | computed
+
 
 # --------------------------------------------------------------------------
 # Tables de référence
@@ -111,12 +121,29 @@ def test_reference_reads(db, world):
         date(2001, 6, 11),
         "White Wolf",
     )
-    venue = VenueRead.model_validate(world.venue)
+    venue = VenueRead.model_validate(
+        columns_and(world.venue, game_count=7, tournament_count=1)
+    )
     assert (venue.name, venue.city, venue.notes) == (
         "Club de test",
         "Nantes",
         "Le jeudi",
     )
+    assert (venue.game_count, venue.tournament_count) == (7, 1)
+
+
+def test_carnet_counters_are_required(db, world):
+    """Les compteurs du Carnet viennent du service : sans eux, la lecture
+    échoue au lieu de rendre un zéro faux."""
+    with pytest.raises(ValidationError) as excinfo:
+        VenueRead.model_validate(world.venue)
+    assert {e["loc"] for e in excinfo.value.errors()} == {
+        ("game_count",),
+        ("tournament_count",),
+    }
+    with pytest.raises(ValidationError) as excinfo:
+        PlayerRead.model_validate(world.opponent)
+    assert {e["loc"] for e in excinfo.value.errors()} == {("game_count",)}
 
 
 def test_reference_optional_columns_map_to_none(db):
@@ -128,7 +155,12 @@ def test_reference_optional_columns_map_to_none(db):
     db.add_all([clan, venue, card_set])
     db.commit()
     assert ClanRead.model_validate(clan).abbrev is None
-    assert VenueRead.model_validate(venue).city is None
+    assert (
+        VenueRead.model_validate(
+            columns_and(venue, game_count=0, tournament_count=0)
+        ).city
+        is None
+    )
     read = CardSetRead.model_validate(card_set)
     assert (read.full_name, read.release_date, read.company) == (None, None, None)
 
@@ -435,23 +467,25 @@ def test_deck_legality_lists_default_to_empty():
 
 
 def test_player_read(db, world):
-    me = PlayerRead.model_validate(world.me)
-    other = PlayerRead.model_validate(world.opponent)
+    me = PlayerRead.model_validate(columns_and(world.me, game_count=1))
+    other = PlayerRead.model_validate(columns_and(world.opponent, game_count=4))
     assert (me.name, me.is_me) == ("Moi", True)
-    assert (other.name, other.is_me) == ("Adversaire", False)
+    assert (other.name, other.is_me, other.game_count) == ("Adversaire", False, 4)
 
 
 def test_participation_read_of_my_result(db, world):
     read = ParticipationRead.model_validate(world.mine)
     assert read.game_id == world.game.id
     assert read.player_id == world.me.id
+    assert read.is_me is True
     assert read.deck_id == world.deck.id
     assert (read.seat, read.victory_points, read.game_win) == (3, 2.5, True)
 
 
 def test_participation_read_of_an_adversary_is_mostly_empty(db, world):
-    """§11.3 : deck, VP et GW d'un adversaire restent vides."""
+    """§11.3 et A13 : un adversaire n'a pas de résultat."""
     read = ParticipationRead.model_validate(world.theirs)
+    assert read.is_me is False
     assert read.seat == 1
     assert read.deck_id is None
     assert read.victory_points is None
@@ -471,6 +505,21 @@ def test_game_read_maps_columns(db, world):
     assert isinstance(read.created_at, datetime)
 
 
+def test_game_read_carries_my_line_and_the_tournament_name(db, world):
+    """Une liste de parties se lit sans un appel par ligne (Lot 7)."""
+    read = GameRead.model_validate(world.game)
+    assert read.tournament_name == "Tournoi de test"
+    assert read.me == ParticipationSummary(
+        deck_id=world.deck.id, seat=3, victory_points=2.5, game_win=True
+    )
+    assert set(read.model_dump(mode="json")["me"]) == {
+        "deck_id",
+        "seat",
+        "victory_points",
+        "game_win",
+    }
+
+
 def test_game_detail_read_includes_the_whole_table(db, world):
     read = GameDetailRead.model_validate(world.game)
     assert sorted(p.player_id for p in read.participations) == sorted(
@@ -479,8 +528,24 @@ def test_game_detail_read_includes_the_whole_table(db, world):
     assert all(isinstance(p, ParticipationRead) for p in read.participations)
 
 
+SUMMARY = TournamentSummary(
+    preliminary_game_wins=1,
+    preliminary_victory_points=2.5,
+    rounds_played=1,
+    final_victory_points=None,
+    final_game_win=None,
+)
+
+
+def tournament_payload(tournament: Tournament) -> dict:
+    """Les colonnes d'un tournoi plus le bilan, que le service calcule (A12) :
+    `my_summary` n'est pas un attribut du modèle."""
+    columns = {c.key: getattr(tournament, c.key) for c in Tournament.__table__.c}
+    return columns | {"my_summary": SUMMARY}
+
+
 def test_tournament_read_maps_columns(db, world):
-    read = TournamentRead.model_validate(world.tournament)
+    read = TournamentRead.model_validate(tournament_payload(world.tournament))
     assert read.name == "Tournoi de test"
     assert read.start_date == date(2026, 2, 1)
     assert read.end_date is None
@@ -488,19 +553,41 @@ def test_tournament_read_maps_columns(db, world):
     assert read.format is TournamentFormat.CONSTRUCTED
     assert (read.round_count, read.my_ranking) == (2, None)
     assert read.venue_id == world.venue.id
+    assert read.my_summary == SUMMARY
+
+
+def test_tournament_read_requires_the_summary(db, world):
+    """Le bilan n'a pas de valeur par défaut : un service qui l'oublie échoue."""
+    with pytest.raises(ValidationError) as excinfo:
+        TournamentRead.model_validate(world.tournament)
+    assert {e["loc"] for e in excinfo.value.errors()} == {("my_summary",)}
 
 
 def test_tournament_detail_read_lists_its_games(db, world):
-    read = TournamentDetailRead.model_validate(world.tournament)
+    read = TournamentDetailRead.model_validate(
+        tournament_payload(world.tournament)
+        | {"games": world.tournament.games, "admissible_final_decks": [world.deck.id]}
+    )
     assert [g.id for g in read.games] == [world.game.id]
     assert isinstance(read.games[0], GameRead)
+    assert read.games[0].me.victory_points == 2.5
+    assert read.admissible_final_decks == [world.deck.id]
+
+
+def test_tournament_detail_admissible_decks_default_to_uncheckable(db, world):
+    read = TournamentDetailRead.model_validate(tournament_payload(world.tournament))
+    assert read.admissible_final_decks is None
 
 
 def test_tournament_json_dump_uses_enum_values(db, world):
-    dumped = TournamentRead.model_validate(world.tournament).model_dump(mode="json")
+    dumped = TournamentRead.model_validate(
+        tournament_payload(world.tournament)
+    ).model_dump(mode="json")
     assert dumped["deck_policy"] == "mono"
     assert dumped["format"] == "constructed"
     assert dumped["start_date"] == "2026-02-01"
+    assert dumped["event_tier"] == "standard"
+    assert dumped["final_deck_rule"] is None
 
 
 # --------------------------------------------------------------------------
@@ -577,8 +664,10 @@ def test_game_read_serializes_played_at_as_an_explicit_utc_instant(aware):
             venue_id=None,
             tournament_id=None,
             round_number=None,
+            tournament_name=None,
             round_type=RoundType.CASUAL,
             player_count=5,
+            me=ParticipationSummary(),
             notes=None,
             created_at=value,
             updated_at=value,
@@ -626,11 +715,17 @@ READ_PAIRS = [
     pytest.param(
         DeckCard, DeckCardRead, {"deck_id", "user_id"}, set(), id="DeckCard"
     ),
-    pytest.param(Player, PlayerRead, {"user_id"}, set(), id="Player"),
-    pytest.param(Game, GameRead, {"user_id"}, set(), id="Game"),
-    pytest.param(Tournament, TournamentRead, {"user_id"}, set(), id="Tournament"),
+    pytest.param(Player, PlayerRead, {"user_id"}, {"game_count"}, id="Player"),
+    # Lot 7 : `me` et `tournament_name` sont des propriétés de navigation du
+    # modèle, `is_me` aussi ; `my_summary` est calculé par le service (A12).
     pytest.param(
-        Participation, ParticipationRead, {"user_id"}, set(), id="Participation"
+        Game, GameRead, {"user_id"}, {"me", "tournament_name"}, id="Game"
+    ),
+    pytest.param(
+        Tournament, TournamentRead, {"user_id"}, {"my_summary"}, id="Tournament"
+    ),
+    pytest.param(
+        Participation, ParticipationRead, {"user_id"}, {"is_me"}, id="Participation"
     ),
     pytest.param(Language, LanguageRead, set(), set(), id="Language"),
     pytest.param(Clan, ClanRead, set(), set(), id="Clan"),
@@ -638,7 +733,13 @@ READ_PAIRS = [
     pytest.param(Sect, SectRead, set(), set(), id="Sect"),
     pytest.param(CardType, CardTypeRead, set(), set(), id="CardType"),
     pytest.param(CardSet, CardSetRead, set(), set(), id="CardSet"),
-    pytest.param(Venue, VenueRead, {"user_id"}, set(), id="Venue"),
+    pytest.param(
+        Venue,
+        VenueRead,
+        {"user_id"},
+        {"game_count", "tournament_count"},
+        id="Venue",
+    ),
     # `card_id` est porté par la carte parente dans `CardRead.translations`.
     pytest.param(
         CardTranslation,
@@ -743,8 +844,11 @@ def test_the_required_bascule_does_not_leak_into_the_write_schemas():
 def test_read_schemas_ignore_orm_attributes_they_do_not_declare(db, world):
     """Contrairement aux schémas d'écriture, la lecture n'est pas `forbid`."""
     assert ReadModel.model_config.get("extra") != "forbid"
-    dumped = PlayerRead.model_validate(world.me).model_dump()
-    assert set(dumped) == {"id", "name", "is_me"}
+    # `user_id` est une colonne du modèle que la lecture ne déclare pas.
+    dumped = PlayerRead.model_validate(
+        columns_and(world.me, game_count=0)
+    ).model_dump()
+    assert set(dumped) == {"id", "name", "is_me", "game_count"}
 
 
 def test_read_schema_fails_loudly_when_a_required_attribute_is_missing():

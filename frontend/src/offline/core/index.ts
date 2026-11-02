@@ -2,6 +2,15 @@
 export { CORE_STORES_V1, CORE_STORES_V2, OfflineCoreDb, type MetaRow } from "./db";
 export { lastSettledSeq, pruneSettled, readSettled } from "./settled";
 export { newUuid, toLocalIso } from "./ids";
+export { assertNever } from "./assertNever";
+export {
+  collectClientRefs,
+  groupCascades,
+  type CascadeGroup,
+  type OperationReferences,
+  type ReferenceField,
+  type ReferenceUse,
+} from "./references";
 export { containsFolded, foldText } from "./foldText";
 export {
   DuplicateOperationError,
@@ -11,6 +20,7 @@ export {
   type EnqueueOptions,
   type OutboxChange,
   type OutboxCounts,
+  type ReissueOptions,
 } from "./outbox";
 export {
   DEFAULT_BACKOFF,

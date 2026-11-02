@@ -4,8 +4,9 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c et 6 livrés** (vérification manuelle de la
-PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, §12). Lot 0 : squelette
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6 et 7 livrés** (vérification manuelle de la
+PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7 vérifié à la main sur
+téléphone le 2026-11-02, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -34,38 +35,62 @@ cookie `HttpOnly`), un propriétaire sur chaque donnée privée, cloisonnement d
 (404 pour la ressource d'un autre compte) et du client (une base IndexedDB par compte,
 pause du moteur de sync sur 401, purge à la déconnexion) ; les données existantes sont
 rattachées à un compte historique (plan dans `docs/lot6-plan-comptes.md`, décisions au
-§11). Le modèle compte **25 tables** et neuf révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+§11). Lot 7 : parties et tournois (`/joueurs`, `/lieux`, `/tournois`, `/parties`), un
+joueur « Moi » par compte, règles VEKN de score et de tournoi en fonctions pures (VP,
+GW certain, mono-deck, multi-deck interdit aux championnats, deck de finale, classement
+saisi et contrôlé), douze types d'opérations `/sync` de plus avec des références client
+de quatre genres qui se chaînent, onglet Parties, carnet et carte « Tournoi en cours »
+de l'Atelier, en mobile et en bureau (plan dans `docs/lot7-plan-parties.md`, décisions
+au §11). Le modèle compte **25 tables** et onze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
 (équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (1719 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (2276 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
 `--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
 à lancer une fois la base migrée),
-`uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions>`
-(comptes, Lot 6 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 416 tests sur 30 fichiers),
-`npm run test:e2e` (Playwright, 51 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 26 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 14 dans
+`uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions|check-me>`
+(comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 752 tests sur 49 fichiers),
+`npm run test:e2e` (Playwright, 59 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 30 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 18 dans
 `desktop-real-backend`),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
+Score CRAP (depuis le 2026-11-02, `docs/qa-crap.md`) : `scripts/run.ps1 crap` pour les
+deux couches ; côté back `uv run coverage run -m pytest`, `uv run coverage json -q` puis
+`uv run python scripts/crap_report.py` ; côté front `npm run test:coverage` puis
+`npm run crap`. Les deux rapports échouent sur une fonction nouvelle au-dessus de 30 ou
+sur un score en hausse par rapport à `docs/qa-baselines/crap/` ; `--update-baseline`
+resserre la référence. `run.ps1 test` et la CI font tourner pytest et vitest sous
+couverture et passent ce contrôle.
 
 **Avant de lancer Alembic** : sans `DATABASE_URL`, la commande vise `backend/vtes.db`,
-la base de développement. Vérifier la variable avant toute migration. Cette base n'est
+la base de développement. Vérifier la variable avant toute migration. Depuis le
+2026-11-02, l'API refuse de démarrer contre une base qui n'est pas à la tête des
+scripts (`backend/app/db/schema_check.py`, lecture seule, aucune migration
+automatique ; `SCHEMA_REVISION_CHECK=false` ramène l'arrêt à un avertissement, réservé
+aux tests). Cette base n'est
 pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
 avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
-le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (la tête, Lot 6),
-après un essai sur une copie ; la sauvegarde d'avant migration est conservée dans
-`backend/vtes.db.pre-lot6-20261002-201755.bak`. Elle contient la vraie collection de
-l'utilisateur : 28 entrées de stock, le deck « Banu Princes » et ses 20 lignes, 58
-opérations au journal de sync, toutes au compte historique (`user_account.id = 1`,
-rôle `admin`). Les disponibilités du stock ont été comparées ligne à ligne avant et
-après : identiques. Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
+le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (Lot 6), puis le
+2026-11-02 à `e2a7819dd4a2` (la tête, Lot 7 : R10 puis R11 en un seul `upgrade head`),
+chaque fois après un essai sur une copie ; les sauvegardes d'avant migration sont
+conservées dans `backend/vtes.db.pre-lot6-20261002-201755.bak` et
+`backend/vtes.db.lot-7-etape-e.bak` (à la révision du Lot 6). Elle contient la vraie
+collection de l'utilisateur : 28 entrées de stock, le deck « Banu Princes » et ses 20
+lignes, toutes au compte historique (`user_account.id = 1`, rôle `admin`). Au Lot 6,
+les disponibilités du stock ont été comparées ligne à ligne avant et après :
+identiques. Au Lot 7, les 58 opérations du journal, le stock, les decks et le compte
+ont été comparés ligne à ligne à la sauvegarde : identiques, avec un « Moi » pour
+l'unique compte, `player`, `venue`, `tournament` et `game` en `AUTOINCREMENT`,
+`foreign_key_check` vide et `integrity_check` à `ok`. S'y ajoutent depuis les saisies
+de la vérification sur téléphone (deux lieux, un adversaire, un tournoi, deux parties,
+soit 66 opérations au journal). Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
 (`manage_accounts.py claim-legacy`) : il porte désormais une vraie adresse, un nom et
 un mot de passe, à la place de l'adresse provisoire
 `compte-historique@gurchon-hall.invalid` et du mot de passe inutilisable posés par la
@@ -90,14 +115,14 @@ catalogue : le code sur `main` lit `card_set.is_placeholder` (ajoutée par
 neuve), puis `upgrade head` avant de relancer l'import.
 
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
-`/extensions`, `/sync`, et depuis le Lot 6 `/inscription`, `/connexion`, `/deconnexion`,
-`/moi` — 28 opérations au contrat, détail au §7. Hors catalogue et authentification,
-toute route exige une session. Aucune route `/joueurs`, `/tournois`,
-`/parties`, `/participations` : elles viennent au Lot 7. Une UI métier de consultation
-et de saisie existe pour la collection et les decks (`frontend/src/features/`,
-routeur à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion,
-inscription, compte, déconnexion), mobile et bureau ; aucune UI joueurs/tournois/parties
-avant le Lot 7.
+`/extensions`, `/sync`, depuis le Lot 6 `/inscription`, `/connexion`, `/deconnexion`,
+`/moi`, et depuis le Lot 7 `/joueurs`, `/lieux`, `/tournois`, `/parties` (dont
+`PUT /parties/{id}/participations`) — 49 opérations sur 29 chemins au contrat, détail
+au §7. Hors catalogue et authentification, toute route exige une session. Une UI
+métier de consultation et de saisie existe pour la collection, les decks, les parties,
+les tournois et le carnet d'adversaires et de lieux (`frontend/src/features/`, routeur
+à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
+compte, déconnexion), mobile et bureau.
 
 ---
 
@@ -176,7 +201,8 @@ code offline est packagé de façon réutilisable pour Barrin.
 ├─ contracts/openapi.json     ← source du contrat (généré depuis le back)
 ├─ docs/                      ← briefs de lot (ex. lot3-sync-contrat.md), handoffs de
 │                               design (design-handoff/, Lot 5 et 5bis), fiches
-│                               d'incident (issues/), références QA (qa-baselines/)
+│                               d'incident (issues/), références QA (qa-baselines/,
+│                               dont les références CRAP crap/, règles dans qa-crap.md)
 │                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
@@ -193,6 +219,18 @@ code offline est packagé de façon réutilisable pour Barrin.
 Repères de conception. Les points **[à confirmer]** doivent être vérifiés dans le
 règlement officiel VEKN en vigueur avant d'être codés en règles dures — donnés
 ici comme repères, pas comme vérités arrêtées.
+
+Les règles de partie et de tournoi (de « Partie » à « Mono / multi-deck »
+ci-dessous) ont été relues le 2026-10-28 dans les règles de tournoi de la VEKN
+(vekn.net/tournament-rules, sections citées entre parenthèses) et adoptées par
+l'utilisateur pour le Lot 7 (P1 de `docs/lot7-plan-parties.md`). Elles ne sont
+plus des repères à confirmer. Elles corrigent l'ancienne version de cette section
+sur quatre points : seuil du GW, taille de la finale, VP de retrait, limite du
+multi-deck. Elles sont codées depuis le Lot 7 en fonctions pures dans
+`backend/app/services/vtes_rules.py`, à côté de la légalité de deck, et le GW certain
+l'est aussi côté client (`frontend/src/offline/vtes/playRules.ts`), sur une table de
+cas commune (`backend/tests/fixtures/certain_game_win_cases.json`) : toute évolution
+du seuil touche les deux.
 
 - **Carte** : deux catégories — **Crypt** (vampires / *imbued* : capacité, groupe,
   clan, disciplines, sect) et **Library** (un ou plusieurs types : Master, Action,
@@ -215,18 +253,46 @@ ici comme repères, pas comme vérités arrêtées.
   proxies. Un deck intégralement joué en proxy est donc légal et activable sans
   posséder une seule carte — conséquence assumée, pas effet de bord (la légalité ne
   regarde que la composition et le catalogue).
-- **Partie** : en général **4 à 5 joueurs** (5 = table idéale). Table directionnelle
-  (proie / prédateur) → siège éventuellement pertinent à enregistrer.
-- **Score** : **1 VP** par joueur évincé ; **+1 VP** au dernier survivant ; **+0.5 VP**
-  à chaque joueur encore en lice à la fin de la partie.
-- **Game Win (GW)** : au joueur ayant **strictement plus de VP** que tous les
-  autres à la table (pas de GW en cas d'égalité en tête). Mininum de 2 VP à 4 joueurs
-  et 2,5 VP à 5 joueurs.
-- **Tournoi** : rondes préliminaires + finale (table finale de 4 ou 5). Classement
-  par GW puis VP. Format exact **construit** ou **draft**, variable selon l'organisateur.
-- **Mono / multi-deck** : mono = même deck sur toutes les parties du tournoi ;
-  multi = deck variable d'une ronde à l'autre, valable sur des tournois jusqu'à 12
-  joueurs (au-delà, mono-deck obligatoire pour que le tournoi soit sanctionné).
+- **Partie** : en tournoi, **4 ou 5 joueurs** par table (5 = table idéale). Table
+  directionnelle (proie / prédateur) → siège enregistré, facultatif. L'outil accepte
+  de 2 à 6 joueurs pour une partie, borne de saisie et non règle VEKN.
+- **Victory Points (VP)** (3.7.2) : **1 VP** au prédateur chaque fois que **sa proie**
+  est évincée ; **1 VP** au dernier survivant ; **0,5 VP** à chaque joueur encore en
+  lice à la fin du temps ; **0,5 VP** à un joueur qui se retire. Tous les VP sont des
+  multiples de 0,5, et une table de *n* joueurs distribue au plus *n* VP, si bien
+  qu'un joueur seul n'en dépasse jamais *n*.
+- **Game Win (GW)** (3.7.1) : au joueur qui a **au moins 2 VP** et **strictement plus
+  de VP** que chacun des autres ; pas de GW en cas d'égalité en tête. Le seuil vaut
+  2 VP **à toute table** (l'ancien repère « 2,5 VP à 5 joueurs » était faux).
+  Corollaire, seul contrôle possible sans les VP des autres : un joueur qui a plus de
+  la moitié des VP que la table peut distribuer est seul en tête, donc a le GW dès
+  qu'il a aussi 2 VP. Cette borne vaut *n*, mais *n* − 0,5 quand ses VP ne sont pas
+  entières : une demi-VP suppose une fin au temps (au moins deux survivants à 0,5)
+  ou un retrait (0,5 au joueur, rien à son prédateur), qui ôtent chacun au moins
+  0,5 VP au total. Seuils : 2 VP à deux et à trois, 2,5 VP à quatre **et à cinq**,
+  3,5 VP à six ; 2 VP à cinq restent à la déclaration. Règle **déduite** du barème,
+  qui ne l'écrit pas, vérifiée par énumération de toutes les fins de partie
+  (correction du 2026-11-02, décidée par l'utilisateur : elle posait 3 VP à cinq).
+- **Points de tournoi (TP)** (3.7.3) : 60 / 48 / 36 / 24 / 12 selon le rang à la
+  table (à 4 joueurs, la 3e place est vide : 60 / 48 / 24 / 12), ex aequo moyennés.
+  **Non suivis par l'outil** : on ne saisit que ses propres VP et GW, ni sa place à la
+  table ni le score des adversaires (P7 du plan du Lot 7).
+- **Tournoi** (3.1) : au moins trois rondes préliminaires, puis une table finale des
+  **cinq** mieux classés, facultative sous 8 joueurs (3.1.6). Classement des
+  préliminaires par GW, puis VP, puis TP ; l'outil s'arrête aux VP. Le vainqueur est
+  celui qui a le plus de VP **en finale seulement**, une égalité étant départagée par
+  le classement des préliminaires ; les autres finalistes sont deuxièmes ex aequo
+  (3.7.5), même si beaucoup d'organisateurs publient un ordre complet. Format
+  **construit** ou **draft**, au choix de l'organisateur.
+- **Mono / multi-deck** (3.1.5) : mono = même deck sur toutes mes parties du
+  tournoi, finale comprise ; multi = deck variable d'une ronde à l'autre, annoncé à
+  l'avance, **interdit en championnat national, en Grand Prix et en championnat
+  continental**. Le règlement ne connaît pas de limite à 12 joueurs, que l'ancienne
+  version de cette section donnait à tort. En multi, l'organisateur annonce avant la
+  ronde 1 la règle du deck en finale (3.1.5a) : **meilleur deck** (celui de la
+  meilleure ronde préliminaire, comparée par GW, puis VP, puis TP ; égalité parfaite :
+  tirage au sort) ou **choix libre** (n'importe quel deck joué en préliminaires).
+  Sans TP, l'outil admet en finale tous les decks à égalité sur GW et VP.
 - **Langues** : stock compté séparément par langue — **FR**, **EN**, **ES** ou
   « autre » (`XX`) —, la liste restant ouverte puisque `language` est une table et
   non un enum. Toute entrée de collection porte un code de langue, jamais vide.
@@ -282,8 +348,24 @@ Lot 6). Comme `f3a91c47b2de`, les tables sont renommées puis recréées à la m
 mode batch, et la montée des deux révisions se rend hors ligne (`--sql`). Les
 descentes refusent de tourner (`RuntimeError`, avant toute modification) dès qu'il
 existe un autre compte que le compte historique (R8) ou une ligne qui lui appartient
-(R9) : en pratique, on ne redescend pas sous le Lot 6 avec un second compte. Le modèle
-compte **25 tables**.
+(R9) : en pratique, on ne redescend pas sous le Lot 6 avec un second compte.
+Le Lot 7 ajoute les dixième et onzième révisions, sans table nouvelle.
+`783b24f9e769` (R10, « pratique de jeu ») pose sur `tournament` `player_count`,
+`event_tier` et `final_deck_rule` avec leurs CHECK, sur `game` les CHECK et index
+partiels qui lient ronde et tournoi, sur `sync_operation` les colonnes `player_id`,
+`venue_id`, `tournament_id` et `game_id`, élargit les CHECK d'enum du journal, et
+**insère un « Moi » par compte** (deuxième conversion de données après R9). Recréer
+`sync_operation` pour ses CHECK oblige à recopier le journal, seule table peuplée du
+lot. Sa descente refuse de tourner dès qu'il existe une partie, un tournoi, une
+participation ou une opération du Lot 7 au journal. `e2a7819dd4a2` (R11,
+« identifiants jamais réattribués ») passe `venue`, `player`, `tournament` et `game` en
+`AUTOINCREMENT` : ces tables se suppriment physiquement, et SQLite redonnait sinon
+l'identifiant d'une ligne supprimée à la suivante, si bien qu'une `client_ref` du
+journal visant la ressource supprimée désignait en silence la nouvelle. La séquence
+est posée au plus grand identifiant que les lignes ou le journal citent encore. Les
+deux révisions suivent la forme de R9 (renommage puis recréation à la main, hors mode
+batch) et se rendent hors ligne (`--sql`). Le modèle compte **25 tables** et onze
+révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
@@ -291,7 +373,7 @@ compte **25 tables**.
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
 | Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme) |
-| Pratique | `player`, `tournament`, `game`, `participation` | encore vides, mais déjà munies de leur `user_id` (Lot 6, D7) pour que le Lot 7 n'ait aucune migration de propriété à écrire ; un seul « Moi » **par compte** (index unique partiel sur `user_id` où `is_me`) ; nom de joueur unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `participation.game_win` stocké mais non calculé |
+| Pratique | `player`, `tournament`, `game`, `participation` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
 **Identité et cycle de vie d'un deck** (passe 2) : `deck.name` n'est plus unique ; il
@@ -322,7 +404,8 @@ au format carte × exemplaires, entrée prévue pour verser un produit dans le s
 
 Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
 source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
-possédés) ; VP/GW. La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
+possédés). VP et GW sont tranchés depuis la relecture VEKN du Lot 7 (§5) et codés au
+Lot 7. La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
 deck depuis le Lot 4 (§11).
 Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
 l'expose pas, il reste dans le texte de carte).
@@ -341,8 +424,18 @@ colonne) → en logique de service + tests :
   fonctions de comptabilité prennent le compte en paramètre obligatoire, sans valeur par
   défaut, pour qu'un oubli échoue au typage au lieu de compter globalement) ;
 - tournoi mono-deck → toutes mes participations pointent le même deck, « mes »
-  désignant le joueur `is_me` du compte propriétaire du tournoi (Lot 6) ;
-- cohérence VP/GW **[à confirmer]** ;
+  désignant le joueur `is_me` du compte propriétaire du tournoi (Lot 6), les
+  participations sans deck étant ignorées et un deck prêté à un adversaire n'entrant
+  pas en compte — *fait au Lot 7* ;
+- cohérence VP/GW (§5 : VP en multiples de 0,5 et bornés par la table, GW à 2 VP au
+  moins, GW certain au-delà de la moitié des VP que la table peut distribuer) — *fait
+  au Lot 7* ;
+- multi-deck interdit aux trois niveaux de championnat, et deck de finale conforme à
+  la règle annoncée (§5), contrôle rejoué par toute écriture qui peut le rompre
+  (préliminaire modifiée, déplacée ou supprimée, règle ou politique changée) — *fait
+  au Lot 7* ;
+- classement final saisi, borné par le nombre de joueurs, de 1 à 5 si j'ai joué la
+  finale, 1 si j'y ai le GW — *fait au Lot 7* ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
 
 ---
@@ -354,12 +447,12 @@ schémas Pydantic → OpenAPI (`contracts/openapi.json`) → client TS typé cô
 Aucun type d'API réécrit à la main côté front.
 
 Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
-`/decks/{id}/cartes`, `/joueurs`, `/tournois`, `/parties`,
+`/decks/{id}/cartes`, `/joueurs`, `/lieux`, `/tournois`, `/parties`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 à 6 (chemins en français, `operationId` en anglais camelCase),
-28 opérations sur 20 chemins :
+Livré aux Lots 2 à 7 (chemins en français, `operationId` en anglais camelCase),
+49 opérations sur 29 chemins :
 
 | Route | Rôle |
 | --- | --- |
@@ -380,7 +473,12 @@ Livré aux Lots 2 à 6 (chemins en français, `operationId` en anglais camelCase
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
 | `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck ; une ligne qui consomme au moins un exemplaire réel est allouée depuis l'entrée de stock du même triplet, une ligne entièrement en proxy n'en exige aucune (`f3a91c47b2de`) |
-| `POST /sync` | lot d'opérations idempotentes de la file offline (huit types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
+| `GET/POST /joueurs`, `GET/PATCH/DELETE /joueurs/{id}` | Lot 7. Adversaires du compte, « Moi » en tête de liste (`q`) ; 409 nom déjà pris, et à la suppression du « Moi » ou d'un joueur présent à une table |
+| `GET/POST /lieux`, `GET/PATCH/DELETE /lieux/{id}` | Lot 7. Lieux du compte (`name`, `city`, `notes`), avec leurs compteurs de parties et de tournois ; 409 nom déjà pris ou lieu référencé |
+| `GET/POST /tournois`, `GET/PATCH/DELETE /tournois/{id}` | Lot 7. Liste (`q`, `from`, `to`) avec mon bilan (`my_summary` : GW et VP des préliminaires, rondes jouées, VP et GW de finale) ; détail avec mes parties et `admissible_final_decks` ; 422 multi-deck à un niveau de championnat ou classement contredit, 409 si le passage en mono ou un changement de règle de finale contredit les parties ; suppression refusée (409) tant qu'il contient des parties |
+| `GET/POST /parties`, `GET/PATCH/DELETE /parties/{id}` | Lot 7. Liste filtrée (`tournament_id`, `casual`, `deck_id`, `venue_id`, `from`, `to`), avec ma ligne en résumé (`me`) et `tournament_name` ; création avec la table complète, qui contient exactement une ligne du « Moi » ; suppression physique |
+| `PUT /parties/{id}/participations` (`replaceGameParticipations`) | Lot 7. Remplace la table entière (`GameTableReplace`) : pas de verbe par participation |
+| `POST /sync` | lot d'opérations idempotentes de la file offline (vingt types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`, et depuis le Lot 7 `player.*`, `venue.*`, `tournament.*`, `game.*` en `create/update/delete`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
 l'archivage passe par le `PATCH`, seul point d'entrée de la modification d'un deck.
@@ -395,7 +493,8 @@ appliqué faute d'avoir obtenu le verrou d'écriture — le lot se renvoie alors
 lecture (`GET /cartes…`, `/extensions`, `/bundles…`, `GET /langues`) et les trois
 routes `POST /inscription`, `/connexion`, `/deconnexion`. **Toute autre route exige une
 session** : `/stock…`, `/decks…`, `POST /bundles/{id}/stock`, `POST /sync`, `GET /moi`,
-`POST /langues`. La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
+`POST /langues`, et depuis le Lot 7 `/joueurs…`, `/lieux…`, `/tournois…`, `/parties…`
+(matrice d'autorisation étendue à leurs 21 opérations). La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
 (`__Host-gurchon_session` ; `gurchon_session` si `SESSION_COOKIE_SECURE` est coupé),
 déclaré au contrat comme schéma de sécurité `apiKey` en cookie ; le jeton n'apparaît
 jamais dans un corps de réponse. Les contrôles se font dans cet ordre et rendent :
@@ -420,6 +519,17 @@ ou une `client_ref` déjà utilisée par un autre compte se comporte comme une c
 ou une référence inconnue (`not_found`), jamais comme un `replayed` ou un
 `mismatched_replay`. Les huit types d'opérations ne changent pas ; section « Lot 6 »
 dans `docs/lot3-sync-contrat.md`.
+
+**Références (Lot 7).** Toute écriture de la pratique désigne une autre ressource par
+une référence, jamais par un identifiant nu : `DeckRef`, `PlayerRef`, `VenueRef`,
+`TournamentRef`, `GameRef` valent `{"x_id": n}` ou `{"client_ref": "…"}`, jamais les
+deux, et la ligne du « Moi » s'écrit `{"me": true}` (`backend/app/schemas/refs.py`).
+Les opérations `/sync` reprennent ainsi la charge utile de la route telle quelle. Une
+`client_ref` envoyée à une route en ligne rend 422 : seule `/sync` connaît les
+références client. Les schémas ne vérifient que la forme (bornes de champ) ; les règles
+de table, de ronde, de score, de niveau et de classement sont au service, pour qu'un
+refus par `/sync` soit le verdict d'une seule opération et non un 422 du lot entier.
+Section « Lot 7 » dans `docs/lot3-sync-contrat.md`.
 
 Conventions du contrat, posées en passe 2 et valables pour toute ressource à venir :
 
@@ -513,6 +623,10 @@ Vue par agent :
 - **Offline** : toute écriture front doit fonctionner hors-ligne puis se
   synchroniser (pas d'appel API bloquant dans le chemin de saisie).
 - **Docs** rédigées avec la skill `ecriture-naturelle`.
+- **Score CRAP** : aucune fonction nouvelle au-dessus de 30, aucun score en hausse par
+  rapport aux références `docs/qa-baselines/crap/` (`docs/qa-crap.md`, propriétaire
+  `qa-tests`). On corrige par des tests ou en découpant la fonction ; ajouter une entrée
+  à une référence est une décision justifiée dans la PR, pas un correctif.
 
 ---
 
@@ -576,6 +690,11 @@ Tranchées (contexte VtES, avant Lot 1) :
    possible pour les exemplaires possédés, d'où une table `language` ouverte.
 3. **Adversaires** : on suit uniquement **mes propres parties/résultats**, pas
    les decks ou résultats détaillés des autres joueurs.
+   *Revu le 2026-11-02, pour le Lot 8* : le **deck** d'un adversaire nommé
+   (nom et archétype) entrera dans le suivi, pour analyser les résultats d'un de
+   mes decks selon le deck de ma proie et celui de mon prédateur. Ses
+   **résultats** restent hors suivi (A13 et P7 de `docs/lot7-plan-parties.md`).
+   Le Lot 7 applique encore la règle d'origine.
 4. **Langue au niveau de la carte** (pas seulement du stock ni du deck) : un
    deck peut donc contenir des cartes de langues différentes d'un exemplaire à
    l'autre.
@@ -1201,6 +1320,150 @@ Limites connues à la clôture du Lot 6 :
   plus réduite ; les trois scénarios de bout en bout sont dans
   `frontend/tests/e2e-real/lot6-comptes.spec.ts`.
 
+Tranchées pendant le Lot 7 (P1 à P9 tranchés par l'utilisateur les 2026-10-28 et
+2026-10-29, décisions A1 à A14 de l'architecte ; plan, justifications et livrables par
+étape dans `docs/lot7-plan-parties.md`, qui fait foi pour le détail) :
+
+- **Règles VEKN relues et codées (P1).** §5 corrigé avant le code (étape A0) ; le
+  multi-deck et ses contrôles sont dans le lot, pas seulement notés.
+- **Le suivi se fait du seul point de vue du joueur, sans points de tournoi (P7).**
+  On saisit ses VP, son GW, son siège et son classement final ; ni place à la table, ni
+  TP, ni score des adversaires. Un adversaire est un nom (A13), avec un siège facultatif
+  et, le cas échéant, un de mes decks prêté (P4, accepté en amicale comme en tournoi ;
+  les contrôles de mono-deck et de finale ne regardent que ma ligne). Une table peut ne
+  contenir que ma participation.
+- **Le « Moi » existe toujours (A1)**, une partie le contient toujours (A2). Le
+  `username` du compte lui sert de nom de départ ; `claim-legacy` le renomme avec le
+  compte s'il porte encore l'ancien nom, et `manage_accounts.py check-me` liste les
+  comptes sans « Moi » (`--fix` le crée).
+- **La table d'une partie se remplace d'un bloc (A3)**, par `PUT` ou dans
+  `game.update` : « l'état complet voulu, pas un delta » (Lot 3), et la seule façon de
+  vérifier les règles de table sans état intermédiaire faux.
+- **Le GW est vérifié, pas écrasé (A4).** Refusé sous 2 VP ou sans VP ; posé par le
+  serveur quand il est certain, et alors un `false` est refusé ; sinon la déclaration
+  fait foi. Seuil corrigé le 2026-11-02 (§5) : 2,5 VP à cinq et non 3, règle déduite du
+  barème et éprouvée contre l'énumération de toutes les fins de partie. Hors ligne, le
+  client coche le GW certain et le verrouille (A14), seul endroit où il empêche une
+  saisie que le serveur refuserait ; partout ailleurs il suggère, et le serveur tranche.
+- **Ronde et tournoi se tiennent (A6)** par CHECK et index partiels ; pas de contrôle
+  de la date d'une partie contre celles du tournoi (instant UTC contre date locale).
+- **Un deck joué n'a pas à être actif ni légal (A8)** ; seul un deck supprimé est refusé,
+  aussi en prêt. Une partie ne consomme ni ne réserve aucun exemplaire.
+- **Suppressions (A9).** Partie physique, table comprise ; tournoi, lieu ou joueur
+  encore référencé refusé (409) ; « Moi » jamais. Pas de suppression logique.
+- **Multi-deck (A11).** `event_tier` interdit le multi aux trois niveaux de championnat
+  (422 sur l'état fusionné). `final_deck_rule` : en choix libre, le deck de finale est
+  un deck des préliminaires ; en meilleur deck, celui de la meilleure ronde par GW puis
+  VP, tous les decks à égalité étant admis faute de TP. Une saisie incomplète ne fait
+  jamais refuser (ronde sans deck ou sans VP). Le contrôle est donc plus permissif que
+  le règlement, jamais plus strict, et il se rejoue à chaque écriture qui peut le
+  rompre ; un refus nomme le deck attendu.
+- **Bilan et classement (A12).** Bilan des préliminaires en GW puis VP, rondes jouées,
+  VP et GW de finale, calculé par le serveur et recalculé hors ligne, marqué provisoire.
+  Classement saisi : au plus le nombre de joueurs, de 1 à 5 en finale (le règlement met
+  les finalistes battus deuxièmes ex aequo, mais beaucoup d'organisateurs publient un
+  ordre complet), 1 avec un GW en finale.
+- **Nombre de joueurs d'un tournoi saisi et corrigeable (P6)**, facultatif à la
+  création ; la finale facultative sous 8 joueurs reste une information.
+- **Upsert par nom par `/sync` (P5).** `player.create` et `venue.create` lient leur
+  `client_ref` à la ressource existante quand le nom (rogné, comparé par `fold_text`)
+  existe déjà, sans rien modifier : deux saisies de « Marc » hors ligne ne laissent pas
+  toutes les parties qui le désignent sans résolution. En ligne, `POST /joueurs` et
+  `POST /lieux` gardent leur 409.
+- **Le journal apprend quatre identifiants (A10)**, sur le patron de `deck_id` ; la
+  résolution d'une `client_ref` vérifie le genre, et une référence du mauvais genre est
+  `unresolved_client_ref`. Côté client, `RefBinding` du cœur générique reste
+  `ref → id` et c'est l'adaptateur `vtes/` qui lit l'identifiant selon le genre :
+  aucune ligne de `core/` ne nomme une partie ni un tournoi (portage Barrin, Lot 10).
+- **Identifiants jamais réattribués (R11)**, décidé le 2026-10-29 après un défaut
+  trouvé à la relecture de B3 (`player.update` par la référence d'un joueur supprimé
+  renommait le suivant). Révision nouvelle plutôt qu'amendement de R10, déjà poussée.
+- **Dexie version 5** : quatre magasins ajoutés (`players`, `venues`, `tournaments`,
+  `games`, la table d'une partie rangée dans sa ligne), sans changement de clé, donc
+  sans perte. Un objet créé hors ligne garde sa clé `ref:<uuid>` après
+  synchronisation, `id:<n>` s'y ajoutant comme alias.
+- **Écrans (P2, P3, P8).** Handoff Claude Design (`docs/design-handoff/LOT7.md`) ;
+  cinquième onglet **Parties** entre Decks et Chercher, sélecteur « Parties |
+  Tournois », carnet atteint depuis Parties, raccourci « Nouvelle partie » et carte
+  « Tournoi en cours » dans l'Atelier, raccourcis bureau `N`, `E`, `T`, `R`, `F` et
+  `G P`. Écarts au handoff : champ de recherche de la barre haute toujours masqué
+  (lot Chercher) ; « Enregistrer » le classement actif dès que la place est saisie,
+  et non « quand le tournoi est fini », notion définie nulle part.
+- **Ordre des lots suivants (P9)** : Lot 7, puis Chercher, puis Lot 8, pour que les
+  vraies parties s'accumulent avant l'analyse (§12).
+- **Démarrage refusé contre une base en retard** (2026-11-02, après l'étape E) :
+  l'API compare `alembic_version` à la tête des scripts et refuse de démarrer à
+  l'écart, plutôt que de répondre puis d'échouer en 500 sur une colonne absente
+  (`backend/app/db/schema_check.py`, réglage `SCHEMA_REVISION_CHECK`).
+
+Limites connues à la clôture du Lot 7 :
+
+- **Le GW se déclare.** Sans les VP des adversaires, le serveur ne le vérifie qu'aux
+  extrêmes : un GW à 2 VP à cinq, ou son absence, se croit sur parole, et une erreur
+  peut fausser le meilleur deck en finale sans que rien ne le signale. Contrepartie
+  assumée de P7.
+- **Départage incomplet du meilleur deck** : sans TP, deux rondes à égalité de GW et de
+  VP admettent leurs deux decks, là où le règlement en imposerait peut-être un.
+- **Mono-deck sur deux appareils** : deux rondes saisies hors ligne avec deux decks
+  différents font refuser le second lot au rejeu (la file fait foi, les invariants font
+  loi) ; la correction se fait depuis l'écran Synchronisation.
+- **Lectures de la pratique** : les tables des parties se relisent une par partie
+  nouvelle ou modifiée et les tournois un par un à chaque rafraîchissement, si bien
+  qu'un premier chargement d'un long carnet est lent ; compteurs du carnet et decks
+  admis en finale ne suivent pas la file (`frontend/src/offline/README.md`).
+- **Carte « Tournoi en cours »** : la dernière ronde se désigne par `played_at`, arrondi
+  à la minute ; deux rondes saisies la même minute peuvent mal se départager. Sans
+  effet en usage réel.
+- **Descente de R10 bloquée** dès qu'une partie, un tournoi ou une opération du Lot 7
+  existe ; c'est le cas de `backend/vtes.db` depuis le 2026-11-02.
+- **Verrou global de `/sync`** : limite du Lot 6 inchangée, mais une soirée de club à
+  plusieurs comptes sera sa première vraie sollicitation.
+- **Tests de référence** : règles dans `backend/tests/test_vtes_rules_play.py`, routes
+  dans `test_play_routes.py`, `/sync` dans `test_sync_lot7.py`, trous comblés à l'étape
+  E dans `test_lot7_qa_gaps.py`, matrice d'autorisation à 49 opérations dans
+  `test_lot6_authorization_matrix.py` ; scénario « au club sans réseau » aux deux
+  largeurs dans `frontend/tests/e2e-real/club-sans-reseau.spec.ts`.
+
+Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles complètes dans
+`docs/qa-crap.md` :
+
+- **Métrique et seuil.** CRAP = comp² × (1 − cov)³ + comp, par fonction, seuil 30
+  (strictement au-dessus = en défaut), celui de crap4j. Une fonction de complexité 31
+  reste en défaut même couverte à 100 % : seul un découpage la corrige.
+- **Deux analyseurs écrits dans le dépôt, pas d'outil tiers.** `backend/scripts/crap_report.py`
+  (module `ast`) et `frontend/scripts/crap-report.mjs` (compilateur TypeScript déjà
+  installé) appliquent le même barème McCabe, testé par deux suites miroirs
+  (`backend/tests/test_crap_report.py`, `frontend/tests/unit/crapReport.test.ts`). radon,
+  lizard ou la règle `complexity` d'ESLint auraient compté différemment d'une couche à
+  l'autre (ESLint compte `?.` et les valeurs par défaut), et aucun ne croise la
+  couverture. Ne comptent pas : `?.`, valeurs par défaut, décorateurs ; une fonction
+  imbriquée est mesurée à part.
+- **Couverture en lignes, vitest seul côté front.** Deux dépendances de développement
+  ajoutées : `coverage` (7.17, `[tool.coverage.run] source = ["app"]`) et
+  `@vitest/coverage-v8` (5.0.3, même version que vitest, qu'il exige). La ligne `def` est
+  retirée de la couverture d'une fonction Python, coverage.py la marquant exécutée à
+  l'import. Les e2e Playwright n'entrent pas dans la mesure.
+- **Cliquet plutôt que seuil sec.** Les références `docs/qa-baselines/crap/backend.json`
+  et `frontend.json` listent les fonctions déjà au-dessus de 30 : le contrôle échoue
+  sur une fonction nouvelle ou un score en hausse, et signale une entrée qui a baissé
+  pour qu'on resserre la référence. Désignation par fichier et nom qualifié, jamais par
+  ligne. État de départ : back, 305 fonctions et aucune au-dessus de 30 (pire 21), donc
+  une référence vide ; front, 1439 fonctions dont 13 au-dessus de 30 (pire 159,5,
+  `describeOperation`), deux seulement corrigibles par des tests, les onze autres
+  dépassant 30 en complexité seule. Les 13 ont été résorbées le même jour, par
+  découpage (tables par type d'opération, sous-composants au DOM inchangé) et par des
+  tests (`collectionCorrection.ts`) : les deux références sont vides.
+- **Intégration.** pytest et vitest passent sous couverture dans `run.ps1 test` /
+  `run.sh test` et dans les deux jobs de la CI, chacun suivi du contrôle ; une
+  sous-commande `crap` ne fait que cela. L'agent `qa-tests` est propriétaire du score,
+  des références et des deux analyseurs ; les découpages reviennent aux agents de
+  couche.
+- **Durée.** Surcoût mesuré sur le poste de développement le 2026-11-02, coûts Argon2
+  abaissés comme en CI : pytest 712 s sans couverture contre 701 s avec (écart dans le
+  bruit, coverage.py passant par `sys.monitoring` sous Python 3.14) ; vitest 179 s
+  contre 191 s (+7 %). Deux passages successifs de vitest sous couverture donnent les
+  mêmes scores, donc pas de contrôle instable à craindre de ce côté.
+
 ---
 
 ## 12. Roadmap
@@ -1287,8 +1550,9 @@ Limites connues à la clôture du Lot 6 :
    dans `docs/lot-chercher-brief.md`) vient ensuite, et livre ses deux dispositions
    lui-même. L'ordre proposé était Lot 5bis, Lot 5c, Chercher, puis les Lots 6 à 11,
    dont la numérotation ne bouge pas. Dans les faits, le Lot 6 est passé avant Chercher
-   (D0 de `docs/lot6-plan-comptes.md`, §11) ; Chercher reste reporté, et sa place par
-   rapport aux Lots 7 à 11 reste à confirmer avec l'utilisateur.
+   (D0 de `docs/lot6-plan-comptes.md`, §11), puis le Lot 7 ; l'utilisateur a placé
+   Chercher **juste après le Lot 7 et avant le Lot 8** (P9 de
+   `docs/lot7-plan-parties.md`, 2026-10-29).
 7. **Lot 6 — Comptes et multi-utilisateur** — *livré* (PR #39). Le pilote sort
    du mono-utilisateur : comptes (inscription ouverte, connexion, déconnexion, `GET /moi`), session serveur de 14 jours fixes dans
    un cookie `HttpOnly` (empreinte seule en base), hachage Argon2id et limitation de
@@ -1314,14 +1578,53 @@ Limites connues à la clôture du Lot 6 :
    compte `1`, disponibilités du stock identiques avant et après, sauvegarde dans
    `backend/vtes.db.pre-lot6-20261002-201755.bak`. Compte historique réclamé par
    l'utilisateur le même jour (`manage_accounts.py claim-legacy`).
-8. **Lot 7 — Parties & tournois** : saisie, mono/multi-deck, participations.
-9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date.
+8. **Lot 7 — Parties & tournois** — *livré.* Le cas d'usage du pilote : saisir une
+   partie ou un tournoi au club, sans réseau fiable. Joueurs (un « Moi » par compte),
+   lieux, tournois (niveau, mono ou multi, règle de deck en finale, nombre de joueurs,
+   classement saisi) et parties avec leur table, du seul point de vue du joueur : mes
+   VP, mon GW, mon siège, et des adversaires réduits à un nom, un siège et un deck prêté.
+   Règles VEKN en fonctions pures (VP, GW certain, mono-deck, multi-deck interdit aux
+   championnats, deck de finale, classement), contrôles rejoués à chaque écriture qui
+   peut les rompre. Deux révisions, `783b24f9e769` (R10) et `e2a7819dd4a2` (R11) : 25
+   tables, onze révisions. Contrat à 49 opérations sur 29 chemins, `/sync` à vingt types,
+   références client de quatre genres qui se chaînent dans un lot et d'un lot à l'autre.
+   Côté client : Dexie version 5, surcouche, bilan provisoire hors ligne, GW certain
+   coché d'office, libellés et corrections des refus ; onglet Parties, carnet, carte
+   « Tournoi en cours » de l'Atelier, en mobile et en bureau sur le handoff
+   `docs/design-handoff/LOT7.md`. Plan et livrables par étape (A0 à F) dans
+   `docs/lot7-plan-parties.md`, décisions et limites au §11. 2276 tests backend
+   (2 `xfail` assumés, `ruff check` propre), dont 18 pour le contrôle de révision au
+   démarrage ajouté après l'étape E ; 752 tests vitest sur 49 fichiers, lint
+   et `tsc` propres ; 59 tests Playwright (8 `chromium`, 30 `real-backend`, 3
+   `desktop`, 18 `desktop-real-backend`), dont le scénario « au club sans réseau »
+   aux deux largeurs contre le vrai back ; références CRAP vides des deux côtés.
+   Migration appliquée sur `backend/vtes.db` (R10 puis R11) : journal, stock, decks et
+   compte identiques à la sauvegarde, un « Moi » pour l'unique compte. Vérifié à la
+   main sur téléphone le 2026-11-02 (partie saisie en mode avion puis synchronisée).
+9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date. Ajouté le
+   2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
+   table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
+   deck de sa proie et à celui de son prédateur. Proposition : deux colonnes
+   facultatives en texte libre sur la ligne d'adversaire de `participation`,
+   comme `deck.archetype`, avec en suggestion les valeurs déjà saisies, et sans
+   effet sur une ligne qui joue un de mes decks prêtés (P4 du Lot 7). Restent à
+   trancher : la convention de siège (la proie du siège *n* est-elle le siège
+   *n* + 1, le dernier ayant le premier pour proie ?), une analyse limitée aux
+   tables dont les sièges sont saisis (le siège est facultatif), et la table à
+   deux, où proie et prédateur sont le même joueur.
 10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
   (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
    collection, un deck ne s'alimentant que du stock possédé (§11.2).
+   Ajouté le 2026-11-02, faisabilité à évaluer à l'ouverture du lot :
+   **synchroniser un tournoi depuis Archon** (archon.vekn.net). Le numéro VEKN
+   du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un tournoi reçoit
+   son lien Archon, et un bouton, grisé hors connexion, lance l'import. L'API
+   publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
+   identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
+   Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
 11. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
   le déploiement de gurchon-hall lui-même est traité au Lot 11.
 12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise

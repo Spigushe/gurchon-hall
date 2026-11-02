@@ -142,6 +142,10 @@ def test_an_applied_operation_answers_with_its_verdict(api, world, spare):
         "language_code": "EN",
         "card_set_id": spare.card_set_id,
         "bundle_id": None,
+        "player_id": None,
+        "venue_id": None,
+        "tournament_id": None,
+        "game_id": None,
     }
     assert result["processed_at"].endswith("Z")
     assert body["synced_at"].endswith("Z")

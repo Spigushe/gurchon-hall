@@ -31,3 +31,14 @@ def like_pattern(text: str) -> str:
 def contains_folded(column: InstrumentedAttribute, text: str) -> ColumnElement[bool]:
     """Condition : `column` contient `text`, casse et accents ignorés."""
     return func.fold_text(column).like(like_pattern(text), escape="\\")
+
+
+def equals_folded(column: InstrumentedAttribute, text: str) -> ColumnElement[bool]:
+    """Condition : `column` égale `text`, casse et accents ignorés.
+
+    Comparaison de noms (Lot 7, P5) : « Marc » et « marc » sont le même joueur,
+    alors que la contrainte d'unicité de la base, elle, reste sensible à la
+    casse. Même normalisation que la recherche, des deux côtés ; pas de motif,
+    donc aucun joker à neutraliser.
+    """
+    return func.fold_text(column) == fold_text(text)

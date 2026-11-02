@@ -2,20 +2,39 @@ import { useCallback } from "react";
 import { useLiveQuery } from "../react/useLiveQuery";
 import { useVtesOffline } from "./context";
 import type { CardRow, CardSetRow } from "./db";
-import type { LocalDeck, LocalDeckCard, LocalStockEntry } from "./overlay";
+import type {
+  LocalDeck,
+  LocalDeckCard,
+  LocalGame,
+  LocalPlayer,
+  LocalStockEntry,
+  LocalTournament,
+  LocalVenue,
+} from "./overlay";
 import {
   readCardSets,
   readDeck,
   readDeckCards,
   readDeckCountByCard,
   readDecks,
+  readGame,
+  readGames,
+  readPlayer,
+  readPlayers,
   readStock,
+  readTournament,
+  readTournaments,
+  readVenue,
+  readVenues,
   searchCards,
   type CardQuery,
   type DeckQuery,
+  type GameQuery,
+  type PlayerQuery,
   type StockQuery,
+  type TournamentQuery,
 } from "./reads";
-import type { DeckKey } from "./types";
+import type { DeckKey, ResourceKey } from "./types";
 
 // Lectures. `undefined` tant que la première lecture n'a pas abouti ; ensuite
 // la valeur se remet à jour toute seule dès que la base ou la file change.
@@ -88,4 +107,76 @@ export function useDeckCountByCardId(): Map<number, number> | undefined {
   const { db } = useVtesOffline();
   const querier = useCallback(() => readDeckCountByCard(db), [db]);
   return useLiveQuery(querier);
+}
+
+// --- Pratique de jeu (Lot 7) -----------------------------------------------
+//
+// `undefined` : pas encore lu. Les hooks « une ressource par sa clé » distinguent
+// en plus `null` (lu, introuvable sur cet appareil) ; une clé qui change repasse
+// par `undefined`. La clé peut être canonique (`ref:<uuid>`) ou un alias
+// (`id:<n>`) : voir `LocalResource.aliases`.
+
+export function useLocalPlayers(query: PlayerQuery = {}): LocalPlayer[] | undefined {
+  const { db } = useVtesOffline();
+  const { q } = query;
+  const querier = useCallback(() => readPlayers(db, { q }), [db, q]);
+  return useLiveQuery(querier);
+}
+
+export function useLocalVenues(query: PlayerQuery = {}): LocalVenue[] | undefined {
+  const { db } = useVtesOffline();
+  const { q } = query;
+  const querier = useCallback(() => readVenues(db, { q }), [db, q]);
+  return useLiveQuery(querier);
+}
+
+export function useLocalTournaments(query: TournamentQuery = {}): LocalTournament[] | undefined {
+  const { db } = useVtesOffline();
+  const { q, from, to } = query;
+  const querier = useCallback(() => readTournaments(db, { q, from, to }), [db, q, from, to]);
+  return useLiveQuery(querier);
+}
+
+export function useLocalGames(query: GameQuery = {}): LocalGame[] | undefined {
+  const { db } = useVtesOffline();
+  const { tournamentKey, casual, deckKey, venueKey, from, to } = query;
+  const querier = useCallback(
+    () => readGames(db, { tournamentKey, casual, deckKey, venueKey, from, to }),
+    [db, tournamentKey, casual, deckKey, venueKey, from, to],
+  );
+  return useLiveQuery(querier);
+}
+
+/** Lecture d'une ressource par clé, avec la distinction `undefined` / `null` des decks. */
+function useByKey<T>(
+  read: (key: ResourceKey) => Promise<T | undefined>,
+  key: ResourceKey,
+): T | null | undefined {
+  const querier = useCallback(async () => ({ key, found: (await read(key)) ?? null }), [read, key]);
+  const result = useLiveQuery(querier);
+  return result?.key === key ? result.found : undefined;
+}
+
+export function useLocalPlayer(key: ResourceKey): LocalPlayer | null | undefined {
+  const { db } = useVtesOffline();
+  const read = useCallback((k: ResourceKey) => readPlayer(db, k), [db]);
+  return useByKey(read, key);
+}
+
+export function useLocalVenue(key: ResourceKey): LocalVenue | null | undefined {
+  const { db } = useVtesOffline();
+  const read = useCallback((k: ResourceKey) => readVenue(db, k), [db]);
+  return useByKey(read, key);
+}
+
+export function useLocalTournament(key: ResourceKey): LocalTournament | null | undefined {
+  const { db } = useVtesOffline();
+  const read = useCallback((k: ResourceKey) => readTournament(db, k), [db]);
+  return useByKey(read, key);
+}
+
+export function useLocalGame(key: ResourceKey): LocalGame | null | undefined {
+  const { db } = useVtesOffline();
+  const read = useCallback((k: ResourceKey) => readGame(db, k), [db]);
+  return useByKey(read, key);
 }

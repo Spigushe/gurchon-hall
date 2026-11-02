@@ -39,8 +39,10 @@ decks, leur composition, le versement d'un produit. Huit types d'opérations :
 
 Le catalogue n'y est pas : il ne bouge que par l'import krcg. Les langues non
 plus, `POST /langues` restant une écriture en ligne (voir les points ouverts).
-Les parties et les tournois attendent le Lot 7 ; les inscrire ici avant qu'ils
-aient une route serait promettre une synchronisation sans destination.
+Les parties et les tournois attendaient le Lot 7 : les inscrire ici avant qu'ils
+aient une route aurait promis une synchronisation sans destination. Ils sont
+arrivés avec leurs routes, et douze types de plus portent `/sync` à vingt (voir
+la section « Lot 7 » en fin de document).
 
 Deux écarts de vocabulaire par rapport à REST. D'abord, `upsert` : une file
 rejouée ne sait pas ce que le serveur possède déjà, donc l'opération crée ou
@@ -178,8 +180,9 @@ eu lieu, le code dit pourquoi elle n'a pas eu lieu.
 Les cinq motifs : `not_found` (la ressource n'existe pas, y compris une
 impression : une carte rangée dans une extension où elle n'a pas été imprimée), `conflict` (une règle
 métier s'y oppose), `invalid` (charge utile invalide, typiquement après fusion
-avec la ligne existante), `unresolved_client_ref` (le deck désigné n'a jamais
-été créé, ou sa création a échoué) et `mismatched_replay` (même clé, autre
+avec la ligne existante), `unresolved_client_ref` (la ressource désignée par
+une référence client, un deck jusqu'au Lot 7, n'a jamais été créée, ou sa
+création a échoué) et `mismatched_replay` (même clé, autre
 corps). Le champ `message` reprend le texte du service, celui-là même que la
 route en ligne aurait mis dans son 404 ou son 409 : il est fait pour être
 affiché.
@@ -266,13 +269,11 @@ CLAUDE.md) demanderait l'équivalent : un verrou consultatif
 (`pg_advisory_xact_lock`) ou un `SELECT … FOR UPDATE` sur les lignes de
 `card_copy` en jeu.
 
-**`invalid` n'est pas atteignable par `/sync`.** Le motif est au contrat parce
-qu'il l'est côté services (le 422 qu'un service rend après fusion avec la ligne
-existante), mais aucun chemin de la file ne le produit aujourd'hui : une charge
-utile d'upsert porte l'état complet, `quantity` et `proxy_quantity` arrivent
-donc toujours ensemble et le schéma les a déjà comparées. Il reste déclaré — le
-client doit savoir le lire le jour où une opération le produira, et le retirer
-pour le remettre ensuite coûterait une rupture de contrat.
+**`invalid` est atteignable par `/sync`.** Il l'était déjà depuis le Lot 4b
+(`acquired_quantity` au-delà de ce que le remplacement ajoute) ; depuis le Lot 7,
+il est le motif courant des règles de table, de ronde, de score, de niveau, de
+dates et de classement, que les services de la pratique de jeu rendent en 422. Le
+client doit savoir le lire et proposer de corriger la saisie.
 
 **Une langue inconnue n'est pas repliée côté serveur.** Une opération qui
 désigne un code de langue absent de la table est refusée `not_found`, comme
@@ -470,3 +471,209 @@ attendre celui d'un autre, au pire jusqu'au 503 + `Retry-After`. Limite
 acceptée pour le pilote ; un portage Postgres pourrait verrouiller par compte
 (`pg_advisory_xact_lock(user_id)`), les invariants étant désormais tous par
 compte.
+
+## Lot 7 : joueurs, lieux, tournois, parties
+
+Le Lot 7 (`docs/lot7-plan-parties.md`) ajoute douze types d'opérations, ce qui
+porte `/sync` à vingt. Le principe du Lot 3 ne bouge pas : chaque opération
+reprend telle quelle la charge utile de la route en ligne, et
+`app.services.sync` appelle le service de cette route, avec
+`allow_client_ref=True` là où il existe. Aucune règle métier n'est écrite dans
+le module de synchronisation. Le contrat garde ses 49 opérations ; seul le
+corps de `POST /sync` s'élargit. Aucune migration à cette étape : la révision
+R10 avait déjà élargi les CHECK de `operation_type` et de `resource_kind`.
+
+| `type` | Désignation | Charge utile | Équivalent en ligne |
+| --- | --- | --- | --- |
+| `player.create` | `client_ref` | `PlayerCreate` | `POST /joueurs`, en upsert par nom |
+| `player.update` | `player` (`PlayerRef`) | `PlayerUpdate` | `PATCH /joueurs/{id}` |
+| `player.delete` | `player` (`PlayerRef`) | — | `DELETE /joueurs/{id}` |
+| `venue.create` | `client_ref` | `VenueCreate` | `POST /lieux`, en upsert par nom |
+| `venue.update` | `venue` (`VenueRef`) | `VenueUpdate` | `PATCH /lieux/{id}` |
+| `venue.delete` | `venue` (`VenueRef`) | — | `DELETE /lieux/{id}` |
+| `tournament.create` | `client_ref` | `TournamentCreate` | `POST /tournois` |
+| `tournament.update` | `tournament` (`TournamentRef`) | `TournamentUpdate` | `PATCH /tournois/{id}` |
+| `tournament.delete` | `tournament` (`TournamentRef`) | — | `DELETE /tournois/{id}` |
+| `game.create` | `client_ref` | `GameCreate`, table comprise | `POST /parties` |
+| `game.update` | `game` (`GameRef`) | `data` (`GameUpdate`) et `table` (`GameTableReplace`), tous deux facultatifs | `PATCH /parties/{id}` et `PUT /parties/{id}/participations`, en une fois |
+| `game.delete` | `game` (`GameRef`) | — | `DELETE /parties/{id}` |
+
+**Désigner.** Les quatre références nouvelles suivent le patron de `DeckRef` :
+`{"player_id": 12}` ou `{"client_ref": "…"}`, exactement l'un des deux (de
+même avec `venue_id`, `tournament_id`, `game_id`). Les créations portent une
+`client_ref` obligatoire, à plat dans l'opération ; une modification ou une
+suppression n'en porte jamais à plat, elle désigne. Les charges utiles
+désignent à leur tour par référence : `venue` dans un tournoi et dans une
+partie, `tournament` dans une partie, et sur chaque ligne de table `player`
+(`ParticipantRef`, qui accepte aussi `{"me": true}` pour le « Moi ») et `deck`
+(`DeckRef`). Une `client_ref` n'est admise que par `/sync` : la même charge
+utile envoyée à une route en ligne avec une référence client rend un 422.
+
+**Ce que le verdict rend.** `SyncResourceKind` gagne `player`, `venue`,
+`tournament` et `game`, et `SyncResourceRef` les quatre identifiants
+correspondants. Pour une opération du Lot 7, un seul des quatre est rempli,
+celui de son genre, et toutes les autres colonnes restent nulles : un
+`tournament.create` qui désigne un lieu ne rend pas de `venue_id`. Les
+modifications et suppressions rendent elles aussi l'identifiant de leur genre,
+comme `deck.update` rend son `deck_id`, mais seules les créations renvoient une
+`client_ref`, dans le résultat comme au journal. Un `replayed` relit ces
+colonnes au journal et rend donc les mêmes identifiants, le même verdict et le
+même `processed_at` qu'à l'origine.
+
+**Résoudre une référence.** Une `client_ref` se résout au journal du compte,
+parmi les créations appliquées **du genre attendu** (`resource_kind`) : celle
+d'un lieu passée là où l'on attend un tournoi ne désigne rien. Une référence
+d'un autre genre, d'un autre compte, jamais créée ou dont la création a été
+refusée est rejetée en `unresolved_client_ref`, avec un message du type
+« Aucun tournoi n'a été créé sous la référence client 'x' (création absente du
+journal, ou refusée). ». La résolution ignore l'état actuel de la ressource :
+la référence d'un joueur supprimé depuis se résout encore vers son
+identifiant, et c'est le service qui répond ensuite `not_found` (« Joueur 12
+introuvable. »). Un identifiant d'un autre compte rend `not_found` avec le
+message d'un identifiant inconnu, qu'il désigne la ressource de l'opération ou
+une ressource imbriquée (le lieu d'une partie, le joueur ou le deck d'une ligne
+de table).
+
+**Une référence déjà prise.** L'unicité des références vaut pour tous les
+genres à la fois : l'index `ux_sync_operation_client_ref` porte sur
+(`user_id`, `client_ref`) sans regarder le genre. Avant d'écrire, chacune des
+cinq créations (`deck.create` compris) vérifie donc que sa référence n'a été
+donnée à aucune création appliquée du compte, quel qu'en soit le genre. Si
+c'est le cas, le refus est un `conflict`, jamais une erreur d'intégrité qui
+ferait échouer le lot : « La référence client 'x' désigne déjà le lieu 4 : une
+référence n'est jamais réutilisée, en tirer une nouvelle. » Le message de
+`deck.create` n'a pas changé. Une création refusée ne réserve rien : on peut la
+corriger et la renvoyer sous la même référence, avec une nouvelle clé
+d'idempotence. Dans un même lot, deux créations qui partagent une
+`client_ref`, de genres identiques ou non, rendent un 422 pour le lot entier,
+avant toute écriture.
+
+**Upsert par nom (P5).** `player.create` et `venue.create` cherchent d'abord une
+ressource du compte de même nom, après rognage et repli par `fold_text`, comme
+la recherche (« Éloïse » et « eloise » sont le même joueur). S'il en existe une,
+l'opération est `applied` sans rien écrire, et la référence est liée à
+l'identifiant existant. Trois conséquences :
+
+- un `applied` ne veut pas dire « créé » ; deux références peuvent désigner le
+  même joueur ou le même lieu, et un renommage passé par l'une se voit par
+  l'autre ;
+- un `venue.create` dont le nom existe déjà n'applique ni sa ville ni ses
+  notes : le lieu reste tel qu'il était, et c'est un `venue.update` qui le
+  modifie ;
+- une table qui désigne deux fois le même joueur par deux références ainsi
+  liées est refusée en `invalid` (« La table désigne plusieurs fois le même
+  joueur. »).
+
+Le « Moi » est exclu de l'upsert. Un `player.create` dont le nom replié est
+celui du « Moi » est un `conflict`, « Ce nom est déjà porté par votre joueur
+Moi. », au lieu de lier une référence d'adversaire à ma propre ligne. Les
+routes `POST /joueurs` et `POST /lieux` gardent leur 409 sur un doublon, et le
+renommage (`player.update`, `venue.update`) les règles de la route : un nom
+déjà pris est un `conflict` (« Un joueur nommé 'Marc' existe déjà. »).
+L'upsert ne se décide qu'à la première application : un rejeu rend le verdict
+du journal sans rien recalculer, même si le joueur a été renommé ou supprimé
+depuis.
+
+**`game.update`.** `data` (`GameUpdate`) vaut un objet vide par défaut et suit
+la sémantique du `PATCH` : champs omis inchangés, `venue`, `tournament`,
+`round_number` et `notes` envoyés à `null` remis à zéro. `table`, s'il est
+fourni, est le corps de `PUT /parties/{id}/participations`, la table complète
+voulue (A3) ; omis, la table ne change pas. Quand les deux sont là, ils
+s'appliquent ensemble par un seul appel au service, sous un contrôle unique de
+l'état final et un seul `commit` (un seul point de sauvegarde). Passer une
+partie de 5 à 3 joueurs en ramenant les sièges dans la nouvelle table tient
+donc en une opération, là où le `PATCH` seul serait refusé à cause des sièges
+existants. Un refus ne laisse rien : ni les champs ni la table n'ont bougé.
+
+**Classement des refus.** Mêmes codes et mêmes messages qu'en ligne : un 422 du
+service devient `invalid`, un 409 `conflict`, un 404 `not_found`. Un refus
+n'interrompt jamais le lot.
+
+- `invalid` : la forme d'une partie (type et numéro de ronde contre le tournoi
+  et son nombre de rondes ; table sans ma ligne ou avec deux fois elle, joueur
+  ou siège répété, plus de lignes que de joueurs, siège au-delà de la table ;
+  VP au-delà de ce que la table distribue ; GW contredit par mes VP, ou déclaré
+  sans VP ; VP ou GW sur une ligne d'adversaire) et, sur `tournament.*`, l'état
+  fusionné du tournoi : dates, multi-deck à un niveau qui l'interdit, règle de
+  deck en finale contre la politique de deck, classement contre le nombre de
+  joueurs et ma finale. Passer un tournoi de `multi` à `mono` sans envoyer
+  `final_deck_rule: null` dans le même `data` est un `invalid` : le serveur
+  n'efface pas la règle de lui-même.
+- `conflict` : ce qui contredit des données existantes. Ronde ou finale déjà
+  saisie (« La ronde 2 est déjà saisie pour ce tournoi (sur un autre
+  appareil ?). », « La finale est déjà saisie pour ce tournoi. ») ; deck
+  supprimé sur une ligne nouvelle ou dont le deck change ; écriture de partie
+  qui contredit le tournoi (mono-deck, deck de finale selon la règle annoncée,
+  classement) ; retrait d'une préliminaire, par `game.delete` ou par un
+  `game.update` qui la sort du tournoi, qui changerait le deck attendu en
+  finale (message préfixé « Retirer cette ronde changerait le deck attendu en
+  finale : ») ; `tournament.update` dont le nombre de rondes passe sous une
+  ronde déjà jouée, ou dont `deck_policy` ou `final_deck_rule` contredit les
+  parties saisies ; suppression d'un tournoi qui contient des parties, d'un
+  lieu qui sert encore, d'un joueur présent à une table ; suppression du
+  « Moi » ; nom déjà pris ; référence client déjà prise.
+- `not_found` : ressource désignée absente ou d'un autre compte, à quelque
+  niveau qu'elle soit désignée.
+- `unresolved_client_ref` : référence inconnue, d'un autre genre ou d'un autre
+  compte, ou dont la création a été refusée.
+
+Le classement contredit change donc de code selon l'écriture : `invalid` sur
+`tournament.*`, comme le 422 de `PATCH /tournois/{id}`, et `conflict` sur
+`game.*`, comme le 409 des routes de partie (une finale avec GW ajoutée à un
+tournoi où je me suis classé deuxième). Restent au schéma, comme au Lot 3, les
+bornes de champ (table de 1 à 6 lignes, VP par pas de 0,5 et au plus 6, siège
+au plus 6, `player_count` d'une partie de 2 à 6, longueur des noms) : les
+dépasser rend un 422 du lot entier, que la bissection du client isole.
+
+**Idempotence.** Rien de neuf par rapport à la section « Lot 6 » : clés
+d'idempotence et références client sont propres au compte, une `client_ref`
+d'un autre compte se comporte comme une référence inconnue, et
+`mismatched_replay` ne se produit qu'à l'intérieur d'un compte.
+
+**Ce que le client doit faire.**
+
+- Tirer une `client_ref` neuve pour chaque objet créé, de quelque genre qu'il
+  soit, et ne jamais la réemployer pour un autre objet ; une création refusée
+  puis corrigée garde la sienne.
+- Lier la référence à l'identifiant du genre rendu (`resource.player_id` pour
+  `player.create`, et de même `venue_id`, `tournament_id`, `game_id`,
+  `deck_id`), dans une correspondance qui distingue les genres : un joueur 12
+  et un deck 12 ne sont pas le même objet.
+- Ne pas supposer qu'un joueur ou un lieu `applied` est neuf : la ligne saisie
+  hors ligne peut se fondre dans une ligne existante, et un lieu peut garder
+  une autre ville que celle saisie.
+- Traiter les refus en cascade : une création refusée rend
+  `unresolved_client_ref` toutes les opérations qui la désignaient, dans ce lot
+  et les suivants. Une fois la création corrigée et appliquée, ces opérations
+  sont à renvoyer sous de nouvelles clés, puisqu'un refus rejoué reste un refus.
+- Envoyer `game.update` avec la table complète, jamais une partie de table, et
+  ne proposer l'édition que d'une table connue ; envoyer `final_deck_rule: null`
+  avec le passage en mono-deck.
+
+**Identifiants jamais réattribués (révision R11, `e2a7819dd4a2`).** Jusqu'à
+R10, les tables `player`, `venue`, `tournament` et `game` n'avaient pas
+`AUTOINCREMENT` : quand la ligne d'identifiant le plus haut était supprimée,
+SQLite redonnait cet identifiant à la création suivante. Le journal gardant la
+correspondance référence → identifiant, la référence de la ressource supprimée
+désignait alors la nouvelle, et une opération encore en file qui la visait, ou
+qui visait l'ancien identifiant, s'y appliquait sans refus : un `player.update`
+par la référence de Marc, supprimé, renommait Julie, créée juste après. Le cas
+ne se posait pas avant le Lot 7, un deck n'étant supprimé que logiquement et
+une entrée de collection se désignant par sa clé naturelle.
+
+Décision du 2026-10-29 : une onzième révision, plutôt qu'un amendement de R10
+déjà publiée, passe les quatre tables en `AUTOINCREMENT`. SQLite retient dans
+`sqlite_sequence` le plus grand identifiant jamais attribué, si bien qu'une
+référence ou un identifiant périmé ne désigne plus rien : la résolution trouve
+toujours l'identifiant au journal, et le service répond `not_found`
+(« Joueur 12 introuvable. »), comme pour toute ressource supprimée. Rien ne
+change au contrat ni au client. À la montée, la séquence de chaque table part
+du plus grand identifiant connu, celui des lignes recopiées comme celui que le
+journal cite encore pour une ressource disparue (colonnes `player_id`,
+`venue_id`, `tournament_id`, `game_id`) ; un identifiant attribué puis
+supprimé hors de `/sync` avant R11, que rien n'a retenu, ne se reconstitue
+pas. `participation` reste sans `AUTOINCREMENT` : elle se supprime aussi
+physiquement, mais aucune opération, référence ni colonne du journal ne la
+désigne par son identifiant. Tests de non-régression dans
+`backend/tests/test_sync_lot7.py` (section « Identifiants jamais
+réattribués ») et `backend/tests/test_migrations.py` (section R11).
