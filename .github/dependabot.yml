@@ -1,9 +1,18 @@
 version: 2
+
+# Une seule PR par écosystème et par semaine : chaque bloc regroupe toutes ses
+# mises à jour de version dans un groupe "*". Des montées liées arrivent ainsi
+# ensemble au lieu de casser la CI chacune de leur côté (react sans react-dom,
+# vitest sans @vitest/coverage-v8, qui exigent la même version). Les alertes de
+# sécurité gardent leurs PR propres, ouvertes dès la publication de l'alerte.
 updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    groups:
+      frontend:
+        patterns: ["*"]
     ignore:
       # openapi-typescript 7 (peer typescript ^5) et typescript-eslint 8
       # (peer <6.1) refusent TypeScript 7 : npm ci échoue. à retirer quand
@@ -21,8 +30,14 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
+    groups:
+      backend:
+        patterns: ["*"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
