@@ -17,9 +17,12 @@ vérifié).
 `npm run test:coverage` (vitest, fournisseur v8, `coverage/coverage-final.json`)
 puis `npm run crap` (`scripts/crap-report.mjs`) : score
 `comp² × (1 − cov)³ + comp` pour chaque fonction de `src/`, seuil 30, comparé à
-`docs/qa-baselines/crap/frontend.json` (13 fonctions au départ, surtout des
-composants de page dont le JSX fait la complexité). Règles et politique de la
-référence dans `docs/qa-crap.md`.
+`docs/qa-baselines/crap/frontend.json`, vide depuis le 2026-11-02 : toute fonction
+au-dessus de 30 fait échouer. Règles et politique de la référence dans
+`docs/qa-crap.md`.
+- Un composant de page qui grossit dépasse vite 30 par son JSX seul (chaque
+  `cond && <X />` et chaque ternaire compte) : le découper en sous-composants qui
+  rendent le même DOM, `data-testid` compris.
 - Seule la couverture vitest compte : un chemin testé uniquement en e2e paraît
   non couvert. Pour faire baisser un score, un test unitaire est nécessaire.
 - Une entrée de la référence qui baisse se resserre aussitôt

@@ -511,67 +511,83 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     }
   }
 
+  /** Lieu d'une mise à jour : absent, on garde ; `null`, on retire ; sinon la nouvelle référence. */
+  function updatedVenueKey(venue: Parameters<typeof venueRef>[0] | null | undefined, current: ResourceKey | null) {
+    if (venue === undefined) return current;
+    return venue ? venueRef(venue) : null;
+  }
+
+  function createTournament(
+    operation: Extract<PlayOperation, { type: "tournament.create" }>,
+    pending: boolean,
+  ) {
+    const ref = operation.client_ref;
+    if (tournaments.knows(ref)) return;
+    const data = operation.data;
+    const id = tournaments.boundId(ref);
+    tournaments.add({
+      key: `ref:${ref}`,
+      id,
+      clientRef: ref,
+      aliases: id === null ? [] : [`id:${id}`],
+      pending,
+      name: data.name,
+      startDate: data.start_date,
+      endDate: data.end_date ?? null,
+      venueKey: data.venue ? venueRef(data.venue) : null,
+      deckPolicy: data.deck_policy ?? "mono",
+      format: data.format ?? "constructed",
+      eventTier: data.event_tier ?? "standard",
+      finalDeckRule: data.final_deck_rule ?? null,
+      roundCount: data.round_count ?? null,
+      playerCount: data.player_count ?? null,
+      myRanking: data.my_ranking ?? null,
+      notes: data.notes ?? null,
+      summary: { ...NO_SUMMARY },
+      summaryProvisional: false,
+      admissibleFinalDecks: null,
+    });
+  }
+
+  function updateTournament(
+    operation: Extract<PlayOperation, { type: "tournament.update" }>,
+    pending: boolean,
+  ) {
+    const key = tournaments.resolve(
+      operation.tournament.tournament_id,
+      operation.tournament.client_ref,
+    );
+    const tournament = key && tournaments.items.get(key);
+    if (!tournament) return;
+    const data = operation.data;
+    tournaments.items.set(tournament.key, {
+      ...tournament,
+      name: data.name ?? tournament.name,
+      startDate: data.start_date ?? tournament.startDate,
+      endDate: data.end_date !== undefined ? data.end_date : tournament.endDate,
+      venueKey: updatedVenueKey(data.venue, tournament.venueKey),
+      deckPolicy: data.deck_policy ?? tournament.deckPolicy,
+      format: data.format ?? tournament.format,
+      eventTier: data.event_tier ?? tournament.eventTier,
+      finalDeckRule:
+        data.final_deck_rule !== undefined ? data.final_deck_rule : tournament.finalDeckRule,
+      roundCount: data.round_count !== undefined ? data.round_count : tournament.roundCount,
+      playerCount: data.player_count !== undefined ? data.player_count : tournament.playerCount,
+      myRanking: data.my_ranking !== undefined ? data.my_ranking : tournament.myRanking,
+      notes: data.notes !== undefined ? data.notes : tournament.notes,
+      pending: tournament.pending || pending,
+    });
+  }
+
   function applyTournament(
     operation: Extract<PlayOperation, { type: `tournament.${string}` }>,
     pending: boolean,
   ) {
     switch (operation.type) {
-      case "tournament.create": {
-        const ref = operation.client_ref;
-        if (tournaments.knows(ref)) return;
-        const data = operation.data;
-        const id = tournaments.boundId(ref);
-        tournaments.add({
-          key: `ref:${ref}`,
-          id,
-          clientRef: ref,
-          aliases: id === null ? [] : [`id:${id}`],
-          pending,
-          name: data.name,
-          startDate: data.start_date,
-          endDate: data.end_date ?? null,
-          venueKey: data.venue ? venueRef(data.venue) : null,
-          deckPolicy: data.deck_policy ?? "mono",
-          format: data.format ?? "constructed",
-          eventTier: data.event_tier ?? "standard",
-          finalDeckRule: data.final_deck_rule ?? null,
-          roundCount: data.round_count ?? null,
-          playerCount: data.player_count ?? null,
-          myRanking: data.my_ranking ?? null,
-          notes: data.notes ?? null,
-          summary: { ...NO_SUMMARY },
-          summaryProvisional: false,
-          admissibleFinalDecks: null,
-        });
-        return;
-      }
-      case "tournament.update": {
-        const key = tournaments.resolve(
-          operation.tournament.tournament_id,
-          operation.tournament.client_ref,
-        );
-        const tournament = key && tournaments.items.get(key);
-        if (!tournament) return;
-        const data = operation.data;
-        tournaments.items.set(tournament.key, {
-          ...tournament,
-          name: data.name ?? tournament.name,
-          startDate: data.start_date ?? tournament.startDate,
-          endDate: data.end_date !== undefined ? data.end_date : tournament.endDate,
-          venueKey: data.venue !== undefined ? (data.venue ? venueRef(data.venue) : null) : tournament.venueKey,
-          deckPolicy: data.deck_policy ?? tournament.deckPolicy,
-          format: data.format ?? tournament.format,
-          eventTier: data.event_tier ?? tournament.eventTier,
-          finalDeckRule:
-            data.final_deck_rule !== undefined ? data.final_deck_rule : tournament.finalDeckRule,
-          roundCount: data.round_count !== undefined ? data.round_count : tournament.roundCount,
-          playerCount: data.player_count !== undefined ? data.player_count : tournament.playerCount,
-          myRanking: data.my_ranking !== undefined ? data.my_ranking : tournament.myRanking,
-          notes: data.notes !== undefined ? data.notes : tournament.notes,
-          pending: tournament.pending || pending,
-        });
-        return;
-      }
+      case "tournament.create":
+        return createTournament(operation, pending);
+      case "tournament.update":
+        return updateTournament(operation, pending);
       case "tournament.delete": {
         const key = tournaments.resolve(
           operation.tournament.tournament_id,
@@ -583,66 +599,74 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     }
   }
 
+  function createGame(operation: Extract<PlayOperation, { type: "game.create" }>, pending: boolean) {
+    const ref = operation.client_ref;
+    if (games.knows(ref)) return; // le miroir a déjà cette partie et fait foi
+    const data = operation.data;
+    const table = tableOf(data.player_count, data.participations);
+    const id = games.boundId(ref);
+    const tournamentKey = data.tournament ? tournamentRef(data.tournament) : null;
+    games.add({
+      key: `ref:${ref}`,
+      id,
+      clientRef: ref,
+      aliases: id === null ? [] : [`id:${id}`],
+      pending,
+      playedAt: data.played_at,
+      venueKey: data.venue ? venueRef(data.venue) : null,
+      tournamentKey,
+      tournamentName: null,
+      roundNumber: data.round_number ?? null,
+      roundType: data.round_type ?? "casual",
+      playerCount: data.player_count,
+      me: meOf(table),
+      notes: data.notes ?? null,
+      table,
+    });
+    touch(tournamentKey, pending);
+  }
+
+  function updateGame(operation: Extract<PlayOperation, { type: "game.update" }>, pending: boolean) {
+    const key = games.resolve(operation.game.game_id, operation.game.client_ref);
+    const game = key && games.items.get(key);
+    if (!game) return;
+    const data = operation.data ?? {};
+    const table = operation.table
+      ? tableOf(data.player_count ?? game.playerCount, operation.table.participations)
+      : game.table;
+    const tournamentKey = updatedTournamentKey(data.tournament, game.tournamentKey);
+    games.items.set(game.key, {
+      ...game,
+      playedAt: data.played_at ?? game.playedAt,
+      venueKey: updatedVenueKey(data.venue, game.venueKey),
+      tournamentKey,
+      roundNumber: data.round_number !== undefined ? data.round_number : game.roundNumber,
+      roundType: data.round_type ?? game.roundType,
+      playerCount: data.player_count ?? game.playerCount,
+      notes: data.notes !== undefined ? data.notes : game.notes,
+      table,
+      me: operation.table && table ? meOf(table, game.me) : game.me,
+      pending: game.pending || pending,
+    });
+    touch(game.tournamentKey, pending);
+    touch(tournamentKey, pending);
+  }
+
+  /** Tournoi d'une mise à jour de partie, sur le modèle de `updatedVenueKey`. */
+  function updatedTournamentKey(
+    tournament: Parameters<typeof tournamentRef>[0] | null | undefined,
+    current: ResourceKey | null,
+  ) {
+    if (tournament === undefined) return current;
+    return tournament ? tournamentRef(tournament) : null;
+  }
+
   function applyGame(operation: Extract<PlayOperation, { type: `game.${string}` }>, pending: boolean) {
     switch (operation.type) {
-      case "game.create": {
-        const ref = operation.client_ref;
-        if (games.knows(ref)) return; // le miroir a déjà cette partie et fait foi
-        const data = operation.data;
-        const table = tableOf(data.player_count, data.participations);
-        const id = games.boundId(ref);
-        const tournamentKey = data.tournament ? tournamentRef(data.tournament) : null;
-        games.add({
-          key: `ref:${ref}`,
-          id,
-          clientRef: ref,
-          aliases: id === null ? [] : [`id:${id}`],
-          pending,
-          playedAt: data.played_at,
-          venueKey: data.venue ? venueRef(data.venue) : null,
-          tournamentKey,
-          tournamentName: null,
-          roundNumber: data.round_number ?? null,
-          roundType: data.round_type ?? "casual",
-          playerCount: data.player_count,
-          me: meOf(table),
-          notes: data.notes ?? null,
-          table,
-        });
-        touch(tournamentKey, pending);
-        return;
-      }
-      case "game.update": {
-        const key = games.resolve(operation.game.game_id, operation.game.client_ref);
-        const game = key && games.items.get(key);
-        if (!game) return;
-        const data = operation.data ?? {};
-        const table = operation.table
-          ? tableOf(data.player_count ?? game.playerCount, operation.table.participations)
-          : game.table;
-        const tournamentKey =
-          data.tournament !== undefined
-            ? data.tournament
-              ? tournamentRef(data.tournament)
-              : null
-            : game.tournamentKey;
-        games.items.set(game.key, {
-          ...game,
-          playedAt: data.played_at ?? game.playedAt,
-          venueKey: data.venue !== undefined ? (data.venue ? venueRef(data.venue) : null) : game.venueKey,
-          tournamentKey,
-          roundNumber: data.round_number !== undefined ? data.round_number : game.roundNumber,
-          roundType: data.round_type ?? game.roundType,
-          playerCount: data.player_count ?? game.playerCount,
-          notes: data.notes !== undefined ? data.notes : game.notes,
-          table,
-          me: operation.table && table ? meOf(table, game.me) : game.me,
-          pending: game.pending || pending,
-        });
-        touch(game.tournamentKey, pending);
-        touch(tournamentKey, pending);
-        return;
-      }
+      case "game.create":
+        return createGame(operation, pending);
+      case "game.update":
+        return updateGame(operation, pending);
       case "game.delete": {
         const key = games.resolve(operation.game.game_id, operation.game.client_ref);
         const game = key && games.items.get(key);

@@ -209,148 +209,167 @@ export function project(
     },
   );
 
-  // `pending` : l'opération est encore dans la file (le serveur ne l'a pas
-  // confirmée) ; sinon elle est tranchée, seul le miroir n'est pas à jour.
+  // Un gestionnaire par type d'opération de la collection. `pending` :
+  // l'opération est encore dans la file (le serveur ne l'a pas confirmée) ;
+  // sinon elle est tranchée, seul le miroir n'est pas à jour.
+  type Op<T extends VtesOperation["type"]> = Extract<VtesOperation, { type: T }>;
+
+  const applyStockUpsert = (operation: Op<"stock.upsert">, pending: boolean) => {
+    const { card_id: cardId, language_code: languageCode, card_set_id: cardSetId, ...rest } = operation.data;
+    const card = cardsById.get(cardId);
+    const key = pairKey(cardId, languageCode, cardSetId);
+    stock.set(key, {
+      cardId,
+      languageCode,
+      cardSetId,
+      // État complet voulu : ce qui n'est pas fourni prend la valeur par défaut.
+      quantityOwned: rest.quantity_owned ?? 0,
+      notes: rest.notes ?? null,
+      cardName: card?.name ?? stock.get(key)?.cardName ?? null,
+      category: card?.category ?? stock.get(key)?.category ?? null,
+      pending,
+    });
+  };
+
+  const applyDeckCreate = (operation: Op<"deck.create">, pending: boolean) => {
+    const key: DeckKey = `ref:${operation.client_ref}`;
+    // Le miroir a déjà ce deck (rafraîchi après le verdict, avant l'effacement
+    // de l'opération tranchée) : il fait foi, on ne le réécrit pas.
+    if (decks.has(key)) return;
+    const data = operation.data;
+    // Une création tranchée a sa correspondance : l'identifiant serveur est connu.
+    const id = deckIdByRef.get(operation.client_ref) ?? null;
+    decks.set(key, {
+      key,
+      id,
+      clientRef: operation.client_ref,
+      name: data.name,
+      discriminator: null,
+      createdOn: data.created_on ?? null,
+      status: data.status ?? "draft",
+      archetype: data.archetype ?? null,
+      notes: data.notes ?? null,
+      proxyAllowed: data.proxy_allowed ?? false,
+      archivedAt: null,
+      pending,
+    });
+    keyByRef.set(operation.client_ref, key);
+    if (id !== null) keyByDeckId.set(id, key);
+    deckCards.set(key, new Map());
+  };
+
+  /** Le deck visé, s'il est connu du miroir ou créé plus tôt dans la file. */
+  const targetDeck = (ref: { deck_id?: number | null; client_ref?: string | null }) => {
+    const key = resolveDeck(ref);
+    const deck = key && decks.get(key);
+    return key && deck ? { key, deck } : null;
+  };
+
+  const archivedAtAfter = (deck: LocalDeck, operation: Op<"deck.update">) => {
+    const archived = operation.data.archived;
+    if (archived === undefined) return deck.archivedAt;
+    return archived ? (deck.archivedAt ?? operation.recorded_at) : null;
+  };
+
+  const applyDeckUpdate = (operation: Op<"deck.update">, pending: boolean) => {
+    const target = targetDeck(operation.deck);
+    if (!target) return;
+    const { key, deck } = target;
+    const data = operation.data;
+    decks.set(key, {
+      ...deck,
+      name: data.name ?? deck.name,
+      createdOn: data.created_on !== undefined ? data.created_on : deck.createdOn,
+      status: data.status ?? deck.status,
+      archetype: data.archetype !== undefined ? data.archetype : deck.archetype,
+      notes: data.notes !== undefined ? data.notes : deck.notes,
+      proxyAllowed: data.proxy_allowed ?? deck.proxyAllowed,
+      archivedAt: archivedAtAfter(deck, operation),
+      pending: deck.pending || pending,
+    });
+  };
+
+  const applyDeckDelete = (operation: Op<"deck.delete">) => {
+    const key = resolveDeck(operation.deck);
+    if (!key) return;
+    decks.delete(key);
+    deckCards.delete(key);
+  };
+
+  // Lot 4b : l'acquisition entre en collection avec la ligne, comme le
+  // serveur (entrée absente créée à `acquired`, présente incrémentée).
+  const addAcquisition = (data: Op<"deck_card.upsert">["data"], acquired: number, pending: boolean) => {
+    const { card_id: cardId, language_code: languageCode, card_set_id: cardSetId } = data;
+    const stockKey = pairKey(cardId, languageCode, cardSetId);
+    const owned = stock.get(stockKey);
+    const card = cardsById.get(cardId);
+    stock.set(stockKey, {
+      cardId,
+      languageCode,
+      cardSetId,
+      quantityOwned: (owned?.quantityOwned ?? 0) + acquired,
+      notes: owned?.notes ?? null,
+      cardName: card?.name ?? owned?.cardName ?? null,
+      category: card?.category ?? owned?.category ?? null,
+      pending: pending || (owned?.pending ?? false),
+    });
+  };
+
+  const applyDeckCardUpsert = (operation: Op<"deck_card.upsert">, pending: boolean) => {
+    const target = targetDeck(operation.deck);
+    if (!target) return;
+    const { key, deck } = target;
+    const {
+      card_id: cardId,
+      language_code: languageCode,
+      card_set_id: cardSetId,
+      quantity,
+      proxy_quantity,
+      acquired_quantity: acquired,
+    } = operation.data;
+    const cards = deckCards.get(key) ?? new Map<string, LocalDeckCard>();
+    const lineKey = pairKey(cardId, languageCode, cardSetId);
+    cards.set(lineKey, {
+      cardId,
+      languageCode,
+      cardSetId,
+      quantity,
+      proxyQuantity: proxy_quantity ?? 0,
+      cardName: cardsById.get(cardId)?.name ?? cards.get(lineKey)?.cardName ?? null,
+      pending,
+    });
+    deckCards.set(key, cards);
+    decks.set(key, { ...deck, pending: deck.pending || pending });
+    if (acquired !== undefined && acquired > 0) addAcquisition(operation.data, acquired, pending);
+  };
+
+  const applyDeckCardDelete = (operation: Op<"deck_card.delete">, pending: boolean) => {
+    const target = targetDeck(operation.deck);
+    if (!target) return;
+    const { key, deck } = target;
+    deckCards.get(key)?.delete(pairKey(operation.card_id, operation.language_code, operation.card_set_id));
+    decks.set(key, { ...deck, pending: deck.pending || pending });
+  };
+
   const apply = (operation: VtesOperation, pending: boolean) => {
     switch (operation.type) {
-      case "stock.upsert": {
-        const {
-          card_id: cardId,
-          language_code: languageCode,
-          card_set_id: cardSetId,
-          ...rest
-        } = operation.data;
-        const card = cardsById.get(cardId);
-        const key = pairKey(cardId, languageCode, cardSetId);
-        stock.set(key, {
-          cardId,
-          languageCode,
-          cardSetId,
-          // État complet voulu : ce qui n'est pas fourni prend la valeur par défaut.
-          quantityOwned: rest.quantity_owned ?? 0,
-          notes: rest.notes ?? null,
-          cardName: card?.name ?? stock.get(key)?.cardName ?? null,
-          category: card?.category ?? stock.get(key)?.category ?? null,
-          pending,
-        });
-        break;
-      }
+      case "stock.upsert":
+        return applyStockUpsert(operation, pending);
       case "stock.delete":
         stock.delete(pairKey(operation.card_id, operation.language_code, operation.card_set_id));
-        break;
-      case "deck.create": {
-        const key: DeckKey = `ref:${operation.client_ref}`;
-        // Le miroir a déjà ce deck (rafraîchi après le verdict, avant l'effacement
-        // de l'opération tranchée) : il fait foi, on ne le réécrit pas.
-        if (decks.has(key)) break;
-        const data = operation.data;
-        // Une création tranchée a sa correspondance : l'identifiant serveur est connu.
-        const id = deckIdByRef.get(operation.client_ref) ?? null;
-        decks.set(key, {
-          key,
-          id,
-          clientRef: operation.client_ref,
-          name: data.name,
-          discriminator: null,
-          createdOn: data.created_on ?? null,
-          status: data.status ?? "draft",
-          archetype: data.archetype ?? null,
-          notes: data.notes ?? null,
-          proxyAllowed: data.proxy_allowed ?? false,
-          archivedAt: null,
-          pending,
-        });
-        keyByRef.set(operation.client_ref, key);
-        if (id !== null) keyByDeckId.set(id, key);
-        deckCards.set(key, new Map());
-        break;
-      }
-      case "deck.update": {
-        const key = resolveDeck(operation.deck);
-        const deck = key && decks.get(key);
-        if (!key || !deck) break;
-        const data = operation.data;
-        decks.set(key, {
-          ...deck,
-          name: data.name ?? deck.name,
-          createdOn: data.created_on !== undefined ? data.created_on : deck.createdOn,
-          status: data.status ?? deck.status,
-          archetype: data.archetype !== undefined ? data.archetype : deck.archetype,
-          notes: data.notes !== undefined ? data.notes : deck.notes,
-          proxyAllowed: data.proxy_allowed ?? deck.proxyAllowed,
-          archivedAt:
-            data.archived === undefined
-              ? deck.archivedAt
-              : data.archived
-                ? (deck.archivedAt ?? operation.recorded_at)
-                : null,
-          pending: deck.pending || pending,
-        });
-        break;
-      }
-      case "deck.delete": {
-        const key = resolveDeck(operation.deck);
-        if (!key) break;
-        decks.delete(key);
-        deckCards.delete(key);
-        break;
-      }
-      case "deck_card.upsert": {
-        const key = resolveDeck(operation.deck);
-        const deck = key && decks.get(key);
-        if (!key || !deck) break;
-        const {
-          card_id: cardId,
-          language_code: languageCode,
-          card_set_id: cardSetId,
-          quantity,
-          proxy_quantity,
-          acquired_quantity: acquired,
-        } = operation.data;
-        const cards = deckCards.get(key) ?? new Map<string, LocalDeckCard>();
-        const lineKey = pairKey(cardId, languageCode, cardSetId);
-        cards.set(lineKey, {
-          cardId,
-          languageCode,
-          cardSetId,
-          quantity,
-          proxyQuantity: proxy_quantity ?? 0,
-          cardName: cardsById.get(cardId)?.name ?? cards.get(lineKey)?.cardName ?? null,
-          pending,
-        });
-        deckCards.set(key, cards);
-        decks.set(key, { ...deck, pending: deck.pending || pending });
-        // Lot 4b : l'acquisition entre en collection avec la ligne, comme le
-        // serveur (entrée absente créée à `acquired`, présente incrémentée).
-        if (acquired !== undefined && acquired > 0) {
-          const stockKey = pairKey(cardId, languageCode, cardSetId);
-          const owned = stock.get(stockKey);
-          const card = cardsById.get(cardId);
-          stock.set(stockKey, {
-            cardId,
-            languageCode,
-            cardSetId,
-            quantityOwned: (owned?.quantityOwned ?? 0) + acquired,
-            notes: owned?.notes ?? null,
-            cardName: card?.name ?? owned?.cardName ?? null,
-            category: card?.category ?? owned?.category ?? null,
-            pending: pending || (owned?.pending ?? false),
-          });
-        }
-        break;
-      }
-      case "deck_card.delete": {
-        const key = resolveDeck(operation.deck);
-        const deck = key && decks.get(key);
-        if (!key || !deck) break;
-        deckCards
-          .get(key)
-          ?.delete(pairKey(operation.card_id, operation.language_code, operation.card_set_id));
-        decks.set(key, { ...deck, pending: deck.pending || pending });
-        break;
-      }
+        return;
+      case "deck.create":
+        return applyDeckCreate(operation, pending);
+      case "deck.update":
+        return applyDeckUpdate(operation, pending);
+      case "deck.delete":
+        return applyDeckDelete(operation);
+      case "deck_card.upsert":
+        return applyDeckCardUpsert(operation, pending);
+      case "deck_card.delete":
+        return applyDeckCardDelete(operation, pending);
       case "bundle.deposit":
-        break; // non projeté, cf. la documentation de la fonction
+        return; // non projeté, cf. la documentation de la fonction
       case "player.create":
       case "player.update":
       case "player.delete":
@@ -363,8 +382,7 @@ export function project(
       case "game.create":
       case "game.update":
       case "game.delete":
-        play.apply(operation, pending);
-        break;
+        return play.apply(operation, pending);
       default:
         assertNever(operation, "Type d'opération non projeté");
     }

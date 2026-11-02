@@ -225,109 +225,157 @@ function compact<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
 }
 
+/** Les nombres du brouillon, une fois lus. */
+interface DraftNumbers {
+  round: number | null;
+  seat: number | null;
+  vp: number | null;
+  roundCount: number | null;
+  players: number | null;
+  ranking: number | null;
+}
+
+/** Lit les nombres du brouillon ; la première saisie illisible, dans l'ordre du formulaire, l'emporte. */
+function parseDraftNumbers(draft: PlayDraft): { numbers: DraftNumbers } | { error: string } {
+  const inputs: [keyof DraftNumbers, string, string][] = [
+    ["round", draft.roundNumber, "Numéro de ronde"],
+    ["seat", draft.seat, "Siège"],
+    ["vp", draft.victoryPoints, "Victory Points"],
+    ["roundCount", draft.roundCount, "Nombre de rondes"],
+    ["players", draft.tournamentPlayerCount, "Nombre de joueurs"],
+    ["ranking", draft.ranking, "Classement"],
+  ];
+  const numbers = {} as DraftNumbers;
+  for (const [key, raw, label] of inputs) {
+    const parsed = parseNumber(raw, label);
+    if ("error" in parsed) return { error: parsed.error };
+    numbers[key] = parsed.value;
+  }
+  return { numbers };
+}
+
+/** `"keep"` garde le deck de la ligne, `""` le retire, sinon la clé choisie. */
+function draftDeck(line: Participation, deckKey: string): Participation["deck"] {
+  if (deckKey === "keep") return line.deck;
+  if (deckKey === "") return undefined;
+  return toDeckRef(deckKey as `id:${number}` | `ref:${string}`);
+}
+
+/** Corrige ma ligne de table (siège, VP, GW, deck) ; les autres lignes restent telles quelles. */
+function correctMe(lines: readonly Participation[], numbers: DraftNumbers, draft: PlayDraft): Participation[] {
+  return lines.map((line) => {
+    if (line.player.me !== true) return line;
+    return compact({
+      ...line,
+      seat: numbers.seat ?? undefined,
+      victory_points: numbers.vp ?? undefined,
+      game_win: draft.gameWin === "" ? undefined : draft.gameWin === "yes",
+      deck: draftDeck(line, draft.deckKey),
+    });
+  });
+}
+
+type NullableCount = "round_count" | "player_count" | "my_ranking";
+
+/** Un nombre vidé n'écrit `null` que si l'opération portait déjà le champ. */
+function setCount(data: { [K in NullableCount]?: number | null }, key: NullableCount, enabled: boolean, next: number | null) {
+  if (enabled && (next !== null || data[key] !== undefined)) data[key] = next;
+}
+
+function correctVenue(
+  operation: Extract<VtesOperation, { type: "venue.create" | "venue.update" }>,
+  fields: PlayCorrectionFields,
+  draft: PlayDraft,
+  name: string,
+): VtesOperation {
+  const data = { ...operation.data };
+  if (fields.name) data.name = name;
+  if (fields.city) data.city = draft.city.trim() === "" ? null : draft.city.trim();
+  return { ...operation, data } as VtesOperation;
+}
+
+function correctTournament(
+  operation: Extract<VtesOperation, { type: "tournament.create" | "tournament.update" }>,
+  fields: PlayCorrectionFields,
+  draft: PlayDraft,
+  numbers: DraftNumbers,
+  name: string,
+): VtesOperation {
+  const data = { ...operation.data };
+  if (fields.name) data.name = name;
+  if (fields.policy && draft.policy !== "") data.deck_policy = draft.policy;
+  if (fields.tier) data.event_tier = draft.tier;
+  setCount(data, "round_count", fields.roundCount, numbers.roundCount);
+  setCount(data, "player_count", fields.tournamentPlayerCount, numbers.players);
+  setCount(data, "my_ranking", fields.ranking, numbers.ranking);
+  // La règle de finale n'a de sens qu'en multi-deck : un passage en mono
+  // l'efface toujours dans la même opération. Seule la politique que
+  // l'opération porte compte : celle du tournoi connu n'efface rien.
+  if (fields.policy && draft.policy === "mono") {
+    data.final_deck_rule = null;
+  } else if (fields.finalRule) {
+    data.final_deck_rule = draft.finalRule === "" ? null : draft.finalRule;
+  }
+  return { ...operation, data } as VtesOperation;
+}
+
+function correctGameCreate(
+  operation: Extract<VtesOperation, { type: "game.create" }>,
+  fields: PlayCorrectionFields,
+  draft: PlayDraft,
+  numbers: DraftNumbers,
+): VtesOperation {
+  const data = { ...operation.data, player_count: draft.playerCount };
+  if (fields.roundNumber) data.round_number = numbers.round;
+  if (fields.meLine) data.participations = correctMe(operation.data.participations, numbers, draft);
+  return { ...operation, data };
+}
+
+function correctGameUpdate(
+  operation: Extract<VtesOperation, { type: "game.update" }>,
+  fields: PlayCorrectionFields,
+  draft: PlayDraft,
+  numbers: DraftNumbers,
+): VtesOperation {
+  const data = operation.data ? { ...operation.data } : undefined;
+  if (data && fields.playerCount) data.player_count = draft.playerCount;
+  if (data && fields.roundNumber) data.round_number = numbers.round;
+  const table =
+    operation.table && fields.meLine
+      ? { ...operation.table, participations: correctMe(operation.table.participations, numbers, draft) }
+      : operation.table;
+  return {
+    ...operation,
+    ...(data ? { data } : {}),
+    ...(table === undefined ? {} : { table }),
+  };
+}
+
 /** Applique le brouillon à l'opération ; ne touche qu'aux champs que `fieldsOf` propose. */
 export function applyDraft(operation: VtesOperation, draft: PlayDraft): DraftResult {
   const fields = fieldsOf(operation);
-  const round = parseNumber(draft.roundNumber, "Numéro de ronde");
-  const seat = parseNumber(draft.seat, "Siège");
-  const vp = parseNumber(draft.victoryPoints, "Victory Points");
-  const roundCount = parseNumber(draft.roundCount, "Nombre de rondes");
-  const players = parseNumber(draft.tournamentPlayerCount, "Nombre de joueurs");
-  const ranking = parseNumber(draft.ranking, "Classement");
-  for (const parsed of [round, seat, vp, roundCount, players, ranking]) {
-    if ("error" in parsed) return { error: parsed.error };
-  }
-  const value = (parsed: ReturnType<typeof parseNumber>) => ("value" in parsed ? parsed.value : null);
+  const parsed = parseDraftNumbers(draft);
+  if ("error" in parsed) return parsed;
+  const { numbers } = parsed;
 
   const name = draft.name.trim();
   if (fields.name && name === "") return { error: "Le nom est obligatoire." };
-
-  const correctMe = (lines: readonly Participation[]): Participation[] =>
-    lines.map((line) => {
-      if (line.player.me !== true) return line;
-      const seatValue = value(seat);
-      const vpValue = value(vp);
-      return compact({
-        ...line,
-        seat: seatValue ?? undefined,
-        victory_points: vpValue ?? undefined,
-        game_win: draft.gameWin === "" ? undefined : draft.gameWin === "yes",
-        deck:
-          draft.deckKey === "keep"
-            ? line.deck
-            : draft.deckKey === ""
-              ? undefined
-              : toDeckRef(draft.deckKey as `id:${number}` | `ref:${string}`),
-      });
-    });
 
   switch (operation.type) {
     case "player.create":
       return { operation: { ...operation, data: { ...operation.data, name } } };
     case "player.update":
-      return {
-        operation: {
-          ...operation,
-          data: fields.name ? { ...operation.data, name } : operation.data,
-        },
-      };
+      return { operation: { ...operation, data: fields.name ? { ...operation.data, name } : operation.data } };
     case "venue.create":
-    case "venue.update": {
-      const data = { ...operation.data };
-      if (fields.name) data.name = name;
-      if (fields.city) data.city = draft.city.trim() === "" ? null : draft.city.trim();
-      return { operation: { ...operation, data } as VtesOperation };
-    }
+    case "venue.update":
+      return { operation: correctVenue(operation, fields, draft, name) };
     case "tournament.create":
-    case "tournament.update": {
-      const data = { ...operation.data };
-      if (fields.name) data.name = name;
-      if (fields.policy && draft.policy !== "") data.deck_policy = draft.policy;
-      if (fields.tier) data.event_tier = draft.tier;
-      if (fields.roundCount) {
-        const next = value(roundCount);
-        if (next !== null || data.round_count !== undefined) data.round_count = next;
-      }
-      if (fields.tournamentPlayerCount) {
-        const next = value(players);
-        if (next !== null || data.player_count !== undefined) data.player_count = next;
-      }
-      if (fields.ranking) {
-        const next = value(ranking);
-        if (next !== null || data.my_ranking !== undefined) data.my_ranking = next;
-      }
-      // La règle de finale n'a de sens qu'en multi-deck : un passage en mono
-      // l'efface toujours dans la même opération. Seule la politique que
-      // l'opération porte compte : celle du tournoi connu n'efface rien.
-      if (fields.policy && draft.policy === "mono") {
-        data.final_deck_rule = null;
-      } else if (fields.finalRule) {
-        data.final_deck_rule = draft.finalRule === "" ? null : draft.finalRule;
-      }
-      return { operation: { ...operation, data } as VtesOperation };
-    }
-    case "game.create": {
-      const data = { ...operation.data, player_count: draft.playerCount };
-      if (fields.roundNumber) data.round_number = value(round);
-      if (fields.meLine) data.participations = correctMe(operation.data.participations);
-      return { operation: { ...operation, data } };
-    }
-    case "game.update": {
-      const data = operation.data ? { ...operation.data } : undefined;
-      if (data && fields.playerCount) data.player_count = draft.playerCount;
-      if (data && fields.roundNumber) data.round_number = value(round);
-      const table =
-        operation.table && fields.meLine
-          ? { ...operation.table, participations: correctMe(operation.table.participations) }
-          : operation.table;
-      return {
-        operation: {
-          ...operation,
-          ...(data ? { data } : {}),
-          ...(table === undefined ? {} : { table }),
-        },
-      };
-    }
+    case "tournament.update":
+      return { operation: correctTournament(operation, fields, draft, numbers, name) };
+    case "game.create":
+      return { operation: correctGameCreate(operation, fields, draft, numbers) };
+    case "game.update":
+      return { operation: correctGameUpdate(operation, fields, draft, numbers) };
     default:
       return { error: "Cette opération ne se corrige pas ici." };
   }

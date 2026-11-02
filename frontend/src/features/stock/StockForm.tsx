@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { TrashIcon } from "@phosphor-icons/react";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
@@ -61,16 +61,7 @@ export function StockForm({
   const isDesktop = useIsDesktop();
   const [confirming, setConfirming] = useState(false);
 
-  const [chosen, setChosen] = useState<Chosen | null>(
-    editing
-      ? {
-          cardId: editing.cardId,
-          label: editing.cardName ?? `Carte n° ${editing.cardId}`,
-          cardSetIds: [editing.cardSetId],
-          latestCardSetId: editing.cardSetId,
-        }
-      : null,
-  );
+  const [chosen, setChosen] = useState<Chosen | null>(() => chosenOf(editing));
   const [languageCode, setLanguageCode] = useState(editing?.languageCode ?? "FR");
   const [cardSetId, setCardSetId] = useState<number | null>(editing?.cardSetId ?? null);
   const [quantity, setQuantity] = useState(editing?.quantityOwned ?? 1);
@@ -158,26 +149,7 @@ export function StockForm({
       onPrimaryAction={() => void runSubmit()}
       data-testid="stock-form-sheet"
     >
-      {isDesktop ? (
-        <>
-          <SheetHeader
-            kicker={editing ? "Modifier une entrée" : undefined}
-            title={
-              editing ? (
-                <span data-testid="stock-form-card">{chosen?.label}</span>
-              ) : (
-                "Ajouter à la collection"
-              )
-            }
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={onDone}
-          />
-          {editing?.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
-        </>
-      ) : (
-        <BackRow label="Collection" onClick={onDone} />
-      )}
+      <StockFormHeading isDesktop={isDesktop} editing={editing} label={chosen?.label} titleId={titleId} titleRef={titleRef} onDone={onDone} />
       <form
         onSubmit={onFormSubmit}
         noValidate
@@ -185,26 +157,7 @@ export function StockForm({
         data-testid="stock-form"
         aria-label={editing ? "Modifier une entrée de collection" : "Ajouter à la collection"}
       >
-        {!isDesktop &&
-          (editing ? (
-            <div>
-              <p className="kicker">Modifier une entrée</p>
-              <h2
-                id={titleId}
-                ref={titleRef}
-                tabIndex={-1}
-                className="sheet__title sheet__title--large"
-                data-testid="stock-form-card"
-              >
-                {chosen?.label}
-              </h2>
-              {editing.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
-            </div>
-          ) : (
-            <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
-              Ajouter à la collection
-            </h2>
-          ))}
+        {!isDesktop && <MobileTitle editing={editing} label={chosen?.label} titleId={titleId} titleRef={titleRef} />}
 
         {!editing &&
           (chosen ? (
@@ -242,39 +195,14 @@ export function StockForm({
           </p>
         </div>
 
-        {editing && (
-          <div className="field">
-            <label htmlFor={`${formId}-set`}>Extension</label>
-            <select
-              id={`${formId}-set`}
-              className="underline-field"
-              value={editing.cardSetId}
-              disabled
-              data-testid="stock-form-card-set"
-            >
-              <option value={editing.cardSetId}>{cardSetOptionLabel(editing.cardSetId)}</option>
-            </select>
-          </div>
-        )}
-
-        {askExtension && chosen && (
-          <div className="field">
-            <label htmlFor={`${formId}-set`}>Extension</label>
-            <select
-              id={`${formId}-set`}
-              className="underline-field"
-              value={cardSetId ?? chosen.latestCardSetId}
-              onChange={(event) => setCardSetId(Number(event.target.value))}
-              data-testid="stock-form-card-set"
-            >
-              {chosen.cardSetIds.map((id) => (
-                <option key={id} value={id}>
-                  {cardSetOptionLabel(id)}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <ExtensionField
+          formId={formId}
+          editing={editing}
+          chosen={askExtension ? chosen : null}
+          cardSetId={cardSetId}
+          onChange={setCardSetId}
+          optionLabel={cardSetOptionLabel}
+        />
 
         <Stepper
           label="Exemplaires possédés"
@@ -290,52 +218,17 @@ export function StockForm({
           </p>
         )}
 
-        <div className="field">
-          <div className="section-head">
-            <label htmlFor={`${formId}-notes`}>Notes</label>
-            {editing && !confirming && (
-              <button
-                type="button"
-                className="btn-danger-text"
-                disabled={action.pending}
-                aria-label={`Supprimer ${who}`}
-                data-testid="stock-entry-delete"
-                onClick={() => setConfirming(true)}
-              >
-                <TrashIcon size={16} />
-                Retirer
-              </button>
-            )}
-          </div>
-          <textarea
-            id={`${formId}-notes`}
-            className="underline-field"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            autoComplete="off"
-          />
-          {editing && confirming && (
-            <div className="confirm-row">
-              <button
-                type="button"
-                className="chip-action chip-action--accent"
-                disabled={action.pending}
-                data-testid="stock-entry-delete-confirm"
-                onClick={() => void remove()}
-              >
-                Confirmer la suppression
-              </button>
-              <button
-                type="button"
-                className="chip-action chip-action--neutral"
-                disabled={action.pending}
-                onClick={() => setConfirming(false)}
-              >
-                Garder
-              </button>
-            </div>
-          )}
-        </div>
+        <NotesField
+          formId={formId}
+          notes={notes}
+          setNotes={setNotes}
+          editing={editing !== null}
+          confirming={confirming}
+          setConfirming={setConfirming}
+          pending={action.pending}
+          who={who}
+          onRemove={() => void remove()}
+        />
 
         {invalid && (
           <p className="error-text" role="alert" data-testid="stock-form-error">
@@ -351,22 +244,246 @@ export function StockForm({
           {saved}
         </p>
 
-        {isDesktop ? (
-          <SheetFooter
-            onCancel={onDone}
-            primaryLabel={editing ? "Enregistrer" : "Ajouter à la collection"}
-            primaryDisabled={action.pending}
-            primaryTestId="stock-form-submit"
-          />
-        ) : (
-          <div className="sheet-form__footer">
-            <Pill type="submit" disabled={action.pending} data-testid="stock-form-submit">
-              {editing ? "Enregistrer" : "Ajouter à la collection"}
-            </Pill>
-            <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
-          </div>
-        )}
+        <StockFormFooter isDesktop={isDesktop} editing={editing !== null} pending={action.pending} onCancel={onDone} />
       </form>
     </Sheet>
+  );
+}
+
+/** La carte d'une entrée existante, telle que le formulaire la montre. */
+function chosenOf(editing: LocalStockEntry | null): Chosen | null {
+  if (!editing) return null;
+  return {
+    cardId: editing.cardId,
+    label: editing.cardName ?? `Carte n° ${editing.cardId}`,
+    cardSetIds: [editing.cardSetId],
+    latestCardSetId: editing.cardSetId,
+  };
+}
+
+/** Bureau : en-tête de feuille ; mobile : ligne de retour (le titre est dans le formulaire). */
+function StockFormHeading({
+  isDesktop,
+  editing,
+  label,
+  titleId,
+  titleRef,
+  onDone,
+}: {
+  isDesktop: boolean;
+  editing: LocalStockEntry | null;
+  label: string | undefined;
+  titleId: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+  onDone: () => void;
+}) {
+  return isDesktop ? (
+    <>
+      <SheetHeader
+        kicker={editing ? "Modifier une entrée" : undefined}
+        title={
+          editing ? (
+            <span data-testid="stock-form-card">{label}</span>
+          ) : (
+            "Ajouter à la collection"
+          )
+        }
+        titleId={titleId}
+        titleRef={titleRef}
+        onClose={onDone}
+      />
+      {editing?.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
+    </>
+  ) : (
+    <BackRow label="Collection" onClick={onDone} />
+  );
+}
+
+/** Titre mobile, dans le formulaire : la carte modifiée, ou « Ajouter à la collection ». */
+function MobileTitle({
+  editing,
+  label,
+  titleId,
+  titleRef,
+}: {
+  editing: LocalStockEntry | null;
+  label: string | undefined;
+  titleId: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+}) {
+  return editing ? (
+    <div>
+      <p className="kicker">Modifier une entrée</p>
+      <h2
+        id={titleId}
+        ref={titleRef}
+        tabIndex={-1}
+        className="sheet__title sheet__title--large"
+        data-testid="stock-form-card"
+      >
+        {label}
+      </h2>
+      {editing.category && <p className="page-meta">{CATEGORY_LABELS[editing.category]}</p>}
+    </div>
+  ) : (
+    <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title sheet__title--large">
+      Ajouter à la collection
+    </h2>
+  );
+}
+
+/** Extension : figée pour une entrée existante, au choix pour une carte possédée (D2a). */
+function ExtensionField({
+  formId,
+  editing,
+  chosen,
+  cardSetId,
+  onChange,
+  optionLabel,
+}: {
+  formId: string;
+  editing: LocalStockEntry | null;
+  /** La carte dont on choisit l'impression ; `null` quand la question ne se pose pas. */
+  chosen: Chosen | null;
+  cardSetId: number | null;
+  onChange: (id: number) => void;
+  optionLabel: (id: number) => string;
+}) {
+  return (
+    <>
+      {editing && (
+        <div className="field">
+          <label htmlFor={`${formId}-set`}>Extension</label>
+          <select
+            id={`${formId}-set`}
+            className="underline-field"
+            value={editing.cardSetId}
+            disabled
+            data-testid="stock-form-card-set"
+          >
+            <option value={editing.cardSetId}>{optionLabel(editing.cardSetId)}</option>
+          </select>
+        </div>
+      )}
+
+      {chosen && (
+        <div className="field">
+          <label htmlFor={`${formId}-set`}>Extension</label>
+          <select
+            id={`${formId}-set`}
+            className="underline-field"
+            value={cardSetId ?? chosen.latestCardSetId}
+            onChange={(event) => onChange(Number(event.target.value))}
+            data-testid="stock-form-card-set"
+          >
+            {chosen.cardSetIds.map((id) => (
+              <option key={id} value={id}>
+                {optionLabel(id)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Notes de l'entrée, et pour une entrée existante, son retrait avec confirmation. */
+function NotesField({
+  formId,
+  notes,
+  setNotes,
+  editing,
+  confirming,
+  setConfirming,
+  pending,
+  who,
+  onRemove,
+}: {
+  formId: string;
+  notes: string;
+  setNotes: (notes: string) => void;
+  editing: boolean;
+  confirming: boolean;
+  setConfirming: (confirming: boolean) => void;
+  pending: boolean;
+  who: string;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="field">
+      <div className="section-head">
+        <label htmlFor={`${formId}-notes`}>Notes</label>
+        {editing && !confirming && (
+          <button
+            type="button"
+            className="btn-danger-text"
+            disabled={pending}
+            aria-label={`Supprimer ${who}`}
+            data-testid="stock-entry-delete"
+            onClick={() => setConfirming(true)}
+          >
+            <TrashIcon size={16} />
+            Retirer
+          </button>
+        )}
+      </div>
+      <textarea
+        id={`${formId}-notes`}
+        className="underline-field"
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        autoComplete="off"
+      />
+      {editing && confirming && (
+        <div className="confirm-row">
+          <button
+            type="button"
+            className="chip-action chip-action--accent"
+            disabled={pending}
+            data-testid="stock-entry-delete-confirm"
+            onClick={onRemove}
+          >
+            Confirmer la suppression
+          </button>
+          <button
+            type="button"
+            className="chip-action chip-action--neutral"
+            disabled={pending}
+            onClick={() => setConfirming(false)}
+          >
+            Garder
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StockFormFooter({
+  isDesktop,
+  editing,
+  pending,
+  onCancel,
+}: {
+  isDesktop: boolean;
+  editing: boolean;
+  pending: boolean;
+  onCancel: () => void;
+}) {
+  return isDesktop ? (
+    <SheetFooter
+      onCancel={onCancel}
+      primaryLabel={editing ? "Enregistrer" : "Ajouter à la collection"}
+      primaryDisabled={pending}
+      primaryTestId="stock-form-submit"
+    />
+  ) : (
+    <div className="sheet-form__footer">
+      <Pill type="submit" disabled={pending} data-testid="stock-form-submit">
+        {editing ? "Enregistrer" : "Ajouter à la collection"}
+      </Pill>
+      <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
+    </div>
   );
 }

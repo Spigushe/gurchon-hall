@@ -1290,7 +1290,9 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
   ligne. État de départ : back, 305 fonctions et aucune au-dessus de 30 (pire 21), donc
   une référence vide ; front, 1439 fonctions dont 13 au-dessus de 30 (pire 159,5,
   `describeOperation`), deux seulement corrigibles par des tests, les onze autres
-  dépassant 30 en complexité seule.
+  dépassant 30 en complexité seule. Les 13 ont été résorbées le même jour, par
+  découpage (tables par type d'opération, sous-composants au DOM inchangé) et par des
+  tests (`collectionCorrection.ts`) : les deux références sont vides.
 - **Intégration.** pytest et vitest passent sous couverture dans `run.ps1 test` /
   `run.sh test` et dans les deux jobs de la CI, chacun suivi du contrôle ; une
   sous-commande `crap` ne fait que cela. L'agent `qa-tests` est propriétaire du score,

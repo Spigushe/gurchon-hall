@@ -11,6 +11,8 @@ import {
   useLocalVenues,
   useVtesOffline,
   type LocalGame,
+  type LocalPlayer,
+  type LocalVenue,
 } from "../../offline/vtes";
 import { GameForm } from "./GameForm";
 import { formatVp, fullDateTime, roundLabel } from "./gameFormat";
@@ -84,76 +86,17 @@ export function GameDetail({
   const myDeck = deckName(game.me.deckKey);
 
   const vp = game.me.victoryPoints;
-  const seats: SeatRow[] = [];
-  if (game.table) {
-    const lineName = (line: NonNullable<LocalGame["table"]>[number]) =>
-      line.isMe ? "Moi" : ((players && findByKey(players, line.playerKey)?.name) ?? "Joueur inconnu");
-    const lineSub = (line: NonNullable<LocalGame["table"]>[number]) => {
-      const name = deckName(line.deckKey);
-      if (name === null) return null;
-      return line.isMe ? name : `avec mon ${name}, prêté`;
-    };
-    for (let seat = 1; seat <= game.playerCount; seat += 1) {
-      const line = game.table.find((candidate) => candidate.seat === seat);
-      seats.push(
-        line
-          ? { key: `seat-${seat}`, seat, name: lineName(line), sub: lineSub(line), me: line.isMe, unnamed: false }
-          : { key: `seat-${seat}`, seat, name: "non nommé", sub: null, me: false, unnamed: true },
-      );
-    }
-    game.table
-      .filter((line) => line.seat === null || line.seat > game.playerCount)
-      .forEach((line, index) =>
-        seats.push({
-          key: `extra-${index}`,
-          seat: null,
-          name: lineName(line),
-          sub: lineSub(line),
-          me: line.isMe,
-          unnamed: false,
-        }),
-      );
-  }
+  const seats = seatRows(game, players, deckName);
 
   const actionsBlock = (
-    <div className="confirm-row" role="group" aria-label="Actions sur la partie">
-      <button
-        type="button"
-        className="btn btn-secondary"
-        disabled={action.pending}
-        data-testid="game-edit"
-        aria-keyshortcuts="e"
-        onClick={() => setEditing("game")}
-      >
-        Modifier
-        {isDesktop && <Kbd>E</Kbd>}
-      </button>
-      {canEditTable && (
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={action.pending}
-          data-testid="game-edit-table"
-          aria-keyshortcuts="t"
-          onClick={() => setEditing("table")}
-        >
-          Modifier la table
-          {isDesktop && <Kbd>T</Kbd>}
-        </button>
-      )}
-      {!confirming && (
-        <button
-          type="button"
-          className="btn-danger-text"
-          disabled={action.pending}
-          data-testid="game-delete"
-          onClick={() => setConfirming(true)}
-        >
-          <TrashIcon size={16} />
-          Supprimer
-        </button>
-      )}
-    </div>
+    <GameActions
+      pending={action.pending}
+      isDesktop={isDesktop}
+      canEditTable={canEditTable}
+      confirming={confirming}
+      onEdit={setEditing}
+      onDelete={() => setConfirming(true)}
+    />
   );
 
   return (
@@ -178,38 +121,7 @@ export function GameDetail({
 
       {dense && actionsBlock}
 
-      <ul className="facts" data-testid="game-facts">
-        <li className="facts__row">
-          <span className="facts__label">Mon deck</span>
-          <span className="facts__value" data-testid="game-fact-deck">
-            {myDeck ?? "—"}
-          </span>
-        </li>
-        {game.tournamentName && (
-          <li className="facts__row">
-            <span className="facts__label">Tournoi</span>
-            <span className="facts__value">{[game.tournamentName, round].filter(Boolean).join(" · ")}</span>
-          </li>
-        )}
-        {venue && (
-          <li className="facts__row">
-            <span className="facts__label">Lieu</span>
-            <span className="facts__value">{venue.name}</span>
-          </li>
-        )}
-        {!dense && (
-          <li className="facts__row">
-            <span className="facts__label">Date</span>
-            <span className="facts__value">{fullDateTime(game.playedAt)}</span>
-          </li>
-        )}
-        {dense && (
-          <li className="facts__row">
-            <span className="facts__label">Joueurs</span>
-            <span className="facts__value">{game.playerCount}</span>
-          </li>
-        )}
-      </ul>
+      <GameFacts game={game} myDeck={myDeck} round={round} venue={venue} dense={dense} />
 
       <div>
         <p className="kicker">{dense ? "Table par siège" : `Table · ${game.playerCount} joueurs`}</p>
@@ -292,5 +204,152 @@ export function GameDetail({
         <GameForm game={game} adversariesOpen={editing === "table"} onClose={() => setEditing(null)} />
       )}
     </div>
+  );
+}
+
+/** Une ligne par siège de la table, puis les joueurs sans siège (ou au-delà de la table). */
+function seatRows(
+  game: LocalGame,
+  players: LocalPlayer[] | undefined,
+  deckName: (key: LocalGame["me"]["deckKey"]) => string | null,
+): SeatRow[] {
+  const table = game.table;
+  const seats: SeatRow[] = [];
+  if (!table) return seats;
+  const lineName = (line: NonNullable<LocalGame["table"]>[number]) =>
+    line.isMe ? "Moi" : ((players && findByKey(players, line.playerKey)?.name) ?? "Joueur inconnu");
+  const lineSub = (line: NonNullable<LocalGame["table"]>[number]) => {
+    const name = deckName(line.deckKey);
+    if (name === null) return null;
+    return line.isMe ? name : `avec mon ${name}, prêté`;
+  };
+  for (let seat = 1; seat <= game.playerCount; seat += 1) {
+    const line = table.find((candidate) => candidate.seat === seat);
+    seats.push(
+      line
+        ? { key: `seat-${seat}`, seat, name: lineName(line), sub: lineSub(line), me: line.isMe, unnamed: false }
+        : { key: `seat-${seat}`, seat, name: "non nommé", sub: null, me: false, unnamed: true },
+    );
+  }
+  table
+    .filter((line) => line.seat === null || line.seat > game.playerCount)
+    .forEach((line, index) =>
+      seats.push({
+        key: `extra-${index}`,
+        seat: null,
+        name: lineName(line),
+        sub: lineSub(line),
+        me: line.isMe,
+        unnamed: false,
+      }),
+    );
+  return seats;
+}
+
+/** Modifier, modifier la table (si elle est connue), supprimer. */
+function GameActions({
+  pending,
+  isDesktop,
+  canEditTable,
+  confirming,
+  onEdit,
+  onDelete,
+}: {
+  pending: boolean;
+  isDesktop: boolean;
+  canEditTable: boolean;
+  confirming: boolean;
+  onEdit: (editing: Exclude<Editing, null>) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="confirm-row" role="group" aria-label="Actions sur la partie">
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={pending}
+        data-testid="game-edit"
+        aria-keyshortcuts="e"
+        onClick={() => onEdit("game")}
+      >
+        Modifier
+        {isDesktop && <Kbd>E</Kbd>}
+      </button>
+      {canEditTable && (
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={pending}
+          data-testid="game-edit-table"
+          aria-keyshortcuts="t"
+          onClick={() => onEdit("table")}
+        >
+          Modifier la table
+          {isDesktop && <Kbd>T</Kbd>}
+        </button>
+      )}
+      {!confirming && (
+        <button
+          type="button"
+          className="btn-danger-text"
+          disabled={pending}
+          data-testid="game-delete"
+          onClick={onDelete}
+        >
+          <TrashIcon size={16} />
+          Supprimer
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Mon deck, tournoi et ronde, lieu, date (ou nombre de joueurs en panneau dense). */
+function GameFacts({
+  game,
+  myDeck,
+  round,
+  venue,
+  dense,
+}: {
+  game: LocalGame;
+  myDeck: string | null;
+  round: string | null;
+  venue: LocalVenue | undefined;
+  dense: boolean;
+}) {
+  return (
+    <ul className="facts" data-testid="game-facts">
+      <li className="facts__row">
+        <span className="facts__label">Mon deck</span>
+        <span className="facts__value" data-testid="game-fact-deck">
+          {myDeck ?? "—"}
+        </span>
+      </li>
+      {game.tournamentName && (
+        <li className="facts__row">
+          <span className="facts__label">Tournoi</span>
+          <span className="facts__value">{[game.tournamentName, round].filter(Boolean).join(" · ")}</span>
+        </li>
+      )}
+      {venue && (
+        <li className="facts__row">
+          <span className="facts__label">Lieu</span>
+          <span className="facts__value">{venue.name}</span>
+        </li>
+      )}
+      {!dense && (
+        <li className="facts__row">
+          <span className="facts__label">Date</span>
+          <span className="facts__value">{fullDateTime(game.playedAt)}</span>
+        </li>
+      )}
+      {dense && (
+        <li className="facts__row">
+          <span className="facts__label">Joueurs</span>
+          <span className="facts__value">{game.playerCount}</span>
+        </li>
+      )}
+    </ul>
   );
 }

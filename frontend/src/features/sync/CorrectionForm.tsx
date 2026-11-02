@@ -8,13 +8,17 @@ import { useIsDesktop } from "../../components/useIsDesktop";
 import { DECK_STATUS_LABELS, REJECTION_LABELS, type DeckStatus } from "../../labels";
 import type { OutboxEntry } from "../../offline/core";
 import { useVtesOffline, type VtesOperation } from "../../offline/vtes";
+import { collectionCorrection, type CorrectionResult } from "./collectionCorrection";
 import { applyDraft, initialDraft, isPlayCorrectable, type PlayDraft } from "./playCorrection";
 import { PlayCorrectionFields } from "./PlayCorrectionFields";
 import { useOperationDescriber } from "./useOperationLabels";
 
 type Entry = OutboxEntry<VtesOperation>;
 
-const MAX_INT = 2_147_483_647;
+function playCorrection(operation: VtesOperation, draft: PlayDraft): CorrectionResult {
+  const result = applyDraft(operation, draft);
+  return "error" in result ? result : { transform: () => result.operation };
+}
 
 /**
  * Corrige une opération refusée puis la renvoie : la couche offline en crée une
@@ -80,73 +84,12 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
-    let transform: (op: VtesOperation) => VtesOperation;
-    switch (operation.type) {
-      case "stock.upsert": {
-        const owned = quantity;
-        if (!(owned >= 0 && owned <= MAX_INT)) {
-          return setInvalid("Indiquez un nombre d'exemplaires entier, 0 ou plus.");
-        }
-        transform = (op) =>
-          op.type === "stock.upsert" ? { ...op, data: { ...op.data, quantity_owned: owned } } : op;
-        break;
-      }
-      case "deck_card.upsert": {
-        const total = quantity;
-        const proxies = proxyQuantity;
-        if (!(total >= 1 && total <= MAX_INT)) return setInvalid("La quantité doit être un entier, 1 ou plus.");
-        if (!(proxies >= 0 && proxies <= total)) {
-          return setInvalid("Les proxies sont un entier compris entre 0 et la quantité.");
-        }
-        transform = (op) =>
-          op.type === "deck_card.upsert"
-            ? { ...op, data: { ...op.data, quantity: total, proxy_quantity: proxies } }
-            : op;
-        break;
-      }
-      case "bundle.deposit": {
-        const count = quantity;
-        if (!(count >= 1 && count <= MAX_INT)) return setInvalid("Le nombre de produits est un entier, 1 ou plus.");
-        transform = (op) => (op.type === "bundle.deposit" ? { ...op, data: { ...op.data, count } } : op);
-        break;
-      }
-      case "deck.create": {
-        const trimmed = name.trim();
-        if (!trimmed) return setInvalid("Le nom du deck est obligatoire.");
-        transform = (op) =>
-          op.type === "deck.create"
-            ? { ...op, data: { ...op.data, name: trimmed, proxy_allowed: proxyAllowed } }
-            : op;
-        break;
-      }
-      case "deck.update": {
-        const trimmed = name.trim();
-        if (operation.data.name !== undefined && !trimmed) {
-          return setInvalid("Le nom du deck est obligatoire.");
-        }
-        transform = (op) =>
-          op.type === "deck.update"
-            ? {
-                ...op,
-                data: {
-                  ...op.data,
-                  ...(op.data.name !== undefined ? { name: trimmed } : {}),
-                  ...(op.data.status !== undefined ? { status } : {}),
-                  ...(op.data.proxy_allowed !== undefined ? { proxy_allowed: proxyAllowed } : {}),
-                },
-              }
-            : op;
-        break;
-      }
-      default: {
-        if (!playCorrectable) return;
-        const result = applyDraft(operation, playDraft);
-        if ("error" in result) return setInvalid(result.error);
-        transform = () => result.operation;
-      }
-    }
+    const result = collectionCorrection(operation, { quantity, proxyQuantity, proxyAllowed, name, status }) ??
+      (playCorrectable ? playCorrection(operation, playDraft) : null);
+    if (result === null) return;
+    if ("error" in result) return setInvalid(result.error);
     setInvalid(null);
-    const done = await action.run(() => outbox.reissue(entry.operationId, transform));
+    const done = await action.run(() => outbox.reissue(entry.operationId, result.transform));
     if (done) onDone();
   };
 

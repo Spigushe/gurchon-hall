@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { CaretDownIcon, CaretUpIcon, HandArrowUpIcon, LockSimpleIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
@@ -68,6 +68,8 @@ interface PlayData {
 
 type View = "form" | "venue" | "tournament" | "round" | "count" | "deck";
 
+type Patch = (changes: Partial<GameDraft> | ((current: GameDraft) => Partial<GameDraft>)) => void;
+
 const PRESET_COUNTS = [4, 5];
 
 /** Les parties d'un tournoi, hors celle qu'on est en train de corriger. */
@@ -120,6 +122,89 @@ function bestRoundMeta(deckKey: DeckKey, tournamentGames: LocalGame[]): string |
   const vp = vpLabel(best.me.victoryPoints);
   if (vp) parts.push(vp);
   return parts.join(" · ");
+}
+
+/** Lieux qui contiennent le texte cherché ; « Aucun lieu » tant que rien n'est tapé. */
+function venueOptions(venues: LocalVenue[], term: string) {
+  const typed = term.trim();
+  return [
+    ...(typed === "" ? [{ value: "", label: "Aucun lieu" }] : []),
+    ...venues
+      .filter((venue) => foldText(venue.name).includes(foldText(typed)))
+      .map((venue) => ({ value: venue.key, label: venue.name, meta: venue.city ?? undefined })),
+  ];
+}
+
+/** Création proposée quand le nom tapé ne désigne aucun lieu connu. */
+function venueCreation(venues: LocalVenue[], term: string, onCreate: () => void) {
+  const typed = term.trim();
+  if (typed === "" || venues.some((venue) => foldText(venue.name) === foldText(typed))) return null;
+  return { label: `Créer le lieu « ${typed} »`, onCreate };
+}
+
+/** Rondes proposées : jusqu'au nombre annoncé, à la ronde saisie ou à la suivante, puis la finale. */
+function roundOptions(tournament: LocalTournament, draft: GameDraft, tournamentGames: LocalGame[]) {
+  const length = Math.max(
+    tournament.roundCount ?? 0,
+    draft.roundNumber ?? 0,
+    nextRoundNumber(
+      tournamentGames
+        .filter((candidate) => candidate.roundType === "preliminary")
+        .map((candidate) => candidate.roundNumber),
+    ),
+  );
+  return [
+    ...Array.from({ length }, (_, index) => ({ value: String(index + 1), label: `Ronde ${index + 1}` })),
+    { value: "final", label: "Finale" },
+  ];
+}
+
+/** « Actif · archivé · #1234 » : statut, archivage et discriminant d'un deck. */
+function deckMeta(deck: LocalDeck): string {
+  return [
+    DECK_STATUS_LABELS[deck.status],
+    deck.archivedAt ? "archivé" : null,
+    deck.discriminator ? `#${deck.discriminator}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Decks proposés ; en finale à decks restreints, sans « Aucun deck » et avec la meilleure ronde de chacun. */
+function deckOptions(deckChoices: LocalDeck[], restrictedKeys: DeckKey[] | null, tournamentGames: LocalGame[]) {
+  return [
+    ...(restrictedKeys ? [] : [{ value: "", label: "Aucun deck" }]),
+    ...deckChoices.map((deck) => ({
+      value: deck.key,
+      label: deck.name,
+      meta: (restrictedKeys && bestRoundMeta(deck.key, tournamentGames)) || deckMeta(deck),
+    })),
+  ];
+}
+
+/** Avertissement quand le deck choisi n'est pas celui que le mono-deck impose. */
+function monoDeckWarning(monoDeckKey: DeckKey | null, deckKey: DeckKey | null, monoDeck: LocalDeck | undefined) {
+  if (monoDeckKey === null || deckKey === null || deckKey === monoDeckKey) return null;
+  return `Tournoi mono-deck : vos rondes ont été jouées avec ${monoDeck?.name ?? "un autre deck"}. Le serveur refusera un autre deck.`;
+}
+
+/** Surtitre, titre et libellé d'envoi du formulaire. */
+function formTexts(game: LocalGame | undefined, tournament: LocalTournament | undefined, draft: GameDraft) {
+  const round = draft.roundType === "casual" ? null : (roundLabel(draft) ?? null);
+  const final = draft.roundType === "final";
+  return {
+    kicker: tournament ? [tournament.name, round].filter(Boolean).join(" · ") : "Amicale",
+    title: game ? "Modifier la partie" : "Nouvelle partie",
+    submitLabel: game ? "Enregistrer" : final ? "Enregistrer la finale" : "Enregistrer la partie",
+  };
+}
+
+/** Siège déjà pris par une autre ligne que `except` (moi, ou l'adversaire d'indice donné). */
+function isSeatTaken(draft: GameDraft, seat: number, except: "me" | number): boolean {
+  return (
+    (except !== "me" && draft.seat === seat) ||
+    draft.opponents.some((opponent, index) => index !== except && opponent.seat === seat)
+  );
 }
 
 function canonical<T extends LocalResource>(
@@ -331,21 +416,14 @@ function GameFormBody({
   const errors = tableKnown ? formErrors(draft) : [];
   const errorOf = (id: "gw" | "vp" | "table") => errors.find((error) => error.id === id)?.message ?? null;
   const monoDeck = monoDeckKey ? deckOf(monoDeckKey) : undefined;
-  const monoWarning =
-    monoDeckKey !== null && draft.deckKey !== null && draft.deckKey !== monoDeckKey
-      ? `Tournoi mono-deck : vos rondes ont été jouées avec ${monoDeck?.name ?? "un autre deck"}. Le serveur refusera un autre deck.`
-      : null;
+  const monoWarning = monoDeckWarning(monoDeckKey, draft.deckKey, monoDeck);
 
   useEffect(() => {
     if (adversariesOpen) opponentsRef.current?.scrollIntoView?.({ block: "center" });
   }, [adversariesOpen]);
 
-  const kicker = tournament
-    ? [tournament.name, draft.roundType === "casual" ? null : (roundLabel(draft) ?? null)].filter(Boolean).join(" · ")
-    : "Amicale";
-  const title = game ? "Modifier la partie" : "Nouvelle partie";
+  const { kicker, title, submitLabel } = formTexts(game, tournament, draft);
   const isFinal = draft.roundType === "final";
-  const submitLabel = game ? "Enregistrer" : isFinal ? "Enregistrer la finale" : "Enregistrer la partie";
 
   // --- Choix de valeurs ---------------------------------------------------------
 
@@ -535,148 +613,28 @@ function GameFormBody({
 
   if (view !== "form") {
     return (
-      <Sheet titleId={titleId} titleRef={titleRef} onClose={closeSheet} data-testid="game-form-sheet">
-        {view === "venue" && (
-          <ChoicePanel
-            kicker={title}
-            title="Lieu"
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={closeSheet}
-            testId="game-venue-picker"
-            search={{ term: venueTerm, onChange: setVenueTerm, placeholder: "Rechercher ou créer un lieu" }}
-            options={[
-              ...(venueTerm.trim() === "" ? [{ value: "", label: "Aucun lieu" }] : []),
-              ...data.venues
-                .filter((venue) => foldText(venue.name).includes(foldText(venueTerm.trim())))
-                .map((venue) => ({
-                  value: venue.key,
-                  label: venue.name,
-                  meta: venue.city ?? undefined,
-                })),
-            ]}
-            selected={canonical(data.venues, draft.venueKey) ?? ""}
-            onSelect={(value) => {
-              patch({ venueKey: value === "" ? null : (value as ResourceKey) });
-              setVenueTerm("");
-              setView("form");
-            }}
-            create={
-              venueTerm.trim() !== "" &&
-              !data.venues.some((venue) => foldText(venue.name) === foldText(venueTerm.trim()))
-                ? { label: `Créer le lieu « ${venueTerm.trim()} »`, onCreate: () => void createVenue() }
-                : null
-            }
-            error={setup.error}
-            note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
-          />
-        )}
-        {view === "tournament" && (
-          <ChoicePanel
-            kicker={title}
-            title="Tournoi"
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={closeSheet}
-            testId="game-tournament-picker"
-            options={[
-              { value: "", label: "Amicale", meta: "Aucun tournoi" },
-              ...data.tournaments.map((candidate) => ({
-                value: candidate.key,
-                label: candidate.name,
-                meta: formatLocalDate(candidate.startDate),
-              })),
-            ]}
-            selected={tournament?.key ?? ""}
-            onSelect={chooseTournament}
-          />
-        )}
-        {view === "round" && tournament && (
-          <ChoicePanel
-            kicker={title}
-            title="Ronde"
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={closeSheet}
-            testId="game-round-picker"
-            options={[
-              ...Array.from(
-                {
-                  length: Math.max(
-                    tournament.roundCount ?? 0,
-                    draft.roundNumber ?? 0,
-                    nextRoundNumber(
-                      tournamentGames
-                        .filter((candidate) => candidate.roundType === "preliminary")
-                        .map((candidate) => candidate.roundNumber),
-                    ),
-                  ),
-                },
-                (_, index) => ({ value: String(index + 1), label: `Ronde ${index + 1}` }),
-              ),
-              { value: "final", label: "Finale" },
-            ]}
-            selected={draft.roundType === "final" ? "final" : String(draft.roundNumber ?? "")}
-            onSelect={chooseRound}
-          />
-        )}
-        {view === "count" && (
-          <ChoicePanel
-            title="Joueurs à la table"
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={closeSheet}
-            testId="game-count-picker"
-            options={Array.from({ length: MAX_TABLE - MIN_TABLE + 1 }, (_, index) => ({
-              value: String(MIN_TABLE + index),
-              label: `${MIN_TABLE + index} joueurs`,
-            }))}
-            selected={String(draft.playerCount)}
-            onSelect={(value) => {
-              choosePlayerCount(Number(value));
-              setView("form");
-            }}
-            note="En tournoi, une table compte quatre ou cinq joueurs ; l'outil accepte de deux à six."
-          />
-        )}
-        {view === "deck" && (
-          <ChoicePanel
-            kicker={title}
-            title="Mon deck"
-            titleId={titleId}
-            titleRef={titleRef}
-            onClose={closeSheet}
-            testId="game-deck-picker"
-            options={[
-              ...(restrictedKeys ? [] : [{ value: "", label: "Aucun deck" }]),
-              ...deckChoices.map((deck) => ({
-              value: deck.key,
-              label: deck.name,
-              meta:
-                (restrictedKeys && bestRoundMeta(deck.key, tournamentGames)) ||
-                [
-                  DECK_STATUS_LABELS[deck.status],
-                  deck.archivedAt ? "archivé" : null,
-                  deck.discriminator ? `#${deck.discriminator}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · "),
-              })),
-            ]}
-            selected={draft.deckKey ?? ""}
-            onSelect={(value) => {
-              patch({ deckKey: value === "" ? null : (value as DeckKey) });
-              setView("form");
-            }}
-            emptyLabel="Aucun deck à proposer."
-            note={
-              restrictedKeys
-                ? finalDeckNote(tournament?.finalDeckRule ?? null, deckChoices.length)
-                : undefined
-            }
-          />
-        )}
-      </Sheet>
+      <GameChoiceSheet
+        view={view}
+        title={title}
+        titleId={titleId}
+        titleRef={titleRef}
+        onClose={closeSheet}
+        data={data}
+        draft={draft}
+        tournament={tournament}
+        tournamentGames={tournamentGames}
+        restrictedKeys={restrictedKeys}
+        deckChoices={deckChoices}
+        venueTerm={venueTerm}
+        setVenueTerm={setVenueTerm}
+        setupError={setup.error}
+        onCreateVenue={() => void createVenue()}
+        onChooseTournament={chooseTournament}
+        onChooseRound={chooseRound}
+        onChoosePlayerCount={choosePlayerCount}
+        patch={patch}
+        setView={setView}
+      />
     );
   }
 
@@ -692,21 +650,7 @@ function GameFormBody({
     return null;
   })();
 
-  const suggestions = data.players.filter(
-    (player) =>
-      !player.isMe &&
-      opponentTerm.trim() !== "" &&
-      foldText(player.name).includes(foldText(opponentTerm.trim())) &&
-      !draft.opponents.some((line) => canonical(data.players, line.playerKey) === player.key),
-  );
-  const typedName = opponentTerm.trim();
-  const isMyName = data.players.some((player) => player.isMe && foldText(player.name) === foldText(typedName));
-  const canCreateOpponent =
-    typedName !== "" && !isMyName && !data.players.some((player) => !player.isMe && foldText(player.name) === foldText(typedName));
-  const tableFull = draft.opponents.length + 1 >= draft.playerCount;
-  const seatTaken = (seat: number, except: "me" | number) =>
-    (except !== "me" && draft.seat === seat) ||
-    draft.opponents.some((opponent, index) => index !== except && opponent.seat === seat);
+  const seatTaken = (seat: number, except: "me" | number) => isSeatTaken(draft, seat, except);
 
   const footer = isDesktop ? (
     <SheetFooter
@@ -741,372 +685,64 @@ function GameFormBody({
         data-testid="game-form"
         aria-label={title}
       >
-        <div className="ctx-grid">
-          <div className="ctx-field">
-            <label className="ctx-field__label" htmlFor={`${formId}-when`}>
-              Quand
-            </label>
-            <input
-              id={`${formId}-when`}
-              type="datetime-local"
-              className="underline-field"
-              value={draft.playedAt}
-              onChange={(event) => patch({ playedAt: event.target.value })}
-              data-testid="game-form-played-at"
-              aria-describedby={`${formId}-when-hint`}
-            />
-            <p className="hint" id={`${formId}-when-hint`} data-testid="game-form-when-hint">
-              {whenLabel(draft.playedAt)}
-            </p>
-          </div>
-          <div className="ctx-field">
-            <span className="ctx-field__label" id={`${formId}-venue-label`}>
-              Lieu
-            </span>
-            <button
-              type="button"
-              className="ctx-field__value"
-              aria-labelledby={`${formId}-venue-label ${formId}-venue`}
-              onClick={() => setView("venue")}
-              data-return-focus="venue"
-              data-testid="game-form-venue"
-            >
-              <span id={`${formId}-venue`}>
-                {draft.venueKey ? (findByKey(data.venues, draft.venueKey)?.name ?? "Lieu inconnu") : "Aucun lieu"}
-              </span>
-            </button>
-          </div>
-          <div className="ctx-field">
-            <span className="ctx-field__label" id={`${formId}-tournament-label`}>
-              Tournoi
-            </span>
-            <button
-              type="button"
-              className="ctx-field__value"
-              aria-labelledby={`${formId}-tournament-label ${formId}-tournament`}
-              onClick={() => setView("tournament")}
-              data-return-focus="tournament"
-              data-testid="game-form-tournament"
-            >
-              <span id={`${formId}-tournament`}>{tournament ? tournament.name : "Amicale"}</span>
-            </button>
-          </div>
-          {tournament && (
-            <div className="ctx-field">
-              <span className="ctx-field__label" id={`${formId}-round-label`}>
-                Ronde
-              </span>
-              <button
-                type="button"
-                className="ctx-field__value"
-                aria-labelledby={`${formId}-round-label ${formId}-round`}
-                onClick={() => setView("round")}
-                data-return-focus="round"
-                data-testid="game-form-round"
-              >
-                <span id={`${formId}-round`}>{isFinal ? "Finale" : `Ronde ${draft.roundNumber ?? ""}`}</span>
-              </button>
-            </div>
-          )}
-        </div>
+        <GameContextFields
+          formId={formId}
+          data={data}
+          draft={draft}
+          tournament={tournament}
+          isFinal={isFinal}
+          patch={patch}
+          setView={setView}
+        />
 
-        <fieldset className="language-chips" data-testid="game-form-count">
-          <legend>Joueurs à la table</legend>
-          <div className="language-chips__row">
-            {PRESET_COUNTS.map((count) => (
-              <label key={count} className="chip">
-                <input
-                  type="radio"
-                  name={`${formId}-count`}
-                  value={count}
-                  checked={draft.playerCount === count}
-                  onChange={() => choosePlayerCount(count)}
-                  data-testid={`game-form-count-${count}`}
-                />
-                {count}
-              </label>
-            ))}
-            <label className="chip">
-              <input
-                type="radio"
-                name={`${formId}-count`}
-                value="other"
-                checked={!PRESET_COUNTS.includes(draft.playerCount)}
-                onChange={() => setView("count")}
-                onClick={() => setView("count")}
-                data-return-focus="count"
-                data-testid="game-form-count-other"
-              />
-              {PRESET_COUNTS.includes(draft.playerCount) ? "Autre" : `${draft.playerCount} joueurs`}
-            </label>
-          </div>
-          {seatNotice && (
-            <p className="hint" role="status" data-testid="game-form-seat-notice">
-              {seatNotice}
-            </p>
-          )}
-          {errorOf("table") && (
-            <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-table-error">
-              {errorOf("table")}
-            </p>
-          )}
-        </fieldset>
+        <TableCountField
+          formId={formId}
+          draft={draft}
+          seatNotice={seatNotice}
+          tableError={errorOf("table")}
+          onChoose={choosePlayerCount}
+          setView={setView}
+        />
 
         {tableKnown ? (
           <>
-            <div className="field">
-              <span className="field__label">Mon deck</span>
-              <div className="chosen-row">
-                <span data-testid="game-form-deck">
-                  {chosenDeck ? chosenDeck.name : draft.deckKey ? "Deck inconnu sur cet appareil" : "Aucun deck choisi"}
-                </span>
-                <button
-                  type="button"
-                  className="btn-text"
-                  onClick={() => setView("deck")}
-                  data-return-focus="deck"
-                  data-testid="game-form-deck-change"
-                >
-                  Changer
-                </button>
-              </div>
-              {deckHint && (
-                <p className="hint" data-testid="game-form-deck-hint">
-                  {deckHint}
-                </p>
-              )}
-              {monoWarning && (
-                <p className="error-text" role="alert" data-testid="game-form-mono-warning">
-                  {monoWarning}{" "}
-                  {monoDeckKey && (
-                    <button
-                      type="button"
-                      className="btn-text"
-                      onClick={() => patch({ deckKey: monoDeckKey })}
-                      data-testid="game-form-mono-resume"
-                    >
-                      Reprendre {monoDeck?.name ?? "ce deck"}
-                    </button>
-                  )}
-                </p>
-              )}
-            </div>
+            <MyLineFields
+              formId={formId}
+              draft={draft}
+              patch={patch}
+              chosenDeck={chosenDeck}
+              deckHint={deckHint}
+              monoWarning={monoWarning}
+              monoDeckKey={monoDeckKey}
+              monoDeck={monoDeck}
+              seatTaken={seatTaken}
+              errorOf={errorOf}
+              advice={advice}
+              setLockAttempt={setLockAttempt}
+              setView={setView}
+            />
 
-            <fieldset className="language-chips" data-testid="game-form-seats">
-              <legend>Mon siège</legend>
-              <div className="language-chips__row">
-                {Array.from({ length: draft.playerCount }, (_, index) => index + 1).map((seat) => (
-                  <label key={seat} className="chip chip--square">
-                    <input
-                      type="checkbox"
-                      checked={draft.seat === seat}
-                      disabled={seatTaken(seat, "me")}
-                      onChange={() => patch((current) => ({ seat: current.seat === seat ? null : seat }))}
-                      data-testid={`game-form-seat-${seat}`}
-                    />
-                    {seat}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <div className="field">
-              <Stepper
-                label="Mes VP"
-                value={draft.vp ?? 0}
-                min={0}
-                max={draft.playerCount}
-                step={0.5}
-                // Les VP vont par demi-points : une saisie au clavier est arrondie au demi-point.
-                onChange={(next) => patch({ vp: Math.max(0, Math.round(next * 2) / 2) })}
-                decrementLabel="Retirer un demi-point de VP"
-                incrementLabel="Ajouter un demi-point de VP"
-              />
-              <p className="hint" data-testid="game-form-vp-value">
-                {draft.vp === null ? "VP non saisis" : `${formatVp(draft.vp)} VP`} · pas de 0,5
-              </p>
-              {errorOf("vp") && (
-                <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-vp-error">
-                  {errorOf("vp")}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <Switch
-                id={`${formId}-gw`}
-                checked={advice.checked}
-                onChange={(next) => {
-                  if (advice.locked && !next) {
-                    setLockAttempt(true);
-                    return;
-                  }
-                  setLockAttempt(false);
-                  patch({ gameWin: next });
-                }}
-                label="Game Win"
-                labelIcon={
-                  advice.locked ? (
-                    <LockSimpleIcon size={14} className="switch-row__lock" data-testid="game-form-gw-lock" />
-                  ) : undefined
-                }
-                hint={advice.help}
-                hintTestId="game-form-gw-help"
-                data-testid="game-form-gw"
-              />
-              {errorOf("gw") && (
-                <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-gw-error">
-                  {errorOf("gw")}
-                </p>
-              )}
-            </div>
-
-            <div ref={opponentsRef}>
-              <button
-                type="button"
-                className="toggle-row"
-                aria-expanded={opponentsOpen}
-                onClick={() => setOpponentsOpen((open) => !open)}
-                data-testid="game-form-opponents-toggle"
-              >
-                <span>
-                  <span className="toggle-row__label">Adversaires</span>
-                  <span className="row__meta">
-                    Facultatif ·{" "}
-                    {draft.opponents.length === 0
-                      ? "aucun nommé"
-                      : draft.opponents.map((opponent) => opponent.name).join(", ")}
-                  </span>
-                </span>
-                {opponentsOpen ? <CaretUpIcon size={18} /> : <CaretDownIcon size={18} />}
-              </button>
-              {opponentsOpen && (
-                <div className="opponents" data-testid="game-form-opponents">
-                  {draft.opponents.map((opponent, index) => (
-                    <div className="opponent-row" key={opponent.playerKey} data-testid="game-form-opponent">
-                      <select
-                        className="seat-select"
-                        aria-label={`Siège de ${opponent.name}`}
-                        value={opponent.seat ?? ""}
-                        onChange={(event) =>
-                          updateOpponent(index, { seat: event.target.value === "" ? null : Number(event.target.value) })
-                        }
-                      >
-                        <option value="">–</option>
-                        {Array.from({ length: draft.playerCount }, (_, position) => position + 1)
-                          .filter((seat) => seat === opponent.seat || !seatTaken(seat, index))
-                          .map((seat) => (
-                            <option key={seat} value={seat}>
-                              {seat}
-                            </option>
-                          ))}
-                      </select>
-                      <div className="opponent-row__body">
-                        <span className="opponent-row__name">{opponent.name}</span>
-                        <label className="opponent-row__lend">
-                          <HandArrowUpIcon size={14} aria-hidden="true" />
-                          <select
-                            aria-label={`Deck prêté à ${opponent.name}`}
-                            value={opponent.deckKey ?? ""}
-                            onChange={(event) =>
-                              updateOpponent(index, {
-                                deckKey: event.target.value === "" ? null : (event.target.value as DeckKey),
-                              })
-                            }
-                          >
-                            <option value="">Prêter un de mes decks</option>
-                            {decksSorted.map((deck) => (
-                              <option key={deck.key} value={deck.key}>
-                                Joue mon {deck.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </div>
-                      <button
-                        type="button"
-                        className="icon-btn"
-                        aria-label={`Retirer ${opponent.name} de la table`}
-                        onClick={() =>
-                          patch((current) => ({
-                            opponents: current.opponents.filter((_, position) => position !== index),
-                          }))
-                        }
-                      >
-                        <XIcon size={18} />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="field">
-                    <label htmlFor={`${formId}-opponent`} className="sr-only">
-                      Ajouter un adversaire
-                    </label>
-                    <div className="opponent-add">
-                      <UserPlusIcon size={18} aria-hidden="true" />
-                      <input
-                        id={`${formId}-opponent`}
-                        className="underline-field"
-                        value={opponentTerm}
-                        onChange={(event) => setOpponentTerm(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") {
-                            event.preventDefault();
-                            if (canCreateOpponent && !tableFull) void createOpponent();
-                          }
-                        }}
-                        placeholder="Ajouter un adversaire"
-                        autoComplete="off"
-                        disabled={tableFull}
-                        data-testid="game-form-opponent-input"
-                      />
-                    </div>
-                    {tableFull && <p className="hint">La table est complète.</p>}
-                    {isMyName && <p className="hint">C'est vous : votre ligne est déjà à la table.</p>}
-                    {!tableFull && (suggestions.length > 0 || canCreateOpponent) && (
-                      <ul className="list" data-testid="game-form-opponent-suggestions">
-                        {suggestions.map((player) => (
-                          <li key={player.key}>
-                            <button
-                              type="button"
-                              className="choice-row"
-                              onClick={() =>
-                                addOpponent({
-                                  playerKey: player.key,
-                                  name: player.name,
-                                  seat: null,
-                                  deckKey: null,
-                                  notes: null,
-                                })
-                              }
-                            >
-                              <span className="choice-row__label">{player.name}</span>
-                            </button>
-                          </li>
-                        ))}
-                        {canCreateOpponent && (
-                          <li>
-                            <button
-                              type="button"
-                              className="choice-row choice-row--create"
-                              onClick={() => void createOpponent()}
-                              data-testid="game-form-opponent-create"
-                            >
-                              <span className="choice-row__label">Ajouter « {typedName} » au carnet</span>
-                            </button>
-                          </li>
-                        )}
-                      </ul>
-                    )}
-                    <p className="hint">Jamais de score d'adversaire : seuls vos VP comptent.</p>
-                    {setup.error && (
-                      <p className="error-text" role="alert" data-testid="game-form-setup-error">
-                        {setup.error}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <OpponentsSection
+              sectionRef={opponentsRef}
+              formId={formId}
+              data={data}
+              draft={draft}
+              decksSorted={decksSorted}
+              open={opponentsOpen}
+              onToggle={() => setOpponentsOpen((open) => !open)}
+              term={opponentTerm}
+              setTerm={setOpponentTerm}
+              onAdd={addOpponent}
+              onUpdate={updateOpponent}
+              onRemove={(index) =>
+                patch((current) => ({
+                  opponents: current.opponents.filter((_, position) => position !== index),
+                }))
+              }
+              onCreate={createOpponent}
+              seatTaken={seatTaken}
+              setupError={setup.error}
+            />
           </>
         ) : (
           <p className="hint" data-testid="game-form-table-unknown">
@@ -1140,5 +776,636 @@ function GameFormBody({
         {footer}
       </form>
     </Sheet>
+  );
+}
+
+/** Les panneaux de choix (lieu, tournoi, ronde, nombre de joueurs, deck) qui remplacent le formulaire. */
+function GameChoiceSheet({
+  view,
+  title,
+  titleId,
+  titleRef,
+  onClose,
+  data,
+  draft,
+  tournament,
+  tournamentGames,
+  restrictedKeys,
+  deckChoices,
+  venueTerm,
+  setVenueTerm,
+  setupError,
+  onCreateVenue,
+  onChooseTournament,
+  onChooseRound,
+  onChoosePlayerCount,
+  patch,
+  setView,
+}: {
+  view: Exclude<View, "form">;
+  title: string;
+  titleId: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+  onClose: () => void;
+  data: PlayData;
+  draft: GameDraft;
+  tournament: LocalTournament | undefined;
+  tournamentGames: LocalGame[];
+  restrictedKeys: DeckKey[] | null;
+  deckChoices: LocalDeck[];
+  venueTerm: string;
+  setVenueTerm: (term: string) => void;
+  setupError: string | null;
+  onCreateVenue: () => void;
+  onChooseTournament: (value: string) => void;
+  onChooseRound: (value: string) => void;
+  onChoosePlayerCount: (count: number) => void;
+  patch: Patch;
+  setView: (view: View) => void;
+}) {
+  return (
+    <Sheet titleId={titleId} titleRef={titleRef} onClose={onClose} data-testid="game-form-sheet">
+      {view === "venue" && (
+        <ChoicePanel
+          kicker={title}
+          title="Lieu"
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          testId="game-venue-picker"
+          search={{ term: venueTerm, onChange: setVenueTerm, placeholder: "Rechercher ou créer un lieu" }}
+          options={venueOptions(data.venues, venueTerm)}
+          selected={canonical(data.venues, draft.venueKey) ?? ""}
+          onSelect={(value) => {
+            patch({ venueKey: value === "" ? null : (value as ResourceKey) });
+            setVenueTerm("");
+            setView("form");
+          }}
+          create={venueCreation(data.venues, venueTerm, onCreateVenue)}
+          error={setupError}
+          note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
+        />
+      )}
+      {view === "tournament" && (
+        <ChoicePanel
+          kicker={title}
+          title="Tournoi"
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          testId="game-tournament-picker"
+          options={[
+            { value: "", label: "Amicale", meta: "Aucun tournoi" },
+            ...data.tournaments.map((candidate) => ({
+              value: candidate.key,
+              label: candidate.name,
+              meta: formatLocalDate(candidate.startDate),
+            })),
+          ]}
+          selected={tournament?.key ?? ""}
+          onSelect={onChooseTournament}
+        />
+      )}
+      {view === "round" && tournament && (
+        <ChoicePanel
+          kicker={title}
+          title="Ronde"
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          testId="game-round-picker"
+          options={roundOptions(tournament, draft, tournamentGames)}
+          selected={draft.roundType === "final" ? "final" : String(draft.roundNumber ?? "")}
+          onSelect={onChooseRound}
+        />
+      )}
+      {view === "count" && (
+        <ChoicePanel
+          title="Joueurs à la table"
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          testId="game-count-picker"
+          options={Array.from({ length: MAX_TABLE - MIN_TABLE + 1 }, (_, index) => ({
+            value: String(MIN_TABLE + index),
+            label: `${MIN_TABLE + index} joueurs`,
+          }))}
+          selected={String(draft.playerCount)}
+          onSelect={(value) => {
+            onChoosePlayerCount(Number(value));
+            setView("form");
+          }}
+          note="En tournoi, une table compte quatre ou cinq joueurs ; l'outil accepte de deux à six."
+        />
+      )}
+      {view === "deck" && (
+        <ChoicePanel
+          kicker={title}
+          title="Mon deck"
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          testId="game-deck-picker"
+          options={deckOptions(deckChoices, restrictedKeys, tournamentGames)}
+          selected={draft.deckKey ?? ""}
+          onSelect={(value) => {
+            patch({ deckKey: value === "" ? null : (value as DeckKey) });
+            setView("form");
+          }}
+          emptyLabel="Aucun deck à proposer."
+          note={
+            restrictedKeys
+              ? finalDeckNote(tournament?.finalDeckRule ?? null, deckChoices.length)
+              : undefined
+          }
+        />
+      )}
+    </Sheet>
+  );
+}
+
+/** Les adversaires nommés : sièges, decks prêtés, recherche dans le carnet et ajout. */
+function OpponentsSection({
+  sectionRef,
+  formId,
+  data,
+  draft,
+  decksSorted,
+  open,
+  onToggle,
+  term,
+  setTerm,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onCreate,
+  seatTaken,
+  setupError,
+}: {
+  sectionRef: RefObject<HTMLDivElement | null>;
+  formId: string;
+  data: PlayData;
+  draft: GameDraft;
+  decksSorted: LocalDeck[];
+  open: boolean;
+  onToggle: () => void;
+  term: string;
+  setTerm: (term: string) => void;
+  onAdd: (opponent: OpponentDraft) => void;
+  onUpdate: (index: number, changes: Partial<OpponentDraft>) => void;
+  onRemove: (index: number) => void;
+  onCreate: () => Promise<void>;
+  seatTaken: (seat: number, except: "me" | number) => boolean;
+  setupError: string | null;
+}) {
+  const suggestions = data.players.filter(
+    (player) =>
+      !player.isMe &&
+      term.trim() !== "" &&
+      foldText(player.name).includes(foldText(term.trim())) &&
+      !draft.opponents.some((line) => canonical(data.players, line.playerKey) === player.key),
+  );
+  const typedName = term.trim();
+  const isMyName = data.players.some((player) => player.isMe && foldText(player.name) === foldText(typedName));
+  const canCreateOpponent =
+    typedName !== "" && !isMyName && !data.players.some((player) => !player.isMe && foldText(player.name) === foldText(typedName));
+  const tableFull = draft.opponents.length + 1 >= draft.playerCount;
+
+  return (
+    <div ref={sectionRef}>
+      <button
+        type="button"
+        className="toggle-row"
+        aria-expanded={open}
+        onClick={onToggle}
+        data-testid="game-form-opponents-toggle"
+      >
+        <span>
+          <span className="toggle-row__label">Adversaires</span>
+          <span className="row__meta">
+            Facultatif ·{" "}
+            {draft.opponents.length === 0
+              ? "aucun nommé"
+              : draft.opponents.map((opponent) => opponent.name).join(", ")}
+          </span>
+        </span>
+        {open ? <CaretUpIcon size={18} /> : <CaretDownIcon size={18} />}
+      </button>
+      {open && (
+        <div className="opponents" data-testid="game-form-opponents">
+          {draft.opponents.map((opponent, index) => (
+            <div className="opponent-row" key={opponent.playerKey} data-testid="game-form-opponent">
+              <select
+                className="seat-select"
+                aria-label={`Siège de ${opponent.name}`}
+                value={opponent.seat ?? ""}
+                onChange={(event) =>
+                  onUpdate(index, { seat: event.target.value === "" ? null : Number(event.target.value) })
+                }
+              >
+                <option value="">–</option>
+                {Array.from({ length: draft.playerCount }, (_, position) => position + 1)
+                  .filter((seat) => seat === opponent.seat || !seatTaken(seat, index))
+                  .map((seat) => (
+                    <option key={seat} value={seat}>
+                      {seat}
+                    </option>
+                  ))}
+              </select>
+              <div className="opponent-row__body">
+                <span className="opponent-row__name">{opponent.name}</span>
+                <label className="opponent-row__lend">
+                  <HandArrowUpIcon size={14} aria-hidden="true" />
+                  <select
+                    aria-label={`Deck prêté à ${opponent.name}`}
+                    value={opponent.deckKey ?? ""}
+                    onChange={(event) =>
+                      onUpdate(index, {
+                        deckKey: event.target.value === "" ? null : (event.target.value as DeckKey),
+                      })
+                    }
+                  >
+                    <option value="">Prêter un de mes decks</option>
+                    {decksSorted.map((deck) => (
+                      <option key={deck.key} value={deck.key}>
+                        Joue mon {deck.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={`Retirer ${opponent.name} de la table`}
+                onClick={() => onRemove(index)}
+              >
+                <XIcon size={18} />
+              </button>
+            </div>
+          ))}
+          <div className="field">
+            <label htmlFor={`${formId}-opponent`} className="sr-only">
+              Ajouter un adversaire
+            </label>
+            <div className="opponent-add">
+              <UserPlusIcon size={18} aria-hidden="true" />
+              <input
+                id={`${formId}-opponent`}
+                className="underline-field"
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    if (canCreateOpponent && !tableFull) void onCreate();
+                  }
+                }}
+                placeholder="Ajouter un adversaire"
+                autoComplete="off"
+                disabled={tableFull}
+                data-testid="game-form-opponent-input"
+              />
+            </div>
+            {tableFull && <p className="hint">La table est complète.</p>}
+            {isMyName && <p className="hint">C'est vous : votre ligne est déjà à la table.</p>}
+            {!tableFull && (suggestions.length > 0 || canCreateOpponent) && (
+              <ul className="list" data-testid="game-form-opponent-suggestions">
+                {suggestions.map((player) => (
+                  <li key={player.key}>
+                    <button
+                      type="button"
+                      className="choice-row"
+                      onClick={() =>
+                        onAdd({
+                          playerKey: player.key,
+                          name: player.name,
+                          seat: null,
+                          deckKey: null,
+                          notes: null,
+                        })
+                      }
+                    >
+                      <span className="choice-row__label">{player.name}</span>
+                    </button>
+                  </li>
+                ))}
+                {canCreateOpponent && (
+                  <li>
+                    <button
+                      type="button"
+                      className="choice-row choice-row--create"
+                      onClick={() => void onCreate()}
+                      data-testid="game-form-opponent-create"
+                    >
+                      <span className="choice-row__label">Ajouter « {typedName} » au carnet</span>
+                    </button>
+                  </li>
+                )}
+              </ul>
+            )}
+            <p className="hint">Jamais de score d'adversaire : seuls vos VP comptent.</p>
+            {setupError && (
+              <p className="error-text" role="alert" data-testid="game-form-setup-error">
+                {setupError}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Ma ligne de table : deck, siège, VP et Game Win. */
+function MyLineFields({
+  formId,
+  draft,
+  patch,
+  chosenDeck,
+  deckHint,
+  monoWarning,
+  monoDeckKey,
+  monoDeck,
+  seatTaken,
+  errorOf,
+  advice,
+  setLockAttempt,
+  setView,
+}: {
+  formId: string;
+  draft: GameDraft;
+  patch: Patch;
+  chosenDeck: LocalDeck | undefined;
+  deckHint: string | null;
+  monoWarning: string | null;
+  monoDeckKey: DeckKey | null;
+  monoDeck: LocalDeck | undefined;
+  seatTaken: (seat: number, except: "me" | number) => boolean;
+  errorOf: (id: "gw" | "vp" | "table") => string | null;
+  advice: ReturnType<typeof gameWinAdvice>;
+  setLockAttempt: (attempt: boolean) => void;
+  setView: (view: View) => void;
+}) {
+  return (
+    <>
+      <div className="field">
+        <span className="field__label">Mon deck</span>
+        <div className="chosen-row">
+          <span data-testid="game-form-deck">
+            {chosenDeck ? chosenDeck.name : draft.deckKey ? "Deck inconnu sur cet appareil" : "Aucun deck choisi"}
+          </span>
+          <button
+            type="button"
+            className="btn-text"
+            onClick={() => setView("deck")}
+            data-return-focus="deck"
+            data-testid="game-form-deck-change"
+          >
+            Changer
+          </button>
+        </div>
+        {deckHint && (
+          <p className="hint" data-testid="game-form-deck-hint">
+            {deckHint}
+          </p>
+        )}
+        {monoWarning && (
+          <p className="error-text" role="alert" data-testid="game-form-mono-warning">
+            {monoWarning}{" "}
+            {monoDeckKey && (
+              <button
+                type="button"
+                className="btn-text"
+                onClick={() => patch({ deckKey: monoDeckKey })}
+                data-testid="game-form-mono-resume"
+              >
+                Reprendre {monoDeck?.name ?? "ce deck"}
+              </button>
+            )}
+          </p>
+        )}
+      </div>
+
+      <fieldset className="language-chips" data-testid="game-form-seats">
+        <legend>Mon siège</legend>
+        <div className="language-chips__row">
+          {Array.from({ length: draft.playerCount }, (_, index) => index + 1).map((seat) => (
+            <label key={seat} className="chip chip--square">
+              <input
+                type="checkbox"
+                checked={draft.seat === seat}
+                disabled={seatTaken(seat, "me")}
+                onChange={() => patch((current) => ({ seat: current.seat === seat ? null : seat }))}
+                data-testid={`game-form-seat-${seat}`}
+              />
+              {seat}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="field">
+        <Stepper
+          label="Mes VP"
+          value={draft.vp ?? 0}
+          min={0}
+          max={draft.playerCount}
+          step={0.5}
+          // Les VP vont par demi-points : une saisie au clavier est arrondie au demi-point.
+          onChange={(next) => patch({ vp: Math.max(0, Math.round(next * 2) / 2) })}
+          decrementLabel="Retirer un demi-point de VP"
+          incrementLabel="Ajouter un demi-point de VP"
+        />
+        <p className="hint" data-testid="game-form-vp-value">
+          {draft.vp === null ? "VP non saisis" : `${formatVp(draft.vp)} VP`} · pas de 0,5
+        </p>
+        {errorOf("vp") && (
+          <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-vp-error">
+            {errorOf("vp")}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <Switch
+          id={`${formId}-gw`}
+          checked={advice.checked}
+          onChange={(next) => {
+            if (advice.locked && !next) {
+              setLockAttempt(true);
+              return;
+            }
+            setLockAttempt(false);
+            patch({ gameWin: next });
+          }}
+          label="Game Win"
+          labelIcon={
+            advice.locked ? (
+              <LockSimpleIcon size={14} className="switch-row__lock" data-testid="game-form-gw-lock" />
+            ) : undefined
+          }
+          hint={advice.help}
+          hintTestId="game-form-gw-help"
+          data-testid="game-form-gw"
+        />
+        {errorOf("gw") && (
+          <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-gw-error">
+            {errorOf("gw")}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+/** Quand, où, dans quel tournoi et à quelle ronde. */
+function GameContextFields({
+  formId,
+  data,
+  draft,
+  tournament,
+  isFinal,
+  patch,
+  setView,
+}: {
+  formId: string;
+  data: PlayData;
+  draft: GameDraft;
+  tournament: LocalTournament | undefined;
+  isFinal: boolean;
+  patch: Patch;
+  setView: (view: View) => void;
+}) {
+  return (
+    <div className="ctx-grid">
+      <div className="ctx-field">
+        <label className="ctx-field__label" htmlFor={`${formId}-when`}>
+          Quand
+        </label>
+        <input
+          id={`${formId}-when`}
+          type="datetime-local"
+          className="underline-field"
+          value={draft.playedAt}
+          onChange={(event) => patch({ playedAt: event.target.value })}
+          data-testid="game-form-played-at"
+          aria-describedby={`${formId}-when-hint`}
+        />
+        <p className="hint" id={`${formId}-when-hint`} data-testid="game-form-when-hint">
+          {whenLabel(draft.playedAt)}
+        </p>
+      </div>
+      <div className="ctx-field">
+        <span className="ctx-field__label" id={`${formId}-venue-label`}>
+          Lieu
+        </span>
+        <button
+          type="button"
+          className="ctx-field__value"
+          aria-labelledby={`${formId}-venue-label ${formId}-venue`}
+          onClick={() => setView("venue")}
+          data-return-focus="venue"
+          data-testid="game-form-venue"
+        >
+          <span id={`${formId}-venue`}>
+            {draft.venueKey ? (findByKey(data.venues, draft.venueKey)?.name ?? "Lieu inconnu") : "Aucun lieu"}
+          </span>
+        </button>
+      </div>
+      <div className="ctx-field">
+        <span className="ctx-field__label" id={`${formId}-tournament-label`}>
+          Tournoi
+        </span>
+        <button
+          type="button"
+          className="ctx-field__value"
+          aria-labelledby={`${formId}-tournament-label ${formId}-tournament`}
+          onClick={() => setView("tournament")}
+          data-return-focus="tournament"
+          data-testid="game-form-tournament"
+        >
+          <span id={`${formId}-tournament`}>{tournament ? tournament.name : "Amicale"}</span>
+        </button>
+      </div>
+      {tournament && (
+        <div className="ctx-field">
+          <span className="ctx-field__label" id={`${formId}-round-label`}>
+            Ronde
+          </span>
+          <button
+            type="button"
+            className="ctx-field__value"
+            aria-labelledby={`${formId}-round-label ${formId}-round`}
+            onClick={() => setView("round")}
+            data-return-focus="round"
+            data-testid="game-form-round"
+          >
+            <span id={`${formId}-round`}>{isFinal ? "Finale" : `Ronde ${draft.roundNumber ?? ""}`}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Joueurs à la table : quatre, cinq, ou un autre nombre dans un panneau. */
+function TableCountField({
+  formId,
+  draft,
+  seatNotice,
+  tableError,
+  onChoose,
+  setView,
+}: {
+  formId: string;
+  draft: GameDraft;
+  seatNotice: string | null;
+  tableError: string | null;
+  onChoose: (count: number) => void;
+  setView: (view: View) => void;
+}) {
+  return (
+    <fieldset className="language-chips" data-testid="game-form-count">
+      <legend>Joueurs à la table</legend>
+      <div className="language-chips__row">
+        {PRESET_COUNTS.map((count) => (
+          <label key={count} className="chip">
+            <input
+              type="radio"
+              name={`${formId}-count`}
+              value={count}
+              checked={draft.playerCount === count}
+              onChange={() => onChoose(count)}
+              data-testid={`game-form-count-${count}`}
+            />
+            {count}
+          </label>
+        ))}
+        <label className="chip">
+          <input
+            type="radio"
+            name={`${formId}-count`}
+            value="other"
+            checked={!PRESET_COUNTS.includes(draft.playerCount)}
+            onChange={() => setView("count")}
+            onClick={() => setView("count")}
+            data-return-focus="count"
+            data-testid="game-form-count-other"
+          />
+          {PRESET_COUNTS.includes(draft.playerCount) ? "Autre" : `${draft.playerCount} joueurs`}
+        </label>
+      </div>
+      {seatNotice && (
+        <p className="hint" role="status" data-testid="game-form-seat-notice">
+          {seatNotice}
+        </p>
+      )}
+      {tableError && (
+        <p className="error-text" role="alert" tabIndex={-1} data-form-error data-testid="game-form-table-error">
+          {tableError}
+        </p>
+      )}
+    </fieldset>
   );
 }

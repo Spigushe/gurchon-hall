@@ -128,6 +128,18 @@ découpage, couverture ou non : la pire, `describeOperation` (159,5), cumule une
 complexité de 64 et 71 % de couverture, et la plupart des suivantes sont des
 composants de page ou de formulaire déjà couverts à 100 % (`GameFormBody` : 77).
 
+Les 13 entrées ont été résorbées le même jour, et la référence du front est vide
+depuis, comme celle du back. Les fonctions de logique pure ont été découpées par type
+d'opération : `describeOperation` est devenue une table de libellés, que le typage
+oblige à couvrir chaque type, et `applyDraft` comme `project.apply` délèguent à un
+gestionnaire par type. La validation de `CorrectionForm.submit` est passée dans
+`collectionCorrection.ts`, testée directement. Les composants ont été découpés en
+sous-composants qui rendent le même DOM, `data-testid` compris : les e2e en sont la
+vérification. Six fonctions restent à 30 tout juste, donc conformes, mais sans marge
+(`AddDeckCardForm`, `DeckView`, et quatre callbacks de complexité 5 qu'aucun test
+unitaire n'exécute) : la moindre baisse de couverture ou la moindre décision de plus
+les ferait échouer.
+
 ## Limites connues
 
 - **Le front ne compte que la couverture de vitest.** Les e2e Playwright n'entrent

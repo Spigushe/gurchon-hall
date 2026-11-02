@@ -242,8 +242,6 @@ export function TournamentDetail({
   const venues = useLocalVenues();
   const players = useLocalPlayers();
   const [editing, setEditing] = useState<Editing>(null);
-  const [confirming, setConfirming] = useState(false);
-  const [refusal, setRefusal] = useState<string | null>(null);
 
   useEffect(() => {
     onEditingChange?.(editing !== null);
@@ -275,52 +273,19 @@ export function TournamentDetail({
       .map((line) => (players ? findByKey(players, line.playerKey)?.name : undefined) ?? "Joueur inconnu")
       .join(", ");
 
-  const { summary } = tournament;
   const deckInfo = finalDeckInfo(tournament, rounds, (key) => deckName(key) ?? "deck");
   const gameCount = games?.length ?? 0;
 
   const actionsBlock = (
-    <div className="confirm-row" role="group" aria-label="Actions sur le tournoi">
-      {addNumber !== null && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={action.pending}
-          aria-keyshortcuts="r"
-          onClick={() => setEditing("round")}
-          data-testid="tournament-add-round"
-        >
-          <PlusIcon size={16} />
-          Ajouter la ronde {addNumber}
-          {isDesktop && <Kbd>R</Kbd>}
-        </button>
-      )}
-      {canFinal && (
-        <button
-          type="button"
-          className={finalIsNext ? "btn btn-primary" : "btn btn-secondary"}
-          disabled={action.pending}
-          aria-keyshortcuts="f"
-          onClick={() => setEditing("final")}
-          data-testid="tournament-add-final"
-        >
-          Saisir la finale
-          {isDesktop && <Kbd>F</Kbd>}
-        </button>
-      )}
-      <button
-        type="button"
-        className="btn btn-secondary"
-        disabled={action.pending}
-        onClick={() => setEditing("tournament")}
-        data-testid="tournament-edit"
-      >
-        Modifier
-      </button>
-    </div>
+    <TournamentActions
+      addNumber={addNumber}
+      canFinal={canFinal}
+      finalIsNext={finalIsNext}
+      pending={action.pending}
+      isDesktop={isDesktop}
+      onEdit={setEditing}
+    />
   );
-
-  const statValue = (value: string | number | null) => (value === null ? "—" : value);
 
   return (
     <div className="tournament-detail" data-testid="tournament-detail" data-tournament-key={tournament.key}>
@@ -345,41 +310,7 @@ export function TournamentDetail({
 
       {dense && actionsBlock}
 
-      <div data-testid="tournament-summary">
-        <div className="stat-row tournament-stats">
-          <span className="stat" data-testid="tournament-stat-gw">
-            <span className="stat__value">{summary.preliminaryGameWins}</span>
-            <span className="stat__label">{dense ? "GW en préliminaires" : "GW"}</span>
-          </span>
-          <span className="stat" data-testid="tournament-stat-vp">
-            <span className="stat__value">{formatVp(summary.preliminaryVictoryPoints)}</span>
-            <span className="stat__label">{dense ? "VP en préliminaires" : "VP préliminaires"}</span>
-          </span>
-          <span className="stat" data-testid="tournament-stat-final-vp">
-            <span className="stat__value">{statValue(summary.finalVictoryPoints === null ? null : formatVp(summary.finalVictoryPoints))}</span>
-            <span className="stat__label">{dense ? "VP en finale" : "finale"}</span>
-          </span>
-          {dense && (
-            <span className="stat" data-testid="tournament-stat-final-gw">
-              <span className="stat__value">
-                {summary.finalGameWin === null ? "—" : summary.finalGameWin ? "GW" : "non"}
-              </span>
-              <span className="stat__label">GW en finale</span>
-            </span>
-          )}
-        </div>
-        {!dense && summary.finalVictoryPoints !== null && (
-          <p className="hint" data-testid="tournament-final-line">
-            {formatVp(summary.finalVictoryPoints)} VP en finale · {summary.finalGameWin ? "Game Win" : "sans GW"}
-          </p>
-        )}
-        {tournament.summaryProvisional && (
-          <p className="row__pending" data-testid="tournament-provisional">
-            <ClockCountdownIcon size={14} />
-            {provisionalLine(rounds)}
-          </p>
-        )}
-      </div>
+      <TournamentSummary tournament={tournament} rounds={rounds} dense={dense} />
 
       {deckInfo && (
         <div className="tournament-final-deck" data-testid="tournament-final-deck">
@@ -394,39 +325,7 @@ export function TournamentDetail({
         </div>
       )}
 
-      <div>
-        <p className="kicker">Mes rondes</p>
-        {games === undefined ? (
-          <p className="hint">Lecture des rondes…</p>
-        ) : (
-          <>
-            {dense && rounds.preliminaries.length > 0 && (
-              <div className="round-row round-row--head" aria-hidden="true">
-                <span>Ronde</span>
-                <span>Mon deck</span>
-                <span>Heure</span>
-                <span>Table</span>
-                <span className="round-row__result">Résultat</span>
-              </div>
-            )}
-            <ul className="round-list" data-testid="tournament-rounds">
-              {rounds.preliminaries.map((game) => (
-                <RoundRow key={game.key} game={game} deckName={deckName(game.me.deckKey)} opponents={opponentsOf(game)} dense={dense} />
-              ))}
-            </ul>
-            <ul className="round-list round-list--final" data-testid="tournament-final">
-              {rounds.final ? (
-                <RoundRow game={rounds.final} deckName={deckName(rounds.final.me.deckKey)} opponents={opponentsOf(rounds.final)} dense={dense} />
-              ) : (
-                <li className="round-row round-row--idle" data-testid="tournament-final-idle">
-                  <span className="round-row__name">Finale</span>
-                  <span className="round-row__idle">pas encore jouée</span>
-                </li>
-              )}
-            </ul>
-          </>
-        )}
-      </div>
+      <TournamentRoundList games={games} rounds={rounds} dense={dense} deckName={deckName} opponentsOf={opponentsOf} />
 
       {!dense && actionsBlock}
 
@@ -440,12 +339,204 @@ export function TournamentDetail({
         </p>
       )}
 
+      <TournamentDeletion action={action} ready={games !== undefined} gameCount={gameCount} onDelete={() => actions.deleteTournament(tournament.key)} onDeleted={onDeleted} />
+
+      {editing === "tournament" && <TournamentForm tournament={tournament} onClose={() => setEditing(null)} />}
+      {(editing === "round" || editing === "final") && (
+        <GameForm
+          initial={{ tournamentKey: tournament.key, roundType: editing === "final" ? "final" : "preliminary" }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Ajouter la ronde, saisir la finale, modifier le tournoi. */
+function TournamentActions({
+  addNumber,
+  canFinal,
+  finalIsNext,
+  pending,
+  isDesktop,
+  onEdit,
+}: {
+  addNumber: number | null;
+  canFinal: boolean;
+  finalIsNext: boolean;
+  pending: boolean;
+  isDesktop: boolean;
+  onEdit: (editing: Exclude<Editing, null>) => void;
+}) {
+  return (
+    <div className="confirm-row" role="group" aria-label="Actions sur le tournoi">
+      {addNumber !== null && (
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={pending}
+          aria-keyshortcuts="r"
+          onClick={() => onEdit("round")}
+          data-testid="tournament-add-round"
+        >
+          <PlusIcon size={16} />
+          Ajouter la ronde {addNumber}
+          {isDesktop && <Kbd>R</Kbd>}
+        </button>
+      )}
+      {canFinal && (
+        <button
+          type="button"
+          className={finalIsNext ? "btn btn-primary" : "btn btn-secondary"}
+          disabled={pending}
+          aria-keyshortcuts="f"
+          onClick={() => onEdit("final")}
+          data-testid="tournament-add-final"
+        >
+          Saisir la finale
+          {isDesktop && <Kbd>F</Kbd>}
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn btn-secondary"
+        disabled={pending}
+        onClick={() => onEdit("tournament")}
+        data-testid="tournament-edit"
+      >
+        Modifier
+      </button>
+    </div>
+  );
+}
+
+const statValue = (value: string | number | null) => (value === null ? "—" : value);
+
+/** Bilan : GW et VP des préliminaires, résultat de la finale. */
+function TournamentSummary({
+  tournament,
+  rounds,
+  dense,
+}: {
+  tournament: LocalTournament;
+  rounds: TournamentRounds;
+  dense: boolean;
+}) {
+  const { summary } = tournament;
+  return (
+    <div data-testid="tournament-summary">
+      <div className="stat-row tournament-stats">
+        <span className="stat" data-testid="tournament-stat-gw">
+          <span className="stat__value">{summary.preliminaryGameWins}</span>
+          <span className="stat__label">{dense ? "GW en préliminaires" : "GW"}</span>
+        </span>
+        <span className="stat" data-testid="tournament-stat-vp">
+          <span className="stat__value">{formatVp(summary.preliminaryVictoryPoints)}</span>
+          <span className="stat__label">{dense ? "VP en préliminaires" : "VP préliminaires"}</span>
+        </span>
+        <span className="stat" data-testid="tournament-stat-final-vp">
+          <span className="stat__value">{statValue(summary.finalVictoryPoints === null ? null : formatVp(summary.finalVictoryPoints))}</span>
+          <span className="stat__label">{dense ? "VP en finale" : "finale"}</span>
+        </span>
+        {dense && (
+          <span className="stat" data-testid="tournament-stat-final-gw">
+            <span className="stat__value">
+              {summary.finalGameWin === null ? "—" : summary.finalGameWin ? "GW" : "non"}
+            </span>
+            <span className="stat__label">GW en finale</span>
+          </span>
+        )}
+      </div>
+      {!dense && summary.finalVictoryPoints !== null && (
+        <p className="hint" data-testid="tournament-final-line">
+          {formatVp(summary.finalVictoryPoints)} VP en finale · {summary.finalGameWin ? "Game Win" : "sans GW"}
+        </p>
+      )}
+      {tournament.summaryProvisional && (
+        <p className="row__pending" data-testid="tournament-provisional">
+          <ClockCountdownIcon size={14} />
+          {provisionalLine(rounds)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Mes rondes préliminaires, puis la finale (jouée ou non). */
+function TournamentRoundList({
+  games,
+  rounds,
+  dense,
+  deckName,
+  opponentsOf,
+}: {
+  games: LocalGame[] | undefined;
+  rounds: TournamentRounds;
+  dense: boolean;
+  deckName: (key: LocalGame["me"]["deckKey"]) => string | null;
+  opponentsOf: (game: LocalGame) => string;
+}) {
+  return (
+    <div>
+      <p className="kicker">Mes rondes</p>
+      {games === undefined ? (
+        <p className="hint">Lecture des rondes…</p>
+      ) : (
+        <>
+          {dense && rounds.preliminaries.length > 0 && (
+            <div className="round-row round-row--head" aria-hidden="true">
+              <span>Ronde</span>
+              <span>Mon deck</span>
+              <span>Heure</span>
+              <span>Table</span>
+              <span className="round-row__result">Résultat</span>
+            </div>
+          )}
+          <ul className="round-list" data-testid="tournament-rounds">
+            {rounds.preliminaries.map((game) => (
+              <RoundRow key={game.key} game={game} deckName={deckName(game.me.deckKey)} opponents={opponentsOf(game)} dense={dense} />
+            ))}
+          </ul>
+          <ul className="round-list round-list--final" data-testid="tournament-final">
+            {rounds.final ? (
+              <RoundRow game={rounds.final} deckName={deckName(rounds.final.me.deckKey)} opponents={opponentsOf(rounds.final)} dense={dense} />
+            ) : (
+              <li className="round-row round-row--idle" data-testid="tournament-final-idle">
+                <span className="round-row__name">Finale</span>
+                <span className="round-row__idle">pas encore jouée</span>
+              </li>
+            )}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Suppression : refusée tant que des parties y sont rattachées, sinon confirmée. */
+function TournamentDeletion({
+  action,
+  ready,
+  gameCount,
+  onDelete,
+  onDeleted,
+}: {
+  action: ReturnType<typeof useGuardedAction>;
+  ready: boolean;
+  gameCount: number;
+  onDelete: () => Promise<unknown>;
+  onDeleted?: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  return (
+    <>
       <div className="confirm-row">
         {!confirming && (
           <button
             type="button"
             className="btn-danger-text"
-            disabled={action.pending || games === undefined}
+            disabled={action.pending || !ready}
             data-testid="tournament-delete"
             onClick={() => {
               const text = deleteRefusal(gameCount);
@@ -478,7 +569,7 @@ export function TournamentDetail({
               data-testid="tournament-delete-confirm"
               onClick={() =>
                 void action
-                  .run(() => actions.deleteTournament(tournament.key))
+                  .run(() => onDelete())
                   .then((done) => {
                     if (done) {
                       setConfirming(false);
@@ -501,14 +592,6 @@ export function TournamentDetail({
           </div>
         </div>
       )}
-
-      {editing === "tournament" && <TournamentForm tournament={tournament} onClose={() => setEditing(null)} />}
-      {(editing === "round" || editing === "final") && (
-        <GameForm
-          initial={{ tournamentKey: tournament.key, roundType: editing === "final" ? "final" : "preliminary" }}
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </div>
+    </>
   );
 }

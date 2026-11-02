@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { CaretDownIcon, CaretUpIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { OptionalStepper } from "../../components/OptionalStepper";
@@ -12,6 +12,7 @@ import {
   useLocalGames,
   useLocalVenues,
   useVtesOffline,
+  type LocalGame,
   type LocalTournament,
   type LocalVenue,
   type ResourceKey,
@@ -123,9 +124,7 @@ function TournamentFormBody({
   const [draft, setDraft] = useState<TournamentDraft>(() => draftOf(tournament, localDay(new Date())));
   const [view, setView] = useState<"form" | "venue">("form");
   const [venueTerm, setVenueTerm] = useState("");
-  const [moreOpen, setMoreOpen] = useState(
-    tournament !== undefined && (tournament.roundCount !== null || tournament.playerCount !== null || tournament.notes !== null),
-  );
+  const [moreOpen, setMoreOpen] = useState(() => hasOptionalFields(tournament));
   const [showErrors, setShowErrors] = useState(false);
   const [showRefusal, setShowRefusal] = useState(false);
   const games = useLocalGames();
@@ -145,10 +144,7 @@ function TournamentFormBody({
   const title = tournament ? "Modifier le tournoi" : "Nouveau tournoi";
   const multiForbidden = forbidsMultiDeck(draft.eventTier);
   const venue = draft.venueKey ? findByKey(venues, draft.venueKey) : undefined;
-  const roundEffect: ReturnType<typeof roundCountEffect> =
-    tournament && games && draft.roundCount !== tournament.roundCount
-      ? roundCountEffect(draft.roundCount, roundsOf(games, [tournament], tournament))
-      : { kind: "none" };
+  const roundEffect = roundEffectOf(draft, tournament, games);
 
   // Les rondes se lisent sur l'appareil en quelques millisecondes ; en attendant, un changement
   // du nombre de rondes ne peut pas être jugé (conversion ou refus) et l'envoi patiente.
@@ -226,56 +222,30 @@ function TournamentFormBody({
   };
 
   if (view === "venue") {
-    const term = venueTerm.trim();
     return (
-      <Sheet titleId={titleId} titleRef={titleRef} onClose={() => setView("form")} data-testid="tournament-form-sheet">
-        <ChoicePanel
-          kicker={title}
-          title="Lieu"
-          titleId={titleId}
-          titleRef={titleRef}
-          onClose={() => setView("form")}
-          testId="tournament-venue-picker"
-          search={{ term: venueTerm, onChange: setVenueTerm, placeholder: "Rechercher ou créer un lieu" }}
-          options={[
-            ...(term === "" ? [{ value: "", label: "Aucun lieu" }] : []),
-            ...venues
-              .filter((candidate) => foldText(candidate.name).includes(foldText(term)))
-              .map((candidate) => ({ value: candidate.key, label: candidate.name, meta: candidate.city ?? undefined })),
-          ]}
-          selected={canonicalVenue(venues, draft.venueKey) ?? ""}
-          onSelect={(value) => {
-            patch({ venueKey: value === "" ? null : (value as ResourceKey) });
-            setVenueTerm("");
-            setView("form");
-          }}
-          create={
-            term !== "" && !venues.some((candidate) => foldText(candidate.name) === foldText(term))
-              ? { label: `Créer le lieu « ${term} »`, onCreate: () => void createVenue(), disabled: setup.pending }
-              : null
-          }
-          error={setup.error}
-          note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
-        />
-      </Sheet>
+      <TournamentVenueSheet
+        title={title}
+        titleId={titleId}
+        titleRef={titleRef}
+        venues={venues}
+        venueKey={draft.venueKey}
+        venueTerm={venueTerm}
+        setVenueTerm={setVenueTerm}
+        setup={setup}
+        onClose={() => setView("form")}
+        onSelect={(value) => {
+          patch({ venueKey: value === "" ? null : (value as ResourceKey) });
+          setVenueTerm("");
+          setView("form");
+        }}
+        onCreate={() => void createVenue()}
+      />
     );
   }
 
   const submitLabel = tournament ? "Enregistrer" : "Créer le tournoi";
-  const footer = isDesktop ? (
-    <SheetFooter
-      onCancel={onClose}
-      primaryLabel={submitLabel}
-      primaryDisabled={action.pending || roundsPending}
-      primaryTestId="tournament-form-submit"
-    />
-  ) : (
-    <div className="sheet-form__footer">
-      <Pill type="submit" disabled={action.pending || roundsPending} data-testid="tournament-form-submit">
-        {submitLabel}
-      </Pill>
-      <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
-    </div>
+  const footer = (
+    <TournamentFormFooter isDesktop={isDesktop} label={submitLabel} disabled={action.pending || roundsPending} onCancel={onClose} />
   );
 
   const more = (
@@ -533,4 +503,105 @@ function TournamentFormBody({
       </form>
     </Sheet>
   );
+}
+
+/** « Plus d'options » s'ouvre d'emblée quand le tournoi en a déjà une de remplie. */
+function hasOptionalFields(tournament: LocalTournament | undefined): boolean {
+  if (tournament === undefined) return false;
+  return tournament.roundCount !== null || tournament.playerCount !== null || tournament.notes !== null;
+}
+
+/** Effet d'un changement du nombre de rondes sur les parties déjà saisies (conversion en finale, refus). */
+function roundEffectOf(
+  draft: TournamentDraft,
+  tournament: LocalTournament | undefined,
+  games: LocalGame[] | undefined,
+): ReturnType<typeof roundCountEffect> {
+  if (!tournament || !games || draft.roundCount === tournament.roundCount) return { kind: "none" };
+  return roundCountEffect(draft.roundCount, roundsOf(games, [tournament], tournament));
+}
+
+/** Choix du lieu du tournoi, avec création d'un lieu nouveau. */
+function TournamentVenueSheet({
+  title,
+  titleId,
+  titleRef,
+  venues,
+  venueKey,
+  venueTerm,
+  setVenueTerm,
+  setup,
+  onClose,
+  onSelect,
+  onCreate,
+}: {
+  title: string;
+  titleId: string;
+  titleRef: RefObject<HTMLHeadingElement | null>;
+  venues: LocalVenue[];
+  venueKey: ResourceKey | null;
+  venueTerm: string;
+  setVenueTerm: (term: string) => void;
+  setup: ReturnType<typeof useGuardedAction>;
+  onClose: () => void;
+  onSelect: (value: string) => void;
+  onCreate: () => void;
+}) {
+  const term = venueTerm.trim();
+  return (
+    <Sheet titleId={titleId} titleRef={titleRef} onClose={onClose} data-testid="tournament-form-sheet">
+      <ChoicePanel
+        kicker={title}
+        title="Lieu"
+        titleId={titleId}
+        titleRef={titleRef}
+        onClose={onClose}
+        testId="tournament-venue-picker"
+        search={{ term: venueTerm, onChange: setVenueTerm, placeholder: "Rechercher ou créer un lieu" }}
+        options={[
+          ...(term === "" ? [{ value: "", label: "Aucun lieu" }] : []),
+          ...venues
+            .filter((candidate) => foldText(candidate.name).includes(foldText(term)))
+            .map((candidate) => ({ value: candidate.key, label: candidate.name, meta: candidate.city ?? undefined })),
+        ]}
+        selected={canonicalVenue(venues, venueKey) ?? ""}
+        onSelect={onSelect}
+        create={
+          term !== "" && !venues.some((candidate) => foldText(candidate.name) === foldText(term))
+            ? { label: `Créer le lieu « ${term} »`, onCreate, disabled: setup.pending }
+            : null
+        }
+        error={setup.error}
+        note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
+      />
+    </Sheet>
+  );
+}
+
+function TournamentFormFooter({
+  isDesktop,
+  label,
+  disabled,
+  onCancel,
+}: {
+  isDesktop: boolean;
+  label: string;
+  disabled: boolean;
+  onCancel: () => void;
+}) {
+  return isDesktop ? (
+  <SheetFooter
+    onCancel={onCancel}
+    primaryLabel={label}
+    primaryDisabled={disabled}
+    primaryTestId="tournament-form-submit"
+  />
+) : (
+  <div className="sheet-form__footer">
+    <Pill type="submit" disabled={disabled} data-testid="tournament-form-submit">
+      {label}
+    </Pill>
+    <p className="floating-hint">Enregistré sur cet appareil, envoyé au prochain réseau</p>
+  </div>
+);
 }

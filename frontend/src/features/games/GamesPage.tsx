@@ -64,25 +64,22 @@ function makeLookups(decks: LocalDeck[] | undefined, venues: LocalVenue[] | unde
   };
 }
 
+const byText = (a: string, b: string) => a.localeCompare(b, "fr");
+
+/** Un comparateur par colonne du tableau ; l'ordre décroissant s'obtient en inversant la liste. */
+const COMPARATORS: Record<SortColumn, (a: LocalGame, b: LocalGame, lookups: Lookups) => number> = {
+  date: (a, b) => (a.playedAt < b.playedAt ? -1 : a.playedAt > b.playedAt ? 1 : 0),
+  deck: (a, b, lookups) => byText(lookups.deckName(a), lookups.deckName(b)),
+  tournament: (a, b, lookups) => byText(lookups.tournamentText(a), lookups.tournamentText(b)),
+  venue: (a, b, lookups) => byText(lookups.venueName(a) ?? "", lookups.venueName(b) ?? ""),
+  result: (a, b) =>
+    (a.me.victoryPoints ?? -1) - (b.me.victoryPoints ?? -1) ||
+    Number(a.me.gameWin === true) - Number(b.me.gameWin === true),
+};
+
 function compareGames(column: SortColumn, lookups: Lookups) {
-  const text = (a: string, b: string) => a.localeCompare(b, "fr");
-  return (a: LocalGame, b: LocalGame): number => {
-    switch (column) {
-      case "date":
-        return a.playedAt < b.playedAt ? -1 : a.playedAt > b.playedAt ? 1 : 0;
-      case "deck":
-        return text(lookups.deckName(a), lookups.deckName(b));
-      case "tournament":
-        return text(lookups.tournamentText(a), lookups.tournamentText(b));
-      case "venue":
-        return text(lookups.venueName(a) ?? "", lookups.venueName(b) ?? "");
-      case "result":
-        return (
-          (a.me.victoryPoints ?? -1) - (b.me.victoryPoints ?? -1) ||
-          Number(a.me.gameWin === true) - Number(b.me.gameWin === true)
-        );
-    }
-  };
+  const compare = COMPARATORS[column];
+  return (a: LocalGame, b: LocalGame): number => compare(a, b, lookups);
 }
 
 /** « 3 VP » puis « · GW » en accent, comme l'écran 12. */
@@ -318,11 +315,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
   const [selectedKey, setSelectedKey] = useState<ResourceKey | null>(null);
   const [sort, setSort] = useState<{ column: SortColumn; dir: SortDir }>({ column: "date", dir: "desc" });
 
-  const games = useLocalGames({
-    casual: type === "all" ? undefined : type === "casual",
-    deckKey: deckFilter ?? undefined,
-    venueKey: venueFilter ?? undefined,
-  });
+  const games = useLocalGames(gamesQuery(type, deckFilter, venueFilter));
   const allGames = useLocalGames();
   const tournaments = useLocalTournaments();
   const decks = useLocalDecks({ state: "all" });
@@ -363,7 +356,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
     enabled: !creating && !filtersOpen && !detailEditing,
   });
 
-  const filtered = type !== "all" || deckFilter !== null || venueFilter !== null;
+  const filtered = isGameFiltered(type, deckFilter, venueFilter);
   const total = allGames?.length;
 
   const typeTabs: ReactNode = (
@@ -384,57 +377,16 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
   );
 
   const desktopFilters = (
-    <div className="games-filters" data-testid="game-filters">
-      <label className="filter-select">
-        <span>Type :</span>
-        <select
-          value={type}
-          onChange={(event) => setType(event.target.value as GameType)}
-          aria-label="Type"
-          data-testid="game-filter-type"
-        >
-          {TYPES.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label.toLowerCase()}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="filter-select">
-        <span>Deck :</span>
-        <select
-          value={deckFilter ?? ""}
-          onChange={(event) => setDeckFilter(event.target.value === "" ? null : (event.target.value as DeckKey))}
-          aria-label="Deck"
-          data-testid="game-filter-deck"
-        >
-          <option value="">tous</option>
-          {(decks ?? []).map((deck) => (
-            <option key={deck.key} value={deck.key}>
-              {deck.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="filter-select">
-        <span>Lieu :</span>
-        <select
-          value={venueFilter ?? ""}
-          onChange={(event) =>
-            setVenueFilter(event.target.value === "" ? null : (event.target.value as ResourceKey))
-          }
-          aria-label="Lieu"
-          data-testid="game-filter-venue"
-        >
-          <option value="">tous</option>
-          {(venues ?? []).map((venue) => (
-            <option key={venue.key} value={venue.key}>
-              {venue.name}
-            </option>
-          ))}
-        </select>
-      </label>
-    </div>
+    <GameFilters
+      type={type}
+      setType={setType}
+      deckFilter={deckFilter}
+      setDeckFilter={setDeckFilter}
+      venueFilter={venueFilter}
+      setVenueFilter={setVenueFilter}
+      decks={decks}
+      venues={venues}
+    />
   );
 
   const emptyAll = games !== undefined && games.length === 0 && !filtered;
@@ -566,6 +518,94 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
         />
       )}
       {creating && <GameForm onClose={() => setCreating(false)} onSaved={setSelectedKey} />}
+    </div>
+  );
+}
+
+/** Lecture locale des parties selon les filtres de la page. */
+function gamesQuery(type: GameType, deckFilter: DeckKey | null, venueFilter: ResourceKey | null) {
+  return {
+    casual: type === "all" ? undefined : type === "casual",
+    deckKey: deckFilter ?? undefined,
+    venueKey: venueFilter ?? undefined,
+  };
+}
+
+function isGameFiltered(type: GameType, deckFilter: DeckKey | null, venueFilter: ResourceKey | null): boolean {
+  return type !== "all" || deckFilter !== null || venueFilter !== null;
+}
+
+/** Filtres du bureau : type, deck et lieu, sur le même état que les onglets mobiles. */
+function GameFilters({
+  type,
+  setType,
+  deckFilter,
+  setDeckFilter,
+  venueFilter,
+  setVenueFilter,
+  decks,
+  venues,
+}: {
+  type: GameType;
+  setType: (type: GameType) => void;
+  deckFilter: DeckKey | null;
+  setDeckFilter: (key: DeckKey | null) => void;
+  venueFilter: ResourceKey | null;
+  setVenueFilter: (key: ResourceKey | null) => void;
+  decks: LocalDeck[] | undefined;
+  venues: LocalVenue[] | undefined;
+}) {
+  return (
+    <div className="games-filters" data-testid="game-filters">
+      <label className="filter-select">
+        <span>Type :</span>
+        <select
+          value={type}
+          onChange={(event) => setType(event.target.value as GameType)}
+          aria-label="Type"
+          data-testid="game-filter-type"
+        >
+          {TYPES.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label.toLowerCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="filter-select">
+        <span>Deck :</span>
+        <select
+          value={deckFilter ?? ""}
+          onChange={(event) => setDeckFilter(event.target.value === "" ? null : (event.target.value as DeckKey))}
+          aria-label="Deck"
+          data-testid="game-filter-deck"
+        >
+          <option value="">tous</option>
+          {(decks ?? []).map((deck) => (
+            <option key={deck.key} value={deck.key}>
+              {deck.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="filter-select">
+        <span>Lieu :</span>
+        <select
+          value={venueFilter ?? ""}
+          onChange={(event) =>
+            setVenueFilter(event.target.value === "" ? null : (event.target.value as ResourceKey))
+          }
+          aria-label="Lieu"
+          data-testid="game-filter-venue"
+        >
+          <option value="">tous</option>
+          {(venues ?? []).map((venue) => (
+            <option key={venue.key} value={venue.key}>
+              {venue.name}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
