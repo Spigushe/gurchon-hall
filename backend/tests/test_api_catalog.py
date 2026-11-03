@@ -215,3 +215,97 @@ def test_create_language_trims_the_code_before_normalizing(api, db):
     assert created.status_code == 201
     assert created.json()["code"] == "DE"
     assert api.post("/langues", json={"code": "DE", "label": "x"}).status_code == 409
+
+
+# --------------------------------------------------------------------------
+# Lot Chercher : ce que la liste porte pour les filtres (A1, A3, A7)
+# --------------------------------------------------------------------------
+# La forme est livrée à l'étape A1 ; le contrôle du nombre de requêtes, l'ordre
+# des types et des disciplines et la compression sont à l'étape B1.
+
+
+@pytest.fixture
+def catalog_with_requirements(db):
+    from app.services.catalog_import import parse_library_meta
+
+    vtes = json.loads((FIXTURES / "krcg_vtes.json").read_text(encoding="utf-8"))
+    expansions = json.loads(
+        (FIXTURES / "krcg_expansions.json").read_text(encoding="utf-8")
+    )
+    meta = parse_library_meta(
+        (FIXTURES / "vteslibmeta_sample.csv").read_text(encoding="utf-8")
+    )
+    import_catalog(db, vtes, expansions, meta)
+
+
+def by_vekn_id(response) -> dict[int, dict]:
+    return {card["vekn_id"]: card for card in response.json()}
+
+
+def test_list_cards_carries_the_derived_sect(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+    assert cards[200025]["sect"]["name"] == "Camarilla"
+    assert cards[200102]["sect"]["name"] == "Imbued"
+    assert cards[100002]["sect"] is None
+
+
+def test_list_cards_reads_the_library_requirement(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+
+    operation = cards[100002]
+    assert operation["library_requirement"] == "prince,justicar"
+    assert operation["required_sects"] == ["Camarilla"]
+    assert operation["required_titles"] == ["Prince", "Justicar"]
+    assert (operation["requires_titled"], operation["requires_non_titled"]) == (
+        False,
+        False,
+    )
+    assert operation["other_requirements"] == []
+
+    tyranny = cards[102308]
+    # « non-anarch,titled » : toute secte de vampire sauf Anarch, et titré.
+    assert tyranny["required_sects"] == [
+        "Camarilla",
+        "Sabbat",
+        "Laibon",
+        "Independent",
+    ]
+    assert tyranny["requires_titled"] is True
+    assert tyranny["other_requirements"] == []
+
+    awe = cards[100119]
+    assert awe["library_requirement"] is None
+    assert awe["required_sects"] == awe["required_titles"] == []
+
+
+def test_list_cards_carries_the_filter_fields(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+    aidan = cards[200025]
+    assert {d["discipline"]["abbrev"] for d in aidan["discipline_links"]} == {
+        "dom",
+        "aus",
+        "chi",
+        "tha",
+    }
+    assert [t["name"] for t in aidan["types"]] == ["Vampire"]
+    assert aidan["card_text"].startswith("Camarilla")
+    assert aidan["legal_from"] is not None
+    tyranny = cards[102308]
+    assert {t["name"] for t in tyranny["types"]} == {"Action Modifier", "Reaction"}
+
+
+def test_list_cards_carries_translated_names_only(api, catalog_with_requirements):
+    aidan = by_vekn_id(api.get("/cartes"))[200025]
+    assert [n["language_code"] for n in aidan["translated_names"]] == ["ES", "FR"]
+    assert set(aidan["translated_names"][0]) == {"language_code", "name"}
+    assert "translations" not in aidan and "printings" not in aidan
+
+
+def test_the_sheet_has_the_requirement_but_no_translated_names(
+    api, catalog_with_requirements
+):
+    operation_id = by_vekn_id(api.get("/cartes"))[100002]["id"]
+    body = api.get(f"/cartes/{operation_id}").json()
+    assert body["required_titles"] == ["Prince", "Justicar"]
+    assert "translated_names" not in body
+    assert "translations" in body

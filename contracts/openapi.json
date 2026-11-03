@@ -289,7 +289,7 @@
           "catalogue"
         ],
         "summary": "Recherche dans le catalogue",
-        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents). Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`).",
+        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais seulement (sous-chaîne, sans tenir compte de la casse ni des accents) : ni les noms traduits ni le texte, que la recherche locale du client compare, elle. Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`), et tout ce que les filtres de l'écran Chercher lisent : secte, titre, coût, prérequis, disciplines, types, texte anglais, dates de légalité, exigence envers le vampire et noms traduits. Les autres filtres sont ceux du client, sur son miroir local, pas des paramètres de cette route.",
         "operationId": "listCards",
         "parameters": [
           {
@@ -377,7 +377,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/CardListItem"
+                    "$ref": "#/components/schemas/CardSearchItem"
                   },
                   "title": "Response Listcards"
                 }
@@ -4470,104 +4470,6 @@
         "title": "CardDisciplineRead",
         "description": "Discipline requise par une carte, avec son niveau."
       },
-      "CardListItem": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "vekn_id": {
-            "type": "integer",
-            "title": "Vekn Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "category": {
-            "$ref": "#/components/schemas/CardCategory"
-          },
-          "clan": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ClanRead"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "capacity": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Capacity"
-          },
-          "group_code": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Group Code"
-          },
-          "advanced": {
-            "type": "boolean",
-            "title": "Advanced",
-            "default": false
-          },
-          "image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Url",
-            "description": "Scan de la carte (version anglaise de référence)."
-          },
-          "card_set_ids": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Card Set Ids",
-            "description": "Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.",
-            "default": []
-          },
-          "latest_card_set_id": {
-            "type": "integer",
-            "title": "Latest Card Set Id",
-            "description": "Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple."
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "vekn_id",
-          "name",
-          "category",
-          "clan",
-          "capacity",
-          "group_code",
-          "advanced",
-          "image_url",
-          "card_set_ids",
-          "latest_card_set_id"
-        ],
-        "title": "CardListItem",
-        "description": "Une carte dans les résultats de recherche, avec ses impressions (Lot 4).\n\nCe que le client hors ligne doit connaître pour ranger un exemplaire sous\nune impression réelle sans rappeler l'API : les extensions où la carte a\nété imprimée, et celle qu'il faut prendre par défaut quand rien ne désigne\nl'impression — une carte jouée en proxy, par exemple (décision D2a).\n\nDistinct de `CardSummary`, qui reste la vue courte embarquée dans le\nstock, les decks et les produits : ces deux champs n'y ont pas d'usage."
-      },
       "CardPrintingOccurrenceRead": {
         "properties": {
           "occurrence_type": {
@@ -4767,7 +4669,8 @@
               {
                 "type": "null"
               }
-            ]
+            ],
+            "description": "Secte d'une carte de crypte, dérivée de son texte à l'import (premier mot, ou second après « Advanced » ; « Imbued » pour un imbued). Vide pour une carte de bibliothèque, et pour un vampire dont le texte ne commence pas par une secte connue."
           },
           "title": {
             "anyOf": [
@@ -4778,7 +4681,8 @@
                 "type": "null"
               }
             ],
-            "title": "Title"
+            "title": "Title",
+            "description": "Titre d'un vampire, tel que krcg l'écrit (« Prince », « Inner Circle », « 1 Vote »…) : celui de sa face, pas d'un texte fusionné."
           },
           "path": {
             "anyOf": [
@@ -4814,16 +4718,6 @@
             "title": "Cost Value",
             "description": "Montant du coût. Chaîne et non entier : 25 cartes coûtent « X »."
           },
-          "burn_option": {
-            "type": "boolean",
-            "title": "Burn Option",
-            "default": false
-          },
-          "trifle": {
-            "type": "boolean",
-            "title": "Trifle",
-            "default": false
-          },
           "clan_requirement": {
             "anyOf": [
               {
@@ -4834,7 +4728,7 @@
               }
             ],
             "title": "Clan Requirement",
-            "description": "Clan(s) exigé(s) par la carte, séparés par une virgule."
+            "description": "Clan(s) exigé(s) par la carte, joints par « , » (virgule et espace) ; aucun nom de clan ne contient de virgule."
           },
           "path_requirement": {
             "anyOf": [
@@ -4858,6 +4752,57 @@
             ],
             "description": "Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble."
           },
+          "library_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Library Requirement",
+            "description": "Exigence envers le vampire qui joue la carte, brute, telle que `vteslibmeta.csv` (vtescsv) l'écrit : valeurs séparées par une virgule (« prince,justicar », « sabbat,titled »). Vide quand le fichier n'a pas de ligne pour la carte. Les quatre champs `required_*` et `other_requirements` en sont la lecture."
+          },
+          "required_sects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Sects",
+            "description": "Sectes exigées, l'une ou l'autre, noms de la table des sectes (Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), celles qu'un titre exigé implique comprises (un Prince exige la Camarilla). Une exclusion se lit sur les sectes de vampire : « non-anarch » exige Camarilla, Sabbat, Laibon ou Independent, et « non-anarch,prince » la Camarilla. Vide : aucune secte exigée.",
+            "default": []
+          },
+          "required_titles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Titles",
+            "description": "Titres précis exigés, l'un ou l'autre, écrits comme le titre d'un vampire (`title`) : « Prince », « Inner Circle », « 1 Vote »…",
+            "default": []
+          },
+          "requires_titled": {
+            "type": "boolean",
+            "title": "Requires Titled",
+            "description": "Exige un vampire titré, quel que soit son titre.",
+            "default": false
+          },
+          "requires_non_titled": {
+            "type": "boolean",
+            "title": "Requires Non Titled",
+            "description": "Exige un vampire sans titre.",
+            "default": false
+          },
+          "other_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Other Requirements",
+            "description": "Le reste de l'exigence, tel qu'écrit dans le fichier : capacité (« capacity 5 or more »), Gehenna, Black Hand, Seraph, « non-sterile », « non-red list »… Non filtrable au lot Chercher.",
+            "default": []
+          },
           "card_text": {
             "anyOf": [
               {
@@ -4867,29 +4812,8 @@
                 "type": "null"
               }
             ],
-            "title": "Card Text"
-          },
-          "flavor_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Flavor Text"
-          },
-          "artist": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Artist"
+            "title": "Card Text",
+            "description": "Texte anglais de la carte (icônes de discipline « [pot] »)."
           },
           "banned_on": {
             "anyOf": [
@@ -4933,6 +4857,38 @@
             "title": "Discipline Links",
             "default": []
           },
+          "burn_option": {
+            "type": "boolean",
+            "title": "Burn Option",
+            "default": false
+          },
+          "trifle": {
+            "type": "boolean",
+            "title": "Trifle",
+            "default": false
+          },
+          "flavor_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor Text"
+          },
+          "artist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artist"
+          },
           "printings": {
             "items": {
               "$ref": "#/components/schemas/CardPrintingRead"
@@ -4968,23 +4924,352 @@
           "path",
           "cost_type",
           "cost_value",
-          "burn_option",
-          "trifle",
           "clan_requirement",
           "path_requirement",
           "discipline_requirement",
+          "library_requirement",
+          "required_sects",
+          "required_titles",
+          "requires_titled",
+          "requires_non_titled",
+          "other_requirements",
           "card_text",
-          "flavor_text",
-          "artist",
           "banned_on",
           "legal_from",
           "types",
           "discipline_links",
+          "burn_option",
+          "trifle",
+          "flavor_text",
+          "artist",
           "printings",
           "translations"
         ],
         "title": "CardRead",
         "description": "Fiche complète d'une carte du catalogue."
+      },
+      "CardSearchItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "$ref": "#/components/schemas/CardCategory"
+          },
+          "clan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ClanRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity"
+          },
+          "group_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Code"
+          },
+          "advanced": {
+            "type": "boolean",
+            "title": "Advanced",
+            "default": false
+          },
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url",
+            "description": "Scan de la carte (version anglaise de référence)."
+          },
+          "card_set_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Card Set Ids",
+            "description": "Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.",
+            "default": []
+          },
+          "latest_card_set_id": {
+            "type": "integer",
+            "title": "Latest Card Set Id",
+            "description": "Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple."
+          },
+          "sect": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Secte d'une carte de crypte, dérivée de son texte à l'import (premier mot, ou second après « Advanced » ; « Imbued » pour un imbued). Vide pour une carte de bibliothèque, et pour un vampire dont le texte ne commence pas par une secte connue."
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Titre d'un vampire, tel que krcg l'écrit (« Prince », « Inner Circle », « 1 Vote »…) : celui de sa face, pas d'un texte fusionné."
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "cost_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CostType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nature du coût : une carte n'en a jamais qu'un seul."
+          },
+          "cost_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Value",
+            "description": "Montant du coût. Chaîne et non entier : 25 cartes coûtent « X »."
+          },
+          "clan_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clan Requirement",
+            "description": "Clan(s) exigé(s) par la carte, joints par « , » (virgule et espace) ; aucun nom de clan ne contient de virgule."
+          },
+          "path_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Requirement"
+          },
+          "discipline_requirement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DisciplineRequirement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble."
+          },
+          "library_requirement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Library Requirement",
+            "description": "Exigence envers le vampire qui joue la carte, brute, telle que `vteslibmeta.csv` (vtescsv) l'écrit : valeurs séparées par une virgule (« prince,justicar », « sabbat,titled »). Vide quand le fichier n'a pas de ligne pour la carte. Les quatre champs `required_*` et `other_requirements` en sont la lecture."
+          },
+          "required_sects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Sects",
+            "description": "Sectes exigées, l'une ou l'autre, noms de la table des sectes (Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), celles qu'un titre exigé implique comprises (un Prince exige la Camarilla). Une exclusion se lit sur les sectes de vampire : « non-anarch » exige Camarilla, Sabbat, Laibon ou Independent, et « non-anarch,prince » la Camarilla. Vide : aucune secte exigée.",
+            "default": []
+          },
+          "required_titles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Required Titles",
+            "description": "Titres précis exigés, l'un ou l'autre, écrits comme le titre d'un vampire (`title`) : « Prince », « Inner Circle », « 1 Vote »…",
+            "default": []
+          },
+          "requires_titled": {
+            "type": "boolean",
+            "title": "Requires Titled",
+            "description": "Exige un vampire titré, quel que soit son titre.",
+            "default": false
+          },
+          "requires_non_titled": {
+            "type": "boolean",
+            "title": "Requires Non Titled",
+            "description": "Exige un vampire sans titre.",
+            "default": false
+          },
+          "other_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Other Requirements",
+            "description": "Le reste de l'exigence, tel qu'écrit dans le fichier : capacité (« capacity 5 or more »), Gehenna, Black Hand, Seraph, « non-sterile », « non-red list »… Non filtrable au lot Chercher.",
+            "default": []
+          },
+          "card_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Text",
+            "description": "Texte anglais de la carte (icônes de discipline « [pot] »)."
+          },
+          "banned_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banned On",
+            "description": "Date de bannissement publiée par le VEKN, vide sinon."
+          },
+          "legal_from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Legal From",
+            "description": "Date d'entrée en légalité en tournoi. Vide = aucune information, donc légale : la liste paraît après la sortie commerciale."
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/CardTypeRead"
+            },
+            "type": "array",
+            "title": "Types",
+            "default": []
+          },
+          "discipline_links": {
+            "items": {
+              "$ref": "#/components/schemas/CardDisciplineRead"
+            },
+            "type": "array",
+            "title": "Discipline Links",
+            "default": []
+          },
+          "translated_names": {
+            "items": {
+              "$ref": "#/components/schemas/CardTranslatedName"
+            },
+            "type": "array",
+            "title": "Translated Names",
+            "description": "Noms traduits connus (FR et ES aujourd'hui), triés par code de langue. Sans le texte ni l'image, qui restent à la fiche.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "vekn_id",
+          "name",
+          "category",
+          "clan",
+          "capacity",
+          "group_code",
+          "advanced",
+          "image_url",
+          "card_set_ids",
+          "latest_card_set_id",
+          "sect",
+          "title",
+          "path",
+          "cost_type",
+          "cost_value",
+          "clan_requirement",
+          "path_requirement",
+          "discipline_requirement",
+          "library_requirement",
+          "required_sects",
+          "required_titles",
+          "requires_titled",
+          "requires_non_titled",
+          "other_requirements",
+          "card_text",
+          "banned_on",
+          "legal_from",
+          "types",
+          "discipline_links",
+          "translated_names"
+        ],
+        "title": "CardSearchItem",
+        "description": "Une carte dans les résultats de `GET /cartes` (lot Chercher, A7).\n\nAjoute les noms traduits, que la recherche locale compare au texte saisi.\nPropre à la liste : la fiche (`CardRead`) porte déjà les traductions\nentières et n'en hérite pas."
       },
       "CardSetRead": {
         "properties": {
@@ -5130,6 +5415,26 @@
         ],
         "title": "CardSummary",
         "description": "Vue courte d'une carte, pour les listes et l'autocomplétion."
+      },
+      "CardTranslatedName": {
+        "properties": {
+          "language_code": {
+            "type": "string",
+            "title": "Language Code",
+            "description": "Code de langue, en majuscules."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language_code",
+          "name"
+        ],
+        "title": "CardTranslatedName",
+        "description": "Nom d'une carte dans une langue de traduction (lot Chercher, A7)."
       },
       "CardTranslationRead": {
         "properties": {

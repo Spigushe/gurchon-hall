@@ -81,7 +81,9 @@ def test_crypt_card_fields(db, imported):
     assert card.image_url == "https://static.krcg.org/card/aabbtkindredg2.jpg"
     assert card.artist == "Lawrence Snelly"
     assert card.title is None and card.path is None
-    assert card.sect_id is None  # krcg ne fournit pas la sect
+    # krcg ne fournit pas la secte : dérivée du texte depuis le lot Chercher
+    # (P13, détail dans `test_catalog_import_chercher.py`).
+    assert card.sect.name == "Independent"
     assert card.cost_type is None and card.discipline_requirement is None
 
 

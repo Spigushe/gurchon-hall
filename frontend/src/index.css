@@ -3582,3 +3582,18 @@ fieldset:disabled .chip {
     align-self: flex-start;
   }
 }
+
+/* Chercher (Lot Chercher, D1b) : une ligne par carte, nom puis méta. */
+.search-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-divider);
+  font-size: 17px;
+}
+
+.search-row small {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}

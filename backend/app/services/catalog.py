@@ -25,12 +25,14 @@ from app.schemas.catalog import (
     BundleContentRead,
     CardListItem,
     CardRead,
+    CardSearchItem,
     CardSummary,
 )
 from app.schemas.reference import LanguageCreate
 from app.services.errors import ConflictError, NotFoundError
 from app.services.persistence import commit_or_conflict
 from app.services.text_search import contains_folded
+from app.services.vtes_rules import library_requirement
 
 
 def normalize_language_code(code: str) -> str:
@@ -125,6 +127,64 @@ def _printing_fields(card: Card) -> dict[str, object]:
     }
 
 
+def _requirement_fields(card: Card) -> dict[str, object]:
+    """Lecture de `card.library_requirement` (lot Chercher, A3) : la règle
+    « un titre implique sa secte » est dans `vtes_rules`, jamais au client."""
+    requirement = library_requirement(card.library_requirement)
+    return {
+        "required_sects": list(requirement.sects),
+        "required_titles": list(requirement.titles),
+        "requires_titled": requirement.titled,
+        "requires_non_titled": requirement.non_titled,
+        "other_requirements": list(requirement.other),
+    }
+
+
+def _translated_names(card: Card) -> dict[str, object]:
+    """Noms traduits de la ligne de liste (A7), triés par langue."""
+    return {
+        "translated_names": [
+            {"language_code": t.language_code, "name": t.name}
+            for t in sorted(card.translations, key=lambda t: t.language_code)
+        ]
+    }
+
+
+_COMPUTED_FIELDS = frozenset(
+    {
+        "card_set_ids",
+        "latest_card_set_id",
+        "required_sects",
+        "required_titles",
+        "requires_titled",
+        "requires_non_titled",
+        "other_requirements",
+        "translated_names",
+    }
+)
+"""Champs de lecture calculés par le service, qui ne sont ni des colonnes ni
+des relations de `Card`."""
+
+
+def _card_read[T: CardListItem](card: Card, schema: type[T]) -> T:
+    """Remplit `schema` depuis la carte : chaque champ lu par `getattr`, sauf
+    les champs calculés. Les relations lues doivent être préchargées par
+    l'appelant, sans quoi chaque carte d'une page déclenche ses requêtes."""
+    computed = {**_printing_fields(card), **_requirement_fields(card)}
+    if "translated_names" in schema.model_fields:
+        computed.update(_translated_names(card))
+    return schema.model_validate(
+        {
+            **{
+                name: getattr(card, name)
+                for name in schema.model_fields
+                if name not in _COMPUTED_FIELDS
+            },
+            **computed,
+        }
+    )
+
+
 def list_cards(
     db: Session,
     *,
@@ -133,9 +193,16 @@ def list_cards(
     clan_id: int | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[CardListItem]:
+) -> list[CardSearchItem]:
+    # Lot Chercher, A1 : la forme est livrée à l'étape A1 ; l'ordre des types
+    # et des disciplines, le contrôle du nombre de requêtes et la compression
+    # des réponses sont à l'étape B1.
     stmt = select(Card).options(
         joinedload(Card.clan),
+        joinedload(Card.sect),
+        selectinload(Card.types),
+        selectinload(Card.discipline_links).joinedload(CardDisciplineLink.discipline),
+        selectinload(Card.translations),
         selectinload(Card.printings).joinedload(CardPrinting.card_set),
         # Nécessaire à `latest_card_set_id` (D2a, règle 1) : sans ce
         # préchargement, chaque carte de la page déclencherait sa propre
@@ -150,12 +217,7 @@ def list_cards(
         stmt = stmt.where(Card.clan_id == clan_id)
     stmt = stmt.order_by(Card.name, Card.group_code, Card.id)
     stmt = stmt.limit(limit).offset(offset)
-    return [
-        CardListItem(
-            **CardSummary.model_validate(card).model_dump(), **_printing_fields(card)
-        )
-        for card in db.scalars(stmt)
-    ]
+    return [_card_read(card, CardSearchItem) for card in db.scalars(stmt)]
 
 
 def get_card(db: Session, card_id: int) -> CardRead:
@@ -178,13 +240,7 @@ def get_card(db: Session, card_id: int) -> CardRead:
     card = db.scalars(stmt).one_or_none()
     if card is None:
         raise NotFoundError(f"Carte {card_id} introuvable.")
-    return CardRead.model_validate(
-        {
-            **{name: getattr(card, name) for name in CardRead.model_fields
-               if name not in {"card_set_ids", "latest_card_set_id"}},
-            **_printing_fields(card),
-        }
-    )
+    return _card_read(card, CardRead)
 
 
 def list_bundles(

@@ -1,0 +1,235 @@
+{
+  "description": "Table de cas commune de card_legality (Python, backend/app/services/vtes_rules.py) et de sa jumelle TypeScript (frontend/src/offline/vtes/, étape C1b du lot Chercher, A5). Une carte est bannie à partir de banned_on, jour inclus ; elle n'est pas encore légale tant que legal_from est strictement postérieure à on ; sans date, ni l'un ni l'autre. Les deux booléens ne s'excluent pas (Playing for Keeps). Chaque cas : description, banned_on, legal_from et on (chaînes ISO YYYY-MM-DD, les deux premières pouvant valoir null), expected {banned, not_yet_legal}. Le côté TypeScript compare les chaînes ISO, jamais des Date. Les deux tests vérifient que la table contient au moins un cas par combinaison de résultats. Une évolution de la règle se fait ici et dans les deux implémentations.",
+  "cases": [
+    {
+      "description": "aucune date : légale",
+      "banned_on": null,
+      "legal_from": null,
+      "on": "2026-11-03",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "aucune date, date d'évaluation ancienne : légale",
+      "banned_on": null,
+      "legal_from": null,
+      "on": "1994-08-16",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannie seule, la veille du bannissement",
+      "banned_on": "2010-06-15",
+      "legal_from": null,
+      "on": "2010-06-14",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannie seule, le jour du bannissement (jour inclus)",
+      "banned_on": "2010-06-15",
+      "legal_from": null,
+      "on": "2010-06-15",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannie seule, le lendemain",
+      "banned_on": "2010-06-15",
+      "legal_from": null,
+      "on": "2010-06-16",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "légale à partir d'une date seule, la veille",
+      "banned_on": null,
+      "legal_from": "2026-03-01",
+      "on": "2026-02-28",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "légale à partir d'une date seule, le jour même (jour inclus)",
+      "banned_on": null,
+      "legal_from": "2026-03-01",
+      "on": "2026-03-01",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "légale à partir d'une date seule, le lendemain",
+      "banned_on": null,
+      "legal_from": "2026-03-01",
+      "on": "2026-03-02",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "année bissextile : la veille d'un 1er mars est un 29 février",
+      "banned_on": null,
+      "legal_from": "2024-03-01",
+      "on": "2024-02-29",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "changement d'année : bannie le 1er janvier, évaluée le 31 décembre",
+      "banned_on": "2025-01-01",
+      "legal_from": null,
+      "on": "2024-12-31",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannissement après l'entrée en légalité, avant les deux",
+      "banned_on": "2010-06-15",
+      "legal_from": "2000-01-01",
+      "on": "1999-12-31",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "bannissement après l'entrée en légalité, entre les deux",
+      "banned_on": "2010-06-15",
+      "legal_from": "2000-01-01",
+      "on": "2005-05-05",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannissement après l'entrée en légalité, après les deux",
+      "banned_on": "2010-06-15",
+      "legal_from": "2000-01-01",
+      "on": "2010-06-15",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannissement et entrée en légalité le même jour, la veille",
+      "banned_on": "2020-05-01",
+      "legal_from": "2020-05-01",
+      "on": "2020-04-30",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "bannissement et entrée en légalité le même jour, ce jour-là",
+      "banned_on": "2020-05-01",
+      "legal_from": "2020-05-01",
+      "on": "2020-05-01",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "bannissement et entrée en légalité le même jour, le lendemain",
+      "banned_on": "2020-05-01",
+      "legal_from": "2020-05-01",
+      "on": "2020-05-02",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : la veille du bannissement",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1995-10-31",
+      "expected": {
+        "banned": false,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : le jour du bannissement, bannie et pas encore légale",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1995-11-01",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : entre les deux dates, bannie et pas encore légale",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1995-12-25",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : la veille de l'entrée en légalité",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1996-01-13",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": true
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : le jour de l'entrée en légalité, bannie seulement",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1996-01-14",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : le lendemain",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "1996-01-15",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    },
+    {
+      "description": "Playing for Keeps (#101403 chez krcg), bannie le 1995-11-01 et légale à partir du 1996-01-14 : aujourd'hui",
+      "banned_on": "1995-11-01",
+      "legal_from": "1996-01-14",
+      "on": "2026-11-03",
+      "expected": {
+        "banned": true,
+        "not_yet_legal": false
+      }
+    }
+  ]
+}

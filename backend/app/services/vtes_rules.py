@@ -1,7 +1,10 @@
 """Règles métier VtES — fonctions pures, sans base ni HTTP (skill `regles-vtes`).
 
-Périmètre : la légalité d'un deck (CLAUDE.md §5, Lot 2), puis le score d'une
-partie et les contrôles de tournoi (Lot 7, plus bas). Ces derniers suivent les
+Périmètre : la légalité d'un deck (CLAUDE.md §5, Lot 2) et celle d'une carte
+seule à une date (lot Chercher, A5), puis le score d'une partie et les
+contrôles de tournoi (Lot 7, plus bas), enfin la secte d'une carte de crypte et
+l'exigence d'une carte de bibliothèque (lot Chercher, P13 et P15, en fin de
+module). Ces derniers suivent les
 règles de tournoi de la VEKN (vekn.net/tournament-rules), relues le 2026-10-28 et
 adoptées pour le Lot 7 ; les sections sont citées entre parenthèses.
 
@@ -32,8 +35,9 @@ désigne pas une carte de crypt (trois « Theo Bell » distincts au catalogue).
 
 import re
 from collections.abc import Collection, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
+from typing import NamedTuple
 
 from app.models.enums import DeckPolicy, EventTier, FinalDeckRule, RoundType
 
@@ -88,6 +92,49 @@ def group_issues(groups: Collection[int]) -> list[str]:
     ]
 
 
+def _is_banned(banned_on: date | None, on: date) -> bool:
+    """Bannie **à partir de** `banned_on`, jour compris ; jamais sans date."""
+    return banned_on is not None and banned_on <= on
+
+
+def _is_not_yet_legal(legal_from: date | None, on: date) -> bool:
+    """Pas encore légale tant que `legal_from` est **strictement** postérieure
+    à `on` ; légale sans date."""
+    return legal_from is not None and legal_from > on
+
+
+class CardLegality(NamedTuple):
+    """Verdict de légalité d'une carte seule à une date (lot Chercher, A5).
+
+    Deux booléens qui **ne s'excluent pas** : *Playing for Keeps*, bannie le
+    1995-11-01 et légale à partir du 1996-01-14, est les deux à la fois entre
+    ces deux dates. La carte est légale quand aucun des deux n'est vrai. Un
+    n-uplet nommé : `banned, not_yet_legal = card_legality(...)` se lit aussi.
+    """
+
+    banned: bool
+    not_yet_legal: bool
+
+
+def card_legality(
+    banned_on: date | None, legal_from: date | None, on: date
+) -> CardLegality:
+    """Légalité d'une carte à la date `on` (lot Chercher, A5).
+
+    Même règle que `banned_cards` et `not_yet_legal_cards`, qui passent par
+    les mêmes deux prédicats. La date est un paramètre : seul l'appelant lit
+    l'horloge, à la date UTC (`_today()` côté service).
+
+    Une jumelle TypeScript (`frontend/src/offline/vtes/`, étape C1b) compare
+    des chaînes ISO `YYYY-MM-DD` ; les deux lisent la même table de cas,
+    `backend/tests/fixtures/card_legality_cases.json`.
+    """
+    return CardLegality(
+        banned=_is_banned(banned_on, on),
+        not_yet_legal=_is_not_yet_legal(legal_from, on),
+    )
+
+
 def banned_cards(cards: Iterable[tuple[str, date | None]], on: date) -> list[str]:
     """Libellés (triés, sans doublon) des cartes bannies à la date `on`.
 
@@ -95,7 +142,7 @@ def banned_cards(cards: Iterable[tuple[str, date | None]], on: date) -> list[str
     Une carte est bannie **à partir de** cette date, jour compris ; sans date,
     elle ne l'est jamais, et une date future ne l'est pas encore.
     """
-    return sorted({name for name, banned_on in cards if banned_on and banned_on <= on})
+    return sorted({name for name, banned_on in cards if _is_banned(banned_on, on)})
 
 
 def not_yet_legal_cards(
@@ -110,7 +157,7 @@ def not_yet_legal_cards(
     ne vaut pas interdiction.
     """
     return sorted(
-        {name for name, legal_from in cards if legal_from and legal_from > on}
+        {name for name, legal_from in cards if _is_not_yet_legal(legal_from, on)}
     )
 
 
@@ -564,4 +611,183 @@ def tournament_summary(
         rounds_played=len(rounds),
         final_victory_points=None if final is None else final.victory_points or 0.0,
         final_game_win=None if final is None else final.game_win is True,
+    )
+
+
+# --------------------------------------------------------------------------
+# Secte et exigences des cartes (lot Chercher, P13 et P15)
+# --------------------------------------------------------------------------
+#
+# Deux lectures du catalogue faites une seule fois, côté serveur : la secte
+# d'une carte de crypte, dérivée de son texte à l'import (krcg ne la publie
+# pas), et l'exigence d'une carte de bibliothèque (`vteslibmeta.csv` de
+# vtescsv), lue à chaque sortie de `GET /cartes`. Le client ne fait que
+# comparer des listes : aucune de ces deux règles n'a de jumelle TypeScript.
+# Les deux suivent VDB (`smeea/vdb`, `update/generate_crypt.py` et
+# `update/generate_library.py`, relus le 2026-11-03), aux écarts près que
+# chaque docstring signale.
+
+SECTS: tuple[str, ...] = (
+    "Camarilla",
+    "Sabbat",
+    "Laibon",
+    "Independent",
+    "Anarch",
+    "Imbued",
+)
+"""Noms canoniques des sectes, dans l'ordre de VDB. Ce sont aussi les noms de
+la table `sect` et ceux des sectes exigées par une carte de bibliothèque : le
+client compare les deux côtés avec le même vocabulaire."""
+
+IMBUED_SECT = "Imbued"
+
+_SECT_BY_KEY = {sect.casefold(): sect for sect in SECTS}
+_VAMPIRE_SECTS = frozenset(SECTS) - {IMBUED_SECT}
+_WORDS = re.compile(r"\W+")
+
+
+def crypt_sect(card_text: str | None, *, imbued: bool) -> str | None:
+    """Secte d'une carte de crypte, dérivée du texte comme le fait VDB (P13).
+
+    Un *imbued* est « Imbued ». Un vampire prend le premier mot de son texte,
+    ou le second quand le premier est « Advanced » (« Advanced, Sabbat: … »),
+    s'il nomme l'une des cinq sectes de vampire ; la casse est normalisée.
+    Sinon `None` : l'import signale la carte, il ne devine pas.
+
+    Un *advanced* dont le texte fusionné (`[MERGED]`) change de secte garde
+    celle de sa face, comme chez VDB : six cartes au 2026-11-03, listées dans
+    `backend/tests/fixtures/crypt_sect_cases.json`.
+    """
+    if imbued:
+        return IMBUED_SECT
+    words = [word for word in _WORDS.split(card_text or "") if word]
+    if words[:1] == ["Advanced"]:
+        words = words[1:]
+    sect = _SECT_BY_KEY.get(words[0].casefold()) if words else None
+    return sect if sect in _VAMPIRE_SECTS else None
+
+
+TITLE_SECTS: Mapping[str, tuple[str, str]] = {
+    "primogen": ("Primogen", "Camarilla"),
+    "prince": ("Prince", "Camarilla"),
+    "justicar": ("Justicar", "Camarilla"),
+    "imperator": ("Imperator", "Camarilla"),
+    "inner circle": ("Inner Circle", "Camarilla"),
+    "bishop": ("Bishop", "Sabbat"),
+    "archbishop": ("Archbishop", "Sabbat"),
+    "priscus": ("Priscus", "Sabbat"),
+    "cardinal": ("Cardinal", "Sabbat"),
+    "regent": ("Regent", "Sabbat"),
+    "1 vote": ("1 Vote", "Independent"),
+    "2 votes": ("2 Votes", "Independent"),
+    "magaji": ("Magaji", "Laibon"),
+    "kholo": ("Kholo", "Laibon"),
+    "baron": ("Baron", "Anarch"),
+}
+"""Titre exigé (clé en minuscules, comme dans `vteslibmeta.csv`) → nom du
+titre tel que krcg l'écrit sur les vampires (`card.title`), et secte que le
+titre implique.
+
+Table de VDB (`generate_library.py`, `title_sects`), à une correction près :
+VDB range « bishop » dans la Camarilla, alors que l'évêque est un titre du
+Sabbat. Sans effet sur les données au 2026-11-03, aucune ligne du fichier
+n'exigeant « bishop » ; noté pour le cas où l'une apparaîtrait."""
+
+_TITLED = "titled"
+_NON_TITLED = "non-titled"
+_EXCLUSION = "non-"
+
+
+@dataclass(frozen=True, slots=True)
+class LibraryRequirement:
+    """Exigence d'une carte de bibliothèque envers le vampire qui la joue.
+
+    * `sects` : sectes exigées, l'une **ou** l'autre (« Independent,anarch »),
+      dans l'ordre de `SECTS`. Elles comprennent celles qu'un titre exigé
+      implique, et tiennent compte des exclusions (« non-anarch » : toute
+      secte de vampire sauf Anarch) ;
+    * `titles` : titres précis exigés, l'un ou l'autre, noms de `TITLE_SECTS`,
+      dans l'ordre du fichier ;
+    * `titled` : un titre quelconque (`titled`) ; `non_titled` : aucun titre
+      (`non-titled`) ;
+    * `other` : tout le reste, tel qu'écrit dans le fichier, dans l'ordre :
+      `non-sterile`, `non-red list`, `1 Gehenna`, `capacity 5 or more`,
+      `black hand`, `seraph`… Ces valeurs ne sont pas filtrables dans le lot
+      Chercher.
+
+    Deux valeurs de catégories différentes se cumulent (« sabbat,titled » :
+    un vampire du Sabbat **et** titré).
+    """
+
+    sects: tuple[str, ...] = ()
+    titles: tuple[str, ...] = ()
+    titled: bool = False
+    non_titled: bool = False
+    other: tuple[str, ...] = ()
+
+
+@dataclass
+class _RequirementParts:
+    """Valeurs d'une exigence triées par catégorie, avant composition."""
+
+    sects: set[str] = field(default_factory=set)
+    excluded: set[str] = field(default_factory=set)
+    titles: list[str] = field(default_factory=list)
+    flags: dict[str, bool] = field(
+        default_factory=lambda: {_TITLED: False, _NON_TITLED: False}
+    )
+    other: list[str] = field(default_factory=list)
+
+    def add(self, value: str) -> None:
+        key = value.casefold()
+        excluded = _SECT_BY_KEY.get(key.removeprefix(_EXCLUSION))
+        if key in self.flags:
+            self.flags[key] = True
+        elif key in _SECT_BY_KEY:
+            self.sects.add(_SECT_BY_KEY[key])
+        elif key.startswith(_EXCLUSION) and excluded is not None:
+            self.excluded.add(excluded)
+        elif key in TITLE_SECTS:
+            title, sect = TITLE_SECTS[key]
+            self.sects.add(sect)
+            self.titles.append(title)
+        else:
+            self.other.append(value)
+
+    def required_sects(self) -> tuple[str, ...]:
+        """Sectes exigées, l'une ou l'autre. Une exclusion se retire des
+        sectes exigées par ailleurs ; s'il n'y en a pas, elle se lit sur les
+        cinq sectes de vampire (`non-anarch` : Camarilla, Sabbat, Laibon ou
+        Independent ; pas Imbued, ces cartes visant un vampire)."""
+        base = self.sects or (_VAMPIRE_SECTS if self.excluded else set())
+        return tuple(sect for sect in SECTS if sect in base - self.excluded)
+
+
+def library_requirement(raw: str | None) -> LibraryRequirement:
+    """Découpe une exigence brute de `vteslibmeta.csv` (lot Chercher, P15).
+
+    Valeurs séparées par des virgules, comparées sans tenir compte de la casse
+    ni des espaces de bord (« Independent » et « independent »). Un titre
+    exigé implique sa secte (`TITLE_SECTS`) : une carte qui exige un Prince
+    exige un vampire de la Camarilla. Une exclusion de secte (« non-anarch »)
+    exige toute **autre** secte de vampire, décidé par l'utilisateur le
+    2026-11-03 : la carte ne répond ni à Anarch ni à « non requise », mais à
+    chacune des quatre autres sectes de vampire ; avec une secte exigée par
+    ailleurs (« non-anarch,prince »), elle la restreint au lieu de l'élargir.
+    `None` ou une chaîne vide : aucune exigence.
+
+    Écart à VDB : VDB lit les exclusions par sous-chaîne, si bien qu'une carte
+    « non-anarch » n'y répond ni à « non requise » (comme ici) ni à Camarilla
+    ou Sabbat (contrairement à ici).
+    """
+    parts = _RequirementParts()
+    for value in (part.strip() for part in (raw or "").split(",")):
+        if value:
+            parts.add(value)
+    return LibraryRequirement(
+        sects=parts.required_sects(),
+        titles=tuple(dict.fromkeys(parts.titles)),
+        titled=parts.flags[_TITLED],
+        non_titled=parts.flags[_NON_TITLED],
+        other=tuple(dict.fromkeys(parts.other)),
     )

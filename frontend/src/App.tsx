@@ -38,6 +38,7 @@ const TournamentDetailPage = lazy(() =>
 );
 const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
+const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
 
 // Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
 // (en parallèle du tout premier rendu, pas après lui) : un `import()` d'un
@@ -72,12 +73,13 @@ for (const importRoute of [
   () => import("./features/games/TournamentDetailPage"),
   () => import("./features/games/NotebookPage"),
   () => import("./features/sync/SyncPage"),
+  () => import("./features/search/SearchPage"),
 ]) {
   importRoute().catch(() => {});
 }
 
 /** Les cinq onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
-type NavKey = "home" | "stock" | "decks" | "games" | "sync";
+type NavKey = "home" | "stock" | "decks" | "games" | "sync" | "search";
 
 /**
  * Route active par onglet. Factorisée pour que `TabBar` (< 1024px) et
@@ -101,6 +103,7 @@ function navActive(route: Route): Record<NavKey, boolean> {
       route.name === "tournament" ||
       route.name === "notebook",
     sync: route.name === "sync",
+    search: route.name === "search",
   };
 }
 
@@ -185,6 +188,8 @@ function Page({ route }: { route: Route }) {
       return <NotebookPage />;
     case "sync":
       return <SyncPage />;
+    case "search":
+      return <SearchPage key={route.deck ?? ""} initialQuery={route.q} deck={route.deck} />;
     case "not-found":
       return (
         <div className="page" data-testid="not-found">
@@ -200,7 +205,7 @@ function Page({ route }: { route: Route }) {
   }
 }
 
-/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Parties, Chercher (désactivé). */
+/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Parties, Chercher. */
 function TabBar({ route }: { route: Route }) {
   const status = useSyncStatus();
   const active = navActive(route);
@@ -230,10 +235,10 @@ function TabBar({ route }: { route: Route }) {
         <TrophyIcon size={22} weight={active.games ? "fill" : "regular"} />
         <span>Parties</span>
       </Link>
-      <span className="tabbar__item" aria-disabled="true">
-        <MagnifyingGlassIcon size={22} weight="regular" />
+      <Link to={{ name: "search" }} current={active.search} className="tabbar__item" data-testid="nav-search">
+        <MagnifyingGlassIcon size={22} weight={active.search ? "fill" : "regular"} />
         <span>Chercher</span>
-      </span>
+      </Link>
     </nav>
   );
 }

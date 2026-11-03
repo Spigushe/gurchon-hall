@@ -115,6 +115,7 @@ lit l'exigence `mono` / `choice` / `combo` de krcg).
 | `ETag` sur le catalogue | une relecture du catalogue sans changement coûterait un 304 au lieu de 440 Ko ; dérivé de la date du dernier import (revue backend du lot Chercher) | quand le catalogue se relira plus souvent |
 | Cache des images de cartes | garder les images déjà vues hors ligne (Workbox, expiration bornée) ; exige `crossOrigin="anonymous"` sur `CardImage`, sinon la réponse est opaque et pèse très lourd dans le quota | si l'image manque à l'usage au club |
 | Images par impression dans le miroir | environ 0,8 Mo par base de compte | si la lecture à la demande se révèle trop lente |
+| Black Hand et Seraph exigés par une carte de bibliothèque | ce sont des traits du Sabbat : une carte qui exige un vampire Black Hand ou Seraph exige de fait un vampire Sabbat. Le lot Chercher les laisse dans les autres valeurs de l'exigence (`other_requirements`), sans impliquer le Sabbat ni les rendre filtrables (décision de l'utilisateur du 2026-11-03, après A1). Les traiter demanderait de décider s'ils impliquent le Sabbat, comme un titre implique sa secte, et d'en faire une valeur de filtre, côté bibliothèque comme côté crypte (où VDB les range parmi les traits) | avec les traits de VDB ci-dessus, ou dès qu'un deck Black Hand le demande |
 
 ## Socle hors ligne (valeur pour Barrin)
 

@@ -1,0 +1,719 @@
+{
+  "description": "Table de cas de library_requirement (backend/app/services/vtes_rules.py), lot Chercher, P15 : lecture de la colonne Requirement de vteslibmeta.csv (vtescsv), stockée brute dans card.library_requirement et exposée découpée par GET /cartes (required_sects, required_titles, requires_titled, requires_non_titled, other_requirements). Chaque cas : description, raw (chaîne brute ou null) et expected, dont les cinq clés sont les champs de LibraryRequirement : sects (dans l'ordre Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), titles (noms krcg, dans l'ordre du fichier), titled, non_titled, other (valeurs telles qu'écrites, dans l'ordre). Un titre exigé implique sa secte ; une exclusion (non-anarch) exige toute autre secte de vampire (Imbued exclu), et restreint les sectes exigées par ailleurs ; Black Hand et Seraph restent bruts. Les valeurs viennent du fichier relevé le 2026-11-03, sauf les cas marqués synthétiques. Lu par pytest seulement : le client reçoit les listes déjà lues.",
+  "cases": [
+    {
+      "description": "aucune ligne dans le fichier",
+      "raw": null,
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "exigence vide",
+      "raw": "",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "virgules seules",
+      "raw": ",,",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "secte seule",
+      "raw": "sabbat",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "secte seule, écrite avec une majuscule dans le fichier",
+      "raw": "Independent",
+      "expected": {
+        "sects": [
+          "Independent"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "imbued est une secte",
+      "raw": "imbued",
+      "expected": {
+        "sects": [
+          "Imbued"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "deux sectes : l'une ou l'autre, dans l'ordre de SECTS",
+      "raw": "Independent,anarch",
+      "expected": {
+        "sects": [
+          "Independent",
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "un titre implique sa secte : Prince et Justicar, Camarilla",
+      "raw": "prince,justicar",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Prince",
+          "Justicar"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Justicar et Inner Circle, Camarilla",
+      "raw": "justicar,inner circle",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Justicar",
+          "Inner Circle"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "trois titres de la Camarilla",
+      "raw": "prince,justicar,inner circle",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Prince",
+          "Justicar",
+          "Inner Circle"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Primogen et Prince",
+      "raw": "primogen,prince",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Primogen",
+          "Prince"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "titres du Sabbat",
+      "raw": "archbishop,priscus,cardinal,regent",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [
+          "Archbishop",
+          "Priscus",
+          "Cardinal",
+          "Regent"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Bishop est un titre du Sabbat (VDB le range à tort dans la Camarilla ; aucune ligne du fichier au 2026-11-03)",
+      "raw": "bishop",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [
+          "Bishop"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Baron implique Anarch",
+      "raw": "baron",
+      "expected": {
+        "sects": [
+          "Anarch"
+        ],
+        "titles": [
+          "Baron"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Magaji implique Laibon",
+      "raw": "magaji",
+      "expected": {
+        "sects": [
+          "Laibon"
+        ],
+        "titles": [
+          "Magaji"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Kholo implique Laibon (synthétique : table de VDB, aucune ligne du fichier)",
+      "raw": "kholo",
+      "expected": {
+        "sects": [
+          "Laibon"
+        ],
+        "titles": [
+          "Kholo"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "Imperator implique la Camarilla (synthétique)",
+      "raw": "imperator",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Imperator"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "1 vote implique Independent (synthétique)",
+      "raw": "1 vote",
+      "expected": {
+        "sects": [
+          "Independent"
+        ],
+        "titles": [
+          "1 Vote"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "2 votes implique Independent (synthétique)",
+      "raw": "2 votes",
+      "expected": {
+        "sects": [
+          "Independent"
+        ],
+        "titles": [
+          "2 Votes"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "secte explicite et secte impliquée identiques : une seule fois",
+      "raw": "camarilla,prince",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Prince"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "titres de deux sectes : les deux sectes (synthétique)",
+      "raw": "prince,archbishop",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat"
+        ],
+        "titles": [
+          "Prince",
+          "Archbishop"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "secte et titre quelconque",
+      "raw": "sabbat,titled",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [],
+        "titled": true,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "titre quelconque seul",
+      "raw": "titled",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": true,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "non-anarch : toute secte de vampire sauf Anarch (décision de l'utilisateur du 2026-11-03) ; ni Anarch, ni « non requise », ni Imbued",
+      "raw": "non-anarch",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "non-anarch et titré : les quatre autres sectes, et un titre quelconque",
+      "raw": "non-anarch,titled",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent"
+        ],
+        "titles": [],
+        "titled": true,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "non-anarch et non titré",
+      "raw": "non-anarch,non-titled",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": true,
+        "other": []
+      }
+    },
+    {
+      "description": "ordre inverse dans le fichier, même lecture",
+      "raw": "non-titled,non-anarch",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": true,
+        "other": []
+      }
+    },
+    {
+      "description": "non-anarch et non-red list : la seconde reste brute",
+      "raw": "non-anarch,non-red list",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "non-red list"
+        ]
+      }
+    },
+    {
+      "description": "non-camarilla seul",
+      "raw": "non-camarilla",
+      "expected": {
+        "sects": [
+          "Sabbat",
+          "Laibon",
+          "Independent",
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "exclusion et titre : l'exclusion restreint la secte du titre au lieu de l'élargir (synthétique)",
+      "raw": "non-anarch,prince",
+      "expected": {
+        "sects": [
+          "Camarilla"
+        ],
+        "titles": [
+          "Prince"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "exclusion qui retire la seule secte exigée : aucune secte possible, liste vide (synthétique, contradictoire, aucune ligne du fichier)",
+      "raw": "non-anarch,anarch",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "exclusion d'une secte qui n'est pas de vampire : les cinq sectes de vampire (synthétique)",
+      "raw": "non-imbued",
+      "expected": {
+        "sects": [
+          "Camarilla",
+          "Sabbat",
+          "Laibon",
+          "Independent",
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "secte et non titré",
+      "raw": "laibon,non-titled",
+      "expected": {
+        "sects": [
+          "Laibon"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": true,
+        "other": []
+      }
+    },
+    {
+      "description": "exclusion de secte et capacité : la capacité reste brute",
+      "raw": "non-camarilla,capacity 8 or more",
+      "expected": {
+        "sects": [
+          "Sabbat",
+          "Laibon",
+          "Independent",
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "capacity 8 or more"
+        ]
+      }
+    },
+    {
+      "description": "valeur brute avant un titre",
+      "raw": "non-sterile,baron",
+      "expected": {
+        "sects": [
+          "Anarch"
+        ],
+        "titles": [
+          "Baron"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "non-sterile"
+        ]
+      }
+    },
+    {
+      "description": "titre exigé et valeur inconnue",
+      "raw": "cardinal,regent,inquisitor",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [
+          "Cardinal",
+          "Regent"
+        ],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "inquisitor"
+        ]
+      }
+    },
+    {
+      "description": "non-sterile seul",
+      "raw": "non-sterile",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "non-sterile"
+        ]
+      }
+    },
+    {
+      "description": "Gehenna",
+      "raw": "1 Gehenna",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "1 Gehenna"
+        ]
+      }
+    },
+    {
+      "description": "capacité",
+      "raw": "capacity 7 or more",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "capacity 7 or more"
+        ]
+      }
+    },
+    {
+      "description": "secte et capacité",
+      "raw": "anarch,capacity 5 or more",
+      "expected": {
+        "sects": [
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "capacity 5 or more"
+        ]
+      }
+    },
+    {
+      "description": "Black Hand reste brut et n'implique pas le Sabbat (traitement reporté, décision de l'utilisateur du 2026-11-03)",
+      "raw": "black hand",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "black hand"
+        ]
+      }
+    },
+    {
+      "description": "Seraph reste brut et n'implique pas le Sabbat (traitement reporté)",
+      "raw": "seraph",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "seraph"
+        ]
+      }
+    },
+    {
+      "description": "Gehenna et Seraph",
+      "raw": "1 Gehenna,seraph",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "1 Gehenna",
+          "seraph"
+        ]
+      }
+    },
+    {
+      "description": "Sabbat explicite et Black Hand : Sabbat exigé, Black Hand brut",
+      "raw": "sabbat,black hand",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "black hand"
+        ]
+      }
+    },
+    {
+      "description": "unmerged, advanced",
+      "raw": "unmerged,advanced",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "unmerged",
+          "advanced"
+        ]
+      }
+    },
+    {
+      "description": "valeur longue avec espaces internes",
+      "raw": "2 Path of Power and the Inner Voice",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "2 Path of Power and the Inner Voice"
+        ]
+      }
+    },
+    {
+      "description": "city title reste brut",
+      "raw": "city title",
+      "expected": {
+        "sects": [],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "city title"
+        ]
+      }
+    },
+    {
+      "description": "espaces de bord et casse (synthétique)",
+      "raw": " Sabbat , TITLED ",
+      "expected": {
+        "sects": [
+          "Sabbat"
+        ],
+        "titles": [],
+        "titled": true,
+        "non_titled": false,
+        "other": []
+      }
+    },
+    {
+      "description": "valeurs répétées dédoublonnées (synthétique)",
+      "raw": "anarch,anarch,non-sterile,non-sterile",
+      "expected": {
+        "sects": [
+          "Anarch"
+        ],
+        "titles": [],
+        "titled": false,
+        "non_titled": false,
+        "other": [
+          "non-sterile"
+        ]
+      }
+    }
+  ]
+}
