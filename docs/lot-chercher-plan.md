@@ -1,69 +1,84 @@
 # Lot Chercher : recherche dans le catalogue, hors ligne
 
-Statut : plan relu par les agents, validé par l'orchestrateur ; propositions P
-à trancher par l'utilisateur.
+Statut : A0 close le 2026-11-03 : propositions tranchées ; E0 et D1a livrées ;
+A1 ouvrable.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
-partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), puis relu le
-même jour par architecte-contrat, backend-fastapi, pwa-offline, frontend-react
-et qa-tests. Les cinq revues sont résumées en fin de document ; leurs
-corrections et leurs mesures sont intégrées dans le corps du plan, qui fait
-foi. Il reprend le brief du 2026-09-25 (`docs/lot-chercher-brief.md`), les
+partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
+jour par architecte-contrat, backend-fastapi, pwa-offline, frontend-react et
+qa-tests, puis tranché par l'utilisateur à l'étape A0, toujours le 2026-11-03.
+Les revues sont résumées en fin de document ; leurs corrections, leurs mesures
+et les décisions de l'utilisateur sont intégrées dans le corps du plan, qui
+fait foi. Il reprend le brief du 2026-09-25 (`docs/lot-chercher-brief.md`), les
 deux points que le Lot 5c a renvoyés à ce lot (`docs/lot5c-plan-design.md`,
 table d'écarts, ligne 8 et ligne sans numéro du champ de recherche global), et
 la place que l'utilisateur a donnée au lot le 2026-10-29 : après le Lot 7,
 avant le Lot 8 (P9 de `docs/lot7-plan-parties.md`, CLAUDE.md §12, point 9).
 
 Il suit la forme de `docs/lot7-plan-parties.md` et de
-`docs/lot-inventaires-plan.md` : ce qui est déjà tranché, ce qui reste à
-trancher par l'utilisateur (P1 à P14), les décisions de conception (A1 à A10),
-le découpage par agent et ce qui peut casser. Rien n'est codé avant que les
-propositions qui conditionnent l'étape A1 soient tranchées (section
-« Validation de l'orchestrateur »).
+`docs/lot-inventaires-plan.md` : les décisions de l'utilisateur (P1 à P15),
+les décisions de conception (A1 à A10), le découpage par agent, ce qui a été
+livré étape par étape, ce qui peut casser.
 
 Le nom « lot Chercher » ne décale pas la numérotation des Lots 8 à 11.
 
 ## Portée
 
 Le lot remplace l'onglet Chercher, désactivé depuis le Lot 5, par un écran qui
-parcourt le catalogue entier avec des filtres, hors ligne comme en ligne, et
-qui permet d'ajouter une carte trouvée à un deck, à la collection, ou aux deux.
-Il livre ses deux dispositions, mobile et bureau, sans rien laisser à un lot de
-symétrie (§11, ouverture du Lot 5bis).
+parcourt le catalogue entier avec les filtres de VDB, hors ligne comme en
+ligne, et qui permet d'ajouter une carte trouvée à un deck, à la collection, ou
+aux deux. Il livre ses deux dispositions, mobile et bureau, sans rien laisser à
+un lot de symétrie (§11, ouverture du Lot 5bis).
 
 Il apporte :
 
-1. un miroir local du catalogue enrichi de ce qu'il faut pour filtrer : types,
-   disciplines et leur niveau, coût, texte de carte, prérequis de clan, titre,
-   dates de légalité, rangé dans un magasin Dexie à part pour ne pas alourdir
-   les lectures existantes ;
-2. une fonction de filtrage locale, testée sur une table de cas, et une règle
-   de légalité d'une carte à une date écrite des deux côtés sur une table de
-   cas commune, comme le GW certain au Lot 7 ;
-3. la compression des réponses de l'API, qui ramène la lecture complète du
+1. le cœur des filtres de recherche de VDB (P1), avec le sens krcg des
+   exigences de discipline, plus la légalité à une date et le statut en
+   collection et en deck, qui sont propres à l'outil ;
+2. deux données de catalogue nouvelles, importées : la **secte** des cartes de
+   crypte, dérivée du texte comme le fait VDB (P13), et les **exigences de
+   secte et de titre** des cartes de bibliothèque, lues dans
+   `vteslibmeta.csv` du dépôt officiel vtescsv (P15), seconde source à côté
+   de krcg ; d'où une migration (douzième révision) et un rejeu de l'import sur
+   `backend/vtes.db` ;
+3. un miroir local du catalogue enrichi de ce qu'il faut pour filtrer, rangé
+   dans un magasin Dexie à part pour ne pas alourdir les lectures existantes ;
+4. des fonctions de filtrage locales, testées sur des tables de cas, et une
+   règle de légalité d'une carte à une date écrite des deux côtés sur une table
+   de cas commune, comme le GW certain au Lot 7 ;
+5. la compression des réponses de l'API, qui ramène la lecture complète du
    catalogue enrichi de 3,3 Mo à environ 440 Ko ;
-4. l'écran Chercher et sa fiche de carte, en mobile et en bureau ;
-5. une feuille d'ajout à trois choix (deck, collection, les deux) qui partage
-   sa logique avec l'ajout de ligne du deckbuilder et l'acquisition du Lot 4b,
-   sans type d'opération `/sync` nouveau ;
-6. le retour du champ de recherche global de la barre haute bureau, masqué
+6. l'écran Chercher et sa fiche de carte, en mobile et en bureau ;
+7. une feuille d'ajout à trois choix (deck, collection, les deux) qui partage
+   sa logique avec l'ajout de ligne du deckbuilder (hook livré à l'étape D1a)
+   et l'acquisition du Lot 4b, sans type d'opération `/sync` nouveau ;
+8. le retour du champ de recherche global de la barre haute bureau, masqué
    depuis le Lot 5c, et l'image de carte là où le Lot 5c l'a laissée en
    suspens.
 
-Pour le pilote, l'intérêt est double : le miroir du catalogue s'alourdit
-(4149 cartes avec leurs textes), et sa montée de version Dexie doit se faire
-sans laisser un téléphone sans catalogue au club. Barrin rencontrera les deux.
+Taille du lot. Les décisions de l'A0 l'ont élargi par rapport au plan relu :
+une migration, une seconde source d'import, un rejeu sur la base de
+développement, et un jeu de filtres plus riche (lignes de texte, paires de
+disciplines, votes, lignes de capacité, quatre modes de discipline en
+bibliothèque, secte et titre des deux côtés). Il reste un lot sans route
+nouvelle, sans type `/sync` nouveau et sans table nouvelle si l'architecte
+retient la forme de stockage recommandée (A3). C'est le plus gros lot côté
+front depuis le Lot 7, et le premier depuis le Lot 6 à changer l'import.
+
+Pour le pilote, l'intérêt est double : le miroir du catalogue s'alourdit, et sa
+montée de version Dexie doit se faire sans laisser un téléphone sans catalogue
+au club. Barrin rencontrera les deux.
 
 Ce que le lot ne fait pas. Pas d'inventaires multiples ni de classeurs, pas
 d'import de collection ou de deck depuis VDB, pas de suggestion de decklists :
 tout cela relève du lot Inventaires et du Lot 9. L'ajout « à la collection »
 vise la collection unique d'aujourd'hui, qui deviendra l'inventaire principal
-au lot Inventaires (P0 de `docs/lot-inventaires-plan.md`). Pas de
-statistiques de deck (répartition des disciplines, des types, des coûts), que
-`docs/pistes-evolution.md` place après ce lot. Pas de légende des raccourcis
-`?`, reliquat du Lot 5bis sans lot dédié. Pas de recherche dans les textes
-traduits. Pas de secte, sauf si P13 en décide autrement. Aucune règle de
-légalité de deck ne change.
+au lot Inventaires (P0 de `docs/lot-inventaires-plan.md`). Pas de statistiques
+de deck. Pas de légende des raccourcis `?`. Pas de recherche dans les textes
+traduits. Les filtres de VDB laissés hors du cœur (traits, regex libre,
+capacité exigée, artiste, précon, « Not in TWD », options d'extension) sont
+versés à `docs/pistes-evolution.md`. Aucune règle de légalité de deck ne
+change.
 
 ## Ce qui a changé depuis le brief
 
@@ -73,24 +88,18 @@ Le brief date du 2026-09-25, avant les Lots 6 et 7. Relu contre le code au
 - `GET /cartes`, `GET /cartes/{id}` et `GET /extensions` restent publics
   (Lot 6, P5). Le lot n'ajoute aucune route.
 - Le miroir vit dans une base IndexedDB par compte
-  (`gurchon-hall-offline-u<id>`, Lot 6). Le catalogue, partagé côté serveur,
-  est donc copié dans la base de chaque compte qui ouvre l'application sur un
-  appareil.
-- La base Dexie est en version 5 depuis le Lot 7. Le brief parlait d'une montée
-  « comme aux versions 3 et 4 », c'est-à-dire en vidant des magasins : le plan
-  ajoute au contraire un magasin, sans rien vider (section « Couche
-  offline »).
+  (`gurchon-hall-offline-u<id>`, Lot 6) : le catalogue est copié dans la base
+  de chaque compte qui ouvre l'application sur un appareil.
+- La base Dexie est en version 5 depuis le Lot 7. Le brief parlait d'une
+  montée « comme aux versions 3 et 4 », c'est-à-dire en vidant des magasins :
+  le plan ajoute au contraire un magasin, sans rien vider.
 - Les références client du Lot 7 ne touchent pas ce lot : les ajouts passent
-  par `stock.upsert` et `deck_card.upsert`, qui désignent un deck par sa clé
-  comme avant.
-- Le brief proposait un filtre de secte. La secte n'est pas importée
-  (`Card.sect_id` toujours nul, point [à confirmer] du §6) ; la revue de
-  l'architecte a mesuré qu'elle se dériverait du texte sans migration. C'est
-  devenu un choix de périmètre (P13).
+  par `stock.upsert` et `deck_card.upsert`.
+- Le brief proposait un filtre de secte, impossible sans import. L'utilisateur
+  a fait entrer la secte dans le lot (P13), et avec elle l'exigence de secte et
+  de titre des cartes de bibliothèque (P15).
 - Les URL d'image par impression existent déjà en base
-  (`card_printing.image_url`, importée depuis le champ `url` de chaque
-  impression krcg) et sont servies par `GET /cartes/{id}`. Le Lot 5c pensait
-  que ce lot devait les construire.
+  (`card_printing.image_url`) et sont servies par `GET /cartes/{id}`.
 
 ## État de départ relevé dans le code
 
@@ -109,60 +118,64 @@ Le brief date du 2026-09-25, avant les Lots 6 et 7. Relu contre le code au
 et ajoute `sect`, `title`, `path`, `cost_type`, `cost_value`, `burn_option`,
 `trifle`, `clan_requirement`, `path_requirement`, `discipline_requirement`
 (`mono`, `choice`, `combo`), `card_text`, `flavor_text`, `artist`,
-`banned_on`, `legal_from`, `types`, `discipline_links`, `printings` (avec
-`image_url` par impression) et `translations`. `CardSummary` reste la vue
-courte embarquée dans le stock, les decks et les produits.
+`banned_on`, `legal_from`, `types`, `discipline_links`, `printings` et
+`translations`. `CardSummary` reste la vue courte embarquée dans le stock, les
+decks et les produits.
 
 Le service (`backend/app/services/catalog.py`) construit la liste par
 `CardListItem(**CardSummary.model_validate(card).model_dump(), …)` : ce chemin
 ignore tout champ qui n'est pas dans `CardSummary`. `list_cards` précharge le
 clan, les impressions, leurs extensions et leurs occurrences, mais ni les types
-ni les disciplines ; `get_card` précharge déjà les deux et remplit `CardRead`
-par `getattr` sur chaque champ du schéma. Les relations `Card.types` et
-`Card.discipline_links` n'ont pas d'`order_by` : leur ordre dépend de
-l'historique des imports. Aucun `GZipMiddleware` dans `backend/app`.
+ni les disciplines ; `get_card` précharge les deux et remplit `CardRead` par
+`getattr` sur chaque champ du schéma. Les relations `Card.types` et
+`Card.discipline_links` n'ont pas d'`order_by`. Aucun `GZipMiddleware`.
 
-L'import (`backend/app/services/catalog_import.py`) remplit déjà tout ce que
-les filtres demandent : clan, capacité, groupe, *advanced*, titre, coût (type
-et valeur, en chaîne parce que 25 cartes coûtent « X »), prérequis de clan et
-de voie joints par `", "` (virgule et espace), exigence de discipline, texte,
-dates, types et disciplines. Pour une carte de crypte, la casse du code krcg
-porte le niveau (majuscules = supérieure) ; pour une carte de bibliothèque, ce
-sont les disciplines requises, toujours en minuscules. La secte n'est pas
-importée.
+L'import (`backend/app/services/catalog_import.py`) ne lit que krcg
+(`vtes.json`, `expansions.json` ; §11 décision 1, « source unique »). Il
+remplit clan, capacité, groupe, *advanced*, titre, coût (en chaîne, 25 cartes
+coûtant « X »), prérequis de clan et de voie joints par `", "`, exigence de
+discipline, texte, dates, types et disciplines (vertus des *imbued* comprises,
+codes `def`, `inn`, `jud`, `mar`, `red`, `ven`, `viz`). La secte n'est pas
+importée : la table `sect` est vide et `card.sect_id` nul (point [à
+confirmer] du §6). Aucune exigence de secte ou de titre des cartes de
+bibliothèque n'est connue : krcg v5 ne l'expose pas.
+
+L'API refuse de démarrer contre une base qui n'est pas à la tête des scripts
+(`backend/app/db/schema_check.py`) : dès qu'une douzième révision existe,
+`backend/vtes.db` doit être migrée pour que l'application démarre.
 
 Relevé sur une copie de `backend/vtes.db` (révision `e2a7819dd4a2`) par
 l'architecte, le back et pwa-offline : 4149 cartes (1785 de crypte, dont 1765
 vampires et 20 *imbued*, et 2364 de bibliothèque), 51 extensions, 113
 produits, 47 clans dont les 7 credos des *imbued*, aucun nom de clan à
-virgule, 39 disciplines, 13 types, aucune secte ; 428 cartes traduites, chacune
-en FR et en ES (856 lignes) ; 435 cartes titrées (13 valeurs, dont « 1 Vote »
-et « 2 Votes ») ; 20 cartes bannies ; `legal_from` renseigné pour les 4149
+virgule, 39 disciplines, 13 types, aucune secte ; 428 cartes traduites (FR et
+ES) ; 435 cartes titrées (13 valeurs : Prince, Primogen, Bishop, Archbishop,
+Justicar, Priscus, Cardinal, Baron, Magaji, Inner Circle, Regent, « 1 Vote »,
+« 2 Votes ») ; 20 cartes bannies ; `legal_from` renseigné pour les 4149
 cartes, au plus tard le 2026-02-28, si bien qu'aucune carte n'est aujourd'hui
 « pas encore légale » ; 10 010 impressions, dont 676 sans image ; textes de 168
-caractères en moyenne, 579 au plus, 0,7 Mo au total ; 1215 textes portent des
-icônes de discipline en clair (`[pot]`, `[POT]`), 52 un texte `[MERGED]`. Le
-fixture `backend/tests/fixtures/krcg_vtes.json` compte dix cartes, pas neuf
-comme l'écrit CLAUDE.md (à corriger à l'étape F).
+caractères en moyenne, 0,7 Mo au total ; 1215 textes à icônes de discipline
+(`[pot]`, `[POT]`), 52 textes `[MERGED]`. Les 1765 vampires commencent tous
+leur texte par l'une des cinq sectes (Camarilla 606, Sabbat 600, Independent
+374, Anarch 102, Laibon 83), précédée au besoin de « Advanced, » ; six
+*advanced* ont un texte fusionné qui change de secte. Le fixture
+`backend/tests/fixtures/krcg_vtes.json` compte dix cartes, pas neuf comme
+l'écrit CLAUDE.md (à corriger à l'étape F).
 
 ### Front
 
 Le miroir du catalogue est le magasin Dexie `cards`
 (`frontend/src/offline/vtes/db.ts`), clé `id`, index `foldedName` et
-`category`. Une ligne (`CardRow`) porte `id`, `veknId`, `name`, `foldedName`,
-`category`, `clanName`, `capacity`, `groupCode`, `advanced`, `imageUrl`,
-`cardSetIds`, `latestCardSetId`. Il est rempli par `refreshCatalog`
-(`frontend/src/offline/vtes/refresh.ts`), qui lit `GET /cartes` par pages de
-200 (21 requêtes), puis vide et réécrit le magasin dans une transaction.
+`category`, rempli par `refreshCatalog` (`refresh.ts`), qui lit `GET /cartes`
+par pages de 200 (21 requêtes), puis vide et réécrit le magasin dans une
+transaction.
 
-`cards` n'est pas lu que par la recherche : `readProjection`
-(`frontend/src/offline/vtes/reads.ts`), appelée par presque toute lecture de
-l'application (stock, decks, parties, picker, libellés), fait
-`db.cards.toArray()` et n'en tire que le nom et la catégorie
-(`overlay.ts`). Toute ligne alourdie dans `cards` serait désérialisée à chaque
-lecture de projection, sur tous les écrans.
+`cards` n'est pas lu que par la recherche : `readProjection` (`reads.ts`),
+appelée par presque toute lecture de l'application, fait `db.cards.toArray()`
+et n'en tire que le nom et la catégorie. Toute ligne alourdie dans `cards`
+serait désérialisée à chaque lecture de projection, sur tous les écrans.
 
-Historique des versions Dexie, à lire avec la multiplication par 10 que Dexie
+Historique des versions Dexie, avec la multiplication par 10 que Dexie
 applique (la version 5 déclarée est la version 50 d'IndexedDB) : la version 3
 supprime `stock` et `deckCards` et ajoute `cardSets` ; la version 4 recrée
 `stock` et `deckCards` avec l'extension dans leur clé, et vide `cards` et
@@ -170,1015 +183,1063 @@ supprime `stock` et `deckCards` et ajoute `cardSets` ; la version 4 recrée
 pratique (déclarés dans `VTES_STORES_V4`), sans `upgrade`.
 
 Le catalogue ne se relit que sur demande, par `refresh({ catalog: true })` :
-`CatalogProvider` le télécharge une fois quand le magasin est vide et qu'on est
-en ligne, et `CatalogPanel` offre le bouton « Mettre à jour le catalogue ». La
-relecture du catalogue est la dernière étape de `runRefresh` (`runtime.ts`),
-après huit autres miroirs, sous un délai global de 60 s, et toute la séquence
-est rejouée jusqu'à trois fois si un verdict de sync tombe pendant la lecture.
+`CatalogProvider` le télécharge une fois quand le magasin est vide, et
+`CatalogPanel` offre le bouton « Mettre à jour le catalogue ». La relecture du
+catalogue est la dernière étape de `runRefresh` (`runtime.ts`), sous un délai
+global de 60 s, et toute la séquence est rejouée jusqu'à trois fois si un
+verdict de sync tombe pendant la lecture.
 
-La recherche locale est `searchCards` : un parcours complet du magasin par
-`db.cards.filter(...)`, sur le nom replié et la catégorie, trié par nom en
-comparaison binaire, tronqué. `CardPicker` l'appelle avec `limit: 20` et à
-partir de deux lettres. `foldText` (`frontend/src/offline/core/foldText.ts`)
-reproduit `fold_text` du back à l'identique.
+La recherche locale est `searchCards` : un parcours de `db.cards.filter(...)`
+sur le nom replié et la catégorie. `CardPicker` l'appelle avec `limit: 20` et à
+partir de deux lettres. `foldText` reproduit `fold_text` du back à l'identique.
 
 L'onglet Chercher de la tab bar mobile est un `<span aria-disabled="true">`
-sans `data-testid` (`frontend/src/App.tsx`, `TabBar`). La barre haute bureau a
-cinq onglets (raccourcis `G A/C/D/P/S`) et ne rend plus le champ de recherche
-global depuis le Lot 5c. Chaque page est chargée en `lazy`, et `App.tsx` tient
-une liste de préchauffement qui la charge en ligne pour qu'elle s'ouvre ensuite
-hors ligne. Le routeur à hash (`frontend/src/app/routes.ts`) ne lit dans la
-query que le paramètre `action`.
+sans `data-testid` (`App.tsx`, `TabBar`). La barre haute bureau a cinq onglets
+(raccourcis `G A/C/D/P/S`) et ne rend plus le champ de recherche global. Chaque
+page est chargée en `lazy`, avec une liste de préchauffement. Le routeur à hash
+(`frontend/src/app/routes.ts`) ne lit dans la query que le paramètre `action`.
 
 `useKeyboardShortcuts` pose un écouteur `keydown` sur `document` par appel,
-sans priorité ni `stopPropagation` : deux liaisons de la même touche se
-déclenchent toutes les deux. `AddDeckCardForm` lie déjà `/` au champ du picker
-du deckbuilder bureau, y compris dans un champ ; le chord `G A` (Atelier)
-coexiste avec les touches simples de page, qui évitent toutes `A`, `C`, `D`,
-`P` et `S`. Sur la Collection, `F` ouvre la feuille de filtres.
+sans priorité : deux liaisons de la même touche se déclenchent toutes les deux.
+`AddDeckCardForm` lie déjà `/` au champ du picker du deckbuilder bureau ; les
+touches simples de page évitent toutes `A`, `C`, `D`, `P` et `S`, prises par
+les chords de navigation. Sur la Collection, `F` ouvre la feuille de filtres.
 
-`CardImage` (`frontend/src/components/CardImage.tsx`) prend une seule URL, en
-deux tailles (`sm`, `lg`), et se replie sur un pictogramme si l'URL manque,
-si l'image échoue ou si l'appareil est hors ligne. Il sert au bureau seulement
-(picker du deckbuilder, aperçu au survol de la Collection), toujours avec
-l'image générique. Le picker mobile n'affiche aucune image. Pas d'attribut
-`crossOrigin`, aucun `runtimeCaching` dans le service worker, pas de CSP.
-`static.krcg.org` répond avec `Access-Control-Allow-Origin: *` sur ses images
-(relevé par pwa-offline le 2026-11-03, un échantillon de 56 Ko).
+`CardImage` prend une seule URL, en deux tailles (`sm`, `lg`), sans
+`crossOrigin`, et se replie sur un pictogramme si l'URL manque, si l'image
+échoue ou hors ligne. Il sert au bureau seulement, avec l'image générique.
+Aucun `runtimeCaching` dans le service worker, pas de CSP. `static.krcg.org`
+répond avec `Access-Control-Allow-Origin: *` (relevé le 2026-11-03).
 
-`AddDeckCardForm` (`frontend/src/features/decks/AddDeckCardForm.tsx`) porte la
-logique d'ajout du Lot 4b : copies, compteur « déjà possédées », disponibilité
-par `useAvailableStock`, manque acquis par `acquiredQuantity`. Il envoie
-`quantity: copies`, `copies` repartant de 1, alors que `deck_card.upsert`
-remplace la quantité d'une ligne existante (`services/sync.py`, projection
-dans `overlay.ts`). Frontend-react en déduit qu'« ajouter » une copie à une
-ligne qui en compte deux pourrait l'écraser à une : défaut **présumé**, non
-rejoué, qu'aucun test ne couvre. Il est vérifié en tout début de lot (D1a).
+`AddDeckCardForm` envoyait `quantity: copies`, `copies` repartant de 1, alors
+que `deck_card.upsert` remplace la quantité d'une ligne existante : le défaut
+présumé à la relecture a été confirmé et corrigé à l'étape D1a (section
+« Livraisons »).
 
 ### Handoffs de design
 
 Aucun handoff ne dessine l'écran Chercher. `MOBILE.md` ne décrit que l'onglet ;
 `DESKTOP.md` décrit le champ de la barre haute (280 × 34, kbd `/`), les deux
-formes d'URL d'image krcg, et demande d'ajouter `static.krcg.org` à la CSP
-`img-src`, consigne sans objet tant qu'aucune CSP n'existe (à reprendre au
-Lot 11). Les prototypes `Gurchon Hall Bureau.dc.html` et `TopBar.dc.html`
-montrent le champ « Chercher une carte » ; `LOT7.md` le reprend sans l'activer.
+formes d'URL d'image krcg, et une CSP `img-src` sans objet tant qu'aucune CSP
+n'existe (à reprendre au Lot 11).
+
+### VDB et vtescsv
+
+Les filtres de VDB ont été relevés le 2026-11-03 dans son code source
+(`smeea/vdb`, branche `master`, commit `99520ec991fac52c57cb629b0585d796aecb27ee`,
+`frontend/src/utils/cardFilters.js` et `components/search_forms/`). VDB filtre
+entièrement côté client, sur des fichiers générés depuis les CSV de vtescsv.
+Les tableaux utiles du relevé sont recopiés dans `docs/pistes-evolution.md`
+(entrée « Filtres de VDB non repris par le lot Chercher ») ; le cœur retenu
+est décrit en P1.
+
+`vteslibmeta.csv` est publié dans le dépôt officiel vtescsv de GiottoVerducci,
+source des textes de cartes :
+`https://raw.githubusercontent.com/GiottoVerducci/vtescsv/main/vteslibmeta.csv`,
+en-tête `"Id","Name","Requirement"`, environ 380 lignes, `Id` = identifiant
+VEKN, donc notre `card.vekn_id`. Valeurs relevées : `sabbat`, `anarch`,
+`laibon`, `imbued`, `justicar,inner circle`, `prince,justicar`,
+`non-anarch,titled`, `non-sterile`, `1 Gehenna`, `2 Gehenna`,
+`capacity 7 or …`. Le dépôt ne déclare aucune licence ; krcg (MIT) dérive
+lui-même de vtescsv.
 
 ### Tests et chiffres de départ
 
 2276 tests pytest et 2 `xfail`, 752 tests vitest sur 49 fichiers, 59 tests
 Playwright en 28 fichiers (8 `chromium`, 30 `real-backend`, 3 `desktop`, 18
 `desktop-real-backend`), références CRAP vides des deux côtés. Tests voisins à
-étendre plutôt qu'à recréer : `frontend/tests/e2e-real/search-parity.spec.ts`
-(parité du repli contre le vrai back), `frontend/tests/unit/offline/vtesDbV5.test.ts`
-(modèle du test de montée), `vtesReads.test.ts` (`searchCards`),
-`offline-db-schema.spec.ts` (inspection de la base de compte),
-`vtesLegacyAdoption.test.ts` (base d'avant le Lot 6). Comptage des
-`data-testid` au 2026-11-03 par qa-tests : 403 identifiants statiques
-distincts, 540 mentions brutes, contre 193 au Lot 5c ; la méthode est fixée à
-l'étape E0.
+étendre plutôt qu'à recréer : `frontend/tests/e2e-real/search-parity.spec.ts`,
+`frontend/tests/unit/offline/vtesDbV5.test.ts`, `vtesReads.test.ts`,
+`offline-db-schema.spec.ts`, `vtesLegacyAdoption.test.ts`. Après E0 et D1a,
+vitest compte 766 tests sur 51 fichiers (section « Livraisons »).
 
-## Propositions à trancher par l'utilisateur
+## Décisions de l'utilisateur
 
-| # | Sujet | Recommandation |
+Tranchées le 2026-11-03 à l'étape A0. P1, P13 et P15 ont été décidées par
+l'utilisateur au-delà des recommandations ; P2 à P12 et P14 adoptent les
+recommandations du plan relu.
+
+| # | Sujet | Décision |
 | --- | --- | --- |
-| P1 | Filtres et leur sens | ceux du brief sans la secte, avec le titre ; disciplines de bibliothèque lues « jouable avec les disciplines cochées » |
-| P2 | Nom cherché aussi dans les noms traduits | oui, noms FR et ES seulement |
-| P3 | Recherche dans le texte | oui, texte anglais, champ distinct du nom |
-| P4 | Filtres de statut | « possédée » et « dans ce deck », chacun à trois états |
-| P5 | Filtres côté serveur sur `GET /cartes` | non |
+| P1 | Filtres | le cœur des filtres de VDB, avec le sens krcg pour les modes ET et SEULEMENT des disciplines de bibliothèque ; légalité et statut en plus ; le reste de VDB en pistes |
+| P2 | Noms traduits | oui, noms FR et ES seulement |
+| P3 | Texte de carte | oui, texte anglais, par les lignes de texte de P1 |
+| P4 | Statut | « possédée » et « dans ce deck » à trois états |
+| P5 | Filtres côté serveur | non |
 | P6 | Handoff de design | oui, court, pour Chercher seulement |
-| P7 | Images de carte | en ligne seulement ; image par impression lue à la demande |
-| P8 | Champ de recherche global bureau | rétabli, il ouvre Chercher ; pas de sixième onglet |
-| P9 | Tri des résultats | nom replié par défaut, tris secondaires par catégorie |
-| P10 | Sens de « les deux » | un achat déclaré, quantité totale, proxies remplacés d'abord |
+| P7 | Images | en ligne seulement ; image par impression lue à la demande |
+| P8 | Champ global bureau | rétabli, il ouvre Chercher ; pas de sixième onglet |
+| P9 | Tri | nom replié par défaut, tris secondaires par catégorie |
+| P10 | « Les deux » | achat déclaré, quantité totale, proxies remplacés d'abord |
 | P11 | Mise à jour du catalogue | relecture automatique une fois, quand les détails manquent |
 | P12 | Chercher depuis un deck | oui, deck cible présélectionné |
-| P13 | Secte | hors de ce lot, versée aux pistes |
-| P14 | Stockage persistant (`navigator.storage.persist()`) | oui, un appel au démarrage, dans ce lot |
+| P13 | Secte | dans ce lot, dérivée du texte à l'import comme le fait VDB |
+| P14 | Stockage persistant | oui, un appel à `navigator.storage.persist()` au démarrage |
+| P15 | `vteslibmeta.csv` | intégré à l'import comme seconde source, exigences de secte et de titre filtrables |
 
-### P1. Quels filtres, et dans quel sens ?
+### P1. Les filtres de VDB — tranchée le 2026-11-03
 
-Proposition :
+Décision : « les filtres suivent ceux de VDB », dans leur cœur, avec trois
+arbitrages de l'utilisateur. Le relevé de VDB est résumé dans l'état de départ
+et recopié dans les pistes. Entre filtres différents, tout se combine en ET,
+comme chez VDB. Les modes de combinaison d'un filtre suivent le bouton de VDB :
+OU, ET, NON (aucune des valeurs), SEULEMENT, selon ce que chaque filtre
+expose.
 
-- communs : nom, catégorie, extension (carte imprimée dans l'extension
-  choisie), légalité à la date du jour (A5) ;
-- crypte : clan (plusieurs, credos des *imbued* compris), groupe (plusieurs ;
-  les deux cartes de groupe « Any » sont neutres et retenues quel que soit le
-  groupe coché, comme dans la légalité du §5), capacité (minimum et maximum ;
-  les *imbued* y rangent leur vie, ce que l'aide du filtre dit), disciplines
-  avec leur niveau, *advanced* (oui, non, indifférent), titre (13 valeurs, dont
-  « 1 Vote » et « 2 Votes ») ;
-- bibliothèque : type (plusieurs), disciplines requises, clan requis
-  (plusieurs), coût (type, valeur minimum et maximum, « X » à part), texte
-  (P3) ;
-- statut : P4.
+Communs :
 
-Sens quand plusieurs valeurs sont cochées. Clan, groupe, type et titre :
-l'une ou l'autre. Disciplines de crypte : toutes les disciplines cochées, au
-niveau demandé, « inférieure » se lisant « au moins inférieure » (une
-supérieure la contient) et « supérieure » se lisant « supérieure seulement ».
-Disciplines de bibliothèque : la première version de ce plan proposait
-« toutes », ce qui aurait écarté les 652 cartes `mono` dès que deux
-disciplines étaient cochées. Le sens retenu, proposé par l'architecte, est
-« jouable avec les disciplines cochées » : une carte `mono` répond si sa
-discipline est cochée, une carte `choice` si l'une des siennes l'est, une
-carte `combo` si toutes les siennes le sont ; une carte sans exigence est
-écartée dès qu'un filtre de discipline est actif. Le niveau n'a pas de sens en
-bibliothèque (aucun lien supérieur sur 1218).
+- Texte, en lignes multiples. Chaque ligne porte un champ (nom et texte, nom
+  seul, texte seul) et un mode, ET (doit correspondre) ou NON (ne doit pas) ;
+  les lignes se combinent en ET. Écart à VDB, argumenté : le champ principal
+  de l'écran, et celui de la barre haute, cherchent dans le nom seul, parce
+  qu'une recherche de nom qui ramène toutes les cartes dont le texte contient
+  le mot est du bruit ; les lignes ajoutées sont « nom et texte » par défaut,
+  comme chez VDB. Le texte est le texte anglais. Tout passe par `foldText`, si
+  bien que la recherche n'est sensible ni à la casse ni aux accents, nom comme
+  texte (VDB est sensible aux accents sur le texte : défaut non repris).
+- Variantes de nom retenues : le nom sans ponctuation (« 44 magnum » trouve
+  « .44 Magnum », « jacks » trouve un nom à apostrophe) ; les initiales, pour
+  une saisie de deux à cinq lettres sans espace, comparée aux initiales des
+  mots du nom (« tb » trouve « Theo Bell »), en plus de la sous-chaîne ; les
+  noms traduits (P2). La variante « The X » trouve « X, The » de VDB tient à la
+  forme des noms de vtescsv ; elle n'est reprise que si le catalogue krcg
+  contient des noms en « X, The », ce que C1b vérifie (sinon la sous-chaîne
+  suffit). Non retenues : le nom ASCII de VDB (`unidecode`), que `foldText`
+  couvre pour toute lettre qui se décompose, les autres (« œ », « ł ») restant
+  la limite connue du §11 ; les alias `aka` (krcg `name_variants`, non
+  importés), versés aux pistes.
+- Regex libre : versée aux pistes. Si elle entre un jour, une expression
+  invalide ne correspond à rien et le dit, au lieu de tout faire correspondre
+  comme chez VDB.
+- Catégorie : toutes, crypte, bibliothèque.
+- Extension : plusieurs, en OU (carte imprimée dans l'une des extensions).
+  Les options de VDB pour une extension seule (Or Newer, Or Older, Not Newer,
+  Not Older), les modes Only In, First Print et Reprint, et « ANY BCP » sont
+  versés aux pistes : rien dans l'usage ne les demande aujourd'hui, et First
+  Print et Reprint supposent une chronologie des impressions par carte que le
+  miroir n'a pas. Or Newer serait bon marché (les dates d'extension sont dans
+  `cardSets`) ; il attendra un besoin.
+- Légalité, hors VDB : légale, bannie, pas encore légale, à la date du jour
+  (A5). VDB n'a que « Banned », en positif.
+- Statut, hors VDB : « possédée » et « dans ce deck », à trois états (P4).
 
-Deux limites à écrire dans l'aide des filtres : le titre d'un vampire
-*advanced* est celui de sa face de base, pas celui du texte fusionné
-(*Alfred Benezri* reste `Bishop`) ; un prérequis de clan à deux clans
-(`Tremere, Tremere antitribu`, quatre valeurs de ce genre) est découpé avant
-comparaison, si bien que « Tremere » ne trouve pas « Tremere antitribu ».
+Crypte :
 
-### P2. Le nom se cherche-t-il aussi en français ?
+- Disciplines : la grille des disciplines, un clic passant de rien à
+  inférieure, à supérieure, puis à rien. ET entre disciplines ; inférieure se
+  lit « au moins inférieure », supérieure « supérieure seulement ».
+- Paires « OU » : des groupes d'exactement deux disciplines, chacune à un
+  niveau ; OU dans un groupe, ET entre groupes et avec la grille.
+- Vertus des *imbued* : les sept vertus, en ET, avec la même grille (elles sont
+  des disciplines dans notre table).
+- Clan : plusieurs, en OU, ET ou NON, comparé au clan et à la voie de la carte
+  (ET n'a de sens qu'entre un clan et une voie). Les credos des *imbued* et les
+  quatre voies sont proposés, comme chez VDB.
+- Secte (P13) : Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued, en OU
+  ou NON.
+- Groupe : plusieurs, en OU. Écart à VDB, argumenté : VDB écarte les deux
+  cartes de groupe « Any » dès qu'un groupe est coché ; elles restent ici, comme
+  dans la légalité d'un deck (§5), où elles sont neutres, parce qu'elles vont
+  dans toute crypte.
+- Capacité : des lignes `≤`, `=` ou `≥` suivies d'une valeur de 1 à 11, en OU
+  ou NON (une plage 4 à 7 s'écrit NON [`≤ 3`, `≥ 8`], comme chez VDB). Les
+  *imbued* y rangent leur vie, ce que l'aide dit.
+- Titre : Primogen, Prince, Justicar, Inner Circle, Baron, 1 vote, 2 votes,
+  Bishop, Archbishop, Priscus, Cardinal, Regent, Magaji, Non titré, en OU.
+- Votes : indifférent, aucun, 1 et plus, 2 et plus, 3 et plus, 4 et plus,
+  selon le barème de VDB : primogen 1, prince 2, justicar 3, imperator 3,
+  inner circle 4, bishop 1, archbishop 2, priscus 3, cardinal 3, regent 4,
+  1 vote 1, 2 votes 2, magaji 2, kholo 2, baron 2.
 
-Aujourd'hui le nom ne se cherche qu'en anglais. 428 cartes ont un nom FR et
-ES. Recommandation : oui, les noms traduits seulement, pas les textes. Coût
-mesuré : 130 Ko bruts, 14 Ko compressés, une requête SQL de plus par page.
-Conséquence à accepter et à écrire dans la description de `listCards` comme
-au §11 : la recherche locale trouvera « Majesté » quand `GET /cartes?q=majeste`
-ne trouvera rien, `q` restant limité au nom anglais (P5). Aucun appelant
-n'utilise `q` côté serveur aujourd'hui.
+Le titre et la secte d'un *advanced* sont ceux de sa face (premier mot du
+texte, titre krcg), pas ceux de son texte fusionné ; VDB fait de même pour la
+secte, mais fait aussi correspondre un titre nommé après `[MERGED]`. Ce
+rattrapage des titres fusionnés est versé aux pistes ; les six cas de secte
+fusionnée sont listés dans la table de cas de la dérivation (P13), avec leur
+valeur attendue.
 
-### P3. Recherche dans le texte de carte
+Bibliothèque :
 
-Recommandation : oui, sur le texte anglais, replié par `foldText`, dans un
-champ distinct du nom. C'est la seule façon d'approcher ce qui n'est pas
-structuré : secte (P13), prérequis de titre ou de capacité des cartes de
-bibliothèque, effets. Limite à écrire dans l'aide : les icônes de discipline
-du texte (`[pot]`, `[POT]`) se replient de la même façon, la recherche ne
-distingue donc pas leur niveau, et un mot court comme « pre » trouve toutes les
+- Type : plusieurs, en OU, ET ou NON ; une carte à plusieurs types répond à
+  chacun. Valeurs : les types présents au catalogue, plus « Reflex », que VDB
+  définit comme « le texte contient `[REFLEX]` ».
+- Disciplines : premier arbitrage, ci-dessous.
+- Clan requis : plusieurs, en OU ou NON, plus « non requis » (ni clan ni
+  voie exigés). Le prérequis à deux clans est découpé avant comparaison.
+- Secte requise (P15) : Camarilla, Sabbat, Laibon, Independent, Anarch,
+  Imbued, en OU ou NON, plus « non requise ». Un titre exigé implique sa secte
+  (une carte qui exige un Prince exige un vampire Camarilla) ; une exigence
+  « non-anarch » ne répond pas au filtre Anarch.
+- Titre requis (P15) : n'importe quel titre (exigence `titled`), non titré
+  (`non-titled`), ou un titre précis, en OU ou NON. L'option « Titled
+  (specific) » de VDB, dont le sens n'est pas confirmé par le relevé, n'est
+  reprise que si A1 l'établit dans `generate_library.py`.
+- Coût en sang et coût en pool : une ligne chacun, `≤`, `=` ou `≥` suivi d'une
+  valeur (0 à 4 pour le sang, 0 à 6 pour le pool) ; un coût absent vaut 0, un
+  coût « X » passe toujours, comme chez VDB. Le coût en conviction n'est pas
+  filtrable (VDB non plus ; six cartes).
+
+#### Disciplines de bibliothèque : l'interface de VDB, le sens de krcg
+
+Premier arbitrage de l'utilisateur. L'interface est celle de VDB : des lignes
+de disciplines (disciplines, Flight, Maleficia, Striga et vertus), un bouton à
+quatre modes, OU, ET, NON, SEULEMENT, et une valeur « non requise ». Le sens
+diffère : VDB compare des sous-chaînes de la chaîne d'exigence
+(`Dominate/Obfuscate/Vicissitude`), si bien que son ET rend *The World's a
+Canvas*, carte au choix, pour Dominate ET Obfuscate. Ici ET et SEULEMENT lisent
+l'exigence krcg, `mono`, `choice` ou `combo`, avec l'ensemble *D* de ses
+disciplines.
+
+Soit *S* l'ensemble des disciplines cochées. Une carte sans exigence de
+discipline n'a pas de *D*.
+
+| Mode | `mono` (*D* = {d}) | `choice` (l'une de *D*) | `combo` (toutes celles de *D*) | sans exigence |
+| --- | --- | --- | --- | --- |
+| OU : mentionne l'une des cochées | d ∈ *S* | *D* ∩ *S* non vide | *D* ∩ *S* non vide | non |
+| ET : exige chacune des cochées | *S* = {d} | jamais, sauf *S* et *D* réduits à la même discipline | *S* ⊆ *D* | non |
+| NON : ne mentionne aucune des cochées | d ∉ *S* | *D* ∩ *S* vide | *D* ∩ *S* vide | oui |
+| SEULEMENT : jouable avec les seules cochées | d ∈ *S* | *D* ∩ *S* non vide | *D* ⊆ *S* | non |
+| non requise | non | non | non | oui |
+
+OU et NON gardent le sens de VDB (mention). ET se lit « la carte ne peut pas
+se jouer sans chacune des disciplines cochées » : une carte au choix n'exige
+aucune discipline en particulier. SEULEMENT se lit « un vampire qui n'a que les
+disciplines cochées peut jouer la carte » : c'est la question de qui construit
+une bibliothèque pour sa crypte. VDB, lui, lit SEULEMENT comme « la chaîne
+mentionne exactement les cochées », et rend 34 cartes pour Dominate seul, là où
+ce plan rend les `mono` Dominate et les cartes au choix qui proposent
+Dominate.
+
+Exemple gravé dans la table de cas de `filterCards`, *S* = {Dominate,
+Obfuscate} :
+
+- OU : les `mono` Dominate et Obfuscate, et toute carte au choix ou combinée
+  qui mentionne l'une des deux, *The World's a Canvas* comprise ;
+- ET : les seules cartes combinées qui exigent Dominate et Obfuscate (leur
+  nombre est relevé en A1 ; il peut être nul). *The World's a Canvas*
+  (`choice` Dominate, Obfuscate, Vicissitude) n'y est pas, alors que VDB la
+  rend ;
+- NON : toute carte qui ne mentionne ni l'une ni l'autre, cartes sans
+  discipline comprises ;
+- SEULEMENT : les `mono` Dominate et Obfuscate, les cartes au choix qui
+  proposent l'une des deux (*The World's a Canvas* comprise, jouable avec
+  Dominate), et les combinées dont toutes les disciplines sont parmi les deux ;
+- non requise : les cartes sans exigence de discipline.
+
+Le niveau n'a pas de sens en bibliothèque (aucun lien supérieur sur 1218).
+
+#### Défauts de VDB non repris
+
+Une regex invalide qui fait tout correspondre ; la recherche dans le texte
+sensible aux accents ; l'exclusion des cartes de groupe « Any ».
+
+### P2. Noms traduits — tranchée le 2026-11-03
+
+Décision : oui, les noms FR et ES seulement, pas les textes. Coût mesuré :
+130 Ko bruts, 14 Ko compressés, une requête SQL de plus par page. La recherche
+locale trouvera « Majesté » quand `GET /cartes?q=majeste` ne trouvera rien,
+`q` restant limité au nom anglais (P5) ; c'est écrit dans la description de
+`listCards` et le sera au §11.
+
+### P3. Recherche dans le texte — tranchée le 2026-11-03
+
+Décision : oui, sur le texte anglais, par les lignes de texte de P1. Limite à
+écrire dans l'aide : les icônes de discipline du texte (`[pot]`, `[POT]`) se
+replient de la même façon, et un mot court comme « pre » trouve toutes les
 cartes à icône Presence.
 
-### P4. Filtres de statut
+### P4. Statut — tranchée le 2026-11-03
 
-Recommandation : « possédée » à trois états (possédée, non possédée,
-indifférent), une carte comptant comme possédée dès qu'une de ses entrées a au
-moins un exemplaire, toutes langues et extensions confondues ; « deck » à trois
-états aussi (indifférent, dans ce deck, pas dans ce deck), un deck vivant à la
-fois. Les deux lisent la projection locale (instantané plus file). Non retenu,
-pour le lot Inventaires : « disponible » (possédée moins allouée).
+Décision : « possédée » à trois états (possédée, non possédée, indifférent),
+une carte comptant comme possédée dès qu'une de ses entrées a au moins un
+exemplaire ; « deck » à trois états (indifférent, dans ce deck, pas dans ce
+deck), un deck vivant à la fois. Les deux lisent la projection locale.
+« Disponible » est laissé au lot Inventaires.
 
-### P5. Des filtres côté serveur ?
+### P5. Filtres côté serveur — tranchée le 2026-11-03
 
-Recommandation : non. L'écran lit le miroir, en ligne comme hors ligne ; des
-filtres serveur n'auraient aucun appelant et seraient une seconde écriture de
-chaque filtre à tenir en parité. Sans eux, la seule règle VtES écrite deux
-fois est la légalité d'une carte (A5), ce qui borne le risque de divergence à
-une table de cas. `GET /cartes` garde `q`, `category` et `clan_id`, et
+Décision : non. Sans eux, les règles écrites deux fois se limitent à la
+légalité d'une carte (A5) ; la secte et les exigences sont calculées une seule
+fois, côté serveur, à l'import ou à la lecture (A3), et le client ne fait que
+les comparer. `GET /cartes` garde `q`, `category` et `clan_id`, et
 `search-parity.spec.ts` vérifie que le miroir et l'API rendent les mêmes
-identifiants pour ces deux filtres-là.
+identifiants pour ces deux filtres.
 
-### P6. Faut-il un handoff de design ?
+### P6. Handoff de design — tranchée le 2026-11-03
 
-Recommandation : oui, un handoff court limité à l'écran Chercher, comme au
-Lot 7. Le brief à Claude Design (étape D0) demandera explicitement : la
-ligne de résultat et la place d'une vignette, l'affichage par tranches d'une
-liste qui peut compter 4149 lignes, la colonne de filtres au bureau et la
-feuille de filtres en mobile, l'état « catalogue à mettre à jour » (filtres
-avancés désactivés, message), la fiche de carte, la feuille d'ajout à trois
-choix sous forme de contrôle segmenté, la taille de l'image statique du
-picker mobile, la place de « Ajouter… » quand le clavier est ouvert, et le
-libellé du champ global. Le reste réutilise `StockFilterSheet`, `Sheet`, le
-tableau de la Collection et le maître/détail des Decks. Alternative : se
-passer de handoff ; plus rapide, au risque d'un écran à reprendre.
+Décision : oui, un handoff court limité à l'écran Chercher. Le brief à Claude
+Design (D0) demandera : la ligne de résultat et sa vignette, l'affichage par
+tranches, la colonne de filtres au bureau et la feuille de filtres en mobile
+(dense : lignes de texte, grille de disciplines à trois états, paires OU,
+boutons de mode), l'état « catalogue à mettre à jour », la fiche de carte, la
+feuille d'ajout en contrôle segmenté, la taille de l'image du picker mobile, la
+place de « Ajouter… » quand le clavier est ouvert, et le libellé du champ
+global.
 
-### P7. Images de carte
+### P7. Images — tranchée le 2026-11-03
 
-Hors ligne : non. Précacher 4149 images, à une cinquantaine de kilo-octets
-l'une (un seul échantillon mesuré, 56 Ko), dépasse 200 Mo ; `DESKTOP.md` va
-dans le même sens. Hors ligne, `CardImage` garde son repli sur le pictogramme.
-Un cache à l'exécution borné reste possible plus tard : `static.krcg.org`
-répond avec `Access-Control-Allow-Origin: *`, mais il faudrait poser
-`crossOrigin="anonymous"` sur l'image, faute de quoi la réponse mise en cache
-serait opaque et comptée très au-delà de sa taille dans le quota.
+Décision : en ligne seulement, pas de précache ni de cache (4149 images, plus
+de 200 Mo). Un cache à l'exécution exigerait `crossOrigin="anonymous"` sur
+l'image, faute de quoi la réponse serait opaque et comptée très au-delà de sa
+taille dans le quota ; il reste une piste. L'image de l'impression sert quand on
+parle d'un exemplaire, l'image générique sinon. L'image par impression se lit
+à la demande, en ligne, par `GET /cartes/{id}`, gardée en mémoire par carte
+pour la session ; `CardImage` retombe sur l'image générique (676 impressions
+sans image) avant le pictogramme, et gagne une taille pour le picker mobile.
 
-Laquelle : l'image de l'impression quand on parle d'un exemplaire (aperçu au
-survol de la Collection, extension choisie dans la feuille d'ajout), l'image
-générique sinon (résultats, picker). Recommandation : l'image par impression
-ne va pas dans le miroir ; elle se lit à la demande, en ligne, par
-`GET /cartes/{id}`, appel qui sert aussi la fiche de carte (traductions,
-impressions, texte d'ambiance, artiste). La réponse est gardée en mémoire par
-carte pour la session, rien n'est lancé hors ligne, et l'appel passe par le
-client typé. Une image peut manquer (676 impressions sur 10 010) ou échouer :
-`CardImage` apprend alors à retomber sur l'image générique avant le
-pictogramme, ce qui est une nouveauté du composant (deux sources), pas un
-réglage. Il gagne aussi une taille pour le picker mobile, qui affiche l'image
-de la carte choisie (ligne 8 de la table d'écarts du Lot 5c).
+### P8. Champ global bureau — tranchée le 2026-11-03
 
-Alternative : mettre les URL par impression dans le miroir (A8, variante,
-environ 0,8 Mo par base de compte).
+Décision : le champ revient dans la barre haute, libellé « Chercher une carte
+(catalogue) ». Valider ouvre Chercher avec le texte dans le champ principal
+(nom seul) ; sur Chercher, il écrit dans le champ de la page. `/` le focalise
+depuis tout écran, la Collection comprise, sauf le deckbuilder. Pas de sixième
+onglet ni de chord.
 
-### P8. Le champ de recherche global bureau
+### P9. Tri — tranchée le 2026-11-03
 
-Recommandation : le champ revient dans la barre haute, libellé « Chercher une
-carte (catalogue) » pour qu'on ne le confonde pas avec le champ local de la
-Collection. Valider ouvre Chercher avec le texte dans le champ du nom ; sur
-Chercher, le champ global écrit dans le champ de la page. `/` le focalise
-depuis tout écran, la Collection comprise, sauf le deckbuilder, où `/` reste
-au picker. Pas de sixième onglet ni de chord `G` + lettre. Le mobile n'a pas de
-champ global, il a l'onglet (verdict du Lot 5c). Le fonctionnement du clavier
-est fixé dans la section « Écrans ».
+Décision : nom replié, puis groupe et identifiant, par défaut ; capacité et
+groupe pour la crypte, coût pour la bibliothèque (valeur croissante, « X »
+après les nombres, sans coût en dernier). Tri local, écart d'ordre avec la
+Collection accepté.
 
-Alternative : un onglet « Chercher » dans la barre haute, avec `G H`.
+### P10. « Les deux » — tranchée le 2026-11-03
 
-### P9. Tri des résultats
+Décision, pour *n* exemplaires saisis, les quantités étant des états et non des
+deltas :
 
-Recommandation : tri par nom replié (`foldedName`), puis groupe et
-identifiant, par défaut ; tris secondaires : capacité et groupe pour la
-crypte, coût pour la bibliothèque, avec une règle écrite pour `cost_value`,
-qui est une chaîne (valeur numérique croissante, « X » après les nombres, sans
-coût en dernier). Le tri est local et ne touche ni le serveur ni les autres
-listes, d'où un écart d'ordre avec la Collection, à accepter (la limite n° 5
-du §11 reste ouverte ailleurs). Le tableau bureau peut réutiliser
-`stockSort.ts` si la fonction reste générique.
+- Deck : la logique du deckbuilder, partagée par `useAddDeckCard` (D1a) ; la
+  quantité envoyée est celle de la ligne après ajout ;
+- Collection : un `stock.upsert` à la quantité de la projection plus *n* ;
+- Les deux : un achat déclaré, une seule opération `deck_card.upsert` avec
+  `acquired_quantity = n`. Si la ligne joue déjà la carte en proxy, les *n*
+  exemplaires remplacent d'abord des proxies, puis s'ajoutent au-delà ; l'écran
+  le dit avant l'envoi.
 
-### P10. Que veut dire « les deux » ?
+### P11. Mise à jour du catalogue — tranchée le 2026-11-03
 
-La quantité portée par `deck_card.upsert` et par `stock.upsert` est un état,
-pas un delta : chaque opération dit la valeur voulue. Le brief décrivait « les
-deux » comme « entrée de stock puis ligne de deck ». L'acquisition du Lot 4b
-fait déjà les deux en une opération, et le serveur l'accepte jusqu'au nombre
-d'exemplaires réels que l'écriture ajoute à la ligne, même s'il en reste de
-libres en collection (`backend/app/services/decks.py`, `_check_acquisition`).
+Décision : une relecture automatique, une fois, quand le magasin des détails est
+vide ou incomplet et qu'on est en ligne ; sinon le bouton actuel. L'`ETag` est
+versé aux pistes.
 
-Recommandation, pour *n* exemplaires saisis :
+### P12. Chercher depuis un deck — tranchée le 2026-11-03
 
-- Deck : la logique du deckbuilder, partagée (D1a) : exemplaires libres
-  d'abord, manque acquis, reste en proxy si le deck le permet. La quantité
-  envoyée est celle de la ligne après ajout (existant plus *n*, lu dans la
-  projection) ;
-- Collection : un `stock.upsert` à la quantité de la projection plus *n*. Deux
-  appareils qui ajoutent chacun hors ligne finissent sur la dernière écriture,
-  comme la feuille d'entrée de la Collection depuis le Lot 3 ;
-- Les deux : un achat déclaré. Une seule opération `deck_card.upsert`, avec
-  `acquired_quantity = n`, sans regarder ce qui est libre. Si la ligne joue
-  déjà la carte en proxy, les *n* exemplaires remplacent d'abord des proxies
-  (même `quantity`, `proxy_quantity` baissé d'autant), puis s'ajoutent au-delà
-  (`quantity` augmentée du reste) : c'est ce qu'un joueur attend d'un achat
-  pour un deck qui jouait la carte en proxy. L'écran le dit avant l'envoi.
+Décision : un lien « Chercher une carte pour ce deck » dans le détail d'un deck
+non archivé ouvre Chercher avec ce deck comme cible et le filtre deck sur « pas
+dans ce deck » ; la cible voyage dans le hash (`#/chercher?deck=<clé>`),
+validée par la forme de clé d'un deck, une clé inconnue étant ignorée.
 
-Une seule opération pour « les deux » évite qu'un `stock.upsert` appliqué
-suivi d'une ligne refusée laisse la collection à moitié écrite. Aucun type
-d'opération nouveau. Alternative : « les deux » ajoute toujours des copies,
-sans toucher aux proxies.
+### P13. Secte des cartes de crypte — tranchée le 2026-11-03
 
-### P11. Le catalogue se met-il à jour seul ?
+Décision : dans ce lot. La secte est dérivée du texte à l'import, comme le fait
+VDB : le premier mot du texte, ou le second quand le premier est « Advanced » ;
+une carte *imbued* reçoit la secte « Imbued ». La dérivation est une fonction
+pure côté serveur (skill `regles-vtes`), testée sur une table de cas, et l'import
+remplit la table `sect` et `card.sect_id`, qui existent déjà : pas de migration
+pour la secte de crypte. Une carte dont le premier mot n'est pas une secte
+connue est signalée dans le rapport d'import, sans faire échouer l'import.
 
-Recommandation : une relecture automatique, une fois, quand le magasin des
-détails est vide ou incomplet et qu'on est en ligne ; sinon le comportement
-actuel, bouton compris. Un rafraîchissement périodique, ou un `ETag` dérivé de
-la date du dernier import qui ramènerait une relecture inutile à un 304, est
-versé à `docs/pistes-evolution.md` à l'étape F.
+Les six vampires *advanced* dont le texte fusionné change de secte gardent la
+secte de leur face (premier mot), comme chez VDB ; ils figurent nommément dans
+la table de cas avec cette valeur attendue, pour que le comportement soit fixé
+et non subi. Le point [à confirmer] du §6 sur la secte est levé à l'étape F.
 
-### P12. Chercher depuis un deck
+### P14. Stockage persistant — tranchée le 2026-11-03
 
-Recommandation : oui. Un lien « Chercher une carte pour ce deck » dans le
-détail d'un deck non archivé (dans la colonne du picker au bureau, où il
-apporte les filtres que le picker n'a pas) ouvre Chercher avec ce deck comme
-cible de la feuille d'ajout et le filtre deck sur « pas dans ce deck ». La
-cible voyage dans le hash (`#/chercher?deck=<clé>`), validée par la même forme
-de clé que la route d'un deck ; une clé inconnue, un deck archivé ou supprimé
-depuis sont ignorés sans erreur.
+Décision : un appel à `navigator.storage.persist()` au démarrage (étape C1a),
+sans écran, résultat noté dans le README de la couche offline et vérifié à la
+main à l'étape F. Le comportement varie selon les navigateurs (Chrome accorde
+selon l'usage, dont l'installation ; Firefox peut demander à l'utilisateur),
+point [à vérifier] en C1a.
 
-### P13. La secte
+### P15. Exigences de secte et de titre des cartes de bibliothèque — tranchée le 2026-11-03
 
-L'architecte a mesuré que les 1765 vampires commencent tous leur texte par
-l'une des cinq sectes (Camarilla 606, Sabbat 600, Independent 374, Anarch 102,
-Laibon 83), précédée au besoin de « Advanced, ». Restent à trancher six
-vampires *advanced* dont le texte fusionné change de secte, et les 20
-*imbued*, qui n'en ont pas. La dériver demanderait un changement d'import, une
-table de cas, et un rejeu de l'import à l'étape F, sans migration (`sect` et
-`card.sect_id` existent). Elle lèverait le point [à confirmer] du §6.
+Troisième arbitrage de l'utilisateur. krcg v5 n'expose pas ce qu'une carte de
+bibliothèque exige du vampire qui la joue ; VDB le lit dans `vteslibmeta.csv`,
+publié dans le dépôt officiel vtescsv, source des textes de cartes. Décision :
+ce fichier entre à l'import comme seconde source, à côté de krcg.
 
-Recommandation : hors de ce lot, par choix de périmètre et non par
-impossibilité ; versée aux pistes avec la mesure. La recherche dans le texte
-(P3) en tient lieu, au prix de faux positifs que le filtre de catégorie
-écarte. Si l'utilisateur la veut dans ce lot, l'architecte l'écrit à l'import
-(jamais dans le client, pour qu'elle reste une donnée de catalogue), A3 perd
-sa seconde moitié, et l'étape F gagne un rejeu de l'import sur `vtes.db`.
+Conséquences :
 
-### P14. Demander un stockage persistant
+- la décision §11.1 « krcg, source unique » est amendée ; l'amendement est
+  consigné au §11 à l'étape F ;
+- URL figée (branche `main` du dépôt, comme `v5` pour krcg), fichier
+  d'échantillon dans les fixtures de test, import rejouable ;
+- jointure par identifiant VEKN ; un `Id` inconnu de krcg, une carte de
+  crypte, ou un nom qui ne correspond pas sont signalés dans le rapport
+  d'import, sans échec ;
+- le stockage de l'exigence demande une migration (A3), dont la forme revient à
+  l'architecte ;
+- la lecture de l'exigence suit les règles de VDB : un titre exigé implique sa
+  secte (prince, primogen, justicar, inner circle, imperator ⇒ camarilla ;
+  bishop, archbishop, priscus, cardinal, regent ⇒ sabbat ; baron ⇒ anarch ;
+  magaji, kholo ⇒ laibon ; 1 vote, 2 votes ⇒ independent ; le relevé ne
+  confirme que prince, baron, magaji et 1 vote, le reste est vérifié en A1
+  dans `generate_library.py`) ; « non-anarch » ne correspond pas à « anarch » ;
+  une carte sans exigence de secte répond à « non requise » ;
+- les valeurs qui ne sont ni une secte ni un titre (`non-sterile`, `Gehenna`,
+  `capacity …`, `black hand`, `red list`…) sont stockées brutes et non
+  filtrées dans ce lot ; leur filtrage est versé aux pistes.
 
-Tant que `navigator.storage.persist()` n'est pas demandé, le navigateur peut
-évincer la base IndexedDB sous pression de stockage, file d'attente comprise.
-Ce n'est pas propre à ce lot, mais c'est le risque que le pilote veut
-dérisquer, et le miroir s'alourdit. Recommandation : oui, dans ce lot, un
-appel au démarrage (étape C1a), sans écran, le résultat noté dans le README de
-la couche offline pour Barrin et vérifié à la main à l'étape F. Le
-comportement varie selon les navigateurs (Chrome accorde selon des critères
-d'usage, dont l'installation ; Firefox peut demander à l'utilisateur), point
-[à vérifier] pendant C1a. Alternative : hors lot, versé aux pistes.
+Le dépôt vtescsv ne déclare aucune licence : point noté, à porter au §11 avec
+l'amendement. krcg, sous licence MIT, en dérive déjà.
 
 ## Décisions de conception
 
-Proposées par l'orchestrateur, revues et complétées par l'architecte et le
-back. Elles peuvent être rouvertes à la demande de l'utilisateur.
+Proposées par l'orchestrateur, revues par l'architecte et le back, ajustées
+après l'A0. Elles peuvent être rouvertes à la demande de l'utilisateur.
 
-### A1. Enrichir `CardListItem` en remontant des champs de `CardRead`
+### A1. Enrichir `CardListItem`
 
-On remonte de `CardRead` vers `CardListItem` : `title`, `cost_type`,
-`cost_value`, `clan_requirement`, `discipline_requirement`, `card_text`,
-`banned_on`, `legal_from`, `types`, `discipline_links`. Restent propres à la
-fiche : `sect`, `path`, `path_requirement`, `burn_option`, `trifle`,
-`flavor_text`, `artist`, `printings`, `translations`. `CardSummary` ne change
-pas.
+On remonte de `CardRead` vers `CardListItem` : `sect`, `title`, `path`,
+`path_requirement`, `cost_type`, `cost_value`, `clan_requirement`,
+`discipline_requirement`, `card_text`, `banned_on`, `legal_from`, `types`,
+`discipline_links`, et l'on y ajoute l'exigence de bibliothèque de P15 (forme
+au choix de l'architecte, A3). Restent propres à la fiche : `burn_option`,
+`trifle`, `flavor_text`, `artist`, `printings`, `translations`. `CardSummary`
+ne change pas.
 
-`CardRead` garde le même ensemble de propriétés, de types et d'obligations ;
-seul l'ordre des propriétés change, Pydantic rangeant les champs hérités en
-premier, dans le contrat exporté comme dans la réponse JSON. La première
-version de ce plan promettait une forme identique « au caractère près » :
-c'est faux, et le test compare donc les ensembles et le schéma de chaque
-propriété, plus un instantané JSON d'une fiche comparé par contenu.
+`CardRead` garde le même ensemble de propriétés, de types et d'obligations, à
+l'exigence de bibliothèque près, qu'elle gagne par héritage ; l'ordre de ses
+propriétés change (Pydantic range les champs hérités en premier), dans le
+contrat exporté comme dans la réponse. Le test compare les ensembles, le schéma
+de chaque propriété, et un instantané JSON d'une fiche par contenu.
 
-Le service ne peut plus passer par `CardSummary(...).model_dump()`, qui
-perdrait les champs nouveaux sans erreur : `list_cards` reprend le patron de
-`get_card` (validation depuis l'objet, plus les champs calculés). Il précharge
-`types` et `discipline_links` (`selectinload`), sans quoi une page coûte 401
-requêtes au lieu de 5 ou 6. Il trie les types par nom et les disciplines par
-abréviation, pour un miroir et des tests stables, sans migration.
-
-`clan_requirement` reste une chaîne jointe par `", "`, pour ne pas casser
-`CardRead` ; aucun des 47 clans ne contient de virgule, le client découpe sur
-la virgule puis rogne. La description du champ, imprécise sur le séparateur,
-est corrigée.
-
-`discipline_links` garde sa forme d'objets (660 Ko bruts sur le catalogue,
-contre 56 Ko pour une liste de codes) : la compression d'A2 ramène l'écart à
-presque rien, et réutiliser les formes de `CardRead` évite un second
-vocabulaire au contrat.
-
-C'est un ajout pur : aucun champ ne disparaît ni ne change de type, et les
-champs nouveaux sont obligatoires en sortie (§7, sorties complètes).
+`list_cards` reprend le patron de `get_card` (validation depuis l'objet, plus
+les champs calculés), précharge `types`, `discipline_links` et `sect` (sans
+quoi une page coûte 401 requêtes au lieu de 5 ou 6), et trie les types par nom
+et les disciplines par abréviation. `clan_requirement` reste une chaîne jointe
+par `", "`, découpée par le client. `discipline_links` garde sa forme
+d'objets : la compression d'A2 rend l'écart avec une liste de codes
+négligeable. Ajout pur au contrat, champs nouveaux obligatoires en sortie (§7).
 
 ### A2. Compression des réponses, pagination inchangée
 
-Mesures du back et de l'architecte sur une copie de `vtes.db`, lecture
-complète en 21 pages de 200 :
+Mesures du back et de l'architecte sur une copie de `vtes.db`, lecture complète
+en 21 pages de 200 :
 
 | Forme | JSON | Compressé | Requêtes par page | Durée côté serveur |
 | --- | --- | --- | --- | --- |
 | actuelle | 1,08 Mo | 132 Ko | 3 à 4 | 1,2 à 1,4 s |
-| enrichie (A1) | 3,28 Mo | 440 Ko | 5 à 6 | 1,6 à 2,0 s |
+| enrichie (A1 avant l'A0) | 3,28 Mo | 440 Ko | 5 à 6 | 1,6 à 2,0 s |
 | enrichie, noms traduits (A7) | 3,41 Mo | 454 Ko | 6 à 7 | 1,7 à 1,9 s |
 
-Sur une connexion de 1 Mbit/s utile, 3,28 Mo prennent environ 26 s ; à
-500 kbit/s, une cinquantaine. La compression n'est donc pas un levier de
-secours, c'est une livraison de B1 : `GZipMiddleware` avec un seuil de l'ordre
-de 1000 octets, sur toute l'application. B1 vérifie qu'elle ne retire ni
-l'exposition CORS de `Retry-After` ni `Cache-Control: private, no-store`, et
-que le client de test et `openapi-fetch` décodent sans changement. Le risque de
-type BREACH suppose un secret dans un corps compressé ; le jeton de session
-n'apparaît dans aucun corps (§7). Le contrat OpenAPI ne change pas.
+La secte et les exigences de P15 ajoutent peu (une secte par carte de crypte,
+environ 380 exigences) ; B1 refait la mesure. La compression est une livraison
+de B1 : `GZipMiddleware`, seuil de l'ordre de 1000 octets, sur toute
+l'application, en vérifiant qu'elle ne retire ni l'exposition CORS de
+`Retry-After` ni `Cache-Control: private, no-store`. Aucun corps ne porte de
+secret (§7), d'où l'absence de risque de type BREACH. `limit` reste à 200.
 
-`limit` reste plafonné à 200 : une page unique ne réduirait aucun octet et
-fixerait le coût d'un échec à tout recommencer. Côté client, la relecture du
-catalogue sort de la séquence bornée à 60 s (section « Couche offline »).
+### A3. Une migration, pour l'exigence de bibliothèque
 
-### A3. Pas de migration, pas de changement d'import
+La première version de ce plan n'avait aucune migration. P15 en demande une :
+l'exigence d'une carte de bibliothèque n'a pas de place dans le schéma. La
+secte de crypte, elle, entre dans `sect` et `card.sect_id`, qui existent.
 
-Tout ce que A1 expose est déjà en base et importé ; le modèle reste à 25
-tables et onze révisions. `scripts/import_catalog.py` ne change pas, sauf si
-P13 fait dériver la secte ; même alors, aucune migration.
+Question posée à l'architecte pour l'étape A1, avec trois options :
+
+1. une colonne texte nullable `card.library_requirement`, recopie brute de
+   `vteslibmeta.csv` (`"prince,justicar"`), lue par le client. Migration
+   minimale ; mais la règle « un titre implique sa secte » s'écrirait dans le
+   client seul, sans test pytest ni table commune ;
+2. la colonne brute, plus deux tables de liaison (`card_required_sect`,
+   `card_required_title`) remplies par l'import. Requêtes et contraintes
+   possibles côté base ; mais deux tables de plus (27), une migration plus
+   lourde, et des préchargements de plus dans `list_cards`, pour des filtres
+   qui ne tournent que dans le client (P5) ;
+3. recommandée : la colonne brute seule en base, et une fonction pure côté
+   serveur (`vtes_rules.py`) qui la lit en trois listes exposées au contrat
+   (sectes exigées, titres exigés, autres valeurs), sur le modèle de
+   `latest_card_set_id`, calculé une fois par le serveur pour ne pas ouvrir
+   d'écart entre en ligne et hors ligne. La règle s'écrit une fois, se teste
+   en pytest sur une table de cas, et le client compare des listes. Une
+   colonne, aucune table : le modèle reste à 25 tables.
+
+Dans les trois cas : douzième révision, nullable, sans conversion de données
+(l'import la remplit au rejeu), sur la forme des révisions récentes (hors mode
+batch, montée rendue hors ligne par `--sql`) ; descente sans garde, ou qui
+vide la colonne, au choix de l'architecte. L'import change : dérivation de la
+secte (P13), lecture de `vteslibmeta.csv` (P15), rapport enrichi. Le rejeu sur
+`backend/vtes.db` est fait en B1 (section « Découpage »).
 
 ### A4. Le repli du texte se fait côté client
 
-Le serveur ne cherche pas dans le texte (P5). Le client replie le texte avec
-`foldText`, dont la parité avec Python est garantie par les tables générées.
-Stocker le texte replié ou le recalculer au chargement en mémoire se décide à
-l'étape C1b sur une mesure du coût de `foldText` sur 0,7 Mo de texte ; par
+Le client replie texte, noms traduits et variantes de nom avec `foldText`, dont
+la parité avec Python est garantie par les tables générées. Stocker le texte
+replié ou le recalculer au chargement se décide en C1b sur une mesure ; par
 défaut, on le stocke.
 
 ### A5. Légalité d'une carte à une date : deux booléens, deux écritures
 
-Une fonction pure d'une carte, `card_legality(banned_on, legal_from, on)`, rend
-deux booléens, `banned` (à partir de `banned_on`, jour inclus) et
-`not_yet_legal` (`legal_from` strictement postérieure à `on`), qui ne
-s'excluent pas ; la carte est légale quand aucun des deux n'est vrai. La
-première version de ce plan rendait un verdict unique, ce qui aurait obligé à
-choisir une priorité et fait disparaître une carte de l'une des deux listes de
-`/legalite`. Le cas existe : *Playing for Keeps*, bannie le 1995-11-01 et
-légale à partir du 1996-01-14, est les deux à la fois entre ces dates.
-
-`banned_cards` et `not_yet_legal_cards` (`vtes_rules.py`) peuvent s'appuyer sur
-elle sans changer de signature ni de sortie, et `/legalite` liste toujours les
-deux motifs. Dans Chercher, chaque option du filtre de légalité lit son propre
-booléen (une carte bannie et pas encore légale répond aux deux), et la ligne de
-résultat affiche « bannie » de préférence quand les deux sont vrais.
+`card_legality(banned_on, legal_from, on)` rend deux booléens, `banned`
+(à partir de `banned_on`, jour inclus) et `not_yet_legal` (`legal_from`
+strictement postérieure à `on`), qui ne s'excluent pas ; la carte est légale
+quand aucun n'est vrai. *Playing for Keeps*, bannie le 1995-11-01 et légale à
+partir du 1996-01-14, est les deux à la fois entre ces dates. `banned_cards`,
+`not_yet_legal_cards` et `/legalite` ne changent pas de sortie. Dans Chercher,
+chaque option du filtre lit son propre booléen, et la ligne de résultat
+affiche « bannie » de préférence.
 
 La jumelle TypeScript, dans `vtes/`, compare des chaînes ISO `YYYY-MM-DD`,
-jamais des `Date`, ce qui écarte tout décalage de fuseau. Les deux fonctions
-prennent la date d'évaluation en paramètre ; seul l'appelant lit l'horloge
-(`todayUtc()` côté client). Cette date est la date UTC du jour, comme
-`_today()` côté serveur (`datetime.now(UTC).date()`), pour qu'un verdict de
-Chercher et un verdict de `/legalite` ne divergent pas entre minuit et une ou
-deux heures du matin en France ; l'aide du filtre le dit.
+jamais des `Date`. Les deux fonctions prennent la date en paramètre ; seul
+l'appelant lit l'horloge (`todayUtc()`), à la date UTC comme `_today()` côté
+serveur, ce que l'aide du filtre explique.
 
-Table de cas commune `backend/tests/fixtures/card_legality_cases.json`, sur le
-patron de `certain_game_win_cases.json`, avec un champ `description` qui dit
-qui la lit et des attendus `{banned, not_yet_legal}` : la veille, le jour et le
-lendemain de chaque date ; deux dates absentes ; `banned_on` seule ;
-`legal_from` seule ; `banned_on` avant, égale et après `legal_from` ; le cas
-*Playing for Keeps*. Chaque test, pytest et vitest, vérifie que la table
-contient au moins un cas par combinaison de résultats. Aucune carte de la base
-n'étant aujourd'hui « pas encore légale », les tests de bout en bout de ce
-filtre passent par des cartes synthétiques ou une date injectée.
+Table commune `backend/tests/fixtures/card_legality_cases.json`, avec un champ
+`description` et des attendus `{banned, not_yet_legal}` : veille, jour et
+lendemain de chaque date ; dates absentes ; `banned_on` seule ; `legal_from`
+seule ; `banned_on` avant, égale et après `legal_from` ; *Playing for Keeps*.
+Chaque test vérifie que la table contient au moins un cas par combinaison de
+résultats. Aucune carte n'étant « pas encore légale » dans la base, les tests
+de bout en bout passent par des cartes synthétiques ou une date injectée.
 
-### A6. Les filtres sont une fonction pure du client
+### A6. Les filtres sont des fonctions pures du client
 
 `filterCards(cards, criteria, context)` dans `vtes/`, où `cards` est le
-tableau déjà joint des deux magasins (pas des lignes Dexie, pour que le test
-n'ait pas besoin de Dexie) et `context` porte ce qui ne vient pas du catalogue
-(cartes possédées, lignes du deck choisi, date d'évaluation). Écrite comme une
-table de fonctions, une par critère, composées par une fonction courte ; pas
-de `switch` sur les clés des critères, que l'analyseur CRAP compterait par
-`case`. Les ensembles précalculés (par clan, discipline, type) vivent dans un
-objet distinct, construit avec la lecture mémoire et invalidé avec elle.
+tableau déjà joint des deux magasins et `context` porte ce qui ne vient pas du
+catalogue (cartes possédées, lignes du deck choisi, date d'évaluation). Une
+fonction par filtre de P1, composées par une fonction courte, sans `switch`
+sur les clés (que l'analyseur CRAP compterait par `case`). Les filtres à
+modes sont eux-mêmes écrits en petites fonctions : les quatre modes et « non
+requise » des disciplines de bibliothèque (tableau de P1), les lignes de
+texte, les paires OU de la crypte, les lignes de capacité, le barème des
+votes. Les sectes et titres exigés arrivent déjà lus par le serveur (A3,
+option 3) : le client ne réécrit pas la règle « un titre implique sa secte ».
+Les ensembles précalculés vivent dans un objet distinct, construit et invalidé
+avec la lecture mémoire.
 
-### A7. Noms traduits (si P2 est retenu)
+### A7. Noms traduits
 
-Un champ `translated_names` sur `CardListItem` casserait la fiche : `CardRead`
-en hériterait, `get_card` le chercherait par `getattr` sur l'objet `Card`, qui
-ne l'a pas, et la fiche gagnerait un champ redondant avec `translations`.
-Décision : la route de liste rend une classe fille de `CardListItem`, propre à
-elle (nom au choix de l'architecte), qui ajoute `translated_names`, liste de
-`{language_code, name}` ; `CardRead` n'en hérite pas et reste inchangée. Le
-contrat gagne donc deux schémas (la classe fille et l'élément de liste). Les
-codes de langue sortent en majuscules (`FR`, `ES`). Le service précharge les
-traductions. Si P2 est écarté, A7 tombe.
+La route de liste rend une classe fille de `CardListItem`, propre à elle (nom
+au choix de l'architecte), qui ajoute `translated_names`, liste de
+`{language_code, name}` ; `CardRead` n'en hérite pas. Le contrat gagne deux
+schémas. Codes de langue en majuscules.
 
 ### A8. Images par impression hors du contrat de liste
 
-Si P7 est retenu, aucune évolution de contrat pour les images :
-`GET /cartes/{id}` sert déjà `printings[].image_url`. Variante si l'usage
-l'exige : une liste `{card_set_id, image_url}` dans la réponse de liste, à côté
-de `card_set_ids`, que l'on garde. Reconstruire une URL d'impression à partir
-de l'URL générique (motif `/card/set/<extension>/<carte>.jpg`) est écarté :
-convention d'un tiers, non contractuelle.
+`GET /cartes/{id}` sert déjà `printings[].image_url` : aucune évolution de
+contrat pour les images. Reconstruire une URL d'impression depuis l'URL
+générique est écarté (convention d'un tiers).
 
 ### A9. `/sync` inchangé
 
-Aucun type d'opération nouveau, aucun genre de référence nouveau, aucune
-colonne nouvelle au journal. `docs/lot3-sync-contrat.md` n'a pas de section à
-gagner. La sémantique des quantités (état, pas delta) est celle de P10.
+Aucun type d'opération, genre de référence ou colonne de journal nouveau. Les
+quantités sont des états (P10).
 
 ### A10. Contrat : ce qui bouge, ce qui ne bouge pas
 
-49 opérations sur 29 chemins, inchangé ; `API_ROUTE_PREFIXES` inchangé. Le
-schéma `CardListItem` s'enrichit, l'ordre des propriétés de `CardRead` change,
-et deux schémas apparaissent si P2 est retenu. La description de `listCards`
-(noms traduits cherchés localement, pas par `q`) et la docstring de
-`CardListItem` sont réécrites. La matrice d'autorisation n'a pas d'opération
-nouvelle. Client TS régénéré ; le faux serveur des tests vitest
-(`fakeServer.ts`) apprend les champs nouveaux et une pagination au-delà de 200
-lignes.
+49 opérations sur 29 chemins, `API_ROUTE_PREFIXES` inchangés. `CardListItem`
+s'enrichit (A1, A3), l'ordre des propriétés de `CardRead` change, deux schémas
+apparaissent (A7), et un ou plusieurs selon la forme de l'exigence (A3). La
+description de `listCards` et la docstring de `CardListItem` sont réécrites.
+Client TS régénéré ; `fakeServer.ts` apprend les champs nouveaux et une
+pagination au-delà de 200 lignes.
 
 ## Couche offline
 
 ### Un magasin de détails en version 6
 
-La première version de ce plan enrichissait `cards`. pwa-offline a montré que
-`readProjection` relit `cards` en entier à chaque lecture de projection : les
-textes et leurs replis y seraient désérialisés sur tous les écrans, Decks et
-Synchronisation compris. Décision : `cards` ne change ni de forme ni de clé, et
-la version 6 ajoute un magasin `cardDetails`, clé `id`, sans `upgrade`, sur le
-patron de la version 5. Il porte ce que les filtres demandent : titre, coût,
-prérequis de clan découpés, exigence et disciplines avec leur niveau, types,
-texte et texte replié, dates de légalité, noms traduits repliés si P2. Les
-constantes suivent la numérotation existante (`VTES_STORES_V5`, déclaré en
-version 6), ce que le README explique.
+`cards` ne change ni de forme ni de clé. La version 6 ajoute un magasin
+`cardDetails`, clé `id`, sans `upgrade`, sur le patron de la version 5
+(constantes `VTES_STORES_V5`, déclarées en version 6). Il porte ce que les
+filtres demandent : secte, titre, voie, coût, prérequis de clan découpés,
+exigence et disciplines avec leur niveau, types, sectes et titres exigés,
+texte et texte replié, dates de légalité, noms traduits et variantes de nom
+repliés.
 
-Conséquences :
-
-- aucune ligne n'est vidée ni à demi remplie : un téléphone qui exécute le
-  nouveau code pour la première fois hors ligne, au club, garde son catalogue,
-  son picker et ses libellés ;
-- « miroir incomplet » se lit sans marqueur : `cardDetails` vide ou plus court
-  que `cards` ;
-- tant que le miroir est incomplet, l'écran Chercher garde la recherche par nom
-  et la catégorie et désactive les autres filtres, légalité comprise, en disant
-  pourquoi (« catalogue à mettre à jour, réseau requis »). Le filtre de
-  légalité ne doit jamais lire une carte sans détails comme « sans date, donc
-  légale » ;
-- `refreshCatalog` écrit les deux magasins dans une seule transaction (`clear`
-  puis `bulkPut` sur chacun), après avoir tout lu : une lecture interrompue,
-  par une page en échec ou un 503, ne touche à aucun des deux ;
-- si le serveur ne renvoie pas les champs nouveaux (nouveau front servi par le
-  service worker face à un ancien back), `cards` est relue comme avant,
-  `cardDetails` n'est pas écrit et le miroir reste incomplet, sans erreur
-  bloquante. Le miroir n'est jamais déclaré complet sur une réponse ancienne ;
-- la montée se joue dans chaque base de compte à son ouverture, et dans la base
-  d'avant le Lot 6 quand `legacy.ts` l'ouvre ; elle ne touche ni la file, ni
-  `settled`, ni les correspondances `client_ref`, ni les miroirs de la
-  pratique ;
-- à vérifier en C1a : l'ouverture par l'ancien code (onglet resté ouvert) d'une
-  base montée en version 6 par le nouveau. `OfflineCoreDb` ferme déjà sa
-  connexion sur `versionchange` ; le résultat est noté dans le README.
+- Aucune ligne n'est vidée : un téléphone qui exécute le nouveau code pour la
+  première fois hors ligne garde son catalogue, son picker et ses libellés.
+- « Miroir incomplet » se lit sans marqueur : `cardDetails` vide ou plus court
+  que `cards`. Tant qu'il l'est, Chercher garde le champ principal (nom) et la
+  catégorie et désactive les autres filtres, légalité comprise, avec le message
+  « catalogue à mettre à jour, réseau requis ». Le filtre de légalité ne lit
+  jamais une carte sans détails comme légale.
+- `refreshCatalog` écrit les deux magasins dans une seule transaction, après
+  avoir tout lu ; une lecture interrompue ne touche à aucun des deux.
+- Face à un serveur qui ne renvoie pas les champs nouveaux, `cards` est relue
+  comme avant, `cardDetails` n'est pas écrit, le miroir reste incomplet.
+- La montée se joue dans chaque base de compte et dans la base d'avant le
+  Lot 6 quand `legacy.ts` l'ouvre, sans toucher la file, `settled`, les
+  correspondances ni les miroirs de la pratique.
+- À vérifier en C1a : l'ouverture par l'ancien code d'une base montée en
+  version 6 ; résultat noté dans le README.
 
 C'est le patron que le README propose à Barrin : un miroir qu'on enrichit se
 double d'un magasin de détails à clé identique, ajouté sans migration.
 
+Le rejeu de l'import en B1 change le contenu du catalogue servi (sectes,
+exigences) sans changer sa forme : un appareil déjà à jour le récupère par le
+bouton « Mettre à jour le catalogue » ; un appareil dont `cardDetails` est
+vide le relit seul (P11).
+
 ### Relecture du catalogue hors de la séquence de 60 s
 
-`runRefresh` met le catalogue en dernier, après huit miroirs, sous un délai
-global de 60 s, et rejoue toute la séquence jusqu'à trois fois si un verdict de
-sync tombe pendant la lecture. Avec un catalogue plus lourd, le délai peut
-expirer pendant que la lecture continue, ce qui afficherait une erreur puis un
-miroir qui se met à jour seul, et trois relectures de 21 pages ne sont pas
-acceptables. Décision : `refresh({ catalog: true })` lance la relecture du
-catalogue après les autres miroirs, avec son propre délai (de l'ordre de
-180 s, réglage à fixer en C1a), et sans la rejouer si un verdict tombe en
-route, le catalogue n'ayant aucun lien avec `settled`. Une lecture annulable
-par `AbortController` serait plus propre et dépasse ce lot.
-
-`CatalogProvider` déclenche la relecture automatique quand le miroir est vide
-ou incomplet (P11), et non plus seulement quand `cards` est vide.
+`refresh({ catalog: true })` lance la relecture du catalogue après les autres
+miroirs, avec son propre délai (de l'ordre de 180 s, fixé en C1a), sans la
+rejouer si un verdict de sync tombe en route. `CatalogProvider` déclenche la
+relecture automatique quand le miroir est vide ou incomplet (P11).
 
 ### Lecture et filtrage
 
-Le filtre lui-même ne coûte rien : pwa-offline a mesuré environ 1 ms par passe
-sur 4149 cartes (Node, sous-chaîne sur nom et texte repliés). Ce qui coûte :
-la désérialisation des deux magasins, la jointure, la construction des
-ensembles, et le rendu. Décision : le catalogue joint est chargé une fois en
-mémoire et filtré en mémoire, sans parcours Dexie par frappe. Ce cache vit
-dans le runtime, un par base de compte, jamais au niveau du module (deux
-comptes successifs dans le même onglet verraient l'index de l'autre). Il est
-relu quand `cards` ou `cardDetails` changent (fin de `refreshCatalog`, montée
-de version) et jeté par `purge()` et à la fermeture de la base. Il vit dans
-`vtes/` ; une aide générique ne passerait dans `core/` que si Barrin en a
-l'usage. Les résultats s'affichent par tranches, sans bibliothèque de
-virtualisation.
+Le filtre ne coûte presque rien (environ 1 ms par passe sur 4149 cartes,
+mesuré hors navigateur). Ce qui coûte : la désérialisation, la jointure, les
+ensembles, le rendu. Le catalogue joint est chargé une fois en mémoire et
+filtré en mémoire, sans parcours Dexie par frappe. Ce cache vit dans le
+runtime, un par base de compte, relu quand `cards` ou `cardDetails` changent,
+jeté par `purge()` et à la fermeture de la base, dans `vtes/`. Résultats
+affichés par tranches. Au bureau, la recherche se relance à chaque changement
+après un court délai (VDB : 250 ms). Le picker et la feuille d'entrée de la
+Collection peuvent passer par cette lecture en gardant `limit: 20` et deux
+lettres au moins.
 
-Le picker du deckbuilder et la feuille d'entrée de la Collection peuvent passer
-par cette lecture mémoire en gardant leur comportement (`limit: 20`, deux
-lettres au moins), que leurs tests couvrent.
+### Projections, poids, persistance
 
-### Projections
-
-Les filtres de statut (P4) lisent la projection existante : une carte ajoutée
-hors ligne apparaît possédée tout de suite. La disponibilité affichée dans la
-feuille d'ajout vient de `useAvailableStock`, comme dans le deckbuilder ; en
-« Collection » seule, il n'y a pas de deck à exclure.
-
-### Poids et persistance
-
-Mesuré par pwa-offline sur `vtes.db` : de 1,5 à 2,5 Mo par base de compte
-pour le catalogue enrichi, texte replié compris (la première version de ce plan
-avançait 3 à 5 Mo). À multiplier par le nombre de comptes d'un appareil,
-sans enjeu pour les quotas. P14 traite le risque d'éviction de la base.
+Les filtres de statut lisent la projection existante ; la disponibilité de la
+feuille d'ajout vient de `useAvailableStock`. Poids mesuré : 1,5 à 2,5 Mo par
+base de compte, sans enjeu de quota. P14 traite l'éviction.
 
 ## Écrans
 
-Les écrans suivent le handoff si P6 est retenu ; ce qui suit est l'intention
-fonctionnelle à lui transmettre, et les contraintes que le code impose.
+Les écrans suivent le handoff (P6) ; ce qui suit est l'intention fonctionnelle
+et les contraintes du code.
 
 ### Routes
 
-`#/chercher`, avec dans la query du hash le texte cherché (`q`) et, si P12, le
-deck cible (`deck`). Ces deux paramètres sont lus à l'arrivée (champ global,
-lien depuis un deck) ; ensuite la page n'écrit plus dans l'adresse que par
-`history.replaceState`, comme `consumeIntent`, sans entrée d'historique ni
-`hashchange` par frappe. `parseHash` apprend à les lire sans les confondre avec
-l'intention `action`. La fiche s'ouvre dans une feuille (mobile) ou dans la
-colonne de détail (bureau), sans route propre.
-
-La règle de `frontend/src/offline/apiRoutes.ts` vise les chemins : un chemin
-qui porte le nom d'une ressource de l'API ne s'ouvre plus hors ligne au
-rechargement. Les routes de l'application vivent dans le hash, jamais envoyé
-au serveur, si bien que `#/decks` ou `#/parties` existent sans risque. On
-préfère `#/chercher` à `#/cartes`, techniquement possible, pour ne pas laisser
-croire que la règle est levée.
-
-La page Chercher est ajoutée au chargement paresseux et à la liste de
-préchauffement d'`App.tsx`, faute de quoi ouvrir l'onglet pour la première fois
-juste après une coupure renverrait l'écran d'erreur de route ; `NavKey` et
-`navActive` l'apprennent aussi.
+`#/chercher`, avec dans la query du hash le texte cherché (`q`) et le deck
+cible (`deck`), lus à l'arrivée ; ensuite la page n'écrit dans l'adresse que par
+`history.replaceState`, sans entrée d'historique par frappe. `parseHash` les lit
+sans les confondre avec `action`. La fiche s'ouvre dans une feuille (mobile) ou
+dans la colonne de détail (bureau). La règle de `apiRoutes.ts` vise les
+chemins, pas le hash ; `#/chercher` est préféré à `#/cartes` pour ne pas
+laisser croire qu'elle est levée. La page est ajoutée au chargement paresseux
+et au préchauffement d'`App.tsx`, et `NavKey` et `navActive` l'apprennent.
 
 ### Mobile
 
-Onglet Chercher activé (`nav-search`, identifiant créé). En tête, le champ du
-nom, puis des puces de catégorie et un bouton « Filtres » qui ouvre une feuille
-sur le patron de `StockFilterSheet`, avec le nombre de filtres actifs. Une
-ligne de résultat : nom (`cardLabel`), méta selon la catégorie (clan,
-capacité, disciplines, supérieures en majuscules ; ou type, coût, prérequis),
-mention « 3 en collection » si possédée, mention de légalité. Un toucher ouvre
-la fiche : image (en ligne), texte, prérequis, légalité, impressions,
-exemplaires possédés par langue et extension, decks qui la jouent, bouton
-« Ajouter… ». États : catalogue absent (avec `CatalogPanel`), catalogue à
-mettre à jour, aucun résultat, hors ligne.
+Onglet Chercher activé (`nav-search`). En tête, le champ principal, puis des
+puces de catégorie et un bouton « Filtres » qui ouvre une feuille, avec le
+nombre de filtres actifs. Une ligne de résultat : nom (`cardLabel`), méta selon
+la catégorie (clan, secte, capacité, disciplines ; ou type, coût, prérequis),
+mention « 3 en collection », mention de légalité. Un toucher ouvre la fiche :
+image (en ligne), texte, prérequis et exigences, légalité, impressions,
+exemplaires possédés par langue et extension, decks qui la jouent, « Ajouter… ».
+États : catalogue absent, catalogue à mettre à jour, aucun résultat, hors
+ligne.
 
 ### Bureau
 
-Filtres en colonne à gauche, toujours visibles ; résultats au centre en
-tableau triable ; fiche à droite pour la ligne sélectionnée, comme le
-maître/détail des Decks ; aperçu d'image au survol d'un nom, comme la
-Collection. Raccourcis de page : `F` focalise la colonne de filtres (sur la
-Collection, `F` ouvre la feuille de filtres : même lettre, même intention) ;
-`↑↓` parcourent ; `↵` ouvre la fiche, lié avec
-`ignoreTarget: isInteractiveTarget` pour ne pas voler `Entrée` à un bouton ou
-un filtre ; `N` ouvre la feuille d'ajout. La première version proposait `A`,
-qui entre en collision avec le chord `G A` ; les touches simples de page ne
-prennent jamais `A`, `C`, `D`, `P` ni `S`.
+Filtres en colonne à gauche ; résultats au centre en tableau triable ; fiche à
+droite. Raccourcis de page : `F` focalise la colonne de filtres, `↑↓`
+parcourent, `↵` ouvre la fiche (avec `ignoreTarget: isInteractiveTarget`), `N`
+ouvre la feuille d'ajout. Les touches simples de page ne prennent jamais `A`,
+`C`, `D`, `P` ni `S`.
 
 ### Clavier : le `/` global
 
-Chaque appel de `useKeyboardShortcuts` pose son propre écouteur ; il faut donc
-qu'un seul `/` existe à la fois. Décision :
-
-- la liaison globale de `/` vit dans `App`, avec `enabled: false` sur la route
-  du deckbuilder, où `/` reste au picker. Sur un deck archivé, qui n'a pas de
-  picker, `/` reste sans effet ;
-- elle est inerte dans un champ (pas d'`allowInEditableTarget`), pour qu'on
-  puisse taper « / », et sous une feuille ouverte (cible dans un
-  `[role="dialog"]`, par `ignoreTarget`) ;
-- sur Chercher, la page ne lie pas `/` : le global focalise le champ du nom de
-  la page (par une référence exposée par la page) au lieu de naviguer ;
-- un test vitest compte les appels : une frappe, un seul `onTrigger`.
+Un seul `/` existe à la fois. La liaison globale vit dans `App`, avec
+`enabled: false` sur la route du deckbuilder, où `/` reste au picker ; elle est
+inerte dans un champ et sous une feuille ouverte (cible dans un
+`[role="dialog"]`) ; sur Chercher, la page ne lie pas `/`, le global focalise
+son champ principal. Un test vitest compte un seul `onTrigger` par frappe.
 
 ### Feuille d'ajout
 
-Contrôle segmenté à trois choix exclusifs (« Deck », « Collection », « Les
-deux »), selon P10. La logique d'`AddDeckCardForm` est extraite dans un hook
-partagé à l'étape D1a, qui prend la carte en entrée (dans Chercher, elle est
-déjà choisie) et ne porte ni `chosen` ni `pick`. Le calcul de l'opération à
-envoyer est une fonction pure, `buildAddOperation(choix, état)`, testée à part.
-Un deck archivé n'est pas proposé. La feuille de Chercher prend le préfixe
-`search-add-*` et ne réutilise pas les `deck-card-form-*` du deckbuilder, que
-vitest et six e2e emploient. Rien n'attend le réseau.
+Contrôle segmenté à trois choix exclusifs, selon P10. La logique du deckbuilder
+est dans `useAddDeckCard` (D1a) ; le calcul de l'opération est une fonction
+pure, `buildAddOperation(choix, état)`, qui réutilise `computeAddedLine` (D1a)
+et ajoute le remplacement des proxies propre à « les deux ». Un deck archivé
+n'est pas proposé. Préfixe `search-add-*`. Rien n'attend le réseau.
 
 ### Images et champ global
 
-`CardImage` gagne une seconde source (impression puis générique) et une taille
-pour le picker mobile (P7). La lecture de `GET /cartes/{id}` est faite par un
-hook qui garde la réponse en mémoire par carte pour la session, ne lance rien
-hors ligne, et abandonne à la sortie du survol. Le champ global réapparaît dans
-`TopBar`, et le commentaire du Lot 5c qui le remplace disparaît.
-
-Les `data-testid` existants ne disparaissent pas ; les nouveaux suivent les
-préfixes `search-*`, `search-add-*`, `nav-search`, `topbar-search`, et leur
-liste est fixée dans le brief de D1b par qa-tests (E0), pour que les e2e ne
-dépendent pas d'un nom tardif.
+`CardImage` gagne une seconde source et une taille mobile ; la fiche lue en
+ligne est gardée en mémoire par carte, rien n'est lancé hors ligne. Le champ
+global réapparaît dans `TopBar`. Les `data-testid` existants ne disparaissent
+pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 
 ## Découpage en étapes ordonnées
 
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
-| A0 | orchestrateur, utilisateur | P1 à P14 tranchés, brief `docs/lot-chercher-brief.md` mis à jour | rien |
-| E0 | qa-tests | recensement des `data-testid` avec sa méthode (commande consignée, liste triée gardée pour la clôture), liste des identifiants nouveaux pour D1b | rien |
-| A1 | architecte-contrat, qa-tests | `CardListItem` enrichi (A1), classe fille et noms traduits si P2 (A7), `card_legality` et `card_legality_cases.json` avec leurs tests pytest (A5), export du contrat, client TS régénéré ; dérivation de la secte si P13 | A0 |
-| B1 | backend-fastapi | `list_cards` sur le patron de `get_card`, préchargements et tri, `GZipMiddleware`, tests (champs, N+1, fiche, compression), mesures sur `vtes.db` ; contrôle CRAP | A1 |
-| C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et déclenchement P11, ancien serveur, ancien code face à une base 6, `persist()` si P14, README ; contrôle CRAP | A1 |
-| C1b | pwa-offline | légalité TS sur la table commune, `filterCards`, lecture mémoire dans le runtime, hooks, mesure de `foldText` (A4) ; contrôle CRAP | A1 |
-| E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline, faux serveur paginé au-delà de 200 lignes, squelette du test de montée 5 vers 6 | A1 |
-| D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher versé dans `docs/design-handoff/` (si P6) | A0 |
-| D1a | frontend-react | extraction du hook d'`AddDeckCardForm`, refactor pur, test qui reproduit ou infirme l'écrasement d'une ligne existante (état de départ) ; contrôle CRAP | ouverture du lot |
+| A0 | orchestrateur, utilisateur | P1 à P15 tranchées, brief mis à jour, pistes versées — **fait le 2026-11-03** | rien |
+| E0 | qa-tests | recensement des `data-testid` avec sa méthode, identifiants nouveaux pour D1b — **fait le 2026-11-03** | rien |
+| D1a | frontend-react | hook `useAddDeckCard`, défaut d'écrasement confirmé et corrigé — **fait le 2026-11-03** | rien |
+| A1 | architecte-contrat, qa-tests | forme de l'exigence (A3) et douzième révision ; import : dérivation de la secte (P13), lecture de `vteslibmeta.csv` (P15), fixture, rapport ; fonctions pures et tables de cas (secte, exigence, `card_legality`) ; `CardListItem` enrichi, classe fille des noms traduits ; export du contrat, client TS | A0 |
+| B1 | backend-fastapi | `list_cards` (patron de `get_card`, préchargements, tri), `GZipMiddleware`, tests ; mise en service sur `backend/vtes.db` : vérification de `DATABASE_URL`, essai sur copie, sauvegarde datée, `upgrade head`, rejeu de l'import, comparaisons ; mesures ; contrôle CRAP | A1 |
+| C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et P11, ancien serveur, ancien code, `persist()` (P14), README ; contrôle CRAP | A1 |
+| C1b | pwa-offline | légalité TS, `filterCards` et ses modes (A6), variantes de nom, lecture mémoire dans le runtime, hooks, mesure de `foldText` ; contrôle CRAP | A1 |
+| E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline (modes de disciplines, lignes de texte, votes, capacité, exigences), faux serveur paginé, squelette du test de montée | A1 |
+| D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher | A0 |
 | D1b | frontend-react | route, onglet, chargement paresseux et préchauffement, page avec la recherche par nom existante, mobile et bureau | A0, E0 |
-| D1c | frontend-react | filtres, tri et fiche de carte, mobile puis bureau ; contrôle CRAP | C1a, C1b, D0, D1b |
+| D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP | C1a, C1b, D0, D1b |
 | D2 | frontend-react | feuille d'ajout (P10, `buildAddOperation`) ; contrôle CRAP | D1a, D1c |
-| D3 | frontend-react | champ global et `/`, `CardImage` à deux sources et taille mobile, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP | D2 |
-| E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts` | D1c |
-| E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et recensement de clôture | D3 |
-| F | orchestrateur | CLAUDE.md (§6, §7, §11, §12, fixture à dix cartes), brief clos, pistes versées (`ETag`, secte si P13 la renvoie, `persist()` si P14 l'écarte), vérification à la main sur téléphone | E3 |
+| D3 | frontend-react | champ global et `/`, `CardImage`, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP | D2 |
+| E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts`, `desktop-real-backend` de `deckbuilder.spec.ts` (non lancé à D1a) | D1c |
+| E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et contrôle de clôture des `data-testid` | D3 |
+| F | orchestrateur | CLAUDE.md (§5 ou §6 secte, §6 révision et exigence, §7, §11 avec l'amendement de §11.1, la licence vtescsv et la correction de D1a, §12, fixture à dix cartes), brief clos, vérification à la main sur téléphone | E3 |
 
-B1, C1a, C1b et E1 avancent en parallèle une fois le contrat exporté à A1. D1a
-et D1b ne dépendent ni du contrat ni du handoff : D1a peut commencer dès
-l'ouverture du lot, aucune proposition ne le touchant, et D1b dès A0 ; D1b
-s'appuie sur la recherche par nom existante (`useLocalCardSearch`). D0 est
-sur le chemin critique de D1c et D2 seulement. Si P6 est écarté, D0 disparaît.
-Si D1a confirme le défaut d'écrasement, sa correction (« Ajouter » ajoute à la
-ligne existante) fait partie de D1a, puisque le hook partagé en dépend ; elle
-est signalée à l'utilisateur et consignée au §11 à l'étape F. Aucune étape ne
-migre `backend/vtes.db`.
+Qui fait quoi. L'architecte porte en A1 tout ce qui touche au modèle, à
+l'import et aux règles : migration, dérivation de la secte, lecture de
+l'exigence, `card_legality`, schémas. qa-tests écrit avec lui les tables de cas
+communes. Le back reprend en B1 le service de liste et la compression, et il
+met la base de développement à la tête : sans cela, l'API refuse de démarrer
+(`schema_check.py`) et aucune étape suivante ne peut tourner contre le vrai
+back. pwa-offline et le front ne lisent que le contrat.
+
+B1, C1a, C1b et E1 avancent en parallèle une fois le contrat exporté à A1. D1b
+ne dépend que de l'A0 et d'E0 et peut commencer tout de suite. D0 est sur le
+chemin critique de D1c et D2 seulement.
+
+## Livraisons
+
+### Livré à l'étape E0 (2026-11-03)
+
+Recensement des `data-testid` par un script versionné,
+`frontend/scripts/testid-census.mjs`, avec son test miroir
+`frontend/tests/unit/testidCensus.test.ts` (8 tests). Trois familles sont
+comptées à part : les littéraux `data-testid` (403 distincts, 480 mentions,
+le chiffre comparable aux 193 du Lot 5c), les littéraux passés par une prop en
+`…testId` (17), et les gabarits `${…}` (24 motifs, exclus des totaux et listés
+comme motifs). Les expressions qui relaient une prop ou posent un littéral dans
+une condition ne sont pas comptées. Référence d'ouverture :
+`docs/qa-baselines/testids-lot-chercher-ouverture.txt` (444 lignes).
+`node scripts/testid-census.mjs --check <référence>` échoue si un identifiant a
+disparu, ignore les ajouts, et sert de contrôle de clôture. Aucun script npm
+n'est ajouté, point laissé à décider.
+
+Identifiants nouveaux pour D1b, sous les préfixes `search-*`, `search-add-*`,
+`nav-search`, `topnav-search` et `topbar-search`. Neuf sont à fixer dès D1b :
+`nav-search`, `topnav-search`, `topbar-search`, `search-page`,
+`search-input`, `search-results`, `search-row`, `search-no-result`,
+`search-empty-catalog`. Liste complète proposée : `search-clear`,
+`search-count`, `search-category-all`, `-crypt`, `-library`,
+`search-filters-open`, `-count`, `-sheet`, `-done`, `-reset`, `-column`,
+`search-row-owned`, `search-row-legality`, `search-sort-*`,
+`search-outdated`, `search-offline`, `search-loading`, `search-detail` (et
+`-empty`, `-close`, `-sheet`, `-image`, `-printings`, `-owned`, `-decks`,
+`-add`), `search-add-sheet`, `search-add-target-deck`, `-collection`, `-both`,
+`search-add-deck`, `search-add-copies`, `search-add-card-set`,
+`search-add-submit`, `search-add-error`, `search-add-feedback`. Les filtres de
+P1 décidés depuis demanderont des identifiants de plus (lignes de texte,
+grille de disciplines, modes), fixés par qa-tests au brief de D1c.
+
+### Livré à l'étape D1a (2026-11-03)
+
+La logique d'ajout est sortie d'`AddDeckCardForm` dans le hook
+`useAddDeckCard(deck, card)` (`frontend/src/features/decks/useAddDeckCard.ts`),
+qui ne connaît ni le picker ni Chercher ; le formulaire est réduit à la
+présentation, DOM et `data-testid` inchangés.
+
+Défaut confirmé : `AddDeckCardForm` envoyait `quantity: copies`, `copies`
+repartant de 1. Ajouter une copie à une ligne Élan vital FR à deux exemplaires
+et deux proxies la ramenait à 1/1 au lieu de 3/3, au mobile comme au bureau
+(même `submit`) ; « Dans le deck : N » était purement informatif. Le défaut est
+reproduit par un test de `tests/unit/ui/decks.test.tsx`, qui échouait avant la
+correction, et corrigé dans la fonction pure `computeAddedLine` :
+`quantity` = existant + copies ; `proxyQuantity` = proxies existants +
+(copies − possédées) ; `acquiredQuantity` = min(possédées, max(0, réels
+existants + possédées − disponible)), le disponible étant compté hors de ce
+deck. Sans ligne existante, rien ne change. Le remplacement des proxies
+d'abord (P10) reste propre à « les deux » (D2). Refus local nouveau si la ligne
+dépasserait 2³¹ − 1 (« Le deck ne peut pas contenir autant d'exemplaires de
+cette carte. »).
+
+Aucun changement de contrat, de backend ni de `offline/core`. Fichiers :
+`src/features/decks/useAddDeckCard.ts` (nouveau), `AddDeckCardForm.tsx`,
+`tests/unit/addDeckCardLine.test.ts` (nouveau, 4 tests),
+`tests/unit/ui/decks.test.tsx` (2 tests de plus). Vitest : 766 tests sur 51
+fichiers (752 sur 49 avant le lot, plus 8 à E0 et 6 à D1a), lint et `tsc`
+propres, CRAP sans régression (`AddDeckCardForm` à 23). Les e2e d'acquisition
+et `lot5c-symetrie` sont verts en `real-backend` ; `deckbuilder.spec.ts` en
+`desktop-real-backend` n'a pas été lancé et l'est en E2. Correction à consigner
+au §11 à l'étape F.
 
 ## Tests attendus
 
 ### Côté back
 
-- `GET /cartes` rend les champs nouveaux avec leurs valeurs sur le fixture
-  (crypte à disciplines supérieures, bibliothèque `mono`, `choice` et
-  `combo`, coût « X », carte bannie, type multiple) ; une carte créée en test
-  avec `legal_from` au lendemain de la date injectée, plutôt qu'une date du
-  fixture qui vieillit ; une carte sans texte ; un prérequis à deux clans ;
-- nombre de requêtes de lecture égal pour `limit=1` et `limit=10`, et borné
-  (sept au plus avec A7), sur le patron du compteur `before_cursor_execute` de
-  `test_play_routes.py` ;
-- `GET /cartes/{id}` : instantané JSON d'une fiche comparé par contenu avant et
-  après, et schéma comparé propriété par propriété ;
-- types et disciplines rendus dans l'ordre imposé par le service ;
-- réponse compressée quand le client l'accepte, `Retry-After` toujours exposé,
-  `Cache-Control` inchangé ;
-- `card_legality` sur `card_legality_cases.json`, au moins un cas par
-  combinaison de résultats ; `banned_cards`, `not_yet_legal_cards` et
-  `/legalite` inchangés, *Playing for Keeps* compris ; un test de bout en bout
-  avec `_today` remplacé, qui compare `/legalite` au verdict attendu ;
-- contrat exporté à jour (`export_openapi.py --check`) ; noms traduits si P2.
+- Dérivation de la secte sur une table de cas : premier mot, « Advanced, » en
+  tête, chaque secte, *imbued*, les six textes `[MERGED]` qui changent de secte
+  (secte de la face attendue), un premier mot inconnu (signalé) ; sur la base
+  rejouée, 1785 cartes de crypte avec une secte.
+- Lecture de l'exigence de bibliothèque sur une table de cas :
+  `prince,justicar` (Camarilla impliquée), `justicar,inner circle`, `baron`,
+  `magaji`, `1 vote`, `non-anarch,titled` (ne répond pas à Anarch),
+  `imbued`, `non-sterile`, `1 Gehenna`, `capacity 7 or …` (valeurs brutes
+  conservées, non filtrables), exigence vide.
+- Import de `vteslibmeta.csv` sur un fichier d'échantillon : jointure par
+  identifiant, `Id` inconnu, carte de crypte, nom discordant, tous signalés au
+  rapport ; rejeu sans doublon ni changement ; krcg seul sans le fichier
+  (l'import ne doit pas dépendre de la présence des deux sources si l'architecte
+  en décide ainsi en A1).
+- Douzième révision : montée et descente sur base vide, montée sur une base
+  peuplée sans perte, montée hors ligne (`--sql`).
+- `GET /cartes` rend les champs nouveaux (secte, exigences, types, disciplines,
+  texte, coût « X », carte bannie, type multiple, prérequis à deux clans) ; une
+  carte créée en test avec `legal_from` au lendemain de la date injectée.
+- Nombre de requêtes égal pour `limit=1` et `limit=10`, et borné, sur le patron
+  du compteur de `test_play_routes.py`.
+- `GET /cartes/{id}` : instantané JSON comparé par contenu, schéma comparé
+  propriété par propriété.
+- Compression : réponse compressée quand le client l'accepte, `Retry-After`
+  exposé, `Cache-Control` inchangé.
+- `card_legality` sur `card_legality_cases.json` ; `/legalite` inchangé,
+  *Playing for Keeps* compris ; un test de bout en bout avec `_today` remplacé.
+- Contrat exporté à jour (`export_openapi.py --check`).
 
 ### Côté front
 
-- montée 5 vers 6 sur le patron de `vtesDbV5.test.ts` : base écrite en
-  version 5, rouverte par le code du lot, `cards`, file, `settled`,
-  correspondances et miroirs de la pratique intacts, `cardDetails` vide ;
-  double ouverture sans effet ; base d'avant le Lot 6 montée aussi ; ancien
-  code face à une base 6 ;
-- `refreshCatalog` : deux magasins écrits ensemble ; lecture interrompue à la
-  page 7 sur 21 ou par un 503 sans rien toucher ; ancien serveur sans les
-  champs nouveaux (miroir incomplet, pas d'erreur) ; deux comptes, deux bases,
-  la relecture de l'un ne touche pas l'autre (ou couverture confirmée par
-  `vtesAccount.test.ts`) ;
-- `filterCards` sur sa table de cas, construite sur un catalogue synthétique
-  (fabrique de lignes à partir de la forme `CardListItem`), une carte positive
-  et une négative par critère et par sens de combinaison ; le fixture krcg
-  n'a ni carte *advanced* ni prérequis de clan ;
-- légalité TS sur la table commune ; test d'horloge avec `vi.setSystemTime`
-  autour de minuit UTC, fuseau de Paris, sur une `legal_from` ;
-- filtre de légalité désactivé, et non permissif, sur un miroir incomplet ;
-- lecture mémoire : aucun parcours Dexie par frappe (compte des appels, pas de
-  chronomètre), relecture après `refreshCatalog` et après la montée, sur un
-  catalogue synthétique de 4149 lignes avec texte ;
-- recherche dans le texte replié (accents, casse, jokers littéraux, icônes de
-  discipline) ; affichage par tranches en Testing Library ;
-- `buildAddOperation` pour les trois choix, ligne existante, ligne avec
-  proxies ; le test de D1a sur l'écrasement d'une ligne ;
-- `/` : un seul `onTrigger` par frappe ; le picker garde `/` sur le
-  deckbuilder ; inerte dans un champ et sous une feuille ;
-- tests qui comptent les onglets de la tab bar mis à jour.
+- Montée 5 vers 6 sur le patron de `vtesDbV5.test.ts`, base d'avant le Lot 6
+  comprise, double ouverture, ancien code face à une base 6.
+- `refreshCatalog` : deux magasins ensemble, lecture interrompue sans effet,
+  ancien serveur sans les champs, deux comptes indépendants.
+- `filterCards` sur sa table de cas, construite sur un catalogue synthétique,
+  une carte positive et une négative par filtre et par mode. Pour les
+  disciplines de bibliothèque, le tableau de P1 ligne par ligne, avec
+  *S* = {Dominate, Obfuscate} et une carte au choix sur le modèle de *The
+  World's a Canvas* (absente en ET, présente en OU et en SEULEMENT), une
+  combinée Dominate et Obfuscate (présente en ET), une combinée Dominate et
+  Potence (absente en ET et en SEULEMENT), une `mono` Dominate (présente en OU
+  et SEULEMENT, absente en ET), une carte sans exigence (présente en NON et
+  « non requise » seulement). Pour la crypte : niveaux, paires OU, vertus,
+  groupe « Any » retenu, lignes de capacité en OU et NON, barème des votes,
+  secte. Pour la bibliothèque : types en OU, ET, NON et « Reflex », clan et
+  secte requis avec « non requis », titre impliquant sa secte (lu sur les
+  listes du serveur), coût absent valant 0, « X » qui passe toujours. Pour le
+  texte : lignes ET et NON, nom seul, texte seul, variantes de nom
+  (ponctuation, initiales), noms traduits, icônes de discipline.
+- Légalité TS sur la table commune ; test d'horloge autour de minuit UTC.
+- Filtres avancés, légalité comprise, désactivés sur un miroir incomplet.
+- Lecture mémoire : aucun parcours Dexie par frappe, relecture après
+  `refreshCatalog` et après la montée, sur 4149 lignes synthétiques.
+- Affichage par tranches ; `buildAddOperation` pour les trois choix, ligne
+  existante, ligne avec proxies ; `/` déclenché une seule fois, gardé au picker
+  sur le deckbuilder, inerte dans un champ et sous une feuille ; tests qui
+  comptent les onglets mis à jour.
 
-La couverture qui compte pour le score CRAP est celle de vitest seul : la page,
-la feuille et le hook sont couverts par Testing Library, un e2e ne les
-remplace pas.
+La couverture qui compte pour le score CRAP est celle de vitest seul.
 
 ### Playwright
 
-Contre le vrai back, avec interception de `static.krcg.org` par `page.route`
-(image fixe servie en ligne, aucune requête tentée hors ligne, pictogramme
-vérifié), pour ne pas dépendre d'un réseau externe :
+Contre le vrai back, avec interception de `static.krcg.org` par `page.route` :
 
-1. `real-backend`, 390 × 844 : couper le réseau, chercher avec trois filtres
-   combinés qui ne rendent qu'une carte du fixture (clan Tremere, discipline
-   supérieure, un mot du texte), ouvrir la fiche, ajouter une carte à un deck
-   et une autre aux deux, recharger hors ligne et tout retrouver, revenir en
-   ligne, vérifier le rejeu et la collection côté serveur ;
-2. `desktop-real-backend`, 1440 × 900 : le même parcours, plus `/` puis saisie
-   dans le champ global, et `/` qui reste au picker du deckbuilder ;
-3. `real-backend` : une base Dexie à la version 5 (version 50 en IndexedDB
-   brut) avec un catalogue ancien, amorcée avant que le code du lot ne
-   l'ouvre, sur une page déjà contrôlée par le service worker, puis ouverte
-   hors ligne : picker utilisable, filtres avancés désactivés avec leur
-   message, tout s'active au retour du réseau. L'amorçage est la partie
-   délicate (compte connu après connexion, `AuthGate` démarrant sur la copie
-   locale de `GET /moi`), décrite par qa-tests dans E2 ;
+1. `real-backend`, 390 × 844 : hors ligne, chercher avec trois filtres combinés
+   qui ne rendent qu'une carte du fixture (clan Tremere, discipline
+   supérieure, un mot du texte), ouvrir la fiche, ajouter à un deck puis aux
+   deux, recharger hors ligne, revenir en ligne, vérifier le rejeu et l'état
+   serveur ;
+2. `desktop-real-backend`, 1440 × 900 : le même parcours, plus `/` et le champ
+   global, et `/` gardé au picker du deckbuilder ;
+3. `real-backend` : base Dexie à la version 5 (50 en IndexedDB brut) avec un
+   catalogue ancien, ouverte hors ligne : picker utilisable, filtres avancés
+   désactivés, tout actif au retour du réseau ;
 4. `desktop-real-backend` : variante bureau du scénario 3, ou justification
-   écrite de son absence ;
-5. P12, si retenu : un test par largeur ;
-6. `search-parity.spec.ts` étendu au champ texte, aux noms traduits et aux
-   filtres `category` et `clan_id`.
+   écrite ;
+5. P12 : un test par largeur ;
+6. `search-parity.spec.ts` étendu au texte, aux noms traduits, et aux filtres
+   `category` et `clan_id` ;
+7. un filtre de secte et un filtre d'exigence de bibliothèque sur le fixture,
+   si les cartes du fixture le permettent ; sinon, couverts par vitest seul, ce
+   que E2 écrit.
 
-Le décompte se vérifie par `--list` et à l'exécution (précaution OneDrive,
-§11, Lot 4).
+Décompte par `--list` et à l'exécution (précaution OneDrive, §11, Lot 4).
 
 ### Mesures à la main
 
-Consignées dans ce plan en E3, sans valeur de réussite : durée de la lecture
-complète du catalogue en ligne, sur le téléphone ; poids de la base de compte
-par `navigator.storage.estimate()` ; durée du chargement à froid (lecture des
-deux magasins, jointure, ensembles) ; durée d'un filtrage par frappe et du
-rendu ; durée de `readProjection` avant et après le lot, sur la base de
-développement, pour vérifier que `cards` n'a pas grossi.
+Consignées en E3, sans valeur de réussite : lecture complète du catalogue en
+ligne sur le téléphone, poids de la base par `navigator.storage.estimate()`,
+chargement à froid, filtrage et rendu par frappe, `readProjection` avant et
+après le lot, résultat de `persist()`.
 
 ### Score CRAP
 
-Contrôle à la fin de B1, C1a, C1b, D1a, D1c, D2 et D3, pas seulement en E,
-pour que le découpage revienne à l'agent de couche avant d'empiler. Fonctions
-à risque : `filterCards` et sa composition, la lecture mémoire, le hook extrait
-d'`AddDeckCardForm`, `buildAddOperation`, la page Chercher (découpée en
-sous-composants dès sa première version, comme au Lot 7). Aucune entrée ajoutée
-aux références `docs/qa-baselines/crap/`.
+Contrôle à la fin de B1, C1a, C1b, D1c, D2 et D3 (D1a : fait, sans
+régression). Fonctions à risque : la dérivation de la secte et la lecture de
+l'exigence côté back, la fonction d'import qui les appelle, `filterCards` et
+ses modes, la lecture mémoire, `buildAddOperation`, la page Chercher et la
+colonne de filtres (découpées en sous-composants dès la première version).
+Aucune entrée ajoutée aux références `docs/qa-baselines/crap/`.
 
 ## Risques et points d'attention
 
-- Poids du catalogue sur une connexion lente : 3,28 Mo bruts, 440 Ko
-  compressés. Couvert par la compression (A2) et le délai propre de la
-  relecture.
+- Rejeu sur `backend/vtes.db` : la base contient la vraie collection et la
+  pratique de l'utilisateur. Vérifier `DATABASE_URL`, essayer migration et
+  rejeu sur une copie, sauvegarde datée, puis comparer ligne à ligne stock,
+  decks, lignes, journal et pratique avant et après (ils ne doivent pas
+  bouger), et le catalogue (4149 cartes, mêmes identifiants de carte,
+  d'extension et d'impression, sectes et exigences en plus). Tant que la base
+  n'est pas à la tête, l'API refuse de démarrer.
+- Licence de vtescsv : aucune licence déclarée. L'usage reste celui de krcg,
+  qui en dérive ; à consigner au §11, et à revoir si le dépôt en publie une
+  restrictive.
+- Désynchronisation entre krcg et vtescsv : un identifiant présent dans l'un
+  et pas dans l'autre, ou un nom qui diverge, après une mise à jour d'un seul
+  des deux dépôts. Le rapport d'import le signale ; aucune exigence n'est
+  inventée, et une carte sans ligne dans `vteslibmeta.csv` est lue « sans
+  exigence ».
+- URL sur une branche, `main`, et non sur une version : un changement de forme
+  du CSV casserait l'import au rejeu ; le test sur l'échantillon et l'en-tête
+  vérifié à la lecture le rendent visible.
+- Dérivation de la secte : elle dépend de la forme des textes krcg ; une carte
+  nouvelle qui ne commence pas par une secte est signalée, pas devinée.
+- Poids du catalogue sur une connexion lente : couvert par la compression et le
+  délai propre de la relecture.
 - Téléphone sans catalogue au club : couvert par le magasin de détails ajouté
-  sans vidage. À vérifier à la main à l'étape F (mise à jour du service worker
-  en ligne, puis ouverture en mode avion).
-- Régression de toutes les lectures : éviter que `cards` grossisse est la
-  raison du magasin séparé ; mesure de `readProjection` avant et après.
-- Défaut présumé d'`AddDeckCardForm` : une copie ajoutée à une ligne existante
-  pourrait en écraser la quantité. Non établi ; D1a le reproduit ou l'infirme
-  avant toute extraction.
-- Deux écritures de la légalité d'une carte : Python et TypeScript, deux
-  booléens, une table de cas commune ; toute évolution touche les deux. La
-  date UTC est un choix à expliquer à l'écran.
-- Sens des filtres de disciplines : c'est là qu'un résultat peut surprendre ;
-  tranché en P1, écrit une fois, couvert par la table de cas.
-- Secte absente si P13 la renvoie : la recherche dans le texte la remplace
-  imparfaitement.
-- Images servies par un tiers : `static.krcg.org` peut être lent ou
-  indisponible ; le repli sur l'image générique puis le pictogramme existe.
-- Ancien onglet ouvert pendant la montée : à vérifier en C1a ; la fermeture
-  sur `versionchange` existe déjà.
-- Éviction de la base : couverte par P14 si elle est retenue.
-- Catalogue copié par compte : sans enjeu de quota ; pour Barrin, un miroir
-  partagé entre comptes demanderait une base commune hors de la base par
-  compte (piste, pas décision).
-- Catalogue jamais rafraîchi après un import serveur : inchangé hors de la
-  relecture de P11 ; l'`ETag` est versé aux pistes.
-- Données krcg : les filtres rendent visibles des défauts jusqu'ici muets ; ils
-  sont signalés, pas corrigés à la main (§11, Lot 2).
+  sans vidage ; à vérifier à la main à l'étape F.
+- Régression de toutes les lectures : `cards` ne grossit pas ; mesure de
+  `readProjection` avant et après.
+- Deux écritures de la légalité d'une carte : deux booléens, une table
+  commune.
+- Sens des filtres de disciplines : écart volontaire avec VDB sur ET et
+  SEULEMENT ; un utilisateur habitué à VDB peut être surpris. L'aide du bouton
+  dit le sens de chaque mode ; la table de cas le fige.
+- Densité de l'écran de filtres : le cœur de VDB fait beaucoup de contrôles
+  pour un téléphone ; c'est l'objet du handoff (P6).
+- Images servies par un tiers, ancien onglet pendant la montée, éviction de la
+  base (P14), catalogue copié par compte, catalogue jamais rafraîchi après un
+  import serveur (hors P11), données krcg qui révèlent des défauts : inchangés
+  depuis la relecture.
 
 ## Critère de fin de lot
 
-- P1 à P14 tranchés, reportés dans ce plan et, pour ce qui dure, au §11 de
-  CLAUDE.md ; brief `docs/lot-chercher-brief.md` marqué clos.
-- Handoff versé dans `docs/design-handoff/` si P6 est retenu, et écrans
-  conformes en mobile et en bureau.
+- Décisions de l'A0 reportées au §11 de CLAUDE.md à l'étape F, avec
+  l'amendement de §11.1 et la licence de vtescsv ; brief marqué clos.
+- Handoff versé dans `docs/design-handoff/` et écrans conformes en mobile et en
+  bureau.
+- Douzième révision appliquée sur `backend/vtes.db` après essai sur copie et
+  sauvegarde, import rejoué : 1785 cartes de crypte avec une secte, exigences
+  de bibliothèque chargées, comparaison ligne à ligne sans écart sur les
+  données de l'utilisateur.
 - Contrat à 49 opérations, `CardListItem` enrichi, client TS régénéré,
   `API_ROUTE_PREFIXES` inchangé ; réponses compressées.
 - `uv run pytest` vert à 2276 + N tests, les deux `xfail` inchangés, `ruff
   check` propre ; `npm run lint`, `npx tsc --noEmit -p tsconfig.app.json` et
-  `npm run test` propres, à 752 + N tests sur 49 + M fichiers ; Playwright vert
-  à au moins 64 tests, ventilés 8 `chromium`, au moins 33 `real-backend`
-  (scénarios 1, 3 et 5), 3 `desktop`, au moins 20 `desktop-real-backend`
-  (scénarios 2 et 5, plus 4 ou sa justification), le scénario 6 s'ajoutant à
-  `real-backend` s'il crée des tests ; N, M et les totaux exacts sont relevés
-  en E3.
-- `card_legality_cases.json` lue par pytest et par vitest.
-- Contrôles CRAP verts (`scripts/run.ps1 crap`), références `backend.json` et
-  `frontend.json` toujours vides.
-- Recensement des `data-testid` fait avec la même méthode qu'à E0, aucun
-  identifiant disparu.
-- Les deux points renvoyés par le Lot 5c soldés : image de carte (dont la
-  forme statique du picker mobile) et champ de recherche global.
-- Vérification à la main sur téléphone : mise à jour de l'application en ligne,
-  puis en mode avion, une recherche filtrée et un ajout à un deck, synchronisés
-  au retour du réseau ; résultat de `persist()` si P14.
-- CLAUDE.md à jour : en-tête, §6 (point ouvert de la secte selon P13), §7
-  (`CardListItem`, compression), §11 (décisions et limites du lot, fixture à
-  dix cartes), §12 (lot livré, Lot 8 suivant).
+  `npm run test` propres, à 766 + N tests sur 51 + M fichiers ; Playwright vert
+  à au moins 64 tests, ventilés 8 `chromium`, au moins 33 `real-backend`, 3
+  `desktop`, au moins 20 `desktop-real-backend` ; totaux exacts relevés en E3.
+- `card_legality_cases.json` lue par pytest et par vitest ; tables de cas de la
+  secte, de l'exigence et de `filterCards` en place.
+- Contrôles CRAP verts, références toujours vides.
+- `node scripts/testid-census.mjs --check docs/qa-baselines/testids-lot-chercher-ouverture.txt`
+  vert à la clôture.
+- Les deux points renvoyés par le Lot 5c soldés.
+- Vérification à la main sur téléphone : mise à jour en ligne, puis en mode
+  avion, une recherche filtrée et un ajout à un deck, synchronisés au retour du
+  réseau ; résultat de `persist()`.
+- CLAUDE.md à jour : en-tête, §6 (secte, exigence, douzième révision), §7,
+  §11, §12, fixture à dix cartes.
 
 ## Revue des agents
 
-Les cinq agents ont relu le plan le 2026-11-03, chacun dans son périmètre, avec
-des vérifications dans le code et sur une copie de `backend/vtes.db` en
-lecture seule. Les cinq rendent « validé sous réserves ». Toutes les réserves
-sont levées par le texte ci-dessus ; ce qui a été écarté l'est avec sa raison.
+Les cinq agents ont relu le plan le 2026-11-03, avant l'A0, chacun dans son
+périmètre, avec des vérifications dans le code et sur une copie de
+`backend/vtes.db` en lecture seule. Les cinq rendent « validé sous réserves ».
+Toutes les réserves ont été levées ou écartées avec leur raison. Les décisions
+de l'utilisateur prises ensuite (P1, P13, P15) ont élargi le lot au-delà de ce
+qu'ils ont relu : migration, seconde source, rejeu, filtres de VDB. Ces
+ajouts n'ont pas été relus par les agents ; l'architecte les reprend en
+ouvrant A1, et les autres agents à l'ouverture de leur étape.
 
 ### architecte-contrat
 
 Verdict : validé sous réserves.
 
-Il confirme qu'aucune migration n'est nécessaire, que le contrat reste à 49
-opérations et que `/sync` ne bouge pas. Ses réserves : `CardRead` change
-l'ordre de ses propriétés, si bien que « au caractère près » est faux ; la
-compression doit être livrée et non gardée en secours ; une légalité de carte à
-verdict unique ferait disparaître *Playing for Keeps* de l'une des deux listes
-de `/legalite` ; le sens « toutes » des disciplines de bibliothèque écarterait
-toutes les cartes `mono`. Il apporte les mesures de poids, le séparateur
-`", "` et les clans à deux valeurs, le tri des types et disciplines, la limite
-des icônes `[pot]` dans le texte, les données des titres, la faisabilité
-mesurée de la secte, et la question des proxies dans « les deux ».
+Il confirme qu'aucune migration n'était nécessaire au plan relu, que le contrat
+reste à 49 opérations et que `/sync` ne bouge pas. Ses réserves : `CardRead`
+change l'ordre de ses propriétés ; la compression doit être livrée ; une
+légalité de carte à verdict unique ferait disparaître *Playing for Keeps* de
+l'une des deux listes de `/legalite` ; le sens « toutes » des disciplines de
+bibliothèque écarterait les cartes `mono`. Il apporte les mesures de poids, le
+séparateur `", "`, le tri des types et disciplines, la limite des icônes dans le
+texte, les titres, la faisabilité mesurée de la secte, et la question des
+proxies dans « les deux ».
 
-Intégré : A1 (ordre des propriétés, patron de `get_card`, tri, séparateur,
-clans vérifiés), A2 (compression livrée en B1, `limit` inchangé), A3 (secte
-sans migration), A5 (deux booléens, *Playing for Keeps*, chaînes ISO, date
-UTC), A7 et A10 (schémas nouveaux, description de `listCards`), P1 (sens
-« jouable avec », niveaux de crypte, groupe Any, capacité des *imbued*, credos,
-titres et leur limite), P3 (icônes), P10 (proxies remplacés d'abord, quantité
-absolue de `stock.upsert`), P13 (nouvelle proposition), fixture à dix cartes
-(étape F). Écarté : la forme compacte de `discipline_links`, qu'il ne posait
-pas en réserve et que la compression rend inutile ; limiter la compression aux
-routes publiques, aucun corps ne portant de secret.
+Intégré : A1, A2, A5, A7, A10, P1 (niveaux de crypte, groupe Any, capacité des
+*imbued*, credos, titres), P3, P10, P13, fixture à dix cartes. Écarté : la forme
+compacte de `discipline_links`, que la compression rend inutile ; la
+compression limitée aux routes publiques, aucun corps ne portant de secret. Son
+sens « jouable avec » pour les disciplines de bibliothèque est devenu, après
+l'A0, le mode SEULEMENT.
 
 ### backend-fastapi
 
 Verdict : validé sous réserves.
 
-Ses mesures (3,28 Mo bruts, 440 Ko compressés, 401 requêtes par page sans
-préchargement, 5 ou 6 avec) font de la compression une mesure du lot. Il
-relève que l'assemblage par `model_dump` perdrait les champs nouveaux, que
+Ses mesures font de la compression une mesure du lot. Il relève que
+l'assemblage par `model_dump` perdrait les champs nouveaux, que
 `translated_names` sur `CardListItem` ferait lever `get_card`, que la
-précédence des motifs de légalité manque, qu'aucune carte n'est aujourd'hui
-« pas encore légale », et qu'il faut écrire « environ 1 Mo » pour la forme
-actuelle (1,08 Mo mesuré). Il demande un test N+1 comparatif et un instantané
-de la fiche.
+précédence des motifs de légalité manque, qu'aucune carte n'est « pas encore
+légale », et que la forme actuelle pèse 1,08 Mo.
 
-Intégré : A1 (patron de `get_card`, préchargements), A2 (tableau de mesures,
-`GZipMiddleware` en B1, vérifications CORS et `Cache-Control`), A5
-(précédence d'affichage, fonctions de deck inchangées, cartes synthétiques),
-A7 (classe fille propre à la route de liste, la seconde de ses deux
-solutions, qui garde la fiche inchangée), tests côté back, pistes (`ETag`).
-Écarté : confier la compression au proxy du Lot 11, le pilote tournant
-aujourd'hui sans proxy ; la première solution d'A7 (champ calculé exclu de
-`get_card`), qui laissait `CardRead` hériter d'un champ redondant ; le tri des
-liens par identifiant, au profit d'un tri par nom et abréviation, utile à
-l'affichage.
+Intégré : A1, A2, A5, A7 (la seconde de ses deux solutions), tests côté back,
+pistes (`ETag`). Écarté : la compression au proxy du Lot 11, le pilote tournant
+sans proxy ; la première solution d'A7 ; le tri des liens par identifiant, au
+profit d'un tri par nom et abréviation.
 
 ### pwa-offline
 
 Verdict : validé sous réserves.
 
 Sa remarque principale renverse la conception du miroir : `readProjection`
-relit `cards` à chaque lecture de projection, si bien qu'enrichir `cards`
-ralentirait toute l'application. Il propose un magasin `cardDetails` ajouté en
-version 6 sans `upgrade`, « incomplet » se lisant à son contenu, l'écriture des
-deux magasins dans une transaction, la sortie de la relecture du catalogue
-hors du délai de 60 s et de la relecture triple, et le refus de déclarer
-complet un miroir lu sur un ancien serveur. Il corrige la description des
-versions 3 et 4, rappelle la multiplication par 10 de Dexie, mesure le filtre
-(1 ms) et le poids (1,5 à 2,5 Mo par base), vérifie CORS sur `static.krcg.org`
-et la nécessité de `crossOrigin`, constate que deux `/` se déclenchent tous
-deux, et propose `persist()`.
+relit `cards` à chaque lecture, d'où le magasin `cardDetails` ajouté en version
+6 sans `upgrade`. Il demande l'écriture des deux magasins dans une transaction,
+la sortie de la relecture du catalogue hors des 60 s, le refus de déclarer
+complet un miroir lu sur un ancien serveur, corrige les versions 3 et 4,
+rappelle la multiplication par 10 de Dexie, mesure filtre et poids, vérifie
+CORS et `crossOrigin`, constate le double `/`, et propose `persist()`.
 
-Intégré : section « Couche offline » réécrite (magasin de détails, relecture
-hors des 60 s, ancien serveur, ancien code, cache dans le runtime, purge),
-état de départ (versions, `readProjection`, Dexie ×10), P7 (CORS,
-`crossOrigin`), P14 (nouvelle proposition), clavier, découpage de C1 en C1a et
-C1b, tests et mesures demandés. Écarté pour ce lot : la lecture annulable par
-`AbortController`, qu'il plaçait lui-même hors lot ; une aide générique dans
-`core/`, faute d'usage connu chez Barrin.
+Intégré : couche offline, état de départ, P7, P14, clavier, C1a et C1b, tests
+et mesures. Écarté : `AbortController` (hors lot, comme il le proposait) ; une
+aide générique dans `core/`, faute d'usage chez Barrin.
 
 ### frontend-react
 
 Verdict : validé sous réserves.
 
-Il établit que le `/` n'a pas de départage, que `A` entre en collision avec le
-chord `G A`, et que la quantité de `deck_card.upsert` est un état : la feuille
-doit envoyer la quantité totale, et `AddDeckCardForm` pourrait écraser une
-ligne existante (défaut présumé, non rejoué). Il relève l'oubli du chargement
-paresseux et du préchauffement, l'absence de repli et de taille mobile dans
-`CardImage`, le sens réel de `F` sur la Collection, et propose de découper D1,
-d'extraire le hook en refactor pur avant tout, de lire le hash à l'arrivée puis
-d'écrire par `replaceState`, un filtre deck à trois états, un préfixe
-`search-add-*` et une fonction `buildAddOperation`.
+Il établit que le `/` n'a pas de départage, que `A` entre en collision avec `G
+A`, et que la quantité de `deck_card.upsert` est un état, d'où le défaut
+présumé d'`AddDeckCardForm`, confirmé depuis à D1a. Il relève le chargement
+paresseux, `CardImage`, le sens de `F` sur la Collection, et propose D1a, la
+lecture du hash à l'arrivée, le filtre deck à trois états, `search-add-*` et
+`buildAddOperation`.
 
-Intégré : section « Écrans » (routes, chargement paresseux, clavier, feuille
-d'ajout, images), P8 (libellé, `/` sur la Collection vers Chercher), P9 (règle
-de tri du coût, `stockSort.ts`), P10 (quantité totale), P12 (validation de la
-clé, deck archivé, lien dans la colonne du picker), P4 (trois états), P6
-(contenu du brief de design), découpage D1a, D1b, D1c, D2, D3, état de départ
-(défaut présumé, à vérifier en D1a). Écarté : faire focaliser par `/` le champ
-local de la Collection, au profit d'un libellé sans ambiguïté, comme il le
-recommandait ; un petit magasin pour les fiches lues en ligne, la mémoire de
-session suffisant.
+Intégré : écrans, P4, P6, P8, P9, P10, P12, découpage D1a à D3. Écarté : `/` vers
+le champ local de la Collection, au profit d'un libellé explicite ; un magasin
+pour les fiches lues en ligne.
 
 ### qa-tests
 
 Verdict : validé sous réserves.
 
-Ses réserves portent sur la sémantique d'A5 (deux booléens, table minimale,
-chaînes ISO, date en paramètre, test d'horloge, table qui couvre chaque
-résultat), la fixture (dix cartes, trop pauvre pour les filtres : catalogue
-synthétique), et l'absence de tests de volume et de cas d'échec. Il cite les
-tests voisins à étendre, décrit l'amorçage délicat du scénario sur base
-version 5, demande l'interception des images, le décompte visé par projet, un
-contrôle CRAP à chaque étape, un recensement des `data-testid` avec sa méthode
-(403 identifiants aujourd'hui), et un découpage de son étape en E1, E2, E3.
+Ses réserves portent sur A5, sur la fixture trop pauvre (catalogue
+synthétique), et sur l'absence de tests de volume et de cas d'échec. Il cite les
+tests voisins, décrit l'amorçage du scénario sur base version 5, demande
+l'interception des images, le décompte par projet, un contrôle CRAP à chaque
+étape, le recensement des `data-testid` avec sa méthode et les étapes E1 à E3.
 
-Intégré : A5, tests côté back et côté front, scénarios Playwright numérotés,
-mesures définies, score CRAP, critère de fin avec totaux visés, étapes E0 à
-E3, état de départ (tests voisins, chiffres de `data-testid`), fixture à dix
-cartes (CLAUDE.md à l'étape F). Écarté : un seuil de temps dans un test,
-remplacé par le compte des parcours Dexie, qu'il proposait lui-même. Non
-tranché ici, renvoyé à l'étape E1 avec l'architecte : ajouter ou non deux
-cartes au fixture krcg (prérequis de clan, *advanced*), ce qui changerait tous
-les compteurs d'import ; par défaut, non, le catalogue synthétique couvrant
-ces critères.
+Intégré : A5, tests, scénarios Playwright, mesures, CRAP, critère de fin,
+étapes E0 à E3. Écarté : un seuil de temps dans un test. Renvoyé à E1 avec
+l'architecte : ajouter ou non deux cartes au fixture krcg ; par défaut non. Les
+tables de cas de la secte et de l'exigence, nées de l'A0, relèvent de la même
+décision : l'échantillon de `vteslibmeta.csv` est un fichier à part.
 
 ## Validation de l'orchestrateur
 
-Verdict : validé. Les cinq revues convergent, aucune ne conteste la portée ni
-l'architecture du lot ; leurs réserves ont toutes été intégrées ou écartées
-avec leur raison. Le plan change sur trois points de conception : le miroir se
-double d'un magasin de détails au lieu de grossir, la compression est livrée,
-la légalité d'une carte rend deux booléens.
+Verdict : validé, le 2026-11-03, puis A0 close le même jour.
 
-Propositions qui restent à trancher par l'utilisateur :
+Les cinq revues convergeaient et leurs réserves sont levées. L'A0 a tranché les
+quinze propositions (section « Décisions de l'utilisateur ») ; aucune ne reste
+ouverte. Trois décisions de l'utilisateur vont au-delà du plan relu et changent
+la nature du lot : les filtres suivent le cœur de VDB (P1), la secte est
+dérivée dans ce lot (P13), `vteslibmeta.csv` devient une seconde source (P15).
+Elles amènent une migration, un changement d'import et un rejeu sur la base de
+développement, que les agents n'avaient pas relus ; l'architecte les reprend en
+ouvrant A1.
 
-| # | Sujet | Recommandation |
-| --- | --- | --- |
-| P1 | Filtres et leur sens | ceux du brief sans la secte, avec le titre ; disciplines de bibliothèque « jouable avec les disciplines cochées » |
-| P2 | Noms traduits | oui, noms FR et ES seulement |
-| P3 | Texte de carte | oui, anglais, champ distinct |
-| P4 | Statut | « possédée » et « dans ce deck » à trois états |
-| P5 | Filtres serveur | non |
-| P6 | Handoff de design | oui, court |
-| P7 | Images | en ligne seulement, image par impression lue à la demande |
-| P8 | Champ global bureau | rétabli, ouvre Chercher, pas de sixième onglet |
-| P9 | Tri | nom replié par défaut |
-| P10 | « Les deux » | achat déclaré, quantité totale, proxies remplacés d'abord |
-| P11 | Mise à jour du catalogue | relecture automatique une fois |
-| P12 | Chercher depuis un deck | oui |
-| P13 | Secte | hors de ce lot, versée aux pistes |
-| P14 | Stockage persistant | oui, dans ce lot |
+E0 et D1a sont livrées (section « Livraisons ») : la référence des
+`data-testid` est posée, et le défaut d'écrasement d'une ligne de deck est
+corrigé avant que Chercher ne réutilise la logique d'ajout.
 
-Condition d'ouverture de l'étape A1 : l'utilisateur a tranché P1 (le titre
-entre au contrat), P2 (A7 ajoute ou non deux schémas), P5, P7 (A8) et P13 (la
-secte toucherait l'import). Les autres propositions peuvent l'être jusqu'à
-l'étape qui les emploie : P6 avant D0, P14 avant C1a, P11 avant C1a, P4, P8,
-P9, P10 et P12 avant D1c. L'étape E0 et l'étape D1a, qui ne dépendent d'aucune
-proposition, peuvent commencer dès que l'utilisateur donne son accord pour
-ouvrir le lot.
+Condition d'ouverture de l'étape A1 : remplie. Une seule question reste à
+l'architecte, qu'il tranche en ouvrant A1 : la forme de stockage de l'exigence
+de bibliothèque (A3, option 3 recommandée).

@@ -4,6 +4,13 @@ Décisions du 2026-09-25. Le Lot 5 laisse l'onglet Chercher désactivé, sans é
 lot le remplace par une page qui parcourt le catalogue et permet d'ajouter les cartes
 au deck, à la collection, ou aux deux.
 
+> **État au 2026-11-03 : lot ouvert.** Plan dans `docs/lot-chercher-plan.md`,
+> relu par les agents ; propositions tranchées par l'utilisateur le
+> 2026-11-03 (étape A0), étapes E0 et D1a livrées. Le plan fait foi là où il
+> s'écarte des décisions ci-dessous, qui restent celles du 2026-09-25 : les
+> filtres suivent le cœur de VDB, la secte entre dans le lot (dérivée du
+> texte), et `vteslibmeta.csv` de vtescsv devient une seconde source d'import.
+>
 > **État au 2026-10-28 : non commencé.** Le Lot 6 est passé avant lui (D0 de
 > `docs/lot6-plan-comptes.md`) ; sa place par rapport aux Lots 7 à 11 reste à
 > confirmer avec l'utilisateur (CLAUDE.md §12). Venu après le breakpoint bureau, il
