@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { CardImage } from "../../components/CardImage";
 import { Kbd } from "../../components/Kbd";
 import { LanguageChips } from "../../components/LanguageChips";
@@ -9,18 +9,11 @@ import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { CATEGORY_LABELS, cardLabel, cardSetLabel, plural } from "../../labels";
-import {
-  useLocalDeckCards,
-  useVtesOffline,
-  type CardRow,
-  type LocalDeck,
-} from "../../offline/vtes";
+import { useVtesOffline, type CardRow, type LocalDeck } from "../../offline/vtes";
 import { CardPicker } from "../catalog/CardPicker";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
 import { useLanguageOptions } from "../stock/useLanguageOptions";
-import { useAvailableStock } from "./useAvailableStock";
-
-const MAX_INT = 2_147_483_647;
+import { useAddDeckCard } from "./useAddDeckCard";
 
 type CardCategory = CardRow["category"];
 
@@ -79,44 +72,29 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const pickerColumnRef = useRef<HTMLDivElement>(null);
-  const deckLines = useLocalDeckCards(deck.key);
 
   const [chosen, setChosen] = useState<Chosen | null>(null);
-  const [languageCode, setLanguageCode] = useState("FR");
-  const [cardSetId, setCardSetId] = useState<number | null>(null);
-  const [copies, setCopies] = useState(1);
-  // Par défaut, une copie ajoutée est un proxy : c'est à l'utilisateur de dire
-  // combien sont réellement possédées (pas de suggestion automatique, pour
-  // éviter toute course entre la lecture de la disponibilité et sa saisie).
-  const [owned, setOwned] = useState(0);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
-  const effectiveCardSetId = cardSetId ?? chosen?.latestCardSetId ?? null;
-  const available = useAvailableStock(chosen?.cardId ?? null, languageCode, effectiveCardSetId, deck.key);
-  // D2a : tant que rien n'est possédé, l'extension ne se demande pas (dernière
-  // version prise sans poser la question) ; sans autorisation de proxy, tout
-  // est possédé, donc toujours demandée.
-  const askExtension = chosen !== null && (deck.proxyAllowed ? owned > 0 : true);
-  const possessed = deck.proxyAllowed ? Math.min(Math.max(owned, 0), copies) : copies;
-  const proxyQuantity = copies - possessed;
-  const acquired = available === undefined ? 0 : Math.max(0, possessed - available);
-
-  // Quantité déjà présente dans ce deck pour ce triplet exact (« dans le deck N »
-  // du handoff bureau, repris sur mobile au Lot 5c étape 4) : purement
-  // informatif, ne change rien à `copies` (qui repart toujours de 1 à chaque
-  // nouvelle sélection).
-  const inDeck = useMemo(() => {
-    if (!chosen || effectiveCardSetId === null) return 0;
-    return (
-      deckLines?.find(
-        (line) =>
-          line.cardId === chosen.cardId &&
-          line.languageCode === languageCode &&
-          line.cardSetId === effectiveCardSetId,
-      )?.quantity ?? 0
-    );
-  }, [deckLines, chosen, languageCode, effectiveCardSetId]);
+  // Toute la logique de la ligne (copies, possédées, proxies, acquisition,
+  // stock disponible) vit dans `useAddDeckCard`, qui ne connaît pas ce picker.
+  const line = useAddDeckCard(deck, chosen);
+  const {
+    languageCode,
+    setLanguageCode,
+    setCardSetId,
+    effectiveCardSetId,
+    askExtension,
+    copies,
+    changeCopies,
+    possessed,
+    setOwned,
+    proxyQuantity,
+    acquired,
+    available,
+    inDeck,
+  } = line;
 
   const pick = (card: CardRow) => {
     setChosen({
@@ -127,9 +105,7 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
       cardSetIds: card.cardSetIds,
       latestCardSetId: card.latestCardSetId,
     });
-    setCardSetId(null);
-    setCopies(1);
-    setOwned(0);
+    line.reset();
     setInvalid(null);
     setSaved(null);
   };
@@ -139,38 +115,21 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
     setCardSetId(null);
   };
 
-  const changeCopies = (next: number) => {
-    const clamped = Math.max(1, Math.min(next, MAX_INT));
-    setCopies(clamped);
-    setOwned((current) => Math.min(current, clamped));
-  };
-
   const submit = async (event?: FormEvent) => {
     event?.preventDefault();
     setSaved(null);
     if (!chosen) return setInvalid("Choisissez une carte dans le catalogue.");
-    if (!Number.isInteger(copies) || copies < 1 || copies > MAX_INT) {
-      return setInvalid("Le nombre de copies est un entier, 1 ou plus.");
-    }
-    if (effectiveCardSetId === null) return setInvalid("Choisissez une extension.");
+    const refusal = line.validationError();
+    if (refusal) return setInvalid(refusal);
+    const input = line.input();
+    if (!input) return;
     setInvalid(null);
     const who = `${chosen.label} (${languageCode})`;
-    const done = await action.run(() =>
-      actions.saveDeckCard(deck.key, {
-        cardId: chosen.cardId,
-        languageCode,
-        cardSetId: effectiveCardSetId,
-        quantity: copies,
-        proxyQuantity,
-        acquiredQuantity: acquired,
-      }),
-    );
+    const done = await action.run(() => actions.saveDeckCard(deck.key, input));
     if (!done) return;
     setSaved(`${who} : ${plural(copies, "exemplaire")} ajouté${copies > 1 ? "s" : ""} au deck.`);
     setChosen(null);
-    setCardSetId(null);
-    setCopies(1);
-    setOwned(0);
+    line.reset();
   };
 
   const cardSetOptionLabel = (id: number) =>

@@ -937,6 +937,64 @@ describe("decks : picker, symétrie mobile / bureau (Lot 5c, étape 4)", () => {
     );
   });
 
+  it("ajouter 1 copie d'une carte déjà à 2 exemplaires dans le deck porte la ligne à 3, sans écraser (D1a)", async () => {
+    setViewportWidth(390);
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 1,
+      languageCode: "FR",
+      cardSetId: 9,
+      quantity: 2,
+      proxyQuantity: 2,
+    });
+    await screen.findByTestId("deck-card");
+
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-in-deck")).toHaveTextContent("Dans le deck : 2"),
+    );
+    // Une copie ajoutée, proxy par défaut : la ligne passe de 2 à 3, proxies de 2 à 3.
+    fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("deck-card")).toHaveAttribute("data-quantity", "3"));
+    expect(screen.getByTestId("deck-card")).toHaveAttribute("data-proxy-quantity", "3");
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      data: { card_id: 1, language_code: "FR", card_set_id: 9, quantity: 3, proxy_quantity: 3 },
+    });
+  });
+
+  it("ajouter des exemplaires possédés à une ligne existante acquiert seulement le manque total (D1a)", async () => {
+    setViewportWidth(390);
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 3 });
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: 9, quantity: 2, proxyQuantity: 0 });
+    await screen.findByTestId("deck-card");
+
+    const form = await openAddCardSheet();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    fireEvent.click(await within(form).findByTestId("card-picker-option"));
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-in-deck")).toHaveTextContent("Dans le deck : 2"),
+    );
+    fireEvent.change(within(form).getByLabelText("Copies dans le deck"), { target: { value: "2" } });
+    await waitFor(() =>
+      expect(within(form).getByTestId("deck-card-form-availability")).toHaveTextContent("Disponible en collection : 3"),
+    );
+    fireEvent.change(within(form).getByLabelText("Dont déjà possédées"), { target: { value: "2" } });
+    fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
+
+    await waitFor(() => expect(screen.getByTestId("deck-card")).toHaveAttribute("data-quantity", "4"));
+    const last = (await runtime.outbox.list()).at(-1)!.operation;
+    expect(last).toMatchObject({
+      type: "deck_card.upsert",
+      data: { quantity: 4, proxy_quantity: 0, acquired_quantity: 1 },
+    });
+  });
+
   it("bureau : un bouton « Changer » vide la sélection, comme Échap", async () => {
     await withDeck({}, "Malkavien", true);
     const form = await screen.findByTestId("deck-card-form");
