@@ -1601,7 +1601,11 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
    Migration appliquée sur `backend/vtes.db` (R10 puis R11) : journal, stock, decks et
    compte identiques à la sauvegarde, un « Moi » pour l'unique compte. Vérifié à la
    main sur téléphone le 2026-11-02 (partie saisie en mode avion puis synchronisée).
-9. **Lot 8 — Analyse** : perf par deck, historique par lieu/date. Ajouté le
+9. **Lot Chercher** — *à venir, prochain lot* (P9 du Lot 7). Écran de recherche dans
+   le catalogue, hors ligne complet, livré en mobile et en bureau ; brief dans
+   `docs/lot-chercher-brief.md`. Son ajout « à la collection » vise la collection
+   unique d'aujourd'hui, qui deviendra l'inventaire principal au lot Inventaires.
+10. **Lot 8 — Analyse** : perf par deck, historique par lieu/date. Ajouté le
    2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
    table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
    deck de sa proie et à celui de son prédateur. Proposition : deux colonnes
@@ -1612,12 +1616,20 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
    *n* + 1, le dernier ayant le premier pour proie ?), une analyse limitée aux
    tables dont les sièges sont saisis (le siège est facultatif), et la table à
    deux, où proie et prédateur sont le même joueur.
-10. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
-  (`github.com/smeaa/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
+   Préalable relevé le 2026-11-03 : une participation pointe le deck vivant, si bien
+   qu'un deck modifié après un tournoi réécrit l'historique de ce tournoi. Figer la
+   decklist jouée (sur le patron de `deleted_deck_card`) ou versionner les decks est
+   à trancher à l'ouverture du lot, et le plus tôt sera le mieux : une partie saisie
+   sans instantané ne se rattache plus à la bonne liste (`docs/pistes-evolution.md`).
+11. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+  (`github.com/smeea/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
    l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
-   collection, un deck ne s'alimentant que du stock possédé (§11.2).
+   collection, un deck ne s'alimentant que du stock possédé (§11.2). L'appariement
+   d'une carte externe avec le catalogue (identifiant VEKN, ou nom, groupe et
+   *advanced*) est à écrire en fonction réutilisable : le lot Inventaires s'en
+   servira pour importer l'export de collection de VDB.
    Ajouté le 2026-11-02, faisabilité à évaluer à l'ouverture du lot :
    **synchroniser un tournoi depuis Archon** (archon.vekn.net). Le numéro VEKN
    du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un tournoi reçoit
@@ -1625,10 +1637,35 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
    publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
    identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
    Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
-11. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
+12. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
+   Lot 9.* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
+   (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
+   précisée par l'utilisateur, est de **suggérer des decklists viables** à partir
+   d'un inventaire ou d'un classeur. Plusieurs inventaires par compte, dont un
+   principal qui existe toujours, un classeur étant un inventaire d'un genre
+   particulier ; l'inventaire entre dans l'identité d'une entrée de stock ; un deck
+   puise dans un inventaire, et la comptabilité du stock se lit par inventaire ;
+   transfert d'exemplaires entre inventaires, hors ligne comme en ligne ; import
+   d'un inventaire depuis l'export de collection de VDB, avec l'appariement du
+   Lot 9 ; suggestions classées par cartes manquantes, tirées de la TWDA publiée
+   par krcg (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03) et des
+   decks du compte, puis construction d'un deck depuis une suggestion. Import et
+   suggestions sont des gestes en ligne, comme la légalité. Une révision convertit
+   les données existantes vers l'inventaire principal, et les références
+   d'inventaire restent facultatives dans `/sync`, pour qu'une file en attente se
+   rejoue sans perte. Ne décale pas la numérotation des Lots 10 et 11, et peut
+   passer après le Lot 10 si Barrin presse. Lecture des issues, propositions P1 à
+   P9 à trancher, conception et découpage dans `docs/lot-inventaires-plan.md`.
+13. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
   le déploiement de gurchon-hall lui-même est traité au Lot 11.
-12. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
+14. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
     Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
+
+Hors feuille de route, une réserve d'idées non décidées (instantané de decklist,
+légalité à la date d'un tournoi, liste des manques, checklist d'assemblage, garde
+optimiste de `/sync`, gestion des sessions par l'utilisateur, dettes connues) est
+tenue dans `docs/pistes-evolution.md`. Une piste n'entre ici que par décision de
+l'utilisateur.
