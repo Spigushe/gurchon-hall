@@ -4,8 +4,9 @@ Statut : A0 close le 2026-11-03 : propositions tranchées ; E0, D1a, D1b et A1
 livrées le même jour ; neuf précisions tranchées après A1 ; B1 livrée le
 2026-11-05, essai de mise en service sur copie compris ; C1a, C1b et E1
 livrées le même jour ; B1b, la mise en service sur `backend/vtes.db`, faite
-le 2026-11-05 sur feu vert de l'utilisateur ; restent D0 (handoff de design,
-avec l'utilisateur et Claude Design), qui ouvre D1c, puis D2, D3, E2, E3 et F.
+le 2026-11-05 sur feu vert de l'utilisateur ; D0, le handoff de design, reçu
+et versé le même jour (« Handoff reçu », sous P6) ; restent D1c, D2, D3, E2,
+E3 et F.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
 partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
@@ -523,6 +524,59 @@ feuille d'ajout en contrôle segmenté, la taille de l'image du picker mobile, l
 place de « Ajouter… » quand le clavier est ouvert, et le libellé du champ
 global.
 
+#### Handoff reçu (2026-11-05)
+
+Versé dans `docs/design-handoff/` : `CHERCHER.md`, prototypes `Gurchon Hall
+Chercher.dc.html` (mobile, écrans 26 à 42) et `Gurchon Hall Chercher
+Bureau.dc.html` (bureau, d17 à d21), `TopBar.dc.html` (champ global, prop
+`field`) et `TabBar.dc.html` (onglet Chercher actif) mis à jour. `support.js`
+et `nocturne/` du bundle sont identiques à ceux du dépôt, aux fins de ligne
+près, et n'ont pas été recopiés. Le bundle ne contenait pas les captures :
+`1b-26` à `1b-42` et `d17` à `d21` ont été tirées des prototypes par
+Playwright, au format des précédentes. Aucun token nouveau.
+
+Relu contre ce plan : conforme sur le fond. Pas de vignette dans les lignes
+(P7), filtres de P1 avec leurs modes et les quatre phrases d'aide, filtres de
+catégorie masqués sous « Toutes », regroupement nom puis texte effacé par un
+tri choisi (P9), tranches de 50, état « catalogue à mettre à jour » réduit au
+nom (P11), feuille d'ajout à trois choix avec l'effet dit avant l'envoi
+(P10), champ global et `/` (P8), lien depuis un deck et bandeau de deck ciblé
+(P12), raccourcis sans `A C D P S`. Le handoff fait foi pour la forme ; restent
+les points suivants, à trancher avant ou pendant D1c.
+
+- **Table d'icônes incomplète.** Oblivion (`obl`, `ø` / `Ø`, la spirale),
+  Striga (`str`, `à` / `á`) et Maleficia (`mal`, `â` / `ã`) manquent à la table
+  du handoff, alors que le catalogue les connaît ; `ankha2.otf` les contient
+  (`krcg-blogger.js` pour Striga et Maleficia, rendu de la police pour
+  Oblivion). Obfuscate est bien `o` / `O` : l'icône est un carré (inférieure)
+  ou un losange (supérieure) sans motif, vérifiée par l'utilisateur, et non un
+  glyphe manquant. La table se relit sur la police à D1c, par une page de
+  rendu de chaque code.
+- **Polices auto-hébergées.** Elles ne peuvent pas être chargées depuis krcg
+  hors ligne : copiées dans `frontend/`, ajoutées au précache (185 Ko et
+  336 Ko en OTF, moins en `woff2`). `ankha2.otf` déclare la licence SIL OFL,
+  avec la mention de Paradox Interactive ; `vtes-clans.otf` ne porte que la
+  mention de Paradox, sans licence. À consigner au §11 à l'étape F, avec la
+  licence de vtescsv.
+- **Accessibilité des glyphes.** Une icône est une lettre : sans libellé, un
+  lecteur d'écran lit « p » pour Potence. Chaque glyphe porte un nom
+  accessible (« Potence supérieure »), et la pastille de mode qui cycle
+  annonce son mode courant et la phrase d'aide qui va avec.
+- **Tableau bureau.** La colonne « Deck » n'existe que dans le tableau de
+  bibliothèque ; la crypte en a besoin aussi quand un deck est ciblé. Le tri
+  au clic d'en-tête est à limiter aux tris de P9 (nom, capacité, groupe,
+  coût) : type, clan, collection et deck ne sont pas des tris prévus.
+- **Fiche mobile extensible** (33, 34). Le geste « tirer vers le haut » doit
+  avoir un équivalent au toucher simple et au clavier (la poignée ou la ligne
+  d'invite comme bouton).
+- **Ligne confirmée maintenue** (38). Une carte ajoutée reste à sa place
+  jusqu'au prochain changement de filtre, même si « pas dans ce deck » devrait
+  l'écarter : retenu, il faut donc garder en mémoire de page les cartes
+  ajoutées et les réinjecter dans le filtrage.
+- **Entrée depuis le deckbuilder bureau** (d21). P12 place le lien dans le
+  détail d'un deck ; au bureau, ce détail est le deckbuilder, et le handoff
+  met le lien sous le champ du picker. Même entrée, retenue.
+
 ### P7. Images — tranchée le 2026-11-03
 
 Décision : en ligne seulement, pas de précache ni de cache (4149 images, plus
@@ -930,7 +984,7 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et P11, ancien serveur, ancien code, `persist()` (P14), README ; contrôle CRAP — **fait le 2026-11-05** | A1 |
 | C1b | pwa-offline | légalité TS, `filterCards` et ses modes (A6), variantes de nom, lecture mémoire dans le runtime, hooks, mesure de `foldText` ; contrôle CRAP — **fait le 2026-11-05** | A1 |
 | E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline (modes de disciplines, lignes de texte, votes, capacité, exigences), faux serveur paginé, squelette du test de montée — **fait le 2026-11-05** | A1 |
-| D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher | A0 |
+| D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher — **fait le 2026-11-05** (`CHERCHER.md` ; points ouverts dans « Handoff reçu », sous P6) | A0 |
 | D1b | frontend-react | route, onglet, chargement paresseux et préchauffement, page avec la recherche par nom existante, mobile et bureau — **fait le 2026-11-03** | A0, E0 |
 | D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP | C1a, C1b, D0, D1b |
 | D2 | frontend-react | feuille d'ajout (P10, `buildAddOperation`) ; contrôle CRAP | D1a, D1c |
