@@ -150,8 +150,23 @@ def _translated_names(card: Card) -> dict[str, object]:
     }
 
 
+def _ordered_relations(card: Card) -> dict[str, object]:
+    """Ordre défini des types (par nom) et des disciplines (par abréviation) :
+    sans cela, l'ordre dépend du plan de requête de SQLite, et une réponse
+    identique d'un appel à l'autre n'est plus garantie (lot Chercher, B1)."""
+    return {
+        "types": sorted(card.types, key=lambda t: t.name),
+        "discipline_links": sorted(
+            card.discipline_links,
+            key=lambda link: (link.discipline.abbrev or "", link.discipline_id),
+        ),
+    }
+
+
 _COMPUTED_FIELDS = frozenset(
     {
+        "types",
+        "discipline_links",
         "card_set_ids",
         "latest_card_set_id",
         "required_sects",
@@ -170,7 +185,11 @@ def _card_read[T: CardListItem](card: Card, schema: type[T]) -> T:
     """Remplit `schema` depuis la carte : chaque champ lu par `getattr`, sauf
     les champs calculés. Les relations lues doivent être préchargées par
     l'appelant, sans quoi chaque carte d'une page déclenche ses requêtes."""
-    computed = {**_printing_fields(card), **_requirement_fields(card)}
+    computed = {
+        **_printing_fields(card),
+        **_requirement_fields(card),
+        **_ordered_relations(card),
+    }
     if "translated_names" in schema.model_fields:
         computed.update(_translated_names(card))
     return schema.model_validate(
@@ -194,9 +213,8 @@ def list_cards(
     limit: int = 50,
     offset: int = 0,
 ) -> list[CardSearchItem]:
-    # Lot Chercher, A1 : la forme est livrée à l'étape A1 ; l'ordre des types
-    # et des disciplines, le contrôle du nombre de requêtes et la compression
-    # des réponses sont à l'étape B1.
+    # Lot Chercher (A1, B1) : même assembleur que `get_card`, donc même forme ;
+    # le nombre de requêtes ne dépend pas de la taille de la page (test dédié).
     stmt = select(Card).options(
         joinedload(Card.clan),
         joinedload(Card.sect),

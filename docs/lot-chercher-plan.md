@@ -1,9 +1,10 @@
 # Lot Chercher : recherche dans le catalogue, hors ligne
 
 Statut : A0 close le 2026-11-03 : propositions tranchées ; E0, D1a, D1b et A1
-livrées le même jour ; B1, C1a, C1b et E1 ouvrables ; neuf précisions
-tranchées après A1 ; mise en service sur `backend/vtes.db` (B1b) sur feu vert
-de l'utilisateur seulement.
+livrées le même jour ; neuf précisions tranchées après A1 ; B1 livrée le
+2026-11-05, essai de mise en service sur copie compris ; C1a, C1b et E1
+ouvrables ; mise en service sur `backend/vtes.db` (B1b) sur feu vert de
+l'utilisateur seulement, à demander.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
 partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
@@ -923,7 +924,7 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | E0 | qa-tests | recensement des `data-testid` avec sa méthode, identifiants nouveaux pour D1b — **fait le 2026-11-03** | rien |
 | D1a | frontend-react | hook `useAddDeckCard`, défaut d'écrasement confirmé et corrigé — **fait le 2026-11-03** | rien |
 | A1 | architecte-contrat, qa-tests | forme de l'exigence (A3) et douzième révision ; import : dérivation de la secte (P13), lecture de `vteslibmeta.csv` (P15), fixture, rapport ; fonctions pures et tables de cas (secte, exigence, `card_legality`) ; `CardListItem` enrichi, classe fille des noms traduits ; export du contrat, client TS — **fait le 2026-11-03**, correctif « non-anarch » en cours (précision 2 après A1) | A0 |
-| B1 | backend-fastapi | `list_cards` (patron de `get_card`, préchargements, tri), `GZipMiddleware`, tests ; mesures ; essai complet de migration et de rejeu de l'import sur une **copie** de `backend/vtes.db` (vérification de `DATABASE_URL`, `upgrade head`, rejeu, comparaisons ligne à ligne), procédure et résultats consignés ; contrôle CRAP. B1 ne touche pas à `backend/vtes.db` | A1 |
+| B1 | backend-fastapi | `list_cards` (patron de `get_card`, préchargements, tri), `GZipMiddleware`, tests ; mesures ; essai complet de migration et de rejeu de l'import sur une **copie** de `backend/vtes.db` (vérification de `DATABASE_URL`, `upgrade head`, rejeu, comparaisons ligne à ligne), procédure et résultats consignés ; contrôle CRAP. B1 ne touche pas à `backend/vtes.db` — **fait le 2026-11-05** | A1 |
 | B1b | backend-fastapi, sur feu vert explicite de l'utilisateur | mise en service sur `backend/vtes.db` : vérification de `DATABASE_URL`, sauvegarde datée, `upgrade head`, rejeu de l'import, comparaisons ligne à ligne avec la sauvegarde, selon la procédure éprouvée en B1 | B1, feu vert |
 | C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et P11, ancien serveur, ancien code, `persist()` (P14), README ; contrôle CRAP | A1 |
 | C1b | pwa-offline | légalité TS, `filterCards` et ses modes (A6), variantes de nom, lecture mémoire dans le runtime, hooks, mesure de `foldText` ; contrôle CRAP | A1 |
@@ -1120,6 +1121,130 @@ Sabbat, leur traitement étant reporté (pistes). La table
 tests et 2 `xfail`, ruff est propre, et le contrôle CRAP back est sans
 régression (331 fonctions, pire score 21).
 
+### Livré à l'étape B1 (2026-11-05)
+
+Service de liste. L'assembleur commun de `list_cards` et `get_card` range les
+types par nom et les disciplines par abréviation (puis par identifiant), si
+bien que la liste et la fiche rendent le même ordre d'un appel à l'autre ;
+avant, il dépendait du plan de requête de SQLite. Le test de l'ordre échoue
+sans le tri. Une page coûte le même nombre de requêtes pour une carte que pour
+dix (six sur la fixture) ; sur la copie de la vraie base, six ou sept par page
+de 200, la septième venant de ce que SQLAlchemy découpe un `selectin` au-delà
+de 500 clés quand les impressions de la page dépassent ce nombre. Le contrat ne
+change pas (`export_openapi.py --check` à jour).
+
+Compression. `GZipMiddleware` de Starlette, seuil de 1000 octets, niveau 6.
+Elle est ajoutée en **première**, donc au plus près des routes, et non en
+dernière par-dessus le CORS : les deux couches écrites en
+`BaseHTTPMiddleware` (slowapi et le contrôle d'origine du Lot 6) relaient le
+corps en flux, et une compression placée au-dessus d'elles prenait toute
+réponse pour un flux, compressait `/health` sous le seuil et perdait le
+`Content-Length`. Le test de la réponse courte l'a montré. Niveau 6 plutôt que
+le 9 de Starlette : sur la lecture complète, 501 Ko contre 496, pour un temps
+de compression de 121 à 132 ms contre 186 à 205 ms sur les 22 pages.
+`test_compression.py` vérifie la compression d'une page du catalogue, une
+réponse courte en clair, les en-têtes CORS et l'exposition de `Retry-After`
+sur une réponse compressée comme sur un 429, et `Cache-Control: private,
+no-store` sur une réponse authentifiée compressée (`GET /stock`, vingt
+entrées).
+
+Instantané de fiche. `test_card_sheet_snapshot.py` compare par contenu trois
+fiches de la fixture (Aidan Lyle, 419 Operation, Tyranny) à
+`fixtures/card_sheet_snapshot.json`, identifiants techniques retirés,
+impressions, occurrences et traductions triées (leur ordre n'est pas défini),
+types et disciplines dans leur ordre. Il se régénère par
+`uv run python -m tests.test_card_sheet_snapshot`. Les mêmes fiches produites
+par le code d'avant A1 (`00336ec`, dans un worktree jetable) ne diffèrent que
+par ce qui était voulu : la secte dérivée, les six champs d'exigence et
+l'ordre des disciplines.
+
+Mesures, sur la copie migrée et réimportée, lecture complète par
+`TestClient` en pages de 200 (deux passes) :
+
+| Mesure | Valeur |
+| --- | --- |
+| Pages, cartes | 22, 4212 |
+| JSON | 4,32 Mo |
+| Transmis, gzip niveau 6 | 501 Ko |
+| gzip niveau 9 | 496 Ko |
+| Requêtes par page | 6 à 7 |
+| Durée par page, médiane | 185 à 200 ms |
+| Durée totale | 4,6 à 5,5 s |
+| Dont service seul (requêtes et assemblage) | 3,0 s, soit 135 ms par page |
+| Dont sérialisation JSON | 0,1 s |
+
+Le JSON dépasse l'estimation d'A2 (3,41 Mo) : 63 cartes de plus, la secte et
+les six champs d'exigence. Les durées ne se comparent pas à celles d'A2,
+mesurées autrement ; le profil d'une page met le temps dans le chargement des
+objets par l'ORM, pas dans le tri ni dans Pydantic. La lecture complète
+n'arrive qu'au premier chargement et à chaque mise à jour du catalogue.
+
+Essai de mise en service, sur une copie. Un outil versionné,
+`backend/scripts/compare_db.py`, fait la copie et les comparaisons, pour que
+B1b rejoue la même procédure : `backup` copie par l'API de sauvegarde de SQLite,
+source ouverte en lecture seule, sans jamais écraser un fichier ; `snapshot`
+relève en lecture seule toutes les lignes de toutes les tables, la révision,
+`integrity_check` et `foreign_key_check` ; `diff` compare deux relevés par clé
+primaire, échoue sur un écart dans une table déclarée intouchable (`--same`),
+sur une ligne disparue de n'importe quelle table et sur une base malsaine, et
+compare par contenu les tables que l'import réécrit en bloc (`--by-content`).
+Huit tests (`test_compare_db_script.py`). L'essai a été fait deux fois le
+2026-11-05, la seconde avec l'outil, sur une copie neuve ; mêmes résultats.
+
+Procédure, depuis `backend/`, à reprendre telle quelle en B1b :
+
+1. `DATABASE_URL` vide (vérifié : la commande vise alors `backend/vtes.db`),
+   API arrêtée.
+2. `uv run python scripts/compare_db.py backup vtes.db <copie>` ; en B1b, la
+   copie est la sauvegarde datée (`vtes.db.pre-lot-chercher-<date>.bak`).
+3. `snapshot` de la base avant migration.
+4. `upgrade head` : en B1, `DATABASE_URL` vise la copie ; en B1b, il est vide
+   et vise `vtes.db`.
+5. `snapshot`, puis `diff` avant/après avec `--same` sur les treize tables
+   privées ou de référence non importées : `user_account`, `auth_session`,
+   `language`, `card_copy`, `deck`, `deck_card`, `deleted_deck_card`,
+   `sync_operation`, `player`, `venue`, `tournament`, `game`,
+   `participation`.
+6. `uv run python scripts/import_catalog.py --json`, rapport conservé.
+7. `snapshot`, puis `diff` avant/après avec les mêmes `--same` et
+   `--by-content card_printing_occurrence`.
+8. Second rejeu de l'import, `snapshot`, et `diff` entre les deux rejeux : rien
+   ne doit bouger.
+
+Résultats de l'essai. Base de départ à `e2a7819dd4a2`, conforme à l'état
+connu : 28 entrées de stock, un deck et ses 20 lignes, 66 opérations au
+journal, deux parties, trois participations, un tournoi, deux joueurs, deux
+lieux, cinq sessions. La migration passe en moins de deux secondes et ne touche
+que `card`, par la colonne nouvelle. Après l'import, les treize tables
+protégées sont identiques ligne à ligne, `integrity_check` vaut `ok` et
+`foreign_key_check` est vide. Catalogue : aucune carte, extension, produit,
+impression, clan, discipline ni type disparu, aucune clé naturelle changée,
+donc tous les identifiants conservés ; 63 cartes nouvelles (37 de crypte, 26
+de bibliothèque, identifiants 4150 à 4212), 2 produits, 121 impressions et
+leurs occurrences, 135 liens de discipline, 63 liens de type ; les six sectes
+créées ; les 1822 cartes de crypte ont une secte (Anarch 109, Camarilla 625,
+Imbued 20, Independent 379, Laibon 83, Sabbat 606), aucune n'est signalée ;
+382 cartes de bibliothèque ont une exigence (379 parmi les cartes déjà en
+base) ; aucun écart avec vtescsv au rapport. Sur les 4149 cartes déjà en base,
+42 textes de règles et un texte d'ambiance changent : ce sont des corrections
+publiées par krcg depuis le dernier import (2026-09-29), pas des espaces. Les
+entrées de stock et les lignes de deck pointent toutes une impression
+existante. Le second rejeu ne change rien. `backend/vtes.db` n'a pas été
+touchée : même empreinte SHA-256 avant et après l'essai.
+
+Conséquence pour C1a : le rejeu change le contenu de 42 textes en plus des
+sectes et des exigences, ce que le bouton « Mettre à jour le catalogue » ou la
+relecture de P11 rapportent sans traitement particulier.
+
+Chiffres : pytest 2491 tests et 2 `xfail` (2474 après A1 ; 2483 en 887 s
+sous couverture, plus les 8 de `compare_db.py` passés à part) ; ruff propre ;
+contrat inchangé ; CRAP back sans régression (332 fonctions, aucune au-dessus
+de 30, pire score 21 ; `compare_db.py` est hors de la mesure, qui ne porte que
+sur `app`). Côté navigateur, contre le vrai back compressé : les deux e2e
+Chercher de D1b, `idempotence.spec.ts` (503 simulé et réel, `Retry-After`
+exposé en CORS) et `club-sans-reseau.spec.ts`, 8 tests verts. Le feu vert de
+l'utilisateur pour B1b est à demander maintenant.
+
 ## Tests attendus
 
 ### Côté back
@@ -1127,7 +1252,7 @@ régression (331 fonctions, pire score 21).
 - Dérivation de la secte sur une table de cas : premier mot, « Advanced, » en
   tête, chaque secte, *imbued*, les six textes `[MERGED]` qui changent de secte
   (secte de la face attendue), un premier mot inconnu (signalé) ; sur la base
-  rejouée, 1785 cartes de crypte avec une secte.
+  rejouée, toutes les cartes de crypte avec une secte (1822 à l'essai de B1).
 - Lecture de l'exigence de bibliothèque sur une table de cas :
   `prince,justicar` (Camarilla impliquée), `justicar,inner circle`, `baron`,
   `magaji`, `1 vote`, `bishop` (Sabbat impliqué, contre VDB),
@@ -1290,7 +1415,7 @@ Aucune entrée ajoutée aux références `docs/qa-baselines/crap/`.
 - Handoff versé dans `docs/design-handoff/` et écrans conformes en mobile et en
   bureau.
 - Douzième révision appliquée sur `backend/vtes.db` en B1b, sur feu vert de
-  l'utilisateur, après essai sur copie en B1 et sauvegarde, import rejoué : 1785 cartes de crypte avec une secte, exigences
+  l'utilisateur, après essai sur copie en B1 et sauvegarde, import rejoué : toutes les cartes de crypte avec une secte (1822 à l'essai de B1), exigences
   de bibliothèque chargées, comparaison ligne à ligne sans écart sur les
   données de l'utilisateur.
 - Contrat à 49 opérations, `CardListItem` enrichi, client TS régénéré,

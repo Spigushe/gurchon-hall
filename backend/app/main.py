@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -62,6 +63,14 @@ def _allowed_origins() -> list[str]:
 # contrôle couvre le cas qui échappe aux deux.
 _WRITE_METHODS = {"POST", "PATCH", "DELETE"}
 
+# Seuil et niveau de compression (lot Chercher, B1). Le niveau 6 est le
+# défaut de zlib. Mesuré sur la lecture complète du catalogue (22 pages de
+# 200), le niveau 9, défaut de Starlette, gagne 1 % en taille (496 Ko contre
+# 501) pour 50 % de temps de compression en plus (docs/lot-chercher-plan.md,
+# livraison de B1).
+GZIP_MINIMUM_SIZE = 1000
+GZIP_LEVEL = 6
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -80,6 +89,21 @@ app = FastAPI(
         "barrins-project."
     ),
     version=__version__,
+)
+
+# Compression (lot Chercher, A2) : la lecture complète du catalogue passe de
+# 4,3 Mo de JSON à 0,5 Mo transmis. Ajoutée en premier, elle est la
+# couche la plus proche des routes : les couches extérieures écrites en
+# `BaseHTTPMiddleware` (slowapi, contrôle d'origine) relaient le corps en
+# flux, et une compression posée au-dessus d'elles verrait toute réponse comme
+# un flux, la compresserait sous le seuil et sans `Content-Length`. Ici, elle
+# reçoit la réponse de la route d'un seul bloc. Elle ne retire aucun en-tête :
+# `Cache-Control` vient de la route, CORS et `Retry-After` des couches
+# extérieures. Sous le seuil, une réponse reste en clair. Aucun corps ne porte
+# de secret (§7, le jeton de session ne voyage que dans le cookie), d'où
+# l'absence de risque de type BREACH.
+app.add_middleware(
+    GZipMiddleware, minimum_size=GZIP_MINIMUM_SIZE, compresslevel=GZIP_LEVEL
 )
 
 # Limitation de débit (slowapi, Lot 6, P1) : `app.state.limiter` est ce que
