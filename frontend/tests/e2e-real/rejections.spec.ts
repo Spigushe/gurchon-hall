@@ -249,7 +249,8 @@ test("deck archivé entre-temps : la modification saisie hors ligne est refusée
 
   expect(syncCalls).toHaveLength(2);
   expect(syncCalls[1].operations[0].operation_id).not.toBe(refusedId);
-  expect((await api.get<DeckRead>(`/decks/${deck.id}`)).cards[0].quantity).toBe(2);
+  // « Ajouter » additionne à la ligne existante depuis D1a (lot Chercher) : 1 + 2.
+  expect((await api.get<DeckRead>(`/decks/${deck.id}`)).cards[0].quantity).toBe(3);
   expect(await readOutbox(page)).toEqual([]);
 });
 
