@@ -3,6 +3,14 @@ import { createContext, useContext } from "react";
 export interface CatalogState {
   /** Nombre de cartes du miroir local ; `undefined` tant que la première lecture n'a pas abouti. */
   count: number | undefined;
+  /**
+   * Lot Chercher : les détails du catalogue (secte, texte, disciplines…) sont
+   * présents pour toutes les cartes. `undefined` tant que la première lecture
+   * n'a pas abouti ; `false` pour un catalogue absent ou incomplet (montée de
+   * la base, ancien serveur) : les filtres de Chercher attendent alors une mise
+   * à jour, en ligne.
+   */
+  detailsComplete: boolean | undefined;
   /** `loading` : téléchargement en cours ; `error` : le dernier essai a échoué. */
   status: "idle" | "loading" | "error";
   error: string | null;

@@ -3,8 +3,9 @@
 Statut : A0 close le 2026-11-03 : propositions tranchées ; E0, D1a, D1b et A1
 livrées le même jour ; neuf précisions tranchées après A1 ; B1 livrée le
 2026-11-05, essai de mise en service sur copie compris ; C1a, C1b et E1
-ouvrables ; mise en service sur `backend/vtes.db` (B1b) sur feu vert de
-l'utilisateur seulement, à demander.
+livrées le même jour ; B1b, la mise en service sur `backend/vtes.db`, faite
+le 2026-11-05 sur feu vert de l'utilisateur ; restent D0 (handoff de design,
+avec l'utilisateur et Claude Design), qui ouvre D1c, puis D2, D3, E2, E3 et F.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
 partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
@@ -925,10 +926,10 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | D1a | frontend-react | hook `useAddDeckCard`, défaut d'écrasement confirmé et corrigé — **fait le 2026-11-03** | rien |
 | A1 | architecte-contrat, qa-tests | forme de l'exigence (A3) et douzième révision ; import : dérivation de la secte (P13), lecture de `vteslibmeta.csv` (P15), fixture, rapport ; fonctions pures et tables de cas (secte, exigence, `card_legality`) ; `CardListItem` enrichi, classe fille des noms traduits ; export du contrat, client TS — **fait le 2026-11-03**, correctif « non-anarch » en cours (précision 2 après A1) | A0 |
 | B1 | backend-fastapi | `list_cards` (patron de `get_card`, préchargements, tri), `GZipMiddleware`, tests ; mesures ; essai complet de migration et de rejeu de l'import sur une **copie** de `backend/vtes.db` (vérification de `DATABASE_URL`, `upgrade head`, rejeu, comparaisons ligne à ligne), procédure et résultats consignés ; contrôle CRAP. B1 ne touche pas à `backend/vtes.db` — **fait le 2026-11-05** | A1 |
-| B1b | backend-fastapi, sur feu vert explicite de l'utilisateur | mise en service sur `backend/vtes.db` : vérification de `DATABASE_URL`, sauvegarde datée, `upgrade head`, rejeu de l'import, comparaisons ligne à ligne avec la sauvegarde, selon la procédure éprouvée en B1 | B1, feu vert |
-| C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et P11, ancien serveur, ancien code, `persist()` (P14), README ; contrôle CRAP | A1 |
-| C1b | pwa-offline | légalité TS, `filterCards` et ses modes (A6), variantes de nom, lecture mémoire dans le runtime, hooks, mesure de `foldText` ; contrôle CRAP | A1 |
-| E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline (modes de disciplines, lignes de texte, votes, capacité, exigences), faux serveur paginé, squelette du test de montée | A1 |
+| B1b | backend-fastapi, sur feu vert explicite de l'utilisateur | mise en service sur `backend/vtes.db` : vérification de `DATABASE_URL`, sauvegarde datée, `upgrade head`, rejeu de l'import, comparaisons ligne à ligne avec la sauvegarde, selon la procédure éprouvée en B1 — **fait le 2026-11-05** | B1, feu vert |
+| C1a | pwa-offline | `cardDetails` en version 6, `refreshCatalog` sur deux magasins, miroir incomplet, relecture hors des 60 s et P11, ancien serveur, ancien code, `persist()` (P14), README ; contrôle CRAP — **fait le 2026-11-05** | A1 |
+| C1b | pwa-offline | légalité TS, `filterCards` et ses modes (A6), variantes de nom, lecture mémoire dans le runtime, hooks, mesure de `foldText` ; contrôle CRAP — **fait le 2026-11-05** | A1 |
+| E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline (modes de disciplines, lignes de texte, votes, capacité, exigences), faux serveur paginé, squelette du test de montée — **fait le 2026-11-05** | A1 |
 | D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher | A0 |
 | D1b | frontend-react | route, onglet, chargement paresseux et préchauffement, page avec la recherche par nom existante, mobile et bureau — **fait le 2026-11-03** | A0, E0 |
 | D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP | C1a, C1b, D0, D1b |
@@ -1244,6 +1245,176 @@ sur `app`). Côté navigateur, contre le vrai back compressé : les deux e2e
 Chercher de D1b, `idempotence.spec.ts` (503 simulé et réel, `Retry-After`
 exposé en CORS) et `club-sans-reseau.spec.ts`, 8 tests verts. Le feu vert de
 l'utilisateur pour B1b est à demander maintenant.
+
+### Livré à l'étape B1b (2026-11-05)
+
+Feu vert de l'utilisateur donné le 2026-11-05 (« oui pour b1b »). Procédure
+de B1 suivie telle quelle, depuis `backend/`, avec `compare_db.py` ; relevés
+gardés hors du dépôt.
+
+1. `DATABASE_URL` vide, cible vérifiée (`database_url()` rend
+   `backend/vtes.db`), aucune API en cours d'exécution. Base à `e2a7819dd4a2`,
+   tête des scripts à `8ab23342a26f`.
+2. Sauvegarde `backend/vtes.db.pre-lot-chercher-20261105.bak`, par l'API de
+   sauvegarde de SQLite. Son empreinte diffère de la base (pages réécrites),
+   mais son relevé est identique ligne à ligne à celui de la base.
+3. Relevé d'avant : 28 entrées de stock, un deck et ses 20 lignes, 66
+   opérations au journal, deux parties, trois participations, un tournoi,
+   deux joueurs, deux lieux, cinq sessions, un compte ; `integrity_check` à
+   `ok`, `foreign_key_check` vide. C'est l'état connu.
+4. `upgrade head` : `e2a7819dd4a2` vers `8ab23342a26f`, seule `card` change, par
+   la colonne `library_requirement`. Les treize tables protégées sont
+   identiques ligne à ligne.
+5. `import_catalog.py --json` : 4212 cartes, dont 63 créées ; 115 produits ;
+   sectes Anarch 109, Camarilla 625, Imbued 20, Independent 379, Laibon 83,
+   Sabbat 606 (1822, aucune carte de crypte sans secte, aucune signalée) ; 382
+   exigences de bibliothèque ; aucun écart avec vtescsv, aucune extension
+   tampon. Rapport conservé dans
+   `backend/vtes.db.lot-chercher-import-20261105.json.bak` (nom ignoré par
+   git, comme les sauvegardes).
+6. Comparaison avec le relevé d'avant (`--same` sur les treize tables,
+   `--by-content card_printing_occurrence`) : treize tables identiques, aucune
+   ligne disparue ; 63 cartes, 2 produits, 121 impressions et leurs
+   occurrences, 135 liens de discipline, 63 liens de type et les six sectes en
+   plus ; sur les cartes existantes, 42 textes de règles et un texte
+   d'ambiance corrigés par krcg, et la secte des 1785 cartes de crypte. Les
+   mêmes chiffres qu'à l'essai sur copie.
+7. Second rejeu : rien ne change, occurrences comprises (comparées par
+   contenu).
+
+Contrôles après coup, en lecture seule : toutes les entrées de stock et
+toutes les lignes de deck pointent une impression existante ; l'API démarre
+contre la base (le contrôle de révision passe) et `GET /cartes` rend secte et
+exigences, compressé. L'application s'utilise de nouveau à la main sur la
+vraie base. L'en-tête de CLAUDE.md (révision de `backend/vtes.db`, liste des
+sauvegardes) est mis à jour à l'étape F, avec le reste.
+
+### Livré aux étapes C1a, C1b et E1 (2026-11-05)
+
+Les trois étapes ont été faites ensemble : E1 fournit le catalogue synthétique
+dont C1a et C1b ont besoin pour leurs tests, et la table de cas de
+`filterCards` s'écrit avec la fonction. Aucun changement de contrat ni de
+backend.
+
+**C1a, le miroir enrichi.** La version 6 de la base (60 pour IndexedDB) ajoute
+le magasin `cardDetails` (`VTES_STORES_V5`), clé `id`, sans index ni
+`upgrade`. Une ligne (`CardDetailRow`) porte secte, titre, voie, coût,
+prérequis de clan et de voie découpés, exigence et disciplines (code en
+minuscules, nom, niveau), types, exigence brute et sa lecture par le serveur
+(`requiredSects`, `requiredTitles`, `requiresTitled`, `requiresNonTitled`,
+`otherRequirements`), texte et texte replié, dates de légalité, noms traduits
+et noms traduits repliés. `cards` ne change pas.
+
+`refreshCatalog` lit toutes les pages, puis remplace les deux magasins dans une
+seule transaction ; une lecture interrompue ne touche à aucun des deux. Un
+serveur d'avant le lot se reconnaît à l'absence des listes que le contrat rend
+toujours : `cards` est relu comme avant et `cardDetails` laissé tel quel, ni
+écrit ni vidé. `readCatalogState` dit le miroir complet quand `cardDetails`
+couvre `cards`. `CatalogProvider` relance la lecture une fois, en ligne, quand
+le catalogue est vide ou incomplet (P11), sans boucler si le serveur ne rend
+toujours pas les détails ; `CatalogState` gagne `detailsComplete`, que D1c
+lira.
+
+Le catalogue se lit désormais après les autres miroirs, hors de leur délai de
+60 s, sous le sien (`catalogTimeoutMs`, 180 s), et n'est pas rejoué quand un
+verdict de sync tombe pendant sa lecture. Un échec du seul catalogue laisse
+les autres miroirs à jour.
+
+P14 : `requestPersistentStorage()`, générique (`offline/core/storage.ts`), est
+appelé au démarrage dans `main.tsx`, ne lève jamais et écrit son résultat en
+console. Le résultat sur le téléphone reste à relever à l'étape F.
+
+Constat demandé au plan : sous Dexie 4.4, le code du Lot 7 ouvre une base déjà
+montée en version 6, à la version installée, sans `VersionError`, et y lit ses
+magasins ; `cardDetails` reste intact. Consigné dans le README de la couche
+offline, avec le patron du magasin de détails proposé à Barrin.
+
+**C1b, la recherche.** `cardLegality(bannedOn, legalFrom, on)` et `todayUtc()`
+(`vtes/cardLegality.ts`) lisent la table commune avec pytest
+(`card_legality_cases.json`, 23 cas). `vtes/cardSearch.ts` porte l'index
+(`buildSearchCatalog` : nom sans ponctuation, initiales, disciplines par code,
+types avec « Reflex », votes du titre), les critères (`SearchCriteria`, avec
+`crypt` et `library`), une fonction par filtre de P1, `filterCards`,
+`sortCards` et `nameMatchesFirst`. Aucune fonction n'a de `switch` : les modes
+sont des tables de petites fonctions. `vtes/catalogMemory.ts` garde le
+catalogue joint et indexé en mémoire, un par runtime, relu par `liveQuery`
+quand `cards` ou `cardDetails` changent, jeté par `dispose()` et `purge()`.
+Hooks : `useSearchCatalog`, `useCardSearchStatus` (cartes possédées et cartes
+du deck choisi, lues dans la projection, file comprise) et `useCardSearch`,
+dont le calcul est sorti en fonction pure (`runCardSearch`).
+
+Choix faits en écrivant, à relire en D1c :
+
+- un filtre propre à une catégorie écarte l'autre : une carte de bibliothèque
+  ne répond à aucun filtre de crypte, même sous la catégorie « toutes » ;
+- une carte sans détails ne répond à aucun filtre qui en a besoin, légalité
+  comprise ; le champ principal la cherche par son nom anglais seulement ;
+  catégorie, extension, groupe, capacité et statut restent utilisables ;
+- variante sans ponctuation : seul le nom de la carte perd sa ponctuation, pas
+  la saisie, sinon « [obf] » trouvait tout nom contenant « obf » ; les
+  initiales se comparent à égalité (« tb » trouve « Theo Bell », pas tout nom
+  dont les initiales commencent par « tb ») ;
+- la variante « The X » trouve « X, The » n'est pas reprise : la base de
+  développement ne compte aucun nom en « X, The » (relevé en lecture seule le
+  2026-11-05 ; 123 noms commencent par « The »), la sous-chaîne suffit ;
+- titre requis en bibliothèque : les titres précis, plus trois valeurs,
+  « titré » (`requires_titled`), « titre précis, quel qu'il soit »
+  (`required_titles` non vide, le « Titled (specific) » de VDB) et « non
+  titré » ;
+- tri : nom replié, groupe, identifiant par défaut ; capacité, groupe (« Any »
+  en dernier) et coût (« X » après les nombres, sans coût en dernier) avec le
+  nom pour départage, dans les deux sens. La proposition de P1, les
+  correspondances par le nom d'abord, est écrite (`nameMatchesFirst`, option
+  de `useCardSearch`) et reste à valider en D1c.
+
+Le picker et la feuille d'entrée de la Collection gardent `searchCards` : les
+faire passer par la lecture mémoire est permis par le plan, pas exigé, et
+relève de D1c ou D3 s'il y a un gain.
+
+Mesure de `foldText` (A4) sur 4149 cartes synthétiques, sous vitest et jsdom :
+1,7 ms pour replier tous les textes, 10,9 ms pour construire l'index. Le texte
+replié reste stocké, ce qui garde une seule écriture du repli, à la lecture du
+serveur.
+
+**E1, le banc d'essai.** `tests/unit/offline/fixtures/syntheticCatalog.ts`
+fabrique des cartes dans la forme du contrat (`CardSearchItem`), avec des
+valeurs neutres par défaut : `searchItem`, `crypt`, `library`, `mirrorRows`
+(les lignes que `refreshCatalog` écrirait), `legacyListItem` (la forme d'un
+ancien serveur) et `bulkCatalog` (4149 cartes de volume). La table de cas
+(`fixtures/searchCases.ts`) compte 32 cartes et 80 cas, dont le tableau de P1
+avec *S* = {Dominate, Obfuscate} et *The World's a Canvas*, les paires OU, les
+vertus, le groupe « Any », la capacité en NON, le barème des votes,
+« non-anarch », le coût « X », les lignes de texte, les variantes de nom et
+*Playing for Keeps* à une date injectée ; le test vérifie que chaque cas a au
+moins une carte positive et une négative. Le serveur factice sert
+`state.catalog` dans la forme du contrat, page par page au-delà de 200 cartes,
+ou dans la forme d'avant le lot (`legacyCatalog`). Le test de montée n'est pas
+resté un squelette : `vtesDbV6.test.ts` couvre la montée sans perte, la base
+d'avant le Lot 6 ouverte par l'adoption, la double ouverture et l'ancien code.
+Le fixture krcg du back n'a pas été étendu (décision par défaut d'E1).
+
+Fichiers. Nouveaux : `src/offline/vtes/cardLegality.ts`, `cardSearch.ts`,
+`catalogMemory.ts`, `src/offline/core/storage.ts` ; six fichiers de test
+(`vtesDbV6`, `vtesCatalogRefresh`, `storage`, `vtesCardLegality`,
+`vtesCardSearch`, `vtesCatalogMemory`) et deux fixtures. Modifiés : `db.ts`,
+`refresh.ts`, `reads.ts`, `runtime.ts`, `hooks.ts`, les deux barrels,
+`CatalogProvider.tsx`, `catalogContext.ts`, `main.tsx`, le README de la couche
+offline, `fakeServer.ts`, `stock.test.tsx` (quatre cas P11), `vtesDbV5` et
+`vtesDbUpgrade` (version attendue 6, `versionchange` éprouvé à la version 7),
+et `e2e-real/offline-db-schema.spec.ts` (version 60, magasin `cardDetails`).
+
+Chiffres : vitest 923 tests sur 58 fichiers (773 sur 52 après D1b), sous
+couverture ; lint et `tsc` propres ; CRAP front 1731 fonctions, aucune
+au-dessus de 30, sans régression, références toujours vides. Playwright contre
+le vrai back, sur un `dist-real` reconstruit : `offline-db-schema`,
+`chercher-d1b`, `search-parity`, `club-sans-reseau`, `printings`, `acquisition`
+à 390 px, et `chercher-d1b`, `club-sans-reseau`, `deckbuilder` à 1440 px,
+11 tests verts. `deckbuilder.spec.ts` en `desktop-real-backend`, que D1a
+n'avait pas lancé, passe donc. Suite complète (`npm run test:e2e`) : 61 tests,
+60 verts au premier passage ; le dernier, `rejections.spec.ts` (deck archivé
+entre-temps), attendait encore qu'« Ajouter 2 » sur une ligne à 1 donne 2,
+l'ancien écrasement que D1a a corrigé, et D1a ne l'avait pas lancé. Attendu
+porté à 3 avec un commentaire ; le fichier repasse vert (4 tests).
 
 ## Tests attendus
 

@@ -5,6 +5,7 @@ import { Outbox, type EnqueueOptions } from "../core/outbox";
 import { SyncEngine, type SyncEngineOptions } from "../core/syncEngine";
 import type { OutboxEntry } from "../core/types";
 import type { OfflineRuntime } from "../react/context";
+import { CatalogMemory } from "./catalogMemory";
 import { DEFAULT_DB_NAME, VtesOfflineDb } from "./db";
 import { findByKey } from "./overlay";
 import { readProjection } from "./reads";
@@ -196,6 +197,12 @@ export interface VtesOfflineRuntime extends OfflineRuntime<VtesOperation> {
   db: VtesOfflineDb;
   actions: VtesActions;
   /**
+   * Le catalogue joint et indexé en mémoire, pour Chercher (lot Chercher) : lu
+   * au premier abonné, relu quand `cards` ou `cardDetails` changent, jeté par
+   * `dispose()` et `purge()`.
+   */
+  catalog: CatalogMemory;
+  /**
    * Relit les miroirs depuis les `GET` (en ligne seulement) ; ne lève jamais.
    * Un appel pendant une lecture en cours attend la lecture suivante (jamais une
    * lecture commencée avant lui) ; les options des appelants qui attendent la
@@ -225,11 +232,18 @@ export interface VtesOfflineOptions {
   /** Rafraîchir les miroirs au démarrage, au retour du réseau et après chaque rejeu (défaut : oui). */
   autoRefresh?: boolean;
   clock?: OperationClock;
-  /** Délai au-delà duquel un rafraîchissement est déclaré perdu (défaut : 60 s). */
+  /** Délai au-delà duquel un rafraîchissement des miroirs est déclaré perdu (défaut : 60 s). */
   refreshTimeoutMs?: number;
+  /**
+   * Délai propre à la relecture du catalogue (défaut : 180 s, lot Chercher). Elle
+   * part après les autres miroirs, hors de leur délai : environ 22 pages de 200
+   * cartes, 500 Ko compressés, qu'une connexion lente de club ne lit pas en 60 s.
+   */
+  catalogTimeoutMs?: number;
 }
 
 const DEFAULT_REFRESH_TIMEOUT_MS = 60_000;
+const DEFAULT_CATALOG_TIMEOUT_MS = 180_000;
 
 /**
  * Édition de la table d'une partie dont la table est inconnue sur cet appareil
@@ -268,15 +282,19 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
   const clock = options.clock ?? systemClock;
   const autoRefresh = options.autoRefresh ?? true;
   const refreshTimeoutMs = options.refreshTimeoutMs ?? DEFAULT_REFRESH_TIMEOUT_MS;
+  const catalogTimeoutMs = options.catalogTimeoutMs ?? DEFAULT_CATALOG_TIMEOUT_MS;
 
   const db = new VtesOfflineDb(options.dbName ?? DEFAULT_DB_NAME);
   // `retainSettled` : une opération tranchée reste projetée jusqu'au rafraîchissement
   // qui la reprend, sinon son effet disparaîtrait entre le verdict et la relecture.
   const outbox = new Outbox<VtesOperation>(db, { retainSettled: true });
+  const catalog = new CatalogMemory(db);
 
-  const runRefresh = async (opts: RefreshOptions): Promise<RefreshReport> => {
-    const online = typeof navigator === "undefined" ? true : navigator.onLine;
-    if (!online) return { complete: false, refreshed: [], errors: ["hors ligne"], authRequired: false };
+  const isOnline = () => (typeof navigator === "undefined" ? true : navigator.onLine);
+
+  /** Les miroirs qui suivent la file (tout sauf le catalogue), relus jusqu'à trois fois. */
+  const runMirrors = async (): Promise<RefreshReport> => {
+    if (!isOnline()) return { complete: false, refreshed: [], errors: ["hors ligne"], authRequired: false };
 
     const steps: Array<[string, () => Promise<number>]> = [
       ["languages", () => refreshLanguages(client, db)],
@@ -291,8 +309,6 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       ["tournaments", () => refreshTournaments(client, db)],
       ["games", () => refreshGames(client, db)],
     ];
-    if (opts.catalog) steps.push(["catalog", () => refreshCatalog(client, db)]);
-
     let report: RefreshReport = { complete: false, refreshed: [], errors: [], authRequired: false };
     // Un verdict tombé pendant la lecture rendrait l'instantané périmé (une
     // opération tranchée sortirait de la file avant que le serveur qu'on a lu
@@ -341,16 +357,20 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
    * on libère la place ; la lecture abandonnée, si elle finit un jour, écrit
    * comme n'importe quelle lecture.
    */
-  const guarded = (run: Promise<RefreshReport>): Promise<RefreshReport> =>
+  const guarded = (
+    run: Promise<RefreshReport>,
+    timeoutMs: number = refreshTimeoutMs,
+    what = "rafraîchissement",
+  ): Promise<RefreshReport> =>
     new Promise((resolve) => {
       const timer = setTimeout(() => {
         resolve({
           complete: false,
           refreshed: [],
-          errors: [`rafraîchissement sans réponse après ${refreshTimeoutMs} ms`],
+          errors: [`${what} sans réponse après ${timeoutMs} ms`],
           authRequired: false,
         });
-      }, refreshTimeoutMs);
+      }, timeoutMs);
       run.then(
         (report) => {
           clearTimeout(timer);
@@ -363,6 +383,39 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       );
     });
 
+  /**
+   * Le catalogue (lot Chercher) : après les autres miroirs, avec son propre délai,
+   * et **sans** relecture si un verdict de sync tombe en route — il ne dépend
+   * pas de la file, un rejeu ne le rend pas périmé.
+   */
+  const runCatalog = async (): Promise<RefreshReport> => {
+    try {
+      await refreshCatalog(client, db);
+      return { complete: true, refreshed: ["catalog"], errors: [], authRequired: false };
+    } catch (error) {
+      const authRequired = error instanceof RefreshAuthError;
+      return {
+        complete: false,
+        refreshed: [],
+        errors: authRequired ? [] : [`catalog : ${describe(error)}`],
+        authRequired,
+      };
+    }
+  };
+
+  const merge = (a: RefreshReport, b: RefreshReport): RefreshReport => ({
+    complete: a.complete && b.complete,
+    refreshed: [...a.refreshed, ...b.refreshed],
+    errors: [...a.errors, ...b.errors],
+    authRequired: a.authRequired || b.authRequired,
+  });
+
+  const runRefresh = async (opts: RefreshOptions): Promise<RefreshReport> => {
+    const mirrors = await guarded(runMirrors());
+    if (!opts.catalog || !isOnline()) return mirrors;
+    return merge(mirrors, await guarded(runCatalog(), catalogTimeoutMs, "catalogue"));
+  };
+
   // Coalescence : un rafraîchissement en cours, et au plus un derrière lui.
   // Un appel qui arrive pendant une lecture ne s'y fond pas : cette lecture a
   // commencé avant lui et peut ne pas voir ce qui vient de se passer (typiquement
@@ -372,7 +425,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
   let trailing: { catalog: boolean; promise: Promise<RefreshReport> } | null = null;
 
   const launch = (opts: RefreshOptions): Promise<RefreshReport> => {
-    const run: Promise<RefreshReport> = guarded(runRefresh(opts)).finally(() => {
+    const run: Promise<RefreshReport> = runRefresh(opts).finally(() => {
       // Si un suivant attend, c'est lui qui prend la place (pas de trou où deux
       // lectures se croiseraient).
       if (!trailing && active === run) active = null;
@@ -573,6 +626,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
     outbox,
     engine,
     actions,
+    catalog,
     refresh,
     start() {
       engine.start();
@@ -593,6 +647,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
     },
     dispose() {
       this.stop();
+      catalog.close();
       outbox.close();
       db.close();
     },
@@ -604,6 +659,7 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
         window.removeEventListener("online", onlineListener);
       }
       onlineListener = null;
+      catalog.close();
       outbox.close();
       // `Dexie#delete()` ferme la base si elle est encore ouverte, puis
       // supprime la base IndexedDB entière (miroirs, file, `settled`, `refs`).

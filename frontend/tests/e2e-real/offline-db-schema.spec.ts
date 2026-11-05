@@ -60,8 +60,8 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
                 ),
               };
             }
-            // Dexie multiplie la version par 10 : la version 5 du schéma (Lot 7, miroirs de la
-            // pratique de jeu, cf. `offline/vtes/db.ts`) est 50 côté IndexedDB.
+            // Dexie multiplie la version par 10 : la version 6 du schéma (lot Chercher, détails
+            // du catalogue, cf. `offline/vtes/db.ts`) est 60 côté IndexedDB.
             const version = db.version;
             db.close();
             resolve({ version, stores });
@@ -71,9 +71,10 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
       }),
   );
 
-  expect(schema.version).toBe(50);
+  expect(schema.version).toBe(60);
   expect(Object.keys(schema.stores).sort()).toEqual(
     [
+      "cardDetails",
       "cardSets",
       "cards",
       "deckCards",
@@ -102,6 +103,9 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
   expect(schema.stores.games.keyPath).toBe("id");
   expect(Object.keys(schema.stores.games.indexes).sort()).toEqual(["playedAt", "tournamentId"]);
   expect(Object.keys(schema.stores.tournaments.indexes)).toEqual(["startDate"]);
+  // Détails du catalogue (lot Chercher) : même clé que `cards`, aucun index.
+  expect(schema.stores.cardDetails.keyPath).toBe("id");
+  expect(schema.stores.cardDetails.indexes).toEqual({});
   // Copie locale de `GET /moi` (Lot 6, § P3) : une ligne de plus que les quatorze
   // magasins vérifiés ci-dessus, dans `meta` (clé `"account"`), pas un magasin séparé.
 

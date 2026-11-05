@@ -183,9 +183,10 @@ Les autres lectures (`useLocalStock`, `useLocalDecks`, `useLocalDeckCards`,
 `useLocalCardSearch`) rendent `undefined` tant que la première lecture n'a pas
 abouti, puis toujours une liste (vide si rien).
 
-Le catalogue complet (environ 4 000 cartes) ne se charge que sur demande :
+Le catalogue complet (environ 4 200 cartes) ne se charge que sur demande :
 `runtime.refresh({ catalog: true })`. Sans lui, la saisie hors ligne ne peut pas
-proposer de carte inconnue de l'instantané.
+proposer de carte inconnue de l'instantané. Depuis le lot Chercher, il remplit deux
+magasins (`cards` et `cardDetails`) : voir « Catalogue enrichi et Chercher ».
 
 ### Rafraîchir les miroirs
 
@@ -216,6 +217,13 @@ la couche le lance au démarrage, au retour du réseau et après chaque rejeu.
 - **Garde-fou** : `refreshTimeoutMs` (60 s par défaut). Une lecture qui ne répond jamais
   rend un rapport d'échec et libère la place, au lieu de rendre muets tous les appels
   suivants.
+- **Le catalogue à part** (lot Chercher) : il se lit *après* les autres miroirs, hors de
+  leur délai de 60 s, sous le sien (`catalogTimeoutMs`, 180 s par défaut : 22 pages de
+  200 cartes, environ 500 Ko compressés, qu'une connexion de club lente ne lit pas en
+  60 s). Il ne se relit pas quand un verdict de sync tombe pendant sa lecture : il ne
+  dépend pas de la file. Hors ligne, rien n'est lu. Un échec du seul catalogue laisse
+  le rapport `complete: false` avec une erreur `catalog : …` ou `catalogue sans
+  réponse après … ms`, les autres miroirs restant à jour.
 
 `engine.whenIdle()` attend le rejeu **et** son rappel `onFlushed` ; `engine.whenDrained()`
 n'attend que l'envoi et les verdicts. Un rappel `onFlushed`, ou ce qu'il déclenche
@@ -606,6 +614,73 @@ Le test `tests/unit/offline/foldText.test.ts` compare `foldText` au vrai `fold_t
 Python sur tous les points de code Unicode. Seul écart toléré : un caractère que le
 moteur JavaScript connaît et pas la version d'Unicode de Python.
 
+`searchCards` (le picker) reste un parcours de `db.cards`, nom anglais seulement. La
+recherche de l'écran Chercher, plus riche, filtre un catalogue gardé en mémoire : voir
+« Catalogue enrichi et Chercher ».
+
+## Catalogue enrichi et Chercher (lot Chercher)
+
+**Deux magasins à clé identique.** `cards` garde sa forme : c'est la ligne courte que
+`readProjection` relit à chaque lecture de l'application, sur tous les écrans. Ce que
+les filtres de Chercher demandent (secte, titre, voie, coût, prérequis de clan et de
+voie découpés, exigence et disciplines avec leur niveau, types, sectes et titres exigés
+lus par le serveur, texte et texte replié, dates de légalité, noms traduits repliés)
+vit dans `cardDetails`, ajouté en version 6 sans `upgrade`. C'est le patron proposé à
+Barrin : **un miroir qu'on enrichit se double d'un magasin de détails à clé identique,
+ajouté sans migration** — aucune ligne n'est vidée, donc un téléphone qui exécute le
+nouveau code pour la première fois hors ligne garde son catalogue, son picker et ses
+libellés.
+
+**Miroir incomplet, sans marqueur.** `readCatalogState(db)` rend `{ cards, details,
+complete }` ; le miroir est complet quand `cardDetails` couvre `cards` (un catalogue
+vide ne l'est pas). Il est incomplet après la montée de la version 5, et quand le
+catalogue a été lu sur un serveur d'avant le lot Chercher : `refreshCatalog` reconnaît
+ce dernier à l'absence des listes que le contrat rend toujours (`translated_names`,
+`discipline_links`, `types`, `required_sects`), relit `cards` comme avant et laisse
+`cardDetails` tel quel. Les deux magasins sont écrits dans **une** transaction, après
+avoir tout lu : une lecture interrompue ne touche à aucun des deux.
+
+**Relecture automatique (P11).** `features/catalog/CatalogProvider.tsx` relance la
+lecture du catalogue une fois, en ligne, quand il est vide **ou incomplet**
+(`CatalogState.detailsComplete`) ; elle ne se répète pas si le serveur ne rend toujours
+pas les détails, le bouton « Mettre à jour » restant là. Un retour du réseau autorise un
+nouvel essai.
+
+**Lecture mémoire.** `runtime.catalog` (`CatalogMemory`) lit `cards` et `cardDetails` dans
+une transaction, les joint et les indexe (`buildSearchCatalog` : nom sans ponctuation,
+initiales, disciplines par code, types, votes du titre), une fois au premier abonné, puis
+à chaque changement de l'un des deux magasins (`liveQuery` de Dexie, autres onglets
+compris). Un par base de compte, jeté par `dispose()` et `purge()`. Le filtrage
+(`filterCards`, `sortCards`, `cardSearch.ts`) est fait de fonctions pures sur ce tableau :
+une frappe ne parcourt jamais la base. Hooks : `useSearchCatalog()`,
+`useCardSearchStatus(deckKey)` (cartes possédées, cartes du deck choisi, file comprise),
+et `useCardSearch(criteria, options)`, qui compose les trois ; les critères doivent être
+mémoïsés par l'appelant. Mesure sur 4149 cartes synthétiques (vitest, jsdom) :
+`foldText` sur tous les textes 1,7 ms, construction de l'index 10,9 ms. Le texte replié
+reste stocké (A4), ce qui garde une seule écriture du repli, à la lecture du serveur.
+
+**Légalité d'une carte.** `cardLegality(bannedOn, legalFrom, on)` rend deux booléens qui
+ne s'excluent pas, sur des chaînes ISO, jamais des `Date` ; jumelle de `card_legality`
+du back, sur la table de cas commune `backend/tests/fixtures/card_legality_cases.json`.
+`todayUtc()` donne la date UTC, comme `_today()` côté serveur. Une carte sans détails
+n'est jamais lue comme légale.
+
+**Ancien code face à une base 6.** Vérifié en C1a sous Dexie 4.4
+(`tests/unit/offline/vtesDbV6.test.ts`) : le code du Lot 7, qui déclare la version 5,
+ouvre une base déjà montée en version 6 à la version installée, sans `VersionError`, et y
+lit ses magasins ; `cardDetails` lui est inconnu et reste intact. Un onglet resté ouvert
+sur l'ancien code, ou un retour arrière du déploiement, ne bloque donc rien. IndexedDB
+seul lèverait `VersionError` en demandant une version plus basse que l'installée : le
+constat tient à Dexie 4, à revérifier avant de porter le patron sur une autre version.
+
+**Stockage persistant (P14).** `requestPersistentStorage()` (`core/storage.ts`, générique)
+appelle `navigator.storage.persist()` au démarrage (`main.tsx`), sans écran, et ne lève
+jamais : `persisted`, `denied`, `unsupported` ou `error`, écrit en console
+(`[offline] stockage persistant : …`). Chrome accorde ou refuse sans demander, selon
+l'usage de l'origine (une PWA installée est accordée) ; Firefox peut afficher une invite ;
+le résultat sur le téléphone est à relever à la main à l'étape F du lot. Un refus
+n'empêche rien : le stockage reste « au mieux », comme avant.
+
 ## Langue inconnue
 
 `POST /langues` n'a pas d'équivalent dans la file. Une saisie dans une langue absente
@@ -616,11 +691,13 @@ semées par le serveur (`EN`, `FR`, `ES`, `XX`) font foi. Un code vide est refus
 ## Versionnage du schéma IndexedDB
 
 Une base IndexedDB a un seul numéro de version pour toutes ses tables. Le schéma
-actuel est la version 5 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), la 2 qui
+actuel est la version 6 : la 1 (`CORE_STORES_V1` plus `VTES_STORES_V1`), la 2 qui
 ajoute `settled` (`CORE_STORES_V2`), les 3 et 4 du Lot 4 (`VTES_STORES_V2`,
-`VTES_STORES_V3`), puis la 5 du Lot 7 (`VTES_STORES_V4` : `players`, `venues`,
+`VTES_STORES_V3`), la 5 du Lot 7 (`VTES_STORES_V4` : `players`, `venues`,
 `tournaments`, `games`, un ajout de magasins sans changement de clé, donc un seul
-cran et aucune donnée perdue). `OfflineCoreDb` ferme sa connexion quand un autre
+cran et aucune donnée perdue), puis la 6 du lot Chercher (`VTES_STORES_V5` :
+`cardDetails`, même forme d'ajout). Dexie multiplie le numéro par 10 : la version 6
+est la version 60 d'IndexedDB. `OfflineCoreDb` ferme sa connexion quand un autre
 onglet monte la version (événement `versionchange`) : sans cela, la mise à niveau
 resterait bloquée tant qu'un ancien onglet est ouvert. Pour faire évoluer le schéma en temps normal, ajouter un
 `this.version(n + 1).stores({...})` avec les seules tables modifiées, et un

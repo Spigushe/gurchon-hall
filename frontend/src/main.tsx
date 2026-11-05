@@ -4,6 +4,7 @@ import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "./index.css";
 import { AuthGate } from "./features/auth/AuthGate.tsx";
+import { requestPersistentStorage } from "./offline/core/storage";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
 
 // Couche offline (Lot 3) et comptes (Lot 6) : `AuthGate` décide, avant tout,
@@ -24,3 +25,9 @@ createRoot(document.getElementById("root") as HTMLElement).render(
 // pour la stratégie de mise à jour et `vite.config.ts` pour la config du
 // plugin (manifest, precache, exclusion des routes API).
 registerServiceWorker();
+
+// Stockage persistant (lot Chercher, P14) : sans écran ; le résultat se lit en
+// console, et dans le panneau Application de Chrome DevTools (« Storage »).
+void requestPersistentStorage().then((result) => {
+  console.info(`[offline] stockage persistant : ${result}`);
+});

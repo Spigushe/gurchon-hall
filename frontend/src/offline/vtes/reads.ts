@@ -200,6 +200,44 @@ export async function readDeckCountByCard(db: VtesOfflineDb): Promise<Map<number
   return new Map([...decksByCard].map(([cardId, decks]) => [cardId, decks.size]));
 }
 
+/** Ce que les filtres de statut de Chercher lisent dans la projection (P4). */
+export interface CardSearchStatus {
+  /** Cartes dont une entrée de collection a au moins un exemplaire. */
+  ownedCardIds: Set<number>;
+  /** Cartes du deck choisi, file comprise ; vide sans deck. */
+  deckCardIds: Set<number>;
+}
+
+export async function readCardSearchStatus(db: VtesOfflineDb, deckKey?: DeckKey | null): Promise<CardSearchStatus> {
+  const { stock, deckCards } = await readProjection(db);
+  return {
+    ownedCardIds: new Set(stock.filter((entry) => entry.quantityOwned > 0).map((entry) => entry.cardId)),
+    deckCardIds: new Set(deckKey ? (deckCards.get(deckKey) ?? []).map((line) => line.cardId) : []),
+  };
+}
+
+/** Où en est le miroir du catalogue (lot Chercher). */
+export interface CatalogMirrorState {
+  /** Lignes de `cards`. */
+  cards: number;
+  /** Lignes de `cardDetails`. */
+  details: number;
+  /**
+   * Détails présents pour tout le catalogue. « Incomplet » se lit sans
+   * marqueur : `cardDetails` vide ou plus court que `cards` (montée de la
+   * version 5, ancien serveur, catalogue jamais relu depuis le lot Chercher).
+   * Un catalogue vide n'est pas complet.
+   */
+  complete: boolean;
+}
+
+export async function readCatalogState(db: VtesOfflineDb): Promise<CatalogMirrorState> {
+  return db.transaction("r", db.cards, db.cardDetails, async () => {
+    const [cards, details] = await Promise.all([db.cards.count(), db.cardDetails.count()]);
+    return { cards, details, complete: cards > 0 && details >= cards };
+  });
+}
+
 /**
  * Extensions du catalogue (miroir de `GET /extensions`), triées comme le
  * serveur : date de sortie, les extensions sans date en dernier, puis

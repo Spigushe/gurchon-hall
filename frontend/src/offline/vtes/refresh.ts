@@ -2,6 +2,7 @@ import { foldText } from "../core/foldText";
 import { lastSettledSeq, pruneSettled } from "../core/settled";
 import type { components } from "../../api-client/schema.d.ts";
 import type {
+  CardDetailRow,
   CardRow,
   CardSetRow,
   DeckCardRow,
@@ -213,15 +214,35 @@ export async function refreshDecks(client: ApiClient, db: VtesOfflineDb): Promis
   return decks.length;
 }
 
-/** Catalogue complet (environ 4 000 cartes), pour chercher et saisir hors ligne. */
-export async function refreshCatalog(client: ApiClient, db: VtesOfflineDb): Promise<number> {
-  const cards = await pages(async (offset) =>
-    unwrap(
-      await client.GET("/cartes", { params: { query: { limit: PAGE_SIZE, offset } } }),
-      "GET /cartes",
-    ),
+type CardSearchItem = Schemas["CardSearchItem"];
+
+/** Découpe un prérequis joint par `", "` (aucun nom de clan ni de voie n'a de virgule). */
+const splitJoined = (value: string | null): string[] =>
+  value
+    ? value
+        .split(",")
+        .map((part) => part.trim())
+        .filter((part) => part !== "")
+    : [];
+
+/**
+ * Un serveur d'avant le lot Chercher rend `CardListItem` sans les champs
+ * nouveaux. On le reconnaît à l'absence des listes qu'un serveur à jour rend
+ * toujours (champs obligatoires en sortie, §7) : on ne fabrique alors aucun
+ * détail, pour que le miroir reste « incomplet » plutôt que faussement complet.
+ */
+const hasDetails = (card: CardSearchItem): boolean => {
+  const loose = card as Partial<CardSearchItem>;
+  return (
+    Array.isArray(loose.translated_names) &&
+    Array.isArray(loose.discipline_links) &&
+    Array.isArray(loose.types) &&
+    Array.isArray(loose.required_sects)
   );
-  const rows: CardRow[] = cards.map((card) => ({
+};
+
+export function cardRowOf(card: CardSearchItem): CardRow {
+  return {
     id: card.id,
     veknId: card.vekn_id,
     name: card.name,
@@ -234,10 +255,71 @@ export async function refreshCatalog(client: ApiClient, db: VtesOfflineDb): Prom
     imageUrl: card.image_url,
     cardSetIds: card.card_set_ids,
     latestCardSetId: card.latest_card_set_id,
+  };
+}
+
+export function cardDetailRowOf(card: CardSearchItem): CardDetailRow {
+  const translatedNames = card.translated_names.map((translation) => ({
+    languageCode: translation.language_code,
+    name: translation.name,
   }));
-  await db.transaction("rw", db.cards, async () => {
+  return {
+    id: card.id,
+    sect: card.sect?.name ?? null,
+    title: card.title,
+    path: card.path,
+    costType: card.cost_type,
+    costValue: card.cost_value,
+    clanRequirements: splitJoined(card.clan_requirement),
+    pathRequirements: splitJoined(card.path_requirement),
+    disciplineRequirement: card.discipline_requirement,
+    disciplines: card.discipline_links.map((link) => ({
+      code: (link.discipline.abbrev ?? link.discipline.name).toLowerCase(),
+      name: link.discipline.name,
+      superior: link.superior,
+    })),
+    types: card.types.map((type) => type.name),
+    libraryRequirement: card.library_requirement,
+    requiredSects: card.required_sects,
+    requiredTitles: card.required_titles,
+    requiresTitled: card.requires_titled,
+    requiresNonTitled: card.requires_non_titled,
+    otherRequirements: card.other_requirements,
+    cardText: card.card_text,
+    foldedText: foldText(card.card_text ?? ""),
+    bannedOn: card.banned_on,
+    legalFrom: card.legal_from,
+    translatedNames,
+    foldedTranslatedNames: translatedNames.map((translation) => foldText(translation.name)),
+  };
+}
+
+/**
+ * Catalogue complet (environ 4 200 cartes), pour chercher et saisir hors ligne.
+ *
+ * Lot Chercher : deux magasins, `cards` (la ligne courte que relit toute
+ * lecture) et `cardDetails` (ce que les filtres demandent). Toutes les pages
+ * sont lues avant d'écrire, puis les deux magasins sont remplacés dans **une**
+ * transaction : une lecture interrompue ne touche à aucun des deux. Face à un
+ * serveur qui ne rend pas les champs nouveaux, `cards` est relu comme avant et
+ * `cardDetails` n'est pas écrit : le miroir reste incomplet (`readCatalogState`).
+ */
+export async function refreshCatalog(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const cards = await pages(async (offset) =>
+    unwrap(
+      await client.GET("/cartes", { params: { query: { limit: PAGE_SIZE, offset } } }),
+      "GET /cartes",
+    ),
+  );
+  const rows = cards.map(cardRowOf);
+  const details = cards.length > 0 && cards.every(hasDetails) ? cards.map(cardDetailRowOf) : null;
+  await db.transaction("rw", db.cards, db.cardDetails, async () => {
     await db.cards.clear();
     await db.cards.bulkPut(rows);
+    if (details) {
+      await db.cardDetails.clear();
+      await db.cardDetails.bulkPut(details);
+    }
   });
   return rows.length;
 }

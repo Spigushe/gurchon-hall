@@ -1,6 +1,16 @@
-import { useCallback } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useLiveQuery } from "../react/useLiveQuery";
 import { useVtesOffline } from "./context";
+import { todayUtc } from "./cardLegality";
+import {
+  filterCards,
+  nameMatchesFirst,
+  sortCards,
+  type CardSort,
+  type SearchableCard,
+  type SearchCatalog,
+  type SearchCriteria,
+} from "./cardSearch";
 import type { CardRow, CardSetRow } from "./db";
 import type {
   LocalDeck,
@@ -12,6 +22,7 @@ import type {
   LocalVenue,
 } from "./overlay";
 import {
+  readCardSearchStatus,
   readCardSets,
   readDeck,
   readDeckCards,
@@ -28,6 +39,7 @@ import {
   readVenues,
   searchCards,
   type CardQuery,
+  type CardSearchStatus,
   type DeckQuery,
   type GameQuery,
   type PlayerQuery,
@@ -89,6 +101,76 @@ export function useLocalCardSearch(query: CardQuery = {}): CardRow[] | undefined
   const { q, category, limit } = query;
   const querier = useCallback(() => searchCards(db, { q, category, limit }), [db, q, category, limit]);
   return useLiveQuery(querier);
+}
+
+/**
+ * Le catalogue joint et indexé en mémoire (lot Chercher), partagé par tous les
+ * composants d'un même runtime : `undefined` avant la première lecture.
+ */
+export function useSearchCatalog(): SearchCatalog | undefined {
+  const { catalog } = useVtesOffline();
+  const subscribe = useCallback((listener: () => void) => catalog.subscribe(listener), [catalog]);
+  return useSyncExternalStore(subscribe, () => catalog.snapshot());
+}
+
+/** Cartes possédées et cartes du deck choisi, pour les filtres de statut (P4). */
+export function useCardSearchStatus(deckKey?: DeckKey | null): CardSearchStatus | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readCardSearchStatus(db, deckKey), [db, deckKey]);
+  return useLiveQuery(querier);
+}
+
+export interface CardSearchOptions {
+  /** Deck cible du filtre « dans ce deck » (P4, P12). */
+  deckKey?: DeckKey | null;
+  sort?: CardSort;
+  /** Date d'évaluation de la légalité ; la date UTC du jour par défaut. */
+  on?: string;
+  /** Proposition de P1 (à valider en D1c) : sous le tri par nom, les correspondances par le nom d'abord. */
+  nameMatchesFirst?: boolean;
+}
+
+export interface CardSearchResult {
+  /** Résultats filtrés et triés ; `undefined` tant que le catalogue ou la projection n'est pas lu. */
+  cards: SearchableCard[] | undefined;
+  /** Nombre de résultats trouvés par leur nom (champ principal), quand `nameMatchesFirst`. */
+  byName: number | undefined;
+  /** Détails du catalogue complets : les filtres avancés sont utilisables. */
+  complete: boolean;
+}
+
+/**
+ * Recherche de Chercher : catalogue en mémoire, filtres purs, aucun parcours de
+ * la base par frappe. Le filtre est recalculé quand les critères, le catalogue
+ * ou la projection changent ; les critères doivent donc être un objet stable
+ * (mémoïsé par l'appelant).
+ */
+export function useCardSearch(criteria: SearchCriteria, options: CardSearchOptions = {}): CardSearchResult {
+  const catalog = useSearchCatalog();
+  const status = useCardSearchStatus(options.deckKey);
+  const on = options.on ?? todayUtc();
+  const { sort, nameMatchesFirst: grouped } = options;
+  return useMemo(
+    () => runCardSearch(catalog, status, criteria, { on, sort, grouped }),
+    [catalog, status, criteria, on, sort, grouped],
+  );
+}
+
+/** Le calcul de `useCardSearch`, hors React (testé à part). */
+export function runCardSearch(
+  catalog: SearchCatalog | undefined,
+  status: CardSearchStatus | undefined,
+  criteria: SearchCriteria,
+  options: { on: string; sort?: CardSort; grouped?: boolean },
+): CardSearchResult {
+  const complete = catalog?.complete ?? false;
+  if (!catalog || !status) return { cards: undefined, byName: undefined, complete };
+  const sorted = sortCards(filterCards(catalog.cards, criteria, { ...status, on: options.on }), options.sort);
+  if (!options.grouped || (options.sort && options.sort.key !== "name")) {
+    return { cards: sorted, byName: undefined, complete };
+  }
+  const { cards, byName } = nameMatchesFirst(sorted, criteria.query ?? "");
+  return { cards, byName, complete };
 }
 
 /** Extensions du catalogue (miroir de `GET /extensions`, Lot 4), pour choisir une impression. */

@@ -523,6 +523,53 @@ describe("catalogue", () => {
     );
     await waitFor(() => expect(screen.getByTestId("catalog-update")).not.toBeDisabled());
   });
+
+  // Lot Chercher, P11 : le catalogue est là mais ses détails manquent (base
+  // montée de la version 5, catalogue lu sur un ancien serveur).
+  const cataloguePages = (requests: Array<{ path: string }>) =>
+    requests.filter((request) => request.path === "/cartes").length;
+
+  it("relit tout seul, une fois, un catalogue présent dont les détails manquent", async () => {
+    const server = createFakeServer();
+    server.state.legacyCatalog = true; // le catalogue préchargé n'a pas de détails
+    const app = await renderApp({ online: true, hash: "#/", catalog: true, server });
+    server.state.legacyCatalog = false;
+
+    await waitFor(async () => expect(await app.runtime.db.cardDetails.count()).toBe(3));
+    expect(cataloguePages(server.state.requests)).toBe(1);
+  });
+
+  it("ne boucle pas quand le serveur ne rend toujours pas les détails", async () => {
+    const server = createFakeServer();
+    server.state.legacyCatalog = true;
+    const app = await renderApp({ online: true, hash: "#/", catalog: true, server });
+
+    await waitFor(() => expect(cataloguePages(server.state.requests)).toBe(1));
+    await waitFor(() => expect(screen.getByTestId("catalog-update")).not.toBeDisabled());
+    expect(await app.runtime.db.cardDetails.count()).toBe(0);
+    expect(cataloguePages(server.state.requests)).toBe(1);
+  });
+
+  it("ne relit rien quand le catalogue est complet", async () => {
+    const { server } = await renderApp({ online: true, hash: "#/", catalog: true });
+    await waitFor(() =>
+      expect(screen.getByTestId("catalog-state")).toHaveAttribute("data-count", "3"),
+    );
+    await act(async () => {});
+    expect(cataloguePages(server.state.requests)).toBe(0);
+  });
+
+  it("hors ligne, attend le réseau pour relire un catalogue incomplet", async () => {
+    const server = createFakeServer();
+    server.state.legacyCatalog = true;
+    const app = await renderApp({ online: false, hash: "#/", catalog: true, server });
+    server.state.legacyCatalog = false;
+    await act(async () => {});
+    expect(cataloguePages(server.state.requests)).toBe(0);
+
+    await act(async () => setOnline(true));
+    await waitFor(async () => expect(await app.runtime.db.cardDetails.count()).toBe(3));
+  });
 });
 
 describe("collection : vue tableau bureau (Lot 5bis, étape 8)", () => {

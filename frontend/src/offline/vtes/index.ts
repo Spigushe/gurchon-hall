@@ -27,10 +27,16 @@ export {
   VTES_STORES_V2,
   VTES_STORES_V3,
   VTES_STORES_V4,
+  VTES_STORES_V5,
 } from "./db";
 export type {
+  CardCostType,
+  CardDetailRow,
+  CardDisciplineDetail,
+  CardDisciplineRequirement,
   CardRow,
   CardSetRow,
+  CardTranslatedNameDetail,
   DeckCardRow,
   DeckRow,
   GameMeRow,
@@ -99,6 +105,57 @@ export type {
   VenuePatch,
 } from "./operations";
 export { availableStock, findByKey, project } from "./overlay";
+export { cardLegality, isCardLegal, todayUtc } from "./cardLegality";
+export type { CardLegality } from "./cardLegality";
+export { CatalogMemory } from "./catalogMemory";
+export {
+  ANY_GROUP,
+  NON_TITLED,
+  NOT_REQUIRED,
+  REFLEX_TYPE,
+  REQUIRES_NON_TITLED,
+  REQUIRES_TITLED,
+  REQUIRES_TITLED_SPECIFIC,
+  TITLE_VOTES,
+  activeFilterCount,
+  bareText,
+  buildSearchCatalog,
+  costMatches,
+  costRank,
+  filterCards,
+  hasDiscipline,
+  indexCard,
+  libraryDisciplineMatches,
+  matchValues,
+  nameMatches,
+  nameMatchesFirst,
+  needleOf,
+  requiredTitleValues,
+  searchPredicates,
+  sortCards,
+  textMatches,
+} from "./cardSearch";
+export type {
+  CardIndex,
+  CardSort,
+  CardSortKey,
+  Comparison,
+  CryptCriteria,
+  DisciplineChoice,
+  DisciplineLevel,
+  LegalityFilter,
+  LibraryCriteria,
+  LibraryDisciplineMode,
+  NumberLine,
+  SearchableCard,
+  SearchCatalog,
+  SearchContext,
+  SearchCriteria,
+  SetMode,
+  TextField,
+  TextLine,
+  ValueFilter,
+} from "./cardSearch";
 export type {
   LocalDeck,
   LocalDeckCard,
@@ -115,7 +172,9 @@ export type {
   Snapshot,
 } from "./overlay";
 export {
+  readCardSearchStatus,
   readCardSets,
+  readCatalogState,
   readDeck,
   readDeckCards,
   readDeckCountByCard,
@@ -134,6 +193,8 @@ export {
 } from "./reads";
 export type {
   CardQuery,
+  CardSearchStatus,
+  CatalogMirrorState,
   DeckListState,
   DeckQuery,
   GameQuery,
@@ -143,6 +204,8 @@ export type {
 } from "./reads";
 export {
   RefreshAuthError,
+  cardDetailRowOf,
+  cardRowOf,
   refreshCardSets,
   refreshCatalog,
   refreshDecks,
@@ -196,7 +259,12 @@ export type {
 } from "./types";
 export { VtesOfflineContext, useVtesOffline } from "./context";
 export { VtesOfflineProvider } from "./VtesOfflineProvider";
+export type { CardSearchOptions, CardSearchResult } from "./hooks";
 export {
+  runCardSearch,
+  useCardSearch,
+  useCardSearchStatus,
+  useSearchCatalog,
   useDeckCountByCardId,
   useLocalCardSearch,
   useLocalCardSets,

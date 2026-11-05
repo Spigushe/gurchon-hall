@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConnectivity, useLiveQuery } from "../../offline/react";
-import { useVtesOffline } from "../../offline/vtes";
+import { readCatalogState, useVtesOffline } from "../../offline/vtes";
 import { CatalogContext, type CatalogState } from "./catalogContext";
 
 /**
@@ -11,12 +11,19 @@ import { CatalogContext, type CatalogState } from "./catalogContext";
  * en ligne, s'il est vide, on le télécharge une fois ; en cas d'échec on ne
  * boucle pas, l'utilisateur relance par le bouton, et un retour du réseau
  * autorise un nouvel essai automatique.
+ *
+ * Lot Chercher (P11) : même relecture automatique, une fois, quand le catalogue
+ * est là mais que ses détails manquent ou sont incomplets (base montée de la
+ * version 5, catalogue lu sur un ancien serveur). Elle ne se répète pas si le
+ * serveur ne rend toujours pas les détails : le bouton reste.
  */
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const { db, refresh } = useVtesOffline();
   const online = useConnectivity();
-  const countQuery = useCallback(() => db.cards.count(), [db]);
-  const count = useLiveQuery(countQuery);
+  const stateQuery = useCallback(() => readCatalogState(db), [db]);
+  const mirror = useLiveQuery(stateQuery);
+  const count = mirror?.cards;
+  const detailsComplete = mirror?.complete;
   const [status, setStatus] = useState<CatalogState["status"]>("idle");
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState(false);
@@ -61,15 +68,15 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       attempted.current = false;
       return;
     }
-    if (count === 0 && !attempted.current) {
+    if (mirror && !mirror.complete && !attempted.current) {
       attempted.current = true;
       void update();
     }
-  }, [online, count, update]);
+  }, [online, mirror, update]);
 
   const value = useMemo(
-    () => ({ count, status, error, authRequired, update }),
-    [count, status, error, authRequired, update],
+    () => ({ count, detailsComplete, status, error, authRequired, update }),
+    [count, detailsComplete, status, error, authRequired, update],
   );
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }
