@@ -4,6 +4,12 @@ Décisions du 2026-09-25. Le Lot 5 laisse l'onglet Chercher désactivé, sans é
 lot le remplace par une page qui parcourt le catalogue et permet d'ajouter les cartes
 au deck, à la collection, ou aux deux.
 
+> **État au 2026-11-06 : brief clos, lot livré.** Toutes les étapes du plan
+> (`docs/lot-chercher-plan.md`) sont faites, vérification sur téléphone comprise.
+> Décisions et limites reportées au §11
+> de CLAUDE.md, état final au §12. Ce brief n'est plus tenu à jour : le plan et
+> CLAUDE.md font foi.
+>
 > **État au 2026-11-03 : lot ouvert.** Plan dans `docs/lot-chercher-plan.md`,
 > relu par les agents ; propositions tranchées par l'utilisateur le
 > 2026-11-03 (étape A0), étapes E0 et D1a livrées. Le plan fait foi là où il

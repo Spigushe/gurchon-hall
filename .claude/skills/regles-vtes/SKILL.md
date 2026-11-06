@@ -89,6 +89,36 @@ Légalité (Lot 2) : `deck_issues`, `deck_is_legal`, `group_issues`,
 libellés déjà formés (« Theo Bell (G2, Adv) »), un nom seul ne désignant pas une
 carte de crypt.
 
+Cartes seules (lot Chercher, étape A1, tests dans `backend/tests/test_vtes_rules_catalog.py`
+sur trois tables de cas de `backend/tests/fixtures/`) :
+
+```python
+class CardLegality(NamedTuple): banned: bool; not_yet_legal: bool  # ne s'excluent pas
+def card_legality(banned_on: date | None, legal_from: date | None, on: date) -> CardLegality: ...
+def crypt_sect(card_text: str | None, *, imbued: bool) -> str | None: ...
+def library_requirement(raw: str | None) -> LibraryRequirement: ...
+```
+
+- `card_legality` donne deux booléens et non un verdict unique : *Playing for
+  Keeps*, bannie le 1995-11-01 et légale à partir du 1996-01-14, est les deux à
+  la fois entre ces dates. `banned_cards` et `not_yet_legal_cards` passent par
+  les mêmes prédicats. Table `card_legality_cases.json`, lue aussi par vitest
+  (`cardLegality`, jumelle TypeScript de `frontend/src/offline/vtes/`).
+- `crypt_sect` lit le premier mot du texte (le second après « Advanced, »),
+  comme VDB ; un *imbued* est « Imbued ». Un premier mot inconnu rend `None`,
+  que l'import signale sans deviner. Un *advanced* fusionné qui change de secte
+  garde celle de sa face. Table `crypt_sect_cases.json`.
+- `library_requirement` découpe la colonne `Requirement` de `vteslibmeta.csv`
+  (vtescsv). Un titre implique sa secte (`TITLE_SECTS`, celle de VDB sauf
+  « bishop », titre du Sabbat ici) ; une exclusion (« non-anarch ») exige
+  toute autre secte de vampire et restreint une secte exigée par ailleurs ;
+  Black Hand, Seraph et les valeurs inconnues restent brutes. Table
+  `library_requirement_cases.json`.
+
+Ces deux dernières sont lues côté serveur seulement (à l'import pour la secte, à
+chaque sortie de `GET /cartes` pour l'exigence) : le client compare des listes
+et n'a pas de jumelle.
+
 Score et tournoi (Lot 7, livrées à l'étape A2, tests dans
 `backend/tests/test_vtes_rules_play.py`) :
 
@@ -142,3 +172,6 @@ fait échouer le lot entier en 422, sans verdict (décision du 2026-10-29).
   exception** (A14 du plan du Lot 7) : `certainGameWin`, portée dans
   `frontend/src/offline/vtes/` pour cocher le GW hors ligne, testée sur la même
   table de cas que `certain_game_win`. Le client suggère, le serveur tranche.
+  Le lot Chercher en ajoute une seconde, `cardLegality`, pour filtrer le
+  catalogue hors ligne : elle lit `card_legality_cases.json`, comme la fonction
+  Python.

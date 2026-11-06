@@ -6,7 +6,8 @@ livrées le même jour ; neuf précisions tranchées après A1 ; B1 livrée le
 livrées le même jour ; B1b, la mise en service sur `backend/vtes.db`, faite
 le 2026-11-05 sur feu vert de l'utilisateur ; D0, le handoff de design, reçu
 et versé le même jour (« Handoff reçu », sous P6) ; D1c et D2 livrées le même
-jour, D3 le 2026-11-06 ; restent E2, E3 et F.
+jour, D3 le 2026-11-06 ; E2, E3 et F le même jour, vérification sur téléphone
+comprise (« Livré à l'étape F »). Lot clos.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
 partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
@@ -991,7 +992,7 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | D3 | frontend-react | champ global et `/`, `CardImage`, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP — **fait le 2026-11-06** | D2 |
 | E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts`, `desktop-real-backend` de `deckbuilder.spec.ts` (non lancé à D1a) — **fait le 2026-11-06** | D1c |
 | E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et contrôle de clôture des `data-testid` — **fait le 2026-11-06**, mesures prises sur Chromium ralenti, le téléphone restant à F | D3 |
-| F | orchestrateur | CLAUDE.md (§5 ou §6 secte, §6 révision et exigence, §7, §11 avec l'amendement de §11.1, la licence vtescsv et la correction de D1a, §12, fixture à dix cartes), brief clos, vérification à la main sur téléphone | E3, B1b |
+| F | orchestrateur | CLAUDE.md (§5 ou §6 secte, §6 révision et exigence, §7, §11 avec l'amendement de §11.1, la licence vtescsv et la correction de D1a, §12, fixture à dix cartes), brief clos, vérification à la main sur téléphone — **fait le 2026-11-06**, téléphone compris ; `persist()` non relevé faute de contexte sécurisé | E3, B1b |
 
 Qui fait quoi. L'architecte porte en A1 tout ce qui touche au modèle, à
 l'import et aux règles : migration, dérivation de la secte, lecture de
@@ -1884,6 +1885,47 @@ bureau (suppression de la base signalée « bloquée » par la connexion de la p
 d'avant le rechargement) a conduit à attendre la fin du blocage au lieu
 d'échouer aussitôt ; les deux scénarios Dexie 5 sont ensuite passés trois fois
 chacun.
+
+### Livré à l'étape F (2026-11-06)
+
+CLAUDE.md mis à jour : en-tête (lot livré, commandes et chiffres de tests,
+révision `8ab23342a26f` de `backend/vtes.db` et sauvegarde d'avant le lot,
+`compare_db.py`, recensement des `data-testid`), §5 (secte des cartes de
+crypte, exigence des cartes de bibliothèque, légalité d'une carte seule), §6
+(douzième révision, `sect_id` rempli, `library_requirement`, point
+« [à confirmer] » de la secte levé), §7 (`CardSearchItem`, compression,
+contrat inchangé), §11 (amendement du §11.1 pour `vteslibmeta.csv` et sa
+licence absente, fixture à dix cartes, renvois du Lot 5c soldés, section
+« Tranchées pendant le lot Chercher » avec les licences des polices et la
+correction de D1a, limites connues), §12 (lot livré, Lot 8 en suivant). La
+skill `regles-vtes` décrit `card_legality`, `crypt_sect` et
+`library_requirement`, et la seconde exception à « pas de règle dans le
+front » (`cardLegality`). Brief marqué clos.
+
+Contrôles de clôture : `pytest --collect-only` compte 2493 tests, soit 2491
+verts et 2 `xfail` comme à B1, aucun code back n'ayant changé depuis ;
+`testid-census.mjs --check` vert contre la référence d'ouverture ; références
+CRAP vides des deux côtés.
+
+Vérification à la main sur téléphone, faite par l'utilisateur le 2026-11-06,
+sur le build servi par `scripts\run.ps1 preview` (sous-commande ajoutée pour
+l'occasion, avec le port 4173 autorisé en CORS ; il manquait jusque-là) et
+ouvert par `http://192.168.1.91:4173` en Wifi :
+
+- catalogue lu en entier en ligne, 4212 cartes, en une dizaine de secondes
+  (14 à 16 s mesurées en E3 sur Chromium ralenti) ;
+- en mode avion, une recherche et un ajout à un deck et à la collection, puis
+  synchronisés à la sortie du mode avion : tout est passé ;
+- `persist()` : résultat non relevé. Une page en `http://` sur une IP n'est
+  pas un contexte sécurisé : `navigator.storage` y est absent, donc la
+  fonction rend `unsupported` (écrit dans la console seulement), et le
+  service worker ne s'enregistre pas non plus. La vraie réponse demande
+  HTTPS, au plus tard au Lot 11 ;
+- montée en version 6 d'une base déjà en service : non établie. L'origine
+  `:4173` n'avait sans doute pas de base avant ; la montée reste couverte par
+  `vtesDbV6.test.ts` et par le scénario Dexie 5 des e2e aux deux largeurs.
+
+Le lot est clos.
 
 ## Tests attendus
 
