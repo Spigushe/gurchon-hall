@@ -4,6 +4,7 @@ import { clearCardOnlineCache } from "../../../src/features/catalog/useCardOnlin
 import { parseHash, hrefFor } from "../../../src/app/routes";
 import { createFakeServer, type FakeServer } from "../offline/fakeServer";
 import { SEARCH_CATALOG } from "../offline/fixtures/searchCases";
+import { library } from "../offline/fixtures/syntheticCatalog";
 import { flushEffects, renderApp, setOnline } from "./harness";
 
 /**
@@ -192,6 +193,51 @@ describe("page Chercher, mobile", () => {
     await waitFor(() => expect(within(again).getByTestId("search-filters-done")).toHaveTextContent(/Voir \d{2} résultats/));
   });
 
+  it("une puce de clan s'annonce une fois : l'icône qui précède le nom est décorative", async () => {
+    await renderSeeded("#/chercher");
+    await screen.findAllByTestId("search-row");
+    fireEvent.click(screen.getByTestId("search-category-crypt"));
+    fireEvent.click(screen.getByTestId("search-filters-open"));
+    const sheet = await screen.findByTestId("search-filters-sheet");
+    fireEvent.click(within(sheet).getByTestId("search-filter-cryptClans-open"));
+    const chips = within(sheet).getByTestId("search-filter-crypt-clans");
+    expect(within(chips).getByRole("checkbox", { name: "Ventrue" })).toBeInTheDocument();
+    expect(within(chips).queryByRole("img", { name: "Ventrue" })).not.toBeInTheDocument();
+    // La méta d'une ligne de résultat aussi : « Ventrue · … », sans second « Ventrue ».
+    fireEvent.click(within(sheet).getByTestId("search-filters-done"));
+    const row = screen.getAllByTestId("search-row").find((item) => item.getAttribute("data-card-id") === "5")!;
+    expect(within(row).queryByRole("img", { name: "Ventrue" })).not.toBeInTheDocument();
+    expect(within(row).getByRole("button").textContent).toContain("Ventrue");
+  });
+
+  it("titre requis Primogen : Emboldened Councilor, lue telle que la rend GET /cartes sur la base de développement", async () => {
+    // Exigence brute `primogen` de vteslibmeta.csv, lue par le serveur en Primogen et Camarilla
+    // (relevé du 2026-11-06 sur une copie de backend/vtes.db, carte 4199).
+    const server = seededServer();
+    server.state.catalog = [
+      ...SEARCH_CATALOG,
+      library({
+        id: 4199,
+        name: "Emboldened Councilor",
+        types: ["Reaction"],
+        libraryRequirement: "primogen",
+        requiredSects: ["Camarilla"],
+        requiredTitles: ["Primogen"],
+        text: "Requires a primogen.\n[REACTION] +1 intercept.\n[REACTION] Only usable by a locked primogen. This primogen unlocks and attempts to block.",
+      }),
+    ];
+    await renderSeeded("#/chercher", server);
+    await screen.findAllByTestId("search-row");
+    fireEvent.click(screen.getByTestId("search-category-library"));
+    fireEvent.click(screen.getByTestId("search-filters-open"));
+    const sheet = await screen.findByTestId("search-filters-sheet");
+    fireEvent.click(within(sheet).getByTestId("search-filter-libraryTitles-open"));
+    fireEvent.click(within(within(sheet).getByTestId("search-filter-library-titles")).getByLabelText("Primogen"));
+    fireEvent.click(within(sheet).getByTestId("search-filters-done"));
+    await waitFor(() => expect(rowNames()).toEqual(["4199"]));
+    expect(screen.getByTestId("search-row")).toHaveTextContent("Emboldened Councilor");
+  });
+
   it("filtres communs : texte en ligne NON, possédée, légalité", async () => {
     await renderSeeded("#/chercher");
     await screen.findAllByTestId("search-row");
@@ -325,7 +371,7 @@ describe("page Chercher, bureau", () => {
     fireEvent.click(screen.getByTestId("search-category-crypt"));
     const column = screen.getByTestId("search-filters-column");
     fireEvent.click(within(column).getByTestId("search-filter-cryptClans-open"));
-    fireEvent.click(within(column).getByLabelText("Ventrue"));
+    fireEvent.click(within(column).getByRole("checkbox", { name: "Ventrue" }));
     await waitFor(() => expect(rowNames().sort()).toEqual(["10", "5", "9"]));
     fireEvent.click(within(column).getByTestId("search-filter-crypt-clans-mode")); // ET
     fireEvent.click(within(column).getByTestId("search-filter-crypt-clans-mode")); // NON

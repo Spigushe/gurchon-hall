@@ -66,8 +66,8 @@ const setLibrary = (props: EditorProps, patch: Partial<LibraryCriteria>) =>
   props.onChange({ ...props.state, library: { ...props.state.library, ...patch } });
 
 const SET_MODES: SetMode[] = ["or", "and", "not"];
-const clanIcon = (name: string) => <ClanGlyph name={name} />;
-const typeIcon = (name: string) => <TypeGlyph type={name} />;
+const clanIcon = (name: string) => <ClanGlyph name={name} decorative />;
+const typeIcon = (name: string) => <TypeGlyph type={name} decorative />;
 const OR_NOT: Array<"or" | "not"> = ["or", "not"];
 const LIBRARY_DISCIPLINE_MODES: LibraryDisciplineMode[] = ["or", "and", "not", "only"];
 

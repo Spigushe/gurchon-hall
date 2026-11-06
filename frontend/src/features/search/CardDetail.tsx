@@ -55,7 +55,7 @@ function CryptFacts({ item, on }: { item: SearchableCard; on: string }) {
       <Fact label="Capacité">{card.capacity ?? "—"}</Fact>
       <Fact label="Groupe">{card.groupCode ?? "—"}</Fact>
       <Fact label="Clan · secte">
-        <ClanGlyph name={card.clanName} /> {[card.clanName, details?.sect, details?.path].filter(Boolean).join(" · ") || "—"}
+        <ClanGlyph name={card.clanName} decorative /> {[card.clanName, details?.sect, details?.path].filter(Boolean).join(" · ") || "—"}
       </Fact>
       {details?.title && <Fact label="Titre">{details.title}</Fact>}
       {details && details.disciplines.length > 0 && (
@@ -89,7 +89,7 @@ function LibraryFacts({ item, on }: { item: SearchableCard; on: string }) {
           <Fact label="Type">
             {details.types.map((type) => (
               <span key={type} className="card-fact__type">
-                <TypeGlyph type={type} /> {type}
+                <TypeGlyph type={type} decorative /> {type}
               </span>
             ))}
           </Fact>

@@ -52,7 +52,7 @@ function RowMeta({ item }: { item: SearchableCard }) {
     const parts = [card.clanName, details?.sect, details?.title, card.groupCode].filter(Boolean);
     return (
       <span className="search-row__meta">
-        <ClanGlyph name={card.clanName} />
+        <ClanGlyph name={card.clanName} decorative />
         {parts.join(" · ")}
       </span>
     );
@@ -60,7 +60,7 @@ function RowMeta({ item }: { item: SearchableCard }) {
   const types = details?.types ?? [];
   return (
     <span className="search-row__meta">
-      {types[0] && <TypeGlyph type={types[0]} />}
+      {types[0] && <TypeGlyph type={types[0]} decorative />}
       {types.join(" / ") || "Bibliothèque"}
     </span>
   );
@@ -183,7 +183,7 @@ const deckColumn: Column = {
 
 const typeCell = (item: SearchableCard) => (
   <>
-    {item.details?.types[0] && <TypeGlyph type={item.details.types[0]} />} {item.details?.types.join(" / ") ?? ""}
+    {item.details?.types[0] && <TypeGlyph type={item.details.types[0]} decorative />} {item.details?.types.join(" / ") ?? ""}
   </>
 );
 
@@ -212,7 +212,7 @@ const CRYPT_COLUMNS: Column[] = [
     className: "col-clan",
     cell: (item) => (
       <>
-        <ClanGlyph name={item.card.clanName} /> {[item.card.clanName, item.details?.sect].filter(Boolean).join(" · ")}
+        <ClanGlyph name={item.card.clanName} decorative /> {[item.card.clanName, item.details?.sect].filter(Boolean).join(" · ")}
       </>
     ),
   },

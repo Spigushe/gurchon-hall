@@ -7,15 +7,25 @@ import { clanGlyph, costGlyph, disciplineGlyph, disciplineLabel, textIcon, typeG
  * Une icône de krcg : une lettre d'une police d'icônes, avec un nom
  * accessible. Sans `label`, un lecteur d'écran lirait « p » pour Potence ;
  * `role="img"` et `aria-label` lui font lire « Potence supérieure ».
+ *
+ * `decorative` : l'icône est suivie de son propre nom en texte (puce de clan,
+ * méta d'une ligne « Ventrue · Sabbat »). Elle est alors masquée aux lecteurs
+ * d'écran, qui liraient sinon « Ventrue Ventrue » ; l'infobulle reste.
  */
-export function GlyphIcon({ glyph, label, size }: { glyph: Glyph; label: string; size?: "meta" | "row" | "grid" | "cost" }) {
+export function GlyphIcon({
+  glyph,
+  label,
+  size,
+  decorative = false,
+}: {
+  glyph: Glyph;
+  label: string;
+  size?: "meta" | "row" | "grid" | "cost";
+  decorative?: boolean;
+}) {
+  const a11y = decorative ? { "aria-hidden": true } : { role: "img", "aria-label": label };
   return (
-    <span
-      className={`glyph glyph--${glyph.font}${size ? ` glyph--${size}` : ""}`}
-      role="img"
-      aria-label={label}
-      title={label}
-    >
+    <span className={`glyph glyph--${glyph.font}${size ? ` glyph--${size}` : ""}`} {...a11y} title={label}>
       {glyph.char}
     </span>
   );
@@ -49,14 +59,16 @@ export function DisciplineGlyphs({ disciplines, size = "row" }: { disciplines: C
   );
 }
 
-export function TypeGlyph({ type }: { type: string }) {
+/** `decorative` quand le nom du type suit l'icône en texte (cf. `GlyphIcon`). */
+export function TypeGlyph({ type, decorative = false }: { type: string; decorative?: boolean }) {
   const glyph = typeGlyph(type);
-  return glyph ? <GlyphIcon glyph={glyph} label={type} size="meta" /> : null;
+  return glyph ? <GlyphIcon glyph={glyph} label={type} size="meta" decorative={decorative} /> : null;
 }
 
-export function ClanGlyph({ name }: { name: string | null }) {
+/** `decorative` quand le nom du clan suit l'icône en texte (cf. `GlyphIcon`). */
+export function ClanGlyph({ name, decorative = false }: { name: string | null; decorative?: boolean }) {
   const glyph = clanGlyph(name);
-  return glyph && name ? <GlyphIcon glyph={glyph} label={name} size="meta" /> : null;
+  return glyph && name ? <GlyphIcon glyph={glyph} label={name} size="meta" decorative={decorative} /> : null;
 }
 
 /** Glyphe de coût, ou le coût en texte quand il n'y en a pas (conviction). */
