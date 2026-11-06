@@ -1,5 +1,4 @@
 import { useId, useRef, useState, type FormEvent } from "react";
-import { CardImage } from "../../components/CardImage";
 import { Kbd } from "../../components/Kbd";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
@@ -11,6 +10,8 @@ import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { CATEGORY_LABELS, cardLabel, cardSetLabel, plural } from "../../labels";
 import { useVtesOffline, type CardRow, type LocalDeck } from "../../offline/vtes";
 import { CardPicker } from "../catalog/CardPicker";
+import { ChosenCardImage } from "../catalog/ChosenCardImage";
+import { SearchForDeckLink } from "./SearchForDeckLink";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
 import { useLanguageOptions } from "../stock/useLanguageOptions";
 import { useAddDeckCard } from "./useAddDeckCard";
@@ -274,10 +275,11 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
             clearOnSelect={false}
             searchInputRef={searchInputRef}
           />
+          <SearchForDeckLink deck={deck} desktop />
 
           {chosen && (
             <div className="deck-card-form-selected" data-testid="deck-card-form-selected">
-              <CardImage src={chosen.imageUrl} alt={chosen.label} size="sm" />
+              <ChosenCardImage card={chosen} cardSetId={effectiveCardSetId} />
               <div className="deck-card-form-selected__body">
                 <div className="deck-card-form-selected__title">
                   <p className="row__name">{chosen.label}</p>
@@ -355,6 +357,7 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
       >
         {chosen ? (
           <div className="chosen-row" data-testid="deck-card-form-chosen">
+            <ChosenCardImage card={chosen} cardSetId={effectiveCardSetId} enlargeable />
             <span>
               Carte : <strong>{chosen.label}</strong>
             </span>

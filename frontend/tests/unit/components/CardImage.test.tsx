@@ -121,4 +121,30 @@ describe("<CardImage />", () => {
 
     expect(screen.getByRole("img", { name: "Carte B" }).tagName).toBe("IMG");
   });
+
+  it("essaie l'image de l'impression, puis l'image générique, puis le repli (lot Chercher, D3)", () => {
+    renderWithConnectivity(
+      <CardImage src="https://static.krcg.org/card/set/kot/a.jpg" fallbackSrc="https://static.krcg.org/card/a.jpg" alt="Carte A" />,
+      true,
+    );
+    expect(screen.getByRole("img", { name: "Carte A" })).toHaveAttribute("src", "https://static.krcg.org/card/set/kot/a.jpg");
+    fireEvent.error(screen.getByRole("img", { name: "Carte A" }));
+    expect(screen.getByRole("img", { name: "Carte A" })).toHaveAttribute("src", "https://static.krcg.org/card/a.jpg");
+    fireEvent.error(screen.getByRole("img", { name: "Carte A" }));
+    expect(document.querySelector("img")).not.toBeInTheDocument();
+  });
+
+  it("sans impression, prend directement l'image générique", () => {
+    renderWithConnectivity(<CardImage src={null} fallbackSrc="https://static.krcg.org/card/a.jpg" alt="Carte A" />, true);
+    expect(screen.getByRole("img", { name: "Carte A" })).toHaveAttribute("src", "https://static.krcg.org/card/a.jpg");
+  });
+
+  it("le repli expliqué dit pourquoi l'image manque : hors ligne, ou pas d'image pour cette impression", () => {
+    const { unmount } = renderWithConnectivity(<CardImage src="https://x/a.jpg" alt="Carte A" explain size="picker" />, false);
+    expect(screen.getByRole("img", { name: "Carte A : Image indisponible hors ligne" })).toBeInTheDocument();
+    expect(document.querySelector(".card-image--picker")).toBeInTheDocument();
+    unmount();
+    renderWithConnectivity(<CardImage src={null} alt="Carte B" explain />, true);
+    expect(screen.getByRole("img", { name: "Carte B : Pas d'image pour cette impression" })).toBeInTheDocument();
+  });
 });

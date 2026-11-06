@@ -180,12 +180,15 @@ describe("relecture du catalogue hors de la séquence des 60 s", () => {
   it("un catalogue plus lent que le délai des miroirs aboutit, sous son propre délai", async () => {
     const server = createFakeServer();
     const slow = wrap(server, async (path, forward) => {
-      if (path === "/cartes") await new Promise((resolve) => setTimeout(resolve, 120));
+      if (path === "/cartes") await new Promise((resolve) => setTimeout(resolve, 900));
       return forward();
     });
-    const runtime = boot(slow, { refreshTimeoutMs: 60, catalogTimeoutMs: 2000 });
+    // Marges larges : sous la suite complète et la couverture, les miroirs ont dépassé
+    // un délai de 60 ms (échec isolé du 2026-11-05). Seul compte l'ordre des délais :
+    // catalogue (900 ms) plus lent que le délai des miroirs (600 ms), sous le sien.
+    const runtime = boot(slow, { refreshTimeoutMs: 600, catalogTimeoutMs: 4000 });
 
-    const report = await within(runtime.refresh({ catalog: true }), 3000, "refresh");
+    const report = await within(runtime.refresh({ catalog: true }), 6000, "refresh");
 
     expect(report).toMatchObject({ complete: true, errors: [] });
     expect(report.refreshed.at(-1)).toBe("catalog");

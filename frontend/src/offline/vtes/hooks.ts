@@ -23,6 +23,7 @@ import type {
 } from "./overlay";
 import {
   readCardSearchStatus,
+  readCardUsage,
   readCardSets,
   readDeck,
   readDeckCards,
@@ -40,6 +41,7 @@ import {
   searchCards,
   type CardQuery,
   type CardSearchStatus,
+  type CardUsage,
   type DeckQuery,
   type GameQuery,
   type PlayerQuery,
@@ -117,6 +119,16 @@ export function useSearchCatalog(): SearchCatalog | undefined {
 export function useCardSearchStatus(deckKey?: DeckKey | null): CardSearchStatus | undefined {
   const { db } = useVtesOffline();
   const querier = useCallback(() => readCardSearchStatus(db, deckKey), [db, deckKey]);
+  return useLiveQuery(querier);
+}
+
+/** Exemplaires possédés et decks qui jouent une carte (fiche de Chercher). `null` : aucune carte. */
+export function useCardUsage(cardId: number | null): CardUsage | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(
+    async () => (cardId === null ? { copies: [], decks: [] } : readCardUsage(db, cardId)),
+    [db, cardId],
+  );
   return useLiveQuery(querier);
 }
 

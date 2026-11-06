@@ -174,6 +174,7 @@ export type {
 export {
   readCardSearchStatus,
   readCardSets,
+  readCardUsage,
   readCatalogState,
   readDeck,
   readDeckCards,
@@ -194,6 +195,7 @@ export {
 export type {
   CardQuery,
   CardSearchStatus,
+  CardUsage,
   CatalogMirrorState,
   DeckListState,
   DeckQuery,
@@ -264,6 +266,7 @@ export {
   runCardSearch,
   useCardSearch,
   useCardSearchStatus,
+  useCardUsage,
   useSearchCatalog,
   useDeckCountByCardId,
   useLocalCardSearch,

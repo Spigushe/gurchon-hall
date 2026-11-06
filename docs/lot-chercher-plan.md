@@ -5,8 +5,8 @@ livrées le même jour ; neuf précisions tranchées après A1 ; B1 livrée le
 2026-11-05, essai de mise en service sur copie compris ; C1a, C1b et E1
 livrées le même jour ; B1b, la mise en service sur `backend/vtes.db`, faite
 le 2026-11-05 sur feu vert de l'utilisateur ; D0, le handoff de design, reçu
-et versé le même jour (« Handoff reçu », sous P6) ; restent D1c, D2, D3, E2,
-E3 et F.
+et versé le même jour (« Handoff reçu », sous P6) ; D1c et D2 livrées le même
+jour, D3 le 2026-11-06 ; restent E2, E3 et F.
 
 Rédigé le 2026-11-03 par l'orchestrateur sur la branche `lot-chercher`, à
 partir de `fce352f` (Lot 7 livré, plan du lot Inventaires versé), relu le même
@@ -986,9 +986,9 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | E1 | qa-tests | fabrique de catalogue synthétique, table de cas de `filterCards` avec pwa-offline (modes de disciplines, lignes de texte, votes, capacité, exigences), faux serveur paginé, squelette du test de montée — **fait le 2026-11-05** | A1 |
 | D0 | orchestrateur, utilisateur, Claude Design | brief de design, puis handoff de l'écran Chercher — **fait le 2026-11-05** (`CHERCHER.md` ; points ouverts dans « Handoff reçu », sous P6) | A0 |
 | D1b | frontend-react | route, onglet, chargement paresseux et préchauffement, page avec la recherche par nom existante, mobile et bureau — **fait le 2026-11-03** | A0, E0 |
-| D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP | C1a, C1b, D0, D1b |
-| D2 | frontend-react | feuille d'ajout (P10, `buildAddOperation`) ; contrôle CRAP | D1a, D1c |
-| D3 | frontend-react | champ global et `/`, `CardImage`, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP | D2 |
+| D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP — **fait le 2026-11-05** | C1a, C1b, D0, D1b |
+| D2 | frontend-react | feuille d'ajout (P10, `buildAddOperation`) ; contrôle CRAP — **fait le 2026-11-05** | D1a, D1c |
+| D3 | frontend-react | champ global et `/`, `CardImage`, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP — **fait le 2026-11-06** | D2 |
 | E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts`, `desktop-real-backend` de `deckbuilder.spec.ts` (non lancé à D1a) | D1c |
 | E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et contrôle de clôture des `data-testid` | D3 |
 | F | orchestrateur | CLAUDE.md (§5 ou §6 secte, §6 révision et exigence, §7, §11 avec l'amendement de §11.1, la licence vtescsv et la correction de D1a, §12, fixture à dix cartes), brief clos, vérification à la main sur téléphone | E3, B1b |
@@ -1469,6 +1469,279 @@ n'avait pas lancé, passe donc. Suite complète (`npm run test:e2e`) : 61 tests,
 entre-temps), attendait encore qu'« Ajouter 2 » sur une ligne à 1 donne 2,
 l'ancien écrasement que D1a a corrigé, et D1a ne l'avait pas lancé. Attendu
 porté à 3 avec un commentaire ; le fichier repasse vert (4 tests).
+
+### Livré à l'étape D1c (2026-11-05)
+
+La page Chercher de D1b devient l'écran du handoff, mobile puis bureau :
+filtres de P1, tri de P9, fiche d'une carte. Une seule source d'état
+(`useSearchPage`) pour deux dispositions choisies par la largeur
+(`SearchMobile`, `SearchDesktop`) ; la traduction de l'état en critères de
+`filterCards`, les résumés, le compteur, la réinitialisation et les tris sont
+des fonctions pures (`searchModel.ts`). Aucun changement de contrat ni de
+backend.
+
+**Icônes.** Les deux polices de krcg sont copiées dans
+`frontend/src/assets/fonts/` (`ankha2.otf`, 185 Ko ; `vtes-clans.otf`,
+336 Ko) et précachées (`otf` ajouté aux `globPatterns` de `vite.config.ts`),
+sans conversion en `woff2` faute d'outil installé. La table du handoff a été
+relue sur les polices par une page de rendu de chaque code : Oblivion
+(`ø` / `Ø`), Striga (`à` / `á`) et Maleficia (`â` / `ã`) y sont et entrent
+dans `glyphs.ts`, avec Flight et les sept vertus (un seul glyphe). Hecata n'a
+pas de glyphe connu dans `vtes-clans.otf` : il s'affiche sans icône plutôt
+qu'avec une icône devinée. Chaque glyphe porte `role="img"` et un nom
+accessible (« Potence supérieure », « Defense » pour une vertu), y compris
+dans le texte de carte, où `[pot]`, `[POT]`, `[MERGED]`, `[FLIGHT]`, les types
+et `[N CONVICTION]` deviennent des icônes. Les licences restent à consigner
+au §11 à l'étape F.
+
+**Filtres.** Tous ceux de P1, en éditeurs partagés : feuille plein écran au
+mobile (liste, puis un écran par filtre), colonne à gauche au bureau (lignes
+qui se déplient, grilles de disciplines ouvertes d'emblée). Pastille de mode
+qui cycle, avec ses points et sa phrase d'aide ; les quatre phrases du
+handoff pour les disciplines de bibliothèque, une phrase générique ailleurs.
+Les valeurs proposées (disciplines, vertus, clans, credos et voies, types,
+titres) sont lues dans le catalogue en mémoire (`searchOptions.ts`) ; les
+listes fermées de P1 (sectes, titres de crypte, votes) gardent leur ordre.
+Choix faits en écrivant :
+
+- sous « Toutes », les filtres de crypte et de bibliothèque sont masqués et
+  ne s'appliquent pas ; ils restent dans l'état, si bien que revenir à leur
+  catégorie les retrouve ;
+- un filtre vidé garde son mode : choisir NON avant la première valeur n'est
+  pas perdu, et le filtre reste inactif tant qu'il est vide ;
+- les changements s'appliquent aussitôt, sans brouillon ; « Voir N
+  résultats » ferme la feuille, « Effacer » vide le filtre ouvert,
+  « Réinitialiser » vide ceux de la catégorie choisie et garde le texte, la
+  catégorie, le deck cible et le tri ;
+- le filtre « deck » propose tous les decks vivants, rangés compris (marqués
+  « rangé ») : filtrer ne modifie rien. La feuille d'ajout de D2 écartera les
+  decks archivés ;
+- sur un miroir incomplet, le bouton « Filtres » (mobile) et la colonne
+  (bureau, à 45 %) sont désactivés, la recherche ne porte que sur le nom, et
+  le bloc « Recherche dans le nom seulement » propose la mise à jour, grisée
+  hors ligne et masquée pendant la relecture automatique (P11).
+
+**Tri et compteur.** La proposition de P1 et P9, retenue par le handoff, est
+appliquée : sous le tri par défaut, les cartes trouvées par leur nom passent
+devant celles trouvées par leur texte, et le compteur dit « 1 par le nom ·
+1 par le texte » ; un tri choisi efface ce regroupement. Mobile : un
+`<select>` des tris de la catégorie. Bureau : clic sur les en-têtes Nom,
+Cap., Grp et Coût seulement, le second clic inversant le sens.
+
+**Résultats.** Mobile : une ligne par carte (nom, méta avec glyphe de clan ou
+de type, disciplines, « 3 en collection », « dans ce deck ×2 », légalité
+seulement quand la carte n'est pas légale, capacité ou coût à droite). Bureau :
+tableau aux colonnes du handoff ; la colonne Deck s'ajoute dès qu'un deck est
+ciblé, en crypte comme en bibliothèque. Tranches de 50 aux deux largeurs, au
+défilement (`IntersectionObserver`) et au bouton « Afficher 50 de plus ».
+
+**Fiche.** Mobile : demi-feuille que la poignée ou la ligne d'invite étendent,
+toutes deux des boutons (`aria-expanded`), donc atteignables au toucher simple
+et au clavier. Bureau : colonne de droite toujours visible. Contenu : catégorie
+et groupe, nom, faits (crypte : capacité, groupe, clan · secte · voie, titre,
+disciplines ; bibliothèque : types, disciplines au choix ou combinées,
+exigence, coût), légalité du jour, texte avec ses icônes, mes exemplaires par
+langue et extension, decks qui la jouent, impressions. L'image est la
+générique du miroir ; l'image par impression vient à D3. Le texte d'ambiance
+et l'artiste du handoff ne sont pas dans le miroir et ne sont pas affichés.
+
+**Deck cible.** Le `deck` de l'adresse cible un deck (bandeau « Pour le
+deck », filtre « pas dans ce deck », P12). Une clé inconnue des decks locaux
+est ignorée sans être effacée, et ne quitte l'adresse qu'une fois les decks
+lus. `App.tsx` ne remonte plus la page sur un changement de deck (la `key`
+de D1b) : `useRoute` relit l'adresse à chaque rendu, et choisir ou retirer le
+deck cible remontait la page en perdant les filtres.
+
+**Clavier, bureau.** `F` focalise la colonne de filtres, `↑ ↓` parcourent le
+tableau et mettent la fiche à jour, `↵` porte le focus sur la fiche ; aucun
+ne prend `A C D P S`, et `↑ ↓ ↵` laissent la main à un contrôle focalisé.
+`N` et `/` viennent avec D2 et D3.
+
+**Couche offline.** Deux ajouts de lecture, sans changement de schéma :
+`CardSearchStatus` gagne `ownedCounts` et `deckQuantities` (quantités par
+carte, collection et deck ciblé) ; `readCardUsage` et `useCardUsage` donnent
+les exemplaires et les decks d'une carte pour la fiche.
+
+Identifiants nouveaux, sous `search-*` : `search-meta`, `search-clear`,
+`search-category-all`, `-crypt`, `-library`, `search-filters-open`, `-count`,
+`-sheet`, `-done`, `-reset`, `-column`, `-to-crypt`, `-to-library`,
+`search-filter-<clé>-open` (une par filtre), `search-filter-back`,
+`search-filter-clear`, les éditeurs (`search-filter-crypt-disciplines`,
+`-library-disciplines` et son `-mode` et `-none`, `-virtues`, `-crypt-clans`,
+`-crypt-sects`, `-groups`, `-capacity-mode`, `-capacity-line`,
+`-capacity-add`, `-crypt-titles`, `-votes`, `-types`, `-library-clans`,
+`-library-sects`, `-library-titles`, `-bloodCost`, `-poolCost`,
+`-card-sets`, `-legality`, `-owned`, `-deck`, `-deck-state`, `-pairs`),
+`search-pair`, `search-pair-add`, `search-text-line`, `-input`, `-mode`,
+`search-text-add`, `search-row-owned`, `search-row-legality`, `search-more`,
+`search-sort`, `search-sort-<colonne>`, `search-outdated`,
+`search-outdated-update`, `search-offline`, `search-loading`,
+`search-no-result-clear`, `-reset`, `-all`, `search-deck-banner`,
+`search-deck-clear`, `search-detail`, `-empty`, `-sheet`, `-expand`,
+`-close`, `-image`, `-owned`, `-decks`, `-printings`. Aucun identifiant
+disparu au recensement (444 en référence).
+
+Fichiers. Nouveaux, dans `src/features/search/` : `glyphs.ts`, `Glyph.tsx`,
+`searchModel.ts`, `searchOptions.ts`, `searchFormat.ts`, `useSearchPage.ts`,
+`useTranches.ts`, `FilterControls.tsx`, `FilterEditor.tsx`,
+`FilterPanels.tsx`, `SearchResults.tsx`, `CardDetail.tsx`, `SearchParts.tsx`,
+`SearchMobile.tsx`, `SearchDesktop.tsx` ; `src/assets/fonts/` ; deux fichiers
+de test (`tests/unit/features/search/searchModel.test.ts`, `glyphs.test.ts`).
+Modifiés : `SearchPage.tsx` (réécrit), `App.tsx`, `index.css`,
+`vite.config.ts`, `offline/vtes/reads.ts`, `hooks.ts`, `index.ts`,
+`tests/unit/ui/search.test.tsx` (réécrit aux deux largeurs, sur le catalogue
+synthétique d'E1).
+
+Chiffres : vitest 956 tests sur 60 fichiers (923 sur 58 avant D1c), sous
+couverture ; lint et `tsc` propres ; CRAP front 2151 fonctions, aucune
+au-dessus de 30 (`LibraryFacts`, à 110 au premier passage faute de test,
+découpée et couverte), références toujours vides. Playwright contre le vrai
+back, sur un `dist-real` reconstruit : `chercher-d1b` aux deux largeurs,
+`search-parity` et `offline-db-schema`, 5 tests verts. Le rendu a été relu sur
+des captures à 390 et 1440 px contre le vrai back.
+
+### Livré à l'étape D2 (2026-11-05)
+
+La feuille d'ajout de P10, depuis la fiche d'une carte : « Ajouter… » dans la
+demi-feuille mobile, bouton « Ajouter… » et touche `N` dans la colonne de
+fiche au bureau, où la même feuille devient le panneau latéral et se valide
+par `⌘↵`. Aucun changement de contrat, de backend ni de couche offline : les
+écritures passent par `saveDeckCard` et `saveStock`, donc par la file.
+
+Le calcul est une fonction pure, `buildAddOperation(choix, état, où)`
+(`features/search/addOperation.ts`), qui rend l'opération, l'effet dit avant
+l'envoi, le détail des quantités et le nombre d'exemplaires ajoutés, ou le
+motif du refus :
+
+- **Deck** : la logique du deckbuilder (`computeAddedLine`, D1a). « Dont
+  possédées » prend au stock disponible pour ce deck, ligne existante déduite
+  (`stockFreeFor`), et n'acquiert jamais rien : l'achat relève de « Les
+  deux ». Le reste est en proxy. Un deck qui refuse les proxies ne prend que
+  ce que le stock couvre, sinon le refus du handoff (écran 37) : « Ce deck
+  n'autorise pas les proxies : il manque 2 exemplaires au stock. Baissez les
+  copies à 6 ou ajoutez-les aussi à la collection (Les deux). » ;
+- **Collection** : `stock.upsert` à la quantité de la projection plus *n*,
+  effet « Vous en aurez 6 en anglais (KoT) » ;
+- **Les deux** : une seule `deck_card.upsert` avec `acquired_quantity = n` ;
+  les *n* exemplaires remplacent d'abord les proxies de la ligne, puis s'y
+  ajoutent (« 2 exemplaires remplacent 2 proxies · 1 s'ajoute au deck »).
+  L'acquisition vaut exactement les exemplaires réels que l'écriture ajoute,
+  la borne de `saveDeckCard` et du serveur.
+
+Choix faits en écrivant :
+
+- langue et extension de départ : l'entrée de collection la mieux fournie,
+  sinon la dernière version de la carte en français, comme le deckbuilder ;
+- choix de départ : « Deck » avec un deck ciblé non archivé, « Collection »
+  sinon ; « Deck » et « Les deux » sont désactivés sans deck actif, et les
+  decks archivés ne sont pas proposés ;
+- rien n'est jugé avant que decks, collection et stock disponible soient lus
+  (sinon « Choisissez un deck » s'affichait le temps d'une lecture) ;
+- les quantités se règlent aux steppers existants (`Stepper`), dont le champ
+  numérique reste saisissable.
+
+Confirmation (écran 38, d19) : la feuille se ferme, la ligne se teinte trois
+secondes avec « +3 à l'instant », et reste à sa place jusqu'au prochain
+changement de filtre même quand « pas dans ce deck » devrait l'écarter
+(`withHeld`, fonction pure de `searchModel.ts`). Une région `aria-live`
+annonce l'ajout ; l'annonce attend la fermeture du panneau, le reste de
+l'application étant `inert` tant qu'il est ouvert au bureau.
+
+Identifiants nouveaux : `search-detail-add`, `search-add-sheet`,
+`search-add-target-deck`, `-collection`, `-both`, `search-add-deck`,
+`search-add-copies`, `search-add-possessed`, `search-add-card-set`,
+`search-add-effect`, `search-add-error`, `search-add-submit`,
+`search-add-feedback`, `search-row-confirmed`.
+
+Fichiers. Nouveaux : `src/features/search/addOperation.ts`, `AddSheet.tsx`,
+`tests/unit/features/search/addOperation.test.ts`. Modifiés :
+`searchModel.ts` (`withHeld`), `useSearchPage.ts`, `SearchResults.tsx`,
+`SearchMobile.tsx`, `SearchDesktop.tsx`, `SearchParts.tsx`, `index.css`,
+`tests/unit/ui/search.test.tsx` (cinq scénarios d'ajout aux deux largeurs).
+
+Chiffres : vitest 972 tests sur 61 fichiers, sous couverture ; lint et `tsc`
+propres ; CRAP front 2211 fonctions, aucune au-dessus de 30 (`AddSheet`, à
+36 au premier passage par sa seule complexité, découpée en un hook et trois
+sous-composants), références toujours vides. Playwright contre le vrai back,
+sur un `dist-real` reconstruit : `chercher-d1b` aux deux largeurs,
+`search-parity`, `deckbuilder` en `desktop-real-backend`, 6 tests verts, plus
+une capture de la feuille d'ajout relue à 390 px. Un test de minutage de C1a
+(`vtesCatalogRefresh`, catalogue plus lent que le délai des miroirs) a échoué
+une fois sous la suite complète, vert en isolé ; ses délais ont été élargis
+(600 ms pour les miroirs, 900 ms pour le catalogue) sans changer ce qu'il
+vérifie.
+
+### Livré à l'étape D3 (2026-11-06)
+
+Les entrées de Chercher et les images. Aucun changement de contrat, de backend
+ni de couche offline.
+
+**Champ global et `/` (P8).** Le champ revient dans la barre haute bureau
+(`GlobalSearchField`, chargé avec la coquille) : « Chercher une carte
+(catalogue) », kbd `/` au repos et `↵` en saisie. `↵` ouvre Chercher avec le
+texte dans le champ principal, puis vide le champ global. Sur Chercher, il ne
+double pas le champ de la page : il devient un bouton souligné « Chercher ·
+sur cette page » qui y porte le focus. Un seul `/` à la fois : la liaison vit
+dans `App`, coupée sur la route du deckbuilder où `/` reste au picker, inerte
+dans un champ (comportement par défaut du hook) et tant qu'une feuille est
+ouverte ; elle focalise le champ de la page sur Chercher, le champ global
+ailleurs (`focusSearch`). Au mobile, la barre haute est masquée et `/` n'a
+pas de cible hors de Chercher.
+
+**Lecture à la demande (P7).** `useCardOnline` (`features/catalog/`) lit
+`GET /cartes/{id}` en ligne seulement, une fois par carte et par session
+(cache de module, le catalogue étant commun à tous les comptes) ; hors ligne,
+rien n'est lancé. Elle apporte les images par impression, et aussi le texte
+d'ambiance et l'artiste, que la fiche étendue affiche désormais en citation
+quand ils existent (D1c ne les avait pas, faute de miroir).
+
+**Images.** `CardImage` gagne une seconde source (`fallbackSrc`, l'image
+générique, essayée après l'image de l'impression et avant le pictogramme),
+une taille `picker` (88 × 123) et un repli expliqué (`explain`) : « Image
+indisponible hors ligne » ou « Pas d'image pour cette impression ». Les écrans
+d'avant le lot ne passent pas `explain` et gardent le pictogramme seul. La
+fiche montre l'image générique (on y parle de la carte) avec le repli
+expliqué. Le picker du deckbuilder montre l'image de l'impression choisie (on
+y parle d'un exemplaire), puis la générique : au bureau à la place de l'image
+générique de D1c, au mobile dans la ligne de la carte choisie (écran 41), en
+ligne seulement, un toucher l'agrandissant ou la réduisant. Hors ligne, la
+ligne mobile reste celle d'avant. Le composant est à part
+(`ChosenCardImage`), pour ne pas alourdir `AddDeckCardForm`.
+
+**Depuis un deck (P12).** « Chercher une carte pour ce deck » sous la
+composition du détail mobile (écran 42), « Chercher une carte pour ce deck,
+avec filtres » sous le champ du picker bureau (d21) ; les deux mènent à
+`#/chercher?deck=<clé>`, donc au bandeau et au filtre « pas dans ce deck » de
+D1c. Absents d'un deck archivé (`SearchForDeckLink`).
+
+**Corrigé en passant.** La classe `.filter-row` des filtres de Chercher
+reprenait le nom d'une classe de la Collection ; elle devient `.filter-line`.
+Un relevé des sélecteurs du lot contre le reste de `index.css` ne trouve pas
+d'autre collision.
+
+Identifiants nouveaux : `topbar-search` (le champ, ou le bouton sur
+Chercher), `topnav-search` (son conteneur), `search-from-deck`,
+`search-detail-flavor`, `deck-card-form-image`.
+
+Fichiers. Nouveaux : `src/features/search/GlobalSearchField.tsx`,
+`globalSearch.ts`, `src/features/catalog/useCardOnline.ts`,
+`ChosenCardImage.tsx`, `src/features/decks/SearchForDeckLink.tsx`. Modifiés :
+`App.tsx`, `CardImage.tsx`, `AddDeckCardForm.tsx`, `DeckDetailPage.tsx`,
+`CardDetail.tsx`, `SearchParts.tsx`, `FilterPanels.tsx`, `index.css`,
+`tests/unit/components/CardImage.test.tsx` (trois cas), `tests/unit/ui/harness.tsx`
+(le banc sert `GET /cartes/{id}`), `tests/unit/ui/search.test.tsx` (six
+scénarios aux deux largeurs).
+
+Chiffres : vitest 981 tests sur 61 fichiers, sous couverture ; lint et `tsc`
+propres ; CRAP front 2235 fonctions, aucune au-dessus de 30, références
+toujours vides ; aucun identifiant disparu au recensement. Suite Playwright
+complète (`npm run test:e2e`, deux builds compris) : 61 tests, 60 verts au
+premier passage. Le dernier, `lot5c-symetrie.spec.ts` en
+`desktop-real-backend`, vérifiait que la barre haute n'avait plus de champ de
+recherche, retiré au Lot 5c faute de cible ; P8 le rétablit. Le test garde
+son but (aucun champ inerte « Recherche ») et vérifie désormais qu'il n'y a
+qu'un champ dans la barre, « Chercher une carte (catalogue) », et qu'il ouvre
+Chercher avec le texte saisi ; le fichier repasse vert (10 tests).
 
 ## Tests attendus
 

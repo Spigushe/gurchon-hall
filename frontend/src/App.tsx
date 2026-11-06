@@ -4,6 +4,8 @@ import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
+import { GlobalSearchField } from "./features/search/GlobalSearchField";
+import { focusSearch } from "./features/search/globalSearch";
 import { AccountMenu } from "./features/auth/AccountMenu";
 import { ReconnectBanner } from "./features/auth/ReconnectBanner";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
@@ -189,7 +191,11 @@ function Page({ route }: { route: Route }) {
     case "sync":
       return <SyncPage />;
     case "search":
-      return <SearchPage key={route.deck ?? ""} initialQuery={route.q} deck={route.deck} />;
+      // Pas de `key` sur le deck : la page réécrit elle-même `q` et `deck` dans l'adresse
+      // (`replaceState`), et `useRoute` relit l'adresse à chaque rendu. Une clé tirée du
+      // deck remonterait la page, filtres perdus, dès qu'on choisit ou retire le deck cible.
+      // `q` et `deck` ne sont lus qu'au montage.
+      return <SearchPage initialQuery={route.q} deck={route.deck} />;
     case "not-found":
       return (
         <div className="page" data-testid="not-found">
@@ -286,9 +292,8 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
  * touches (`G` puis `A/C/D/P/S`) est câblée dans `App` via `useKeyboardShortcuts`
  * (étape 2 du Lot 5bis, `docs/lot5bis-plan-design.md`), pas ici, pour que la
  * navigation clavier fonctionne quel que soit l'écran affiché et pas seulement quand
- * `TopBar` a le focus. Le champ de recherche global n'est plus rendu
- * (Lot 5c, étape 6) : il reviendra avec l'écran Chercher
- * (`docs/lot-chercher-brief.md`).
+ * `TopBar` a le focus. Le champ de recherche global, retiré au Lot 5c faute
+ * de cible, revient avec Chercher (D3) : `GlobalSearchField`.
  */
 function TopBar({ route }: { route: Route }) {
   const status = useSyncStatus();
@@ -336,18 +341,22 @@ function TopBar({ route }: { route: Route }) {
               {problems.join(" · ")}
             </Link>
           )}
-          {/*
-           * Champ de recherche global retiré du rendu (Lot 5c, étape 6) : inerte
-           * (ne délégait à aucune recherche), il promettait un `/` qui ne menait
-           * nulle part. Il revient avec l'écran Chercher, qui le repointera
-           * (`docs/lot-chercher-brief.md`). Le `/` du picker du deckbuilder
-           * (`AddDeckCardForm`) reste, lui, fonctionnel.
-           */}
+          {/* Champ global (lot Chercher, D3, P8) : il ouvre Chercher avec le texte saisi ;
+              sur Chercher, il désigne le champ de la page. */}
+          <GlobalSearchField onSearchPage={route.name === "search"} />
         </div>
       </div>
     </header>
   );
 }
+
+const openDialog = () => document.querySelector('[role="dialog"]') !== null;
+
+const SLASH_BINDING = (onSearchPage: boolean): ShortcutBinding => ({
+  keys: ["/"],
+  onTrigger: () => focusSearch(onSearchPage),
+  ignoreTarget: openDialog,
+});
 
 /**
  * Coquille de l'application. Doit être rendue sous `<VtesOfflineProvider>` :
@@ -377,6 +386,12 @@ function App() {
   //    (champ de recherche fonctionnel, panneaux bureau concrets) arrivent aux étapes
   //    7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
   useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS);
+
+  // `/` (lot Chercher, D3, P8) : un seul à la fois. Il focalise le champ global, ou
+  // celui de la page sur Chercher ; inerte dans un champ (comportement par défaut du
+  // hook) et tant qu'une feuille est ouverte. Coupé sur le deckbuilder, où `/` reste
+  // au picker (`AddDeckCardForm`).
+  useKeyboardShortcuts([SLASH_BINDING(route.name === "search")], { enabled: route.name !== "deck" });
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.

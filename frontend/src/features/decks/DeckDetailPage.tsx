@@ -20,6 +20,7 @@ import {
 } from "../../offline/vtes";
 import { AddDeckCardForm } from "./AddDeckCardForm";
 import { DeckComposition } from "./DeckComposition";
+import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
 import { DeckLegalitySummary } from "./DeckLegalitySummary";
 
@@ -288,6 +289,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             <p className="kicker">Composition</p>
             <DeckComposition deckKey={deck.key} lines={lines} locked={archived} />
           </div>
+          <SearchForDeckLink deck={deck} />
         </>
       )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CardsIcon } from "@phosphor-icons/react";
+import { CardsIcon, ImageIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import { useConnectivity } from "../offline/react";
 
 /**
@@ -9,9 +9,9 @@ import { useConnectivity } from "../offline/react";
  * écrans n'est construit ici (étapes 8 et 11 du Lot 5bis) ; seules les classes
  * CSS des variantes le sont.
  */
-export type CardImageSize = "sm" | "lg";
+export type CardImageSize = "sm" | "lg" | "picker";
 
-const PLACEHOLDER_ICON_SIZE: Record<CardImageSize, number> = { sm: 26, lg: 38 };
+const PLACEHOLDER_ICON_SIZE: Record<CardImageSize, number> = { sm: 26, lg: 38, picker: 22 };
 
 /**
  * Scan d'une carte, avec repli sur un pictogramme neutre.
@@ -34,47 +34,87 @@ const PLACEHOLDER_ICON_SIZE: Record<CardImageSize, number> = { sm: 26, lg: 38 };
  */
 export function CardImage({
   src,
+  fallbackSrc,
   alt,
   size = "sm",
+  explain = false,
   className,
   "data-testid": testId,
 }: {
   src?: string | null;
+  /**
+   * Seconde source (lot Chercher, D3, P7) : l'image générique de la carte,
+   * essayée quand l'image de l'impression manque ou échoue, avant le
+   * pictogramme.
+   */
+  fallbackSrc?: string | null;
   alt: string;
   size?: CardImageSize;
+  /**
+   * Le repli dit pourquoi l'image manque (handoff Chercher, écran 35) :
+   * « Image indisponible hors ligne », ou « Pas d'image pour cette impression ».
+   * Faux par défaut : les écrans d'avant le lot gardent le pictogramme seul.
+   */
+  explain?: boolean;
   className?: string;
   "data-testid"?: string;
 }) {
   const online = useConnectivity();
-  const [failed, setFailed] = useState(false);
+  const sources = [src, fallbackSrc].filter((value): value is string => Boolean(value));
+  const [failed, setFailed] = useState(0);
   // Une nouvelle URL mérite un nouvel essai (ex. carte différente choisie dans
   // le picker) : ajustement d'état pendant le rendu plutôt qu'un effet, motif
   // recommandé par React pour réinitialiser un état dérivé d'une prop qui change.
-  const [trackedSrc, setTrackedSrc] = useState(src);
-  if (src !== trackedSrc) {
-    setTrackedSrc(src);
-    setFailed(false);
+  const sourceKey = sources.join("|");
+  const [trackedKey, setTrackedKey] = useState(sourceKey);
+  if (sourceKey !== trackedKey) {
+    setTrackedKey(sourceKey);
+    setFailed(0);
   }
 
-  const showImage = Boolean(src) && online && !failed;
+  const current = online ? sources[failed] : undefined;
   const classes = ["card-image", `card-image--${size}`, className].filter(Boolean).join(" ");
 
   return (
     <span className={classes} data-testid={testId}>
-      {showImage ? (
+      {current ? (
         <img
-          src={src ?? undefined}
+          key={current}
+          src={current}
           alt={alt}
           loading="lazy"
           decoding="async"
           className="card-image__img"
-          onError={() => setFailed(true)}
+          onError={() => setFailed((count) => count + 1)}
         />
       ) : (
-        <span className="card-image__placeholder" role="img" aria-label={alt}>
-          <CardsIcon size={PLACEHOLDER_ICON_SIZE[size]} weight="light" aria-hidden="true" />
-        </span>
+        <Placeholder alt={alt} size={size} reason={explain ? (online ? "missing" : "offline") : null} />
       )}
+    </span>
+  );
+}
+
+const REASONS = {
+  offline: { Icon: WifiSlashIcon, text: "Image indisponible hors ligne" },
+  missing: { Icon: ImageIcon, text: "Pas d'image pour cette impression" },
+} as const;
+
+function Placeholder({ alt, size, reason }: { alt: string; size: CardImageSize; reason: keyof typeof REASONS | null }) {
+  const iconSize = PLACEHOLDER_ICON_SIZE[size];
+  if (!reason) {
+    return (
+      <span className="card-image__placeholder" role="img" aria-label={alt}>
+        <CardsIcon size={iconSize} weight="light" aria-hidden="true" />
+      </span>
+    );
+  }
+  const { Icon, text } = REASONS[reason];
+  return (
+    <span className="card-image__placeholder card-image__placeholder--explained" role="img" aria-label={`${alt} : ${text}`}>
+      <Icon size={iconSize} weight="light" aria-hidden="true" />
+      <span className="card-image__reason" aria-hidden="true">
+        {text}
+      </span>
     </span>
   );
 }

@@ -206,14 +206,53 @@ export interface CardSearchStatus {
   ownedCardIds: Set<number>;
   /** Cartes du deck choisi, file comprise ; vide sans deck. */
   deckCardIds: Set<number>;
+  /** Exemplaires possédés par carte, toutes langues et extensions (« 3 en collection »). */
+  ownedCounts: Map<number, number>;
+  /** Exemplaires par carte dans le deck choisi, proxies compris (« dans ce deck ×2 ») ; vide sans deck. */
+  deckQuantities: Map<number, number>;
 }
+
+const sumBy = <T>(items: readonly T[], key: (item: T) => number, value: (item: T) => number) => {
+  const totals = new Map<number, number>();
+  for (const item of items) totals.set(key(item), (totals.get(key(item)) ?? 0) + value(item));
+  return totals;
+};
 
 export async function readCardSearchStatus(db: VtesOfflineDb, deckKey?: DeckKey | null): Promise<CardSearchStatus> {
   const { stock, deckCards } = await readProjection(db);
+  const lines = deckKey ? (deckCards.get(deckKey) ?? []) : [];
+  const owned = stock.filter((entry) => entry.quantityOwned > 0);
   return {
-    ownedCardIds: new Set(stock.filter((entry) => entry.quantityOwned > 0).map((entry) => entry.cardId)),
-    deckCardIds: new Set(deckKey ? (deckCards.get(deckKey) ?? []).map((line) => line.cardId) : []),
+    ownedCardIds: new Set(owned.map((entry) => entry.cardId)),
+    deckCardIds: new Set(lines.map((line) => line.cardId)),
+    ownedCounts: sumBy(owned, (entry) => entry.cardId, (entry) => entry.quantityOwned),
+    deckQuantities: sumBy(lines, (line) => line.cardId, (line) => line.quantity),
   };
+}
+
+/** Ce que la fiche d'une carte montre de la collection et des decks (Chercher, D1c). */
+export interface CardUsage {
+  /** Entrées de collection de la carte qui ont au moins un exemplaire, langue puis extension. */
+  copies: LocalStockEntry[];
+  /** Decks vivants qui jouent la carte, avec leurs exemplaires (proxies compris), par nom. */
+  decks: Array<{ deck: LocalDeck; quantity: number }>;
+}
+
+export async function readCardUsage(db: VtesOfflineDb, cardId: number): Promise<CardUsage> {
+  const { stock, decks, deckCards } = await readProjection(db);
+  const copies = stock
+    .filter((entry) => entry.cardId === cardId && entry.quantityOwned > 0)
+    .sort((a, b) => compare(a.languageCode, b.languageCode) || a.cardSetId - b.cardSetId);
+  const playing = decks
+    .map((deck) => ({
+      deck,
+      quantity: (deckCards.get(deck.key) ?? [])
+        .filter((line) => line.cardId === cardId)
+        .reduce((total, line) => total + line.quantity, 0),
+    }))
+    .filter((usage) => usage.quantity > 0)
+    .sort((a, b) => compare(foldText(a.deck.name), foldText(b.deck.name)));
+  return { copies, decks: playing };
 }
 
 /** Où en est le miroir du catalogue (lot Chercher). */
