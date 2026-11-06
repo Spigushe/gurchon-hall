@@ -989,8 +989,8 @@ pas ; les nouveaux sont ceux qu'E0 a fixés (section « Livraisons »).
 | D1c | frontend-react | filtres de P1, tri, fiche de carte, mobile puis bureau ; contrôle CRAP — **fait le 2026-11-05** | C1a, C1b, D0, D1b |
 | D2 | frontend-react | feuille d'ajout (P10, `buildAddOperation`) ; contrôle CRAP — **fait le 2026-11-05** | D1a, D1c |
 | D3 | frontend-react | champ global et `/`, `CardImage`, image du picker mobile, lecture à la demande, entrée depuis un deck (P12) ; contrôle CRAP — **fait le 2026-11-06** | D2 |
-| E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts`, `desktop-real-backend` de `deckbuilder.spec.ts` (non lancé à D1a) | D1c |
-| E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et contrôle de clôture des `data-testid` | D3 |
+| E2 | qa-tests | e2e de recherche et de filtres aux deux largeurs, scénario de la base Dexie 5, extension de `search-parity.spec.ts`, `desktop-real-backend` de `deckbuilder.spec.ts` (non lancé à D1a) — **fait le 2026-11-06** | D1c |
+| E3 | qa-tests | e2e d'ajout, `/`, images, P12 ; mesures à la main ; décompte final et contrôle de clôture des `data-testid` — **fait le 2026-11-06**, mesures prises sur Chromium ralenti, le téléphone restant à F | D3 |
 | F | orchestrateur | CLAUDE.md (§5 ou §6 secte, §6 révision et exigence, §7, §11 avec l'amendement de §11.1, la licence vtescsv et la correction de D1a, §12, fixture à dix cartes), brief clos, vérification à la main sur téléphone | E3, B1b |
 
 Qui fait quoi. L'architecte porte en A1 tout ce qui touche au modèle, à
@@ -1742,6 +1742,148 @@ recherche, retiré au Lot 5c faute de cible ; P8 le rétablit. Le test garde
 son but (aucun champ inerte « Recherche ») et vérifie désormais qu'il n'y a
 qu'un champ dans la barre, « Chercher une carte (catalogue) », et qu'il ouvre
 Chercher avec le texte saisi ; le fichier repasse vert (10 tests).
+
+### Livré aux étapes E2 et E3 (2026-11-06)
+
+Les scénarios Playwright du lot, contre le vrai back, aux deux largeurs. Aucun
+changement de l'application : seuls des tests et leur harnais.
+
+**Harnais.** La base modèle des e2e importe désormais, à côté de la fixture
+krcg, un `vteslibmeta.csv` de deux lignes (419 Operation : `prince,justicar` ;
+Absolute Tyranny : `non-anarch,titled`), tirées de l'échantillon pytest sans
+ses lignes d'erreur volontaires. Les filtres « Titre requis » et « Secte
+requise » ont ainsi de quoi mordre sur la fixture, ce que le plan laissait
+ouvert (point 7 de la liste Playwright). Les gestes de Chercher sont réunis
+dans `tests/e2e-real/support/search.ts` : feuille et colonne de filtres, puces
+par valeur, grille de disciplines, lignes de texte, interception des images de
+`static.krcg.org` (`serveKrcgImages`, une image d'un pixel, chaque adresse
+notée), et `rebuildAsDexieV5`, décrit plus bas.
+
+**E2, recherche et filtres.**
+
+- `chercher-filtres.spec.ts`, aux deux largeurs : hors ligne, Potence
+  supérieure (deux cartes), clan Ventrue (une), ligne de texte « bleed » ; la
+  même ligne passée à « transfer » rend zéro carte, ce qui montre que les
+  filtres se combinent en ET (« transfer » est dans le texte de Tarbaby Jack,
+  que le clan écarte). La fiche s'ouvre sur Aaradhya, « Réinitialiser » rend
+  les cinq cartes de crypte. Les trois filtres retirent chacun une carte au
+  lieu de la combinaison Tremere du plan, qui n'en retirait aucune : Aidan
+  Lyle est le seul Tremere de la fixture.
+- Au mobile, secte et exigences : secte Camarilla (Aidan Lyle), Sabbat (deux
+  cartes) ; titre requis Prince (419 Operation) ; secte requise Camarilla
+  (419 Operation, dont le titre implique la secte, et Absolute Tyranny, par
+  « non-anarch ») ; secte requise Sabbat (Absolute Tyranny seule).
+- Scénarios 3 et 4, base Dexie 5 : la base du compte est relue, supprimée,
+  puis recréée en version 50 avec les mêmes magasins moins `cardDetails`, et un
+  catalogue ancien (Tarbaby Jack retirée). Pour qu'aucune connexion de
+  l'application ne tienne la base pendant l'opération, le compte actif est
+  oublié le temps d'un rechargement : le mur de connexion n'ouvre aucune base.
+  Ouverte hors ligne, la base monte en version 6 sans rien perdre (neuf cartes,
+  zéro détail) ; le picker de la Collection trouve Awe ; Chercher affiche « Recherche
+  dans le nom seulement », désactive le bouton des filtres au mobile et éteint
+  la colonne au bureau ; « intercept », qui n'est que dans un texte, ne trouve
+  rien. Au retour du réseau, la relecture part seule (P11) : dix cartes, dix
+  détails, filtres actifs, Tarbaby Jack retrouvée.
+- `search-parity.spec.ts` gagne deux tests. Le texte et les noms traduits
+  n'ont pas d'équivalent serveur (`GET /cartes?q=` ne regarde que le nom, P5) :
+  la référence est `fold_text`, appelé dans le Python du back sur `name`,
+  `card_text` et `translated_names` de `GET /cartes`, pour quinze saisies
+  (icônes `[pre]`, pleine chasse, accent, carte sans extension…). La catégorie
+  et chaque clan de crypte sont comparés à `?category=` et `?clan_id=`. Une
+  combinaison avec `q` a été retirée en cours d'écriture : le champ principal
+  cherche aussi dans le texte, et « ab » y trouve « able ».
+- `deckbuilder.spec.ts` en `desktop-real-backend`, laissé ouvert à D1a : lancé
+  depuis à D2 et à D3, rien à ajouter.
+
+**E3, ajout, `/`, images et P12.**
+
+- `chercher-ajout.spec.ts`, aux deux largeurs : hors ligne, deux copies
+  d'Aaradhya au deck (deux proxies, « 0 disponible au stock »), puis « Les
+  deux » (« 1 exemplaire remplace 1 proxy ») ; deux `deck_card.upsert` en
+  file, rechargement hors ligne, « 1 en collection » sur la ligne, aucun
+  `POST /sync` parti ; au retour du réseau, deux opérations envoyées une fois,
+  et sur le serveur une ligne de deck à 2 dont 1 proxy et une entrée de
+  collection à 1 (FR, dernière version). Au bureau, le même parcours au
+  clavier : `/` sur l'Atelier focalise le champ global, `↵` ouvre Chercher
+  avec le texte, `/` sur Chercher focalise le champ de la page, `↓` choisit,
+  `N` ouvre le panneau, `Ctrl+↵` valide.
+- P12 : « Chercher une carte pour ce deck » mène à `#/chercher?deck=id%3A<n>`,
+  bandeau du deck, neuf cartes sur dix (Awe, déjà dans le deck, écartée), dix
+  après « retirer le deck » ; au mobile, plus de lien une fois le deck archivé ;
+  au bureau, le lien « avec filtres » du picker.
+- `/` gardé au picker du deckbuilder : le champ du picker reçoit le focus, pas
+  le champ global.
+- Images, sous interception : au mobile, la fiche étendue charge le scan
+  générique en ligne et dit « Image indisponible hors ligne » une fois coupé ;
+  le picker montre l'image de l'impression choisie, lue par `GET /cartes/{id}`,
+  l'agrandit au toucher, et la retire hors ligne. Au bureau, l'image de
+  l'impression dans le picker.
+
+**Défaut relevé à E2, corrigé le même jour.** Les puces de clan et de type
+s'annonçaient deux fois : l'icône est une image dont le nom accessible est
+celui du clan, suivie du même nom en texte, si bien qu'un lecteur d'écran
+lisait « Ventrue Ventrue ». Même doublon dans la méta d'une ligne de résultat
+(« Ventrue Ventrue · Sabbat »), dans la colonne « Clan · secte » et la colonne
+Type du tableau bureau, et dans la fiche. `GlyphIcon` gagne une option
+`decorative` (`aria-hidden`, l'infobulle reste), passée par `ClanGlyph` et
+`TypeGlyph` aux huit endroits où le nom suit l'icône ; les deux où l'icône est
+seule (ligne réduite de la fiche, colonne « Requiert » sous « Toutes ») gardent
+leur nom. Un test vitest le fige (puce et ligne) ; l'ancien test de la colonne
+bureau, qui trouvait la puce par le nom de l'icône, passe par le nom de la case.
+
+**Emboldened Councilor sous « Titre requis : Primogen »** (question de
+l'utilisateur, 2026-11-06). Sur une copie de `backend/vtes.db` : exigence brute
+`primogen`, lue par le serveur en `required_titles = ["Primogen"]` et
+`required_sects = ["Camarilla"]` ; sept cartes de bibliothèque exigent un
+Primogen (Backroom Deal, Emboldened Councilor, Expulsion, Of Noble Blood,
+Protected District, The Art Hole, New York, Will of the Council). Côté client,
+un test vitest charge la carte telle que le serveur la rend, la fait passer par
+le miroir et coche « Primogen » : elle est seule à sortir.
+
+**Mesures**, à défaut de téléphone : Chromium de Playwright à 390 × 844, réseau
+ralenti par CDP (150 ms de latence, 1,6 Mbit/s descendant, 750 kbit/s
+montant) et processeur ralenti quatre fois, contre une copie de
+`backend/vtes.db` (4212 cartes) servie par une API locale, copie supprimée
+ensuite. Lecture complète du catalogue après connexion : 14,3 s (16,1 s à un
+premier essai), 22 pages, 508 Ko transférés en gzip.
+`navigator.storage.estimate()` : 6,9 Mo pour l'origine, dont 5,4 Mo
+d'IndexedDB, plus que les 1,5 à 2,5 Mo estimés au plan (Chromium compte les
+pages de la base, pas les seules données). `persist()` : refusé, attendu sur un
+navigateur sans historique d'usage ; la réponse d'un téléphone où
+l'application est installée reste à relever. Chargement à froid de Chercher
+(nouvel onglet, service worker en place, jusqu'à la première ligne) : 1,3 s,
+1,3 s et 4,3 s. Filtrage et rendu par frappe, de l'événement `input` à la
+dernière mutation du DOM : 30 à 121 ms (« p » 104, « po » 121, « pot » 47,
+« potence » 30, « intercept » 67). `readProjection` n'est pas mesurable de
+l'extérieur sans instrumenter le code, et n'a pas été mesuré. Ces chiffres
+n'ont pas valeur de réussite (plan) et ne remplacent pas le téléphone : la
+vérification de l'étape F en relèvera au moins `persist()` et la lecture du
+catalogue sur un vrai réseau.
+
+Fichiers. Nouveaux : `tests/e2e-real/support/search.ts`,
+`tests/e2e-real/chercher-filtres.spec.ts`, `chercher-ajout.spec.ts`,
+`tests/e2e-desktop-real/chercher-filtres.spec.ts`, `chercher-ajout.spec.ts`.
+Modifiés : `tests/e2e-real/support/backend.ts` (exigences de bibliothèque),
+`tests/e2e-real/search-parity.spec.ts`. Correction des icônes :
+`src/features/search/Glyph.tsx`, `CardDetail.tsx`, `FilterEditor.tsx`,
+`SearchResults.tsx`, `tests/unit/ui/search.test.tsx` (deux tests, un sélecteur
+corrigé).
+
+Chiffres : suite Playwright complète (`npm run test:e2e`, deux builds compris),
+73 tests verts au premier passage, ventilés 8 `chromium`, 39 `real-backend`,
+3 `desktop`, 23 `desktop-real-backend` (61 à la clôture de D3 : 12 de plus,
+huit à 390 px et quatre à 1440 px), décompte identique par `--list` et à
+l'exécution. Le critère de fin de lot (au moins 64, dont 33 et 20) est tenu.
+`npm run lint` propre. Recensement des `data-testid` : 464 littéraux distincts
+(403 à l'ouverture), `--check` contre la référence d'ouverture vert, aucun
+identifiant disparu. Après la correction des icônes : vitest 983 tests sur 61
+fichiers sous couverture, lint et `tsc` propres, aucune régression CRAP ; e2e
+de Chercher, `search-parity` et `lot5c-symetrie` relancés aux deux largeurs
+sur un `dist-real` reconstruit, verts. Un échec isolé du scénario Dexie 5 au
+bureau (suppression de la base signalée « bloquée » par la connexion de la page
+d'avant le rechargement) a conduit à attendre la fin du blocage au lieu
+d'échouer aussitôt ; les deux scénarios Dexie 5 sont ensuite passés trois fois
+chacun.
 
 ## Tests attendus
 
