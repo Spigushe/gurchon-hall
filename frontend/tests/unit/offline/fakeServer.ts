@@ -1,6 +1,7 @@
 import createClient from "openapi-fetch";
 import type { paths } from "../../../src/api-client/schema.d.ts";
 import type { ApiClient } from "../../../src/offline/vtes/types";
+import { legacyListItem, searchItem, type CardSearchItem } from "./fixtures/syntheticCatalog";
 
 /**
  * Serveur factice en mémoire, derrière un `fetch` injecté dans le vrai client
@@ -15,6 +16,12 @@ import type { ApiClient } from "../../../src/offline/vtes/types";
  * dans les clés sans construire un catalogue multi-impressions ici (ce cas est
  * couvert par les tests d'overlay/clés Dexie, sur des données construites à la
  * main).
+ *
+ * Lot Chercher : `GET /cartes` rend la forme du contrat (`CardSearchItem`,
+ * détails compris) sur `state.catalog`, que les tests remplacent par un
+ * catalogue synthétique (`fixtures/syntheticCatalog.ts`), au-delà de 200 cartes
+ * si besoin : la pagination `limit`/`offset` est celle du contrat.
+ * `legacyCatalog` fait rendre la forme d'avant le lot, sans détails.
  */
 
 export const CARD_SET_ID = 9;
@@ -131,6 +138,10 @@ export interface FakeServer {
     requests: Array<{ method: string; path: string; body: unknown }>;
     /** Nombre de fois où un versement de produit a réellement été appliqué. */
     depositsApplied: number;
+    /** Catalogue servi par `GET /cartes`, dans la forme du contrat. */
+    catalog: CardSearchItem[];
+    /** Vrai : `GET /cartes` rend la forme d'avant le lot Chercher (ancien serveur). */
+    legacyCatalog: boolean;
   };
   /** Comportement du prochain appel `POST /sync`. */
   next: {
@@ -163,6 +174,8 @@ export function createFakeServer(): FakeServer {
     journal: new Map(),
     requests: [],
     depositsApplied: 0,
+    catalog: CARDS.map((card) => searchItem({ ...card, cardSetIds: [CARD_SET_ID] })),
+    legacyCatalog: false,
   };
   const next: FakeServer["next"] = {
     networkFailure: false,
@@ -590,15 +603,10 @@ export function createFakeServer(): FakeServer {
   }
 
   const cardSummary = (id: number) => {
-    const card = CARDS.find((item) => item.id === id)!;
-    return { ...card, clan: null, capacity: null, group_code: null, advanced: false, image_url: null };
+    const card = state.catalog.find((item) => item.id === id) ?? searchItem({ ...CARDS.find((item) => item.id === id)! });
+    const { id: cardId, vekn_id, name, category, clan, capacity, group_code, advanced, image_url } = card;
+    return { id: cardId, vekn_id, name, category, clan, capacity, group_code, advanced, image_url };
   };
-
-  const cardListItem = (id: number) => ({
-    ...cardSummary(id),
-    card_set_ids: [CARD_SET_ID],
-    latest_card_set_id: CARD_SET_ID,
-  });
 
   async function handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -633,7 +641,9 @@ export function createFakeServer(): FakeServer {
         return json(state.languages.map((code, i) => ({ code, label: code, sort_order: i })));
       }
       if (url.pathname === "/extensions") return json(CARD_SETS);
-      if (url.pathname === "/cartes") return json(page(CARDS.map((c) => cardListItem(c.id))));
+      if (url.pathname === "/cartes") {
+        return json(page(state.legacyCatalog ? state.catalog.map(legacyListItem) : state.catalog));
+      }
       if (url.pathname === "/stock") {
         return json(
           page([...state.stock.values()].map((entry) => ({ ...entry, card: cardSummary(entry.card_id) }))),

@@ -66,6 +66,57 @@ navigateur, sans dépendance nouvelle.
 | Statistiques de deck | répartition des disciplines, des types et des coûts | après Chercher, qui enrichit le miroir des cartes |
 | Historique des versions d'un deck | comparer deux états d'une liste, revenir en arrière | avec l'instantané de decklist ci-dessus |
 
+## Recherche dans le catalogue (après le lot Chercher)
+
+### Filtres de VDB non repris par le lot Chercher
+
+Versée le 2026-11-03, à l'étape A0 du lot Chercher (`docs/lot-chercher-plan.md`,
+P1). L'utilisateur a décidé que les filtres de Chercher suivent ceux de VDB,
+dans leur cœur ; ce qui suit est le reste. Relevé fait dans le code source de
+VDB (`smeea/vdb`, branche `master`, commit
+`99520ec991fac52c57cb629b0585d796aecb27ee`, 2026-11-01) :
+`frontend/src/utils/cardFilters.js` (`filterCrypt`, `filterLibrary`),
+`frontend/src/components/search_forms/` pour les formulaires,
+`frontend/src/utils/traitsRegexMaps.js` pour les traits. VDB filtre côté client
+sur des fichiers générés depuis les CSV de vtescsv
+(`update/generate_crypt.py`, `update/generate_library.py`).
+
+| Filtre de VDB | Ce qu'il fait chez VDB | Pourquoi il attend |
+| --- | --- | --- |
+| Traits de crypte | +1 intercept, +1 stealth, +1/+2 bleed, +1/+2 strength, Maneuver, Additional Strike, Aggravated, Prevent, Press, Enter combat, Unlock, Black Hand, Seraph, Infernal, Red List, Flight, Hand Size, Advancement, Banned, Not in TWD, Playtest ; en ET, par expressions régulières sur le texte (`CryptTraitsRegexMap`) | une table d'expressions à écrire, tenir et tester ; la recherche dans le texte en couvre une partie |
+| Traits de bibliothèque | une trentaine (+Intercept/−Stealth, +Bleed, Dodge, Burn Option, Multi-Type, Multi-Discipline, No Requirement…), en ET, par expressions régulières | même raison |
+| Regex libre | une ligne de texte peut être une expression régulière (`RegExp(saisie, "i")`) ; une expression invalide fait tout correspondre | utile aux joueurs avancés ; si elle entre, une expression invalide ne correspondra à rien et le dira |
+| Capacité exigée (bibliothèque) | `≤` ou `≥` suivi de 1 à 11, par expression régulière sur le texte | à faire avec les exigences brutes de `vteslibmeta.csv` (« capacity 7 or … »), mieux qu'en lisant le texte |
+| Artiste | égalité exacte | une seule colonne `card.artist`, artistes joints par une virgule |
+| Précon | OU entre produits, avec Only In, First Print, Reprint | les occurrences `precon` sont en base ; demande une lecture par produit dans le miroir |
+| Not in TWD | cartes jamais jouées dans un deck de la TWDA (nombre `twd` calculé depuis l'archive) | dépend de l'import de la TWDA, prévu au lot Inventaires |
+| Options d'extension | pour une extension seule : Or Newer, Or Older, Not Newer, Not Older ; Only In, First Print, Reprint ; « ANY BCP (incl. Promo) », extensions datées du 2018-01-01 ou après | Or Newer serait bon marché (dates d'extension dans le miroir) ; First Print et Reprint demandent une chronologie des impressions par carte |
+| Alias de nom | `aka` chez VDB | krcg publie `name_variants`, non importé (§11, décision 1) |
+| Titre fusionné | un *advanced* répond aussi par un titre nommé après `[MERGED]` | le lot Chercher prend le titre de la face ; 52 textes `[MERGED]` |
+| Exigences de bibliothèque autres que secte et titre | `non-sterile`, `Gehenna`, `capacity …`, `black hand`, `red list`, lues dans `vteslibmeta.csv` | stockées brutes par le lot Chercher, non filtrées |
+| Format limité, playtest | modes globaux de VDB | sans usage aujourd'hui |
+
+Barème des votes de VDB, repris tel quel par le lot Chercher pour mémoire :
+primogen 1, prince 2, justicar 3, imperator 3, inner circle 4, bishop 1,
+archbishop 2, priscus 3, cardinal 3, regent 4, 1 vote 1, 2 votes 2, magaji 2,
+kholo 2, baron 2.
+
+Comportements de VDB que le lot Chercher ne reprend pas, par choix : la
+recherche dans le texte sensible aux accents (Chercher replie par
+`fold_text`), une expression invalide qui fait tout correspondre, l'exclusion
+des cartes de groupe « Any » dès qu'un groupe est coché, et le sens par
+sous-chaîne des modes ET et SEULEMENT des disciplines de bibliothèque (Chercher
+lit l'exigence `mono` / `choice` / `combo` de krcg).
+
+### Autres pistes de la recherche
+
+| Piste | Ce qu'elle apporterait | Place proposée |
+| --- | --- | --- |
+| `ETag` sur le catalogue | une relecture du catalogue sans changement coûterait un 304 au lieu de 440 Ko ; dérivé de la date du dernier import (revue backend du lot Chercher) | quand le catalogue se relira plus souvent |
+| Cache des images de cartes | garder les images déjà vues hors ligne (Workbox, expiration bornée) ; exige `crossOrigin="anonymous"` sur `CardImage`, sinon la réponse est opaque et pèse très lourd dans le quota | si l'image manque à l'usage au club |
+| Images par impression dans le miroir | environ 0,8 Mo par base de compte | si la lecture à la demande se révèle trop lente |
+| Black Hand et Seraph exigés par une carte de bibliothèque | ce sont des traits du Sabbat : une carte qui exige un vampire Black Hand ou Seraph exige de fait un vampire Sabbat. Le lot Chercher les laisse dans les autres valeurs de l'exigence (`other_requirements`), sans impliquer le Sabbat ni les rendre filtrables (décision de l'utilisateur du 2026-11-03, après A1). Les traiter demanderait de décider s'ils impliquent le Sabbat, comme un titre implique sa secte, et d'en faire une valeur de filtre, côté bibliothèque comme côté crypte (où VDB les range parmi les traits) | avec les traits de VDB ci-dessus, ou dès qu'un deck Black Hand le demande |
+
 ## Socle hors ligne (valeur pour Barrin)
 
 | Piste | Ce qu'elle apporterait | Place proposée |

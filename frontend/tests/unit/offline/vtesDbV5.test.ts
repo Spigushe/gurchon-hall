@@ -51,7 +51,7 @@ describe("version 5 du schéma (Lot 7 : miroirs de la pratique de jeu)", () => {
     const after = new VtesOfflineDb(name);
     try {
       await after.open();
-      expect(after.verno).toBe(5);
+      expect(after.verno).toBe(6);
       // Rien n'est vidé : ni miroirs, ni file, ni correspondances.
       expect(await after.stock.count()).toBe(1);
       expect(await after.decks.count()).toBe(1);
@@ -124,7 +124,7 @@ describe("versionchange : fermeture propre", () => {
 
     // « Autre onglet » : même base, une version de plus (Dexie multiplie par 10).
     const other = new Dexie(name);
-    other.version(6).stores({ extra: "id" });
+    other.version(7).stores({ extra: "id" });
     try {
       await other.open();
       expect(other.isOpen()).toBe(true);

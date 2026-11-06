@@ -92,8 +92,11 @@ export default defineConfig({
         // `latin-500.css`) : Vite ne référence donc que deux fichiers
         // `.woff2` d'environ 24 Ko chacun, largement sous la limite par
         // défaut de Workbox (`maximumFileSizeToCacheInBytes`, 2 Mio), laissée
-        // à sa valeur par défaut.
-        globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest,woff2}"],
+        // à sa valeur par défaut. `otf` couvre les deux polices d'icônes de
+        // krcg (lot Chercher, `src/assets/fonts/`, 185 Ko et 336 Ko) : les
+        // icônes de discipline, de type, de coût et de clan s'affichent hors
+        // ligne dès la première ouverture, sans appel à static.krcg.org.
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,webmanifest,woff2,otf}"],
         // Permet à la SPA de s'ouvrir hors-ligne sur n'importe quelle route
         // cliente (ex. /decks, /parties) en retombant sur l'app shell.
         navigateFallback: "/index.html",

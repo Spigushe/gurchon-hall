@@ -39,6 +39,8 @@ export interface UiServer {
   /** Réponses pour les lectures sans miroir local (légalité, produits). */
   legality: { status: number; body: unknown };
   bundles: unknown[];
+  /** Fiches servies par `GET /cartes/{id}` (lot Chercher, D3 : lecture à la demande). */
+  cards: Map<number, unknown>;
   requests: Array<{ method: string; path: string }>;
   client: ReturnType<typeof createClient<paths>>;
 }
@@ -47,6 +49,7 @@ function createUiServer(): UiServer {
   const ui: UiServer = {
     legality: { status: 200, body: null },
     bundles: [],
+    cards: new Map(),
     requests: [],
     client: null as unknown as UiServer["client"],
   };
@@ -62,6 +65,8 @@ function createUiServer(): UiServer {
         return json(ui.legality.body, ui.legality.status);
       }
       if (url.pathname === "/bundles") return json(ui.bundles);
+      const card = /^\/cartes\/(\d+)$/.exec(url.pathname);
+      if (card && ui.cards.has(Number(card[1]))) return json(ui.cards.get(Number(card[1])));
       return json({ detail: `route non prévue : ${url.pathname}` }, 404);
     },
   });

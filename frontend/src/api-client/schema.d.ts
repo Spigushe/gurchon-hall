@@ -110,7 +110,7 @@ export interface paths {
         };
         /**
          * Recherche dans le catalogue
-         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais (sous-chaîne, sans tenir compte de la casse ni des accents). Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`).
+         * @description Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais seulement (sous-chaîne, sans tenir compte de la casse ni des accents) : ni les noms traduits ni le texte, que la recherche locale du client compare, elle. Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`), et tout ce que les filtres de l'écran Chercher lisent : secte, titre, coût, prérequis, disciplines, types, texte anglais, dates de légalité, exigence envers le vampire et noms traduits. Les autres filtres sont ceux du client, sur son miroir local, pas des paramètres de cette route.
          */
         get: operations["listCards"];
         put?: never;
@@ -845,53 +845,6 @@ export interface components {
             superior: boolean;
         };
         /**
-         * CardListItem
-         * @description Une carte dans les résultats de recherche, avec ses impressions (Lot 4).
-         *
-         *     Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
-         *     une impression réelle sans rappeler l'API : les extensions où la carte a
-         *     été imprimée, et celle qu'il faut prendre par défaut quand rien ne désigne
-         *     l'impression — une carte jouée en proxy, par exemple (décision D2a).
-         *
-         *     Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
-         *     stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
-         */
-        CardListItem: {
-            /** Id */
-            id: number;
-            /** Vekn Id */
-            vekn_id: number;
-            /** Name */
-            name: string;
-            category: components["schemas"]["CardCategory"];
-            clan: components["schemas"]["ClanRead"] | null;
-            /** Capacity */
-            capacity: number | null;
-            /** Group Code */
-            group_code: string | null;
-            /**
-             * Advanced
-             * @default false
-             */
-            advanced: boolean;
-            /**
-             * Image Url
-             * @description Scan de la carte (version anglaise de référence).
-             */
-            image_url: string | null;
-            /**
-             * Card Set Ids
-             * @description Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.
-             * @default []
-             */
-            card_set_ids: number[];
-            /**
-             * Latest Card Set Id
-             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple.
-             */
-            latest_card_set_id: number;
-        };
-        /**
          * CardPrintingOccurrenceRead
          * @description Comment une carte apparaît dans une extension.
          *
@@ -974,8 +927,12 @@ export interface components {
              * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple.
              */
             latest_card_set_id: number;
+            /** @description Secte d'une carte de crypte, dérivée de son texte à l'import (premier mot, ou second après « Advanced » ; « Imbued » pour un imbued). Vide pour une carte de bibliothèque, et pour un vampire dont le texte ne commence pas par une secte connue. */
             sect: components["schemas"]["SectRead"] | null;
-            /** Title */
+            /**
+             * Title
+             * @description Titre d'un vampire, tel que krcg l'écrit (« Prince », « Inner Circle », « 1 Vote »…) : celui de sa face, pas d'un texte fusionné.
+             */
             title: string | null;
             /** Path */
             path: string | null;
@@ -987,30 +944,54 @@ export interface components {
              */
             cost_value: string | null;
             /**
-             * Burn Option
-             * @default false
-             */
-            burn_option: boolean;
-            /**
-             * Trifle
-             * @default false
-             */
-            trifle: boolean;
-            /**
              * Clan Requirement
-             * @description Clan(s) exigé(s) par la carte, séparés par une virgule.
+             * @description Clan(s) exigé(s) par la carte, joints par « , » (virgule et espace) ; aucun nom de clan ne contient de virgule.
              */
             clan_requirement: string | null;
             /** Path Requirement */
             path_requirement: string | null;
             /** @description Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble. */
             discipline_requirement: components["schemas"]["DisciplineRequirement"] | null;
-            /** Card Text */
+            /**
+             * Library Requirement
+             * @description Exigence envers le vampire qui joue la carte, brute, telle que `vteslibmeta.csv` (vtescsv) l'écrit : valeurs séparées par une virgule (« prince,justicar », « sabbat,titled »). Vide quand le fichier n'a pas de ligne pour la carte. Les quatre champs `required_*` et `other_requirements` en sont la lecture.
+             */
+            library_requirement: string | null;
+            /**
+             * Required Sects
+             * @description Sectes exigées, l'une ou l'autre, noms de la table des sectes (Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), celles qu'un titre exigé implique comprises (un Prince exige la Camarilla). Une exclusion se lit sur les sectes de vampire : « non-anarch » exige Camarilla, Sabbat, Laibon ou Independent, et « non-anarch,prince » la Camarilla. Vide : aucune secte exigée.
+             * @default []
+             */
+            required_sects: string[];
+            /**
+             * Required Titles
+             * @description Titres précis exigés, l'un ou l'autre, écrits comme le titre d'un vampire (`title`) : « Prince », « Inner Circle », « 1 Vote »…
+             * @default []
+             */
+            required_titles: string[];
+            /**
+             * Requires Titled
+             * @description Exige un vampire titré, quel que soit son titre.
+             * @default false
+             */
+            requires_titled: boolean;
+            /**
+             * Requires Non Titled
+             * @description Exige un vampire sans titre.
+             * @default false
+             */
+            requires_non_titled: boolean;
+            /**
+             * Other Requirements
+             * @description Le reste de l'exigence, tel qu'écrit dans le fichier : capacité (« capacity 5 or more »), Gehenna, Black Hand, Seraph, « non-sterile », « non-red list »… Non filtrable au lot Chercher.
+             * @default []
+             */
+            other_requirements: string[];
+            /**
+             * Card Text
+             * @description Texte anglais de la carte (icônes de discipline « [pot] »).
+             */
             card_text: string | null;
-            /** Flavor Text */
-            flavor_text: string | null;
-            /** Artist */
-            artist: string | null;
             /**
              * Banned On
              * @description Date de bannissement publiée par le VEKN, vide sinon.
@@ -1032,6 +1013,20 @@ export interface components {
              */
             discipline_links: components["schemas"]["CardDisciplineRead"][];
             /**
+             * Burn Option
+             * @default false
+             */
+            burn_option: boolean;
+            /**
+             * Trifle
+             * @default false
+             */
+            trifle: boolean;
+            /** Flavor Text */
+            flavor_text: string | null;
+            /** Artist */
+            artist: string | null;
+            /**
              * Printings
              * @default []
              */
@@ -1041,6 +1036,140 @@ export interface components {
              * @default []
              */
             translations: components["schemas"]["CardTranslationRead"][];
+        };
+        /**
+         * CardSearchItem
+         * @description Une carte dans les résultats de `GET /cartes` (lot Chercher, A7).
+         *
+         *     Ajoute les noms traduits, que la recherche locale compare au texte saisi.
+         *     Propre à la liste : la fiche (`CardRead`) porte déjà les traductions
+         *     entières et n'en hérite pas.
+         */
+        CardSearchItem: {
+            /** Id */
+            id: number;
+            /** Vekn Id */
+            vekn_id: number;
+            /** Name */
+            name: string;
+            category: components["schemas"]["CardCategory"];
+            clan: components["schemas"]["ClanRead"] | null;
+            /** Capacity */
+            capacity: number | null;
+            /** Group Code */
+            group_code: string | null;
+            /**
+             * Advanced
+             * @default false
+             */
+            advanced: boolean;
+            /**
+             * Image Url
+             * @description Scan de la carte (version anglaise de référence).
+             */
+            image_url: string | null;
+            /**
+             * Card Set Ids
+             * @description Extensions où la carte a été imprimée (`GET /extensions`), triées par identifiant. Jamais vide : toute carte a au moins une impression, au besoin sous l'extension tampon.
+             * @default []
+             */
+            card_set_ids: number[];
+            /**
+             * Latest Card Set Id
+             * @description Extension de la dernière version de la carte, calculée par le serveur : date la plus récente parmi les occurrences de l'impression (à défaut, la date de l'extension) ; à date égale, une extension datée passe avant une extension sans date, puis la première abréviation par ordre alphabétique. L'extension tampon ne compte que si elle est la seule. Impression par défaut quand rien ne désigne laquelle jouer, une carte en proxy par exemple.
+             */
+            latest_card_set_id: number;
+            /** @description Secte d'une carte de crypte, dérivée de son texte à l'import (premier mot, ou second après « Advanced » ; « Imbued » pour un imbued). Vide pour une carte de bibliothèque, et pour un vampire dont le texte ne commence pas par une secte connue. */
+            sect: components["schemas"]["SectRead"] | null;
+            /**
+             * Title
+             * @description Titre d'un vampire, tel que krcg l'écrit (« Prince », « Inner Circle », « 1 Vote »…) : celui de sa face, pas d'un texte fusionné.
+             */
+            title: string | null;
+            /** Path */
+            path: string | null;
+            /** @description Nature du coût : une carte n'en a jamais qu'un seul. */
+            cost_type: components["schemas"]["CostType"] | null;
+            /**
+             * Cost Value
+             * @description Montant du coût. Chaîne et non entier : 25 cartes coûtent « X ».
+             */
+            cost_value: string | null;
+            /**
+             * Clan Requirement
+             * @description Clan(s) exigé(s) par la carte, joints par « , » (virgule et espace) ; aucun nom de clan ne contient de virgule.
+             */
+            clan_requirement: string | null;
+            /** Path Requirement */
+            path_requirement: string | null;
+            /** @description Manière de combiner les disciplines listées : une seule, au choix, ou toutes ensemble. */
+            discipline_requirement: components["schemas"]["DisciplineRequirement"] | null;
+            /**
+             * Library Requirement
+             * @description Exigence envers le vampire qui joue la carte, brute, telle que `vteslibmeta.csv` (vtescsv) l'écrit : valeurs séparées par une virgule (« prince,justicar », « sabbat,titled »). Vide quand le fichier n'a pas de ligne pour la carte. Les quatre champs `required_*` et `other_requirements` en sont la lecture.
+             */
+            library_requirement: string | null;
+            /**
+             * Required Sects
+             * @description Sectes exigées, l'une ou l'autre, noms de la table des sectes (Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), celles qu'un titre exigé implique comprises (un Prince exige la Camarilla). Une exclusion se lit sur les sectes de vampire : « non-anarch » exige Camarilla, Sabbat, Laibon ou Independent, et « non-anarch,prince » la Camarilla. Vide : aucune secte exigée.
+             * @default []
+             */
+            required_sects: string[];
+            /**
+             * Required Titles
+             * @description Titres précis exigés, l'un ou l'autre, écrits comme le titre d'un vampire (`title`) : « Prince », « Inner Circle », « 1 Vote »…
+             * @default []
+             */
+            required_titles: string[];
+            /**
+             * Requires Titled
+             * @description Exige un vampire titré, quel que soit son titre.
+             * @default false
+             */
+            requires_titled: boolean;
+            /**
+             * Requires Non Titled
+             * @description Exige un vampire sans titre.
+             * @default false
+             */
+            requires_non_titled: boolean;
+            /**
+             * Other Requirements
+             * @description Le reste de l'exigence, tel qu'écrit dans le fichier : capacité (« capacity 5 or more »), Gehenna, Black Hand, Seraph, « non-sterile », « non-red list »… Non filtrable au lot Chercher.
+             * @default []
+             */
+            other_requirements: string[];
+            /**
+             * Card Text
+             * @description Texte anglais de la carte (icônes de discipline « [pot] »).
+             */
+            card_text: string | null;
+            /**
+             * Banned On
+             * @description Date de bannissement publiée par le VEKN, vide sinon.
+             */
+            banned_on: string | null;
+            /**
+             * Legal From
+             * @description Date d'entrée en légalité en tournoi. Vide = aucune information, donc légale : la liste paraît après la sortie commerciale.
+             */
+            legal_from: string | null;
+            /**
+             * Types
+             * @default []
+             */
+            types: components["schemas"]["CardTypeRead"][];
+            /**
+             * Discipline Links
+             * @default []
+             */
+            discipline_links: components["schemas"]["CardDisciplineRead"][];
+            /**
+             * Translated Names
+             * @description Noms traduits connus (FR et ES aujourd'hui), triés par code de langue. Sans le texte ni l'image, qui restent à la fiche.
+             * @default []
+             */
+            translated_names: components["schemas"]["CardTranslatedName"][];
         };
         /**
          * CardSetRead
@@ -1094,6 +1223,19 @@ export interface components {
              * @description Scan de la carte (version anglaise de référence).
              */
             image_url: string | null;
+        };
+        /**
+         * CardTranslatedName
+         * @description Nom d'une carte dans une langue de traduction (lot Chercher, A7).
+         */
+        CardTranslatedName: {
+            /**
+             * Language Code
+             * @description Code de langue, en majuscules.
+             */
+            language_code: string;
+            /** Name */
+            name: string;
         };
         /**
          * CardTranslationRead
@@ -3366,7 +3508,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CardListItem"][];
+                    "application/json": components["schemas"]["CardSearchItem"][];
                 };
             };
             /** @description Validation Error */

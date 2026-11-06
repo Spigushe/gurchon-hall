@@ -12,6 +12,7 @@ export {
   type ReferenceUse,
 } from "./references";
 export { containsFolded, foldText } from "./foldText";
+export { requestPersistentStorage, type PersistResult } from "./storage";
 export {
   DuplicateOperationError,
   DuplicateRefError,

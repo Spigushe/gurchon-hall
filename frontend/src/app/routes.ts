@@ -34,6 +34,7 @@ export type Route =
   | { name: "tournament"; key: ResourceKey }
   | { name: "notebook" }
   | { name: "sync" }
+  | { name: "search"; q?: string; deck?: DeckKey }
   | { name: "not-found" };
 
 const DECK_KEY = /^(?:id:\d+|ref:[A-Za-z0-9-]+)$/;
@@ -60,6 +61,22 @@ function decodeKey(raw: string): string | null {
   }
 }
 
+/**
+ * Route Chercher (Lot Chercher) : `q` (texte cherché) et `deck` (deck cible, P12,
+ * lu ici mais exploité plus tard) voyagent dans la query du hash. Un `q` vide et
+ * un `deck` de forme invalide sont ignorés.
+ */
+function searchRoute(hash: string): Route {
+  const query = hash.split("?")[1];
+  const params = new URLSearchParams(query ?? "");
+  const q = params.get("q")?.trim();
+  const deck = params.get("deck");
+  const route: Route & { name: "search" } = { name: "search" };
+  if (q) route.q = q;
+  if (deck !== null && DECK_KEY.test(deck)) route.deck = deck as DeckKey;
+  return route;
+}
+
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, "").split("?")[0].replace(/\/+$/, "");
   if (path === "" || path === "/") return { name: "home" };
@@ -78,6 +95,7 @@ export function parseHash(hash: string): Route {
   if (path === "/tournois") return { name: "tournaments" };
   if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
+  if (path === "/chercher") return searchRoute(hash);
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
     const key = decodeKey(match[1]);
@@ -118,9 +136,26 @@ export function hrefFor(route: Route): string {
       return "#/carnet";
     case "sync":
       return "#/synchronisation";
+    case "search": {
+      const params = new URLSearchParams();
+      if (route.q) params.set("q", route.q);
+      if (route.deck) params.set("deck", route.deck);
+      const query = params.toString();
+      return query ? `#/chercher?${query}` : "#/chercher";
+    }
     case "not-found":
       return "#/";
   }
+}
+
+/**
+ * Réécrit le texte cherché dans l'adresse de Chercher, sans entrée d'historique
+ * ni `hashchange` (même mécanique que `consumeIntent`) : une frappe ne crée pas
+ * d'étape de retour arrière et ne relance pas le routeur. Le deck cible est conservé.
+ */
+export function replaceSearchQuery(q: string, deck?: DeckKey): void {
+  const next = hrefFor({ name: "search", q: q.trim(), deck });
+  if (window.location.hash !== next) window.history.replaceState(window.history.state, "", next);
 }
 
 export function navigate(route: Route): void {

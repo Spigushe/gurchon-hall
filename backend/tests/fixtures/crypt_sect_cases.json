@@ -1,0 +1,143 @@
+{
+  "description": "Table de cas de crypt_sect (backend/app/services/vtes_rules.py), lot Chercher, P13 : la secte d'une carte de crypte, dérivée de son texte à l'import comme le fait VDB (update/generate_crypt.py). Un imbued est Imbued ; un vampire prend le premier mot du texte, ou le second quand le premier est Advanced, s'il nomme l'une des cinq sectes de vampire (Camarilla, Sabbat, Laibon, Independent, Anarch), sinon null. Chaque cas : description, text (texte de carte, ou null), imbued (booléen), expected (nom canonique de la secte, ou null). Les six derniers cas sont les vampires advanced dont le texte fusionné change de secte, relevés dans krcg le 2026-11-03 : ils gardent la secte de leur face, comme chez VDB. Lu par pytest seulement : la secte arrive au client déjà calculée.",
+  "cases": [
+    {
+      "description": "Camarilla, premier mot suivi de deux-points",
+      "text": "Camarilla: Aidan gets 1 optional press each combat.",
+      "imbued": false,
+      "expected": "Camarilla"
+    },
+    {
+      "description": "Sabbat, premier mot suivi d'un titre",
+      "text": "Sabbat cardinal: Aaradhya can unlock after performing a successful action.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "Independent",
+      "text": "Independent: Aabbt Kindred cannot perform directed actions unless Aabbt Kindred is ready.",
+      "imbued": false,
+      "expected": "Independent"
+    },
+    {
+      "description": "Anarch, suivi d'un titre et d'une ville",
+      "text": "Anarch Baron of Stockholm: The action to become Anarch costs Brunhilde no blood.",
+      "imbued": false,
+      "expected": "Anarch"
+    },
+    {
+      "description": "Laibon, premier mot suivi d'un point",
+      "text": "Laibon. +1 bleed.",
+      "imbued": false,
+      "expected": "Laibon"
+    },
+    {
+      "description": "Advanced en tête : le second mot",
+      "text": "Advanced, Camarilla: While Alan is ready, you may pay some or all of the pool cost of equipment.",
+      "imbued": false,
+      "expected": "Camarilla"
+    },
+    {
+      "description": "Advanced en tête, suivi d'un titre",
+      "text": "Advanced, Laibon magaji: During an action directed at you, Cesewayo can burn 1 blood.",
+      "imbued": false,
+      "expected": "Laibon"
+    },
+    {
+      "description": "casse normalisée vers le nom canonique",
+      "text": "sabbat: test.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "imbued : Imbued, quel que soit le texte",
+      "text": "Anna may move 2 blood from the blood bank to this imbued.",
+      "imbued": true,
+      "expected": "Imbued"
+    },
+    {
+      "description": "imbued dont le texte commencerait par une secte : Imbued l'emporte",
+      "text": "Camarilla: texte synthétique.",
+      "imbued": true,
+      "expected": "Imbued"
+    },
+    {
+      "description": "imbued sans texte",
+      "text": null,
+      "imbued": true,
+      "expected": "Imbued"
+    },
+    {
+      "description": "premier mot inconnu : pas de secte (signalé par l'import)",
+      "text": "During your unlock phase, this vampire gains 1 blood.",
+      "imbued": false,
+      "expected": null
+    },
+    {
+      "description": "Imbued n'est pas une secte de vampire",
+      "text": "Imbued: texte synthétique.",
+      "imbued": false,
+      "expected": null
+    },
+    {
+      "description": "Advanced seul",
+      "text": "Advanced",
+      "imbued": false,
+      "expected": null
+    },
+    {
+      "description": "texte vide",
+      "text": "",
+      "imbued": false,
+      "expected": null
+    },
+    {
+      "description": "texte absent",
+      "text": null,
+      "imbued": false,
+      "expected": null
+    },
+    {
+      "description": "espaces en tête ignorés (VDB rendrait une secte vide)",
+      "text": "  Sabbat: texte synthétique.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Count Germaine (#200293) : la secte de la face (Independent), pas celle du texte fusionné (Anarch)",
+      "text": "Independent: Germaine gets +2 bleed against a Methuselah who controls a titled non-Independent, non-Anarch vampire. Red List.\n[MERGED] Anarch: Germaine gets 1 optional press each combat.",
+      "imbued": false,
+      "expected": "Independent"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Dominique (#200358) : la secte de la face (Sabbat), pas celle du texte fusionné (Anarch)",
+      "text": "Advanced, Sabbat: During your unlock phase, you may burn a location you control to gain X pool, where X is the cost of that location.\n[MERGED] Anarch Baron of Paris.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Jeremy MacNeil (#200694) : la secte de la face (Independent), pas celle du texte fusionné (Anarch)",
+      "text": "Advanced, Independent: Jeremy can enter combat with a younger vampire controlled by your predator or prey as a Ⓓ action.\n[MERGED] Anarch Baron of Los Angeles.",
+      "imbued": false,
+      "expected": "Independent"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Tariq, The Silent (#201345) : la secte de la face (Sabbat), pas celle du texte fusionné (Independent)",
+      "text": "Sabbat: While Tariq is controlled, he gets -4 capacity. He can strike, ranged: steal 1 blood or life (becoming blood). Black Hand. Red List.\n[MERGED] Independent: Tariq's capacity is not reduced by his card text.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Valerius Maior, Hell's Fool (#201422) : la secte de la face (Sabbat), pas celle du texte fusionné (Independent)",
+      "text": "Advanced, Sabbat. Red List: If Valerius attempts to block, the acting minion cannot play action modifier or combat cards that require Chimerstry [chi] or Obfuscate [obf]. Infernal.\n[MERGED] Independent: Valerius becomes non-infernal and non-Red List as he merges. While merged, his capacity is reduced by 2.",
+      "imbued": false,
+      "expected": "Sabbat"
+    },
+    {
+      "description": "[MERGED] qui change de secte, texte krcg réel de Yazid Tamari (#201486) : la secte de la face (Sabbat), pas celle du texte fusionné (Anarch)",
+      "text": "Sabbat: Yazid gets +1 stealth during directed actions. Black Hand.\n[MERGED] Anarch.",
+      "imbued": false,
+      "expected": "Sabbat"
+    }
+  ]
+}

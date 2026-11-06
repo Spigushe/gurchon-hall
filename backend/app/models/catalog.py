@@ -102,6 +102,14 @@ class Card(Base):
     discipline_requirement: Mapped[DisciplineRequirement | None] = mapped_column(
         enum_column(DisciplineRequirement, "discipline_requirement")
     )
+    # Exigence envers le vampire qui joue la carte (secte, titre, capacité…),
+    # recopie brute de la colonne `Requirement` de `vteslibmeta.csv` (vtescsv,
+    # seconde source de l'import depuis le lot Chercher) : « prince,justicar ».
+    # Nulle quand le fichier n'a pas de ligne pour la carte. Le découpage en
+    # sectes et titres exigés est une lecture (`vtes_rules.library_requirement`),
+    # pas une colonne : la règle « un titre implique sa secte » ne s'écrit
+    # qu'une fois. Douzième révision.
+    library_requirement: Mapped[str | None] = mapped_column(Text())
 
     # Commun.
     path: Mapped[str | None] = mapped_column(String(60))

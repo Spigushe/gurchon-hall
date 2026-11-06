@@ -206,17 +206,25 @@ test.describe("D2 : les raccourcis de l'Atelier ouvrent la feuille annoncée", (
   });
 });
 
-test("la barre haute n'a plus de champ de recherche global (Lot 5c, étape 6)", async ({ page, api }) => {
+// Lot 5c, étape 6 : le champ global inerte (« Recherche ») avait été retiré. Le lot
+// Chercher (D3, P8) le rétablit sous un autre nom, et il mène quelque part : ce test
+// vérifie qu'il n'y a qu'un champ dans la barre, le nouveau, et qu'il ouvre Chercher.
+test("la barre haute a un seul champ de recherche, qui ouvre Chercher (Lot 5c, étape 6 ; Chercher, D3)", async ({ page, api }) => {
   void api; // démarre le vrai back : sans lui la connexion échoue (ERR_CONNECTION_REFUSED)
   await openAppDesktop(page);
   await expect(page.getByTestId("topnav-home")).toBeVisible();
-  await expect(page.locator("header").getByRole("searchbox")).toHaveCount(0);
   await expect(page.getByRole("searchbox", { name: "Recherche", exact: true })).toHaveCount(0);
+  const field = page.locator("header").getByRole("searchbox");
+  await expect(field).toHaveCount(1);
+  await expect(field).toHaveAccessibleName("Chercher une carte (catalogue)");
 
-  // Sur la Collection, la seule recherche est celle de l'écran, pas celle de la barre.
+  // Sur la Collection, la recherche de l'écran s'ajoute à celle de la barre, sans la remplacer.
   await goToStockDesktop(page);
-  await expect(page.locator("header").getByRole("searchbox")).toHaveCount(0);
-  await expect(page.getByRole("searchbox", { name: "Recherche", exact: true })).toHaveCount(0);
+  await expect(page.locator("header").getByRole("searchbox")).toHaveCount(1);
+  await page.locator("header").getByRole("searchbox").fill("awe");
+  await page.locator("header").getByRole("searchbox").press("Enter");
+  await expect(page.getByTestId("search-page")).toBeVisible();
+  await expect(page.getByTestId("search-input")).toHaveValue("awe");
 });
 
 test("D1 : Entrée sur un bouton de la page Decks l'active au lieu d'ouvrir le deck sélectionné", async ({

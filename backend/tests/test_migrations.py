@@ -49,7 +49,8 @@ ACCOUNTS_REVISION = "32d62f354d89"  # comptes et sessions (Lot 6, R8)
 OWNER_REVISION = "89695b77ef45"  # propriétaire sur les données (Lot 6, R9)
 PRACTICE_REVISION = "783b24f9e769"  # pratique de jeu (Lot 7, R10)
 IDS_REVISION = "e2a7819dd4a2"  # identifiants jamais réattribués (Lot 7, R11)
-HEAD_REVISION = IDS_REVISION
+REQUIREMENT_REVISION = "8ab23342a26f"  # exigence des cartes (lot Chercher, R12)
+HEAD_REVISION = REQUIREMENT_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -62,6 +63,7 @@ REVISIONS = [
     OWNER_REVISION,
     PRACTICE_REVISION,
     IDS_REVISION,
+    REQUIREMENT_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -243,7 +245,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Onze révisions à la suite, sans branche : une racine, une tête."""
+    """Douze révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -2978,3 +2980,139 @@ def test_a_populated_lot6_database_crosses_r10_and_r11_without_loss(empty_db):
     assert rows(empty_db, "SELECT * FROM deck ORDER BY id") == decks_before
     assert journal(empty_db) == journal_before
     assert rows(empty_db, "SELECT COUNT(*) FROM player") == [(0,)]
+
+
+# --------------------------------------------------------------------------
+# Lot Chercher : exigence des cartes de bibliothèque (R12)
+# --------------------------------------------------------------------------
+
+
+def card_columns(db_path: Path) -> list[str]:
+    return [row[1] for row in rows(db_path, "PRAGMA table_info(card)")]
+
+
+def seed_catalog_at_r11(db_path: Path) -> None:
+    """Un petit catalogue, avec un exemplaire en collection et une ligne de
+    deck : la colonne s'ajoute à `card` sans toucher aux tables qui la
+    visent."""
+    execute(db_path, "INSERT INTO sect (id, name) VALUES (1, 'Camarilla')")
+    execute(
+        db_path,
+        "INSERT INTO card_set (id, abbrev, is_placeholder) VALUES (1, 'KoT', 0)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO card (id, vekn_id, name, category, sect_id, advanced,"
+        " burn_option, trifle, legal_from) VALUES"
+        " (1, 200025, 'Aidan Lyle', 'crypt', 1, 0, 0, 0, '2008-01-01'),"
+        " (2, 100002, '419 Operation', 'library', NULL, 0, 0, 0, NULL)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO card_printing (id, card_id, card_set_id)"
+        " VALUES (1, 1, 1), (2, 2, 1)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO card_copy (user_id, card_id, language_code, card_set_id,"
+        " quantity_owned) VALUES (1, 2, 'EN', 1, 3)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, proxy_allowed)"
+        " VALUES (1, 1, 'Banu Princes', '0001', 'draft', 0)",
+    )
+    execute(
+        db_path,
+        "INSERT INTO deck_card (deck_id, user_id, card_id, language_code,"
+        " card_set_id, quantity, proxy_quantity) VALUES (1, 1, 2, 'EN', 1, 2, 0)",
+    )
+
+
+CATALOG_SNAPSHOT = {
+    "card": "SELECT id, vekn_id, name, category, sect_id, legal_from"
+    " FROM card ORDER BY id",
+    "card_printing": "SELECT * FROM card_printing ORDER BY id",
+    "card_copy": "SELECT * FROM card_copy",
+    "deck_card": "SELECT * FROM deck_card",
+}
+
+
+def catalog_rows(db_path: Path) -> dict[str, list[tuple]]:
+    return {table: rows(db_path, sql) for table, sql in CATALOG_SNAPSHOT.items()}
+
+
+def test_head_adds_a_nullable_text_column_for_the_library_requirement(migrated):
+    column = next(
+        row for row in rows(migrated, "PRAGMA table_info(card)")
+        if row[1] == "library_requirement"
+    )
+    # (cid, name, type, notnull, dflt_value, pk)
+    assert column[2:] == ("TEXT", 0, None, 0)
+
+
+def test_the_requirement_revision_adds_no_table(empty_db):
+    alembic(empty_db, "upgrade", IDS_REVISION)
+    before = table_names(empty_db)
+    alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
+    assert table_names(empty_db) == before == EXPECTED_TABLES
+
+
+def test_upgrade_keeps_a_populated_catalogue_and_starts_empty(empty_db):
+    alembic(empty_db, "upgrade", IDS_REVISION)
+    seed_catalog_at_r11(empty_db)
+    before = catalog_rows(empty_db)
+
+    alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
+
+    assert catalog_rows(empty_db) == before
+    assert rows(empty_db, "SELECT library_requirement FROM card") == [(None,), (None,)]
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_downgrade_drops_the_column_and_keeps_every_row(empty_db):
+    """Sans garde : l'exigence est la copie d'une source publique, qu'un rejeu
+    de l'import rétablit. Les autres colonnes et les tables qui visent `card`
+    ne bougent pas."""
+    alembic(empty_db, "upgrade", IDS_REVISION)
+    seed_catalog_at_r11(empty_db)
+    columns_before = card_columns(empty_db)
+    alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
+    before = catalog_rows(empty_db)
+    execute(
+        empty_db,
+        "UPDATE card SET library_requirement = 'prince,justicar' WHERE id = 2",
+    )
+
+    alembic(empty_db, "downgrade", IDS_REVISION)
+
+    assert card_columns(empty_db) == columns_before
+    assert catalog_rows(empty_db) == before
+    assert foreign_key_violations(empty_db) == []
+    assert scalar(empty_db, "SELECT version_num FROM alembic_version") == IDS_REVISION
+
+
+def test_the_requirement_revision_round_trip_keeps_the_ddl(empty_db):
+    alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
+    ddl = schema_text(empty_db)
+
+    alembic(empty_db, "downgrade", IDS_REVISION)
+    alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
+
+    assert schema_text(empty_db) == ddl
+
+
+def test_the_requirement_revision_renders_offline_in_both_directions(empty_db):
+    up = alembic(
+        empty_db, "upgrade", f"{IDS_REVISION}:{REQUIREMENT_REVISION}", "--sql"
+    )
+    assert "ALTER TABLE card ADD COLUMN library_requirement TEXT" in up.stdout
+    assert "CREATE TABLE" not in up.stdout
+
+    down = alembic(
+        empty_db, "downgrade", f"{REQUIREMENT_REVISION}:{IDS_REVISION}", "--sql"
+    )
+    assert "ALTER TABLE card DROP COLUMN library_requirement" in down.stdout
+    assert "CREATE TABLE" not in down.stdout
+    assert not empty_db.exists()

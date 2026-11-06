@@ -257,6 +257,86 @@ export const VTES_STORES_V4 = {
   games: "id, tournamentId, playedAt",
 } as const;
 
+// --- Détails du catalogue (lot Chercher) ----------------------------------
+//
+// `cards` reste la ligne courte que `readProjection` relit à chaque lecture de
+// l'application : tout ce que les filtres de Chercher demandent vit à part,
+// dans `cardDetails`, à clé identique (`id`). Un miroir qu'on enrichit se double
+// ainsi d'un magasin de détails, ajouté sans migration ni vidage (patron proposé
+// à Barrin, `frontend/src/offline/README.md`).
+
+/** `CostType` du contrat. */
+export type CardCostType = Schemas["CostType"];
+/** `DisciplineRequirement` du contrat (`mono`, `choice`, `combo`). */
+export type CardDisciplineRequirement = Schemas["DisciplineRequirement"];
+
+/** Discipline d'une carte, avec son niveau (supérieur en crypte). */
+export interface CardDisciplineDetail {
+  /** Abréviation krcg en minuscules (`dom`, `obf`, `def`…), le nom quand elle manque. */
+  code: string;
+  name: string;
+  superior: boolean;
+}
+
+/** Nom d'une carte dans une autre langue que l'anglais (FR et ES aujourd'hui). */
+export interface CardTranslatedNameDetail {
+  languageCode: string;
+  name: string;
+}
+
+/**
+ * Détails d'une carte du catalogue (lot Chercher, version 6 de la base), ce que
+ * les filtres demandent et que `cards` ne porte pas. Même clé que `cards`.
+ * Les sectes et titres exigés arrivent déjà lus par le serveur (A3) : le client
+ * ne réécrit pas la règle « un titre implique sa secte ».
+ */
+export interface CardDetailRow {
+  id: number;
+  /** Secte d'une carte de crypte (nom de la table `sect`), nulle en bibliothèque. */
+  sect: string | null;
+  title: string | null;
+  path: string | null;
+  costType: CardCostType | null;
+  /** Chaîne : un nombre, ou « X ». */
+  costValue: string | null;
+  /** Prérequis de clan découpés (le contrat les joint par `", "`). */
+  clanRequirements: string[];
+  /** Prérequis de voie découpés, comme les clans. */
+  pathRequirements: string[];
+  disciplineRequirement: CardDisciplineRequirement | null;
+  /** Disciplines, triées par abréviation comme le serveur. */
+  disciplines: CardDisciplineDetail[];
+  /** Noms des types, triés comme le serveur. */
+  types: string[];
+  /** Exigence brute de `vteslibmeta.csv`, pour l'affichage. */
+  libraryRequirement: string | null;
+  requiredSects: string[];
+  requiredTitles: string[];
+  requiresTitled: boolean;
+  requiresNonTitled: boolean;
+  otherRequirements: string[];
+  cardText: string | null;
+  /** `foldText(cardText)`, calculé à l'écriture (A4) ; chaîne vide sans texte. */
+  foldedText: string;
+  /** Dates locales `YYYY-MM-DD`. */
+  bannedOn: string | null;
+  legalFrom: string | null;
+  translatedNames: CardTranslatedNameDetail[];
+  /** Noms traduits repliés, dans l'ordre de `translatedNames`. */
+  foldedTranslatedNames: string[];
+}
+
+/**
+ * Lot Chercher, cran unique (déclaré en version 6 de la base) : le magasin des
+ * détails du catalogue. Ajout d'un magasin seulement, aucune clé ne change,
+ * aucun `upgrade` : un téléphone qui exécute ce code pour la première fois hors
+ * ligne garde son catalogue, son picker et ses libellés ; le miroir est
+ * seulement « incomplet » tant que `cardDetails` est plus court que `cards`.
+ */
+export const VTES_STORES_V5 = {
+  cardDetails: "id",
+} as const;
+
 export const DEFAULT_DB_NAME = "gurchon-hall-offline";
 
 export class VtesOfflineDb extends OfflineCoreDb {
@@ -270,6 +350,7 @@ export class VtesOfflineDb extends OfflineCoreDb {
   declare venues: Table<VenueRow, number>;
   declare tournaments: Table<TournamentRow, number>;
   declare games: Table<GameRow, number>;
+  declare cardDetails: Table<CardDetailRow, number>;
 
   constructor(name: string = DEFAULT_DB_NAME) {
     super(name);
@@ -296,5 +377,8 @@ export class VtesOfflineDb extends OfflineCoreDb {
     // Version 5 (Lot 7) : les miroirs joueurs, lieux, tournois et parties
     // (`VTES_STORES_V4`). Ajout de magasins seulement.
     this.version(5).stores({ ...VTES_STORES_V4 });
+    // Version 6 (lot Chercher) : les détails du catalogue (`VTES_STORES_V5`).
+    // Ajout d'un magasin seulement, comme la version 5.
+    this.version(6).stores({ ...VTES_STORES_V5 });
   }
 }

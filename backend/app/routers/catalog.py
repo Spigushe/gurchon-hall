@@ -26,7 +26,7 @@ from app.routers.common import (
     QueryId,
     require_role,
 )
-from app.schemas.catalog import BundleContentRead, CardListItem, CardRead
+from app.schemas.catalog import BundleContentRead, CardRead, CardSearchItem
 from app.schemas.collection import BundleDeposit, CardCopyRead
 from app.schemas.reference import (
     BundleRead,
@@ -41,14 +41,20 @@ router = APIRouter(tags=["catalogue"])
 
 @router.get(
     "/cartes",
-    response_model=list[CardListItem],
+    response_model=list[CardSearchItem],
     operation_id="listCards",
     summary="Recherche dans le catalogue",
     description=(
         "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom "
-        "anglais (sous-chaîne, sans tenir compte de la casse ni des accents). "
-        "Chaque carte porte ses extensions d'impression et celle de sa "
-        "dernière version (`latest_card_set_id`)."
+        "anglais seulement (sous-chaîne, sans tenir compte de la casse ni des "
+        "accents) : ni les noms traduits ni le texte, que la recherche locale "
+        "du client compare, elle. Chaque carte porte ses extensions "
+        "d'impression et celle de sa dernière version (`latest_card_set_id`), "
+        "et tout ce que les filtres de l'écran Chercher lisent : secte, titre, "
+        "coût, prérequis, disciplines, types, texte anglais, dates de légalité, "
+        "exigence envers le vampire et noms traduits. Les autres filtres sont "
+        "ceux du client, sur son miroir local, pas des paramètres de cette "
+        "route."
     ),
 )
 def list_cards(

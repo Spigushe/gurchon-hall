@@ -68,12 +68,15 @@ class Discipline(Base):
 
 
 class Sect(Base):
-    """Sect (Camarilla, Sabbat, Independent, Anarch, Laibon…).
+    """Secte (Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued).
 
-    [à confirmer] Ni les CSV VEKN ni le JSON krcg n'exposent la sect : pour les
-    cartes de crypt elle n'apparaît que dans le texte de carte (« Sabbat. »,
-    « Independent: »…). `Card.sect_id` reste donc nullable et devra être
-    dérivée ou saisie ; ne pas la traiter comme une donnée d'import fiable.
+    Ni les CSV VEKN ni le JSON krcg n'exposent la secte : pour les cartes de
+    crypte, elle n'apparaît que dans le texte de carte (« Sabbat. »,
+    « Advanced, Independent: »…). Depuis le lot Chercher (P13), l'import la
+    dérive de ce texte comme le fait VDB (`vtes_rules.crypt_sect`) et remplit
+    cette table au besoin. `Card.sect_id` reste nullable : une carte de
+    bibliothèque n'a pas de secte, et un vampire dont le texte ne commence pas
+    par une secte connue est signalé par l'import plutôt que deviné.
     """
 
     __tablename__ = "sect"

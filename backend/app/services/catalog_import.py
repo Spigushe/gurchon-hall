@@ -1,7 +1,23 @@
 """Import rejouable du catalogue krcg (CLAUDE.md §11, décision 1).
 
-Source unique : les deux fichiers JSON publiés par krcg (licence MIT). L'`id`
-krcg est l'identifiant VEKN, clé naturelle de `card`.
+Deux sources depuis le lot Chercher (P15, amendement de la décision 1) :
+
+* krcg, les deux fichiers JSON qu'il publie (licence MIT), qui font tout le
+  catalogue. L'`id` krcg est l'identifiant VEKN, clé naturelle de `card` ;
+* `vteslibmeta.csv` du dépôt vtescsv, pour une seule donnée que krcg ne publie
+  pas : l'exigence d'une carte de bibliothèque envers le vampire qui la joue
+  (`card.library_requirement`, recopie brute). Jointure par identifiant VEKN.
+  Le dépôt ne déclare aucune licence ; krcg en dérive déjà. Facultative pour
+  l'import : sans elle (`library_meta=None`), la colonne n'est pas touchée.
+  Une ligne dont l'identifiant est inconnu, qui vise une carte de crypte, ou
+  dont le nom diverge de celui de krcg est signalée au rapport
+  (`ImportReport.library_meta_issues`), sans faire échouer l'import ; la
+  dernière est appliquée quand même, l'identifiant faisant foi. Une carte sans
+  ligne dans le fichier n'a pas d'exigence.
+
+La secte d'une carte de crypte, que krcg ne publie pas non plus, est dérivée de
+son texte (`vtes_rules.crypt_sect`, P13) ; un vampire dont le texte ne commence
+pas par une secte connue est signalé (`ImportReport.unknown_sect_cards`).
 
 **Rejouable** : l'import est un *upsert* de bout en bout, à rejouer chaque fois
 que krcg publie du nouveau (traductions, rééditions, cartes récentes).
@@ -22,11 +38,11 @@ s'applique telle quelle (carte pas encore légale = deck illégal), et une carte
 sans date est tenue pour légale.
 
 Non importés par choix (§11) : `rulings`, `name_variants`, `variants`, `formats`.
-La sect n'est pas fournie par krcg (`Card.sect_id` reste nul).
 
 La logique est pure vis-à-vis du réseau : `import_catalog` reçoit les données
-déjà parsées (facile à tester contre un fixture) ; `fetch_krcg_sources` fait le
-téléchargement, appelé par `scripts/import_catalog.py`.
+déjà parsées (facile à tester contre un fixture) ; `fetch_krcg_sources` et
+`fetch_library_meta` font le téléchargement, appelés par
+`scripts/import_catalog.py`, et `parse_library_meta` lit le CSV.
 
 **Identifiants stables au rejeu** (Lot 4, D2/D2a) : `card_set` et
 `card_printing` sont désormais référencés par le stock (`CardCopy.card_set_id`,
@@ -46,7 +62,10 @@ pas, et gardée sinon — la carte apparaît alors dans
 que l'import s'autorise, limitée à ce qu'il a lui-même fabriqué.
 """
 
+import csv
+import io
 import json
+import re
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import date
@@ -74,12 +93,23 @@ from app.models import (
     DisciplineRequirement,
     Language,
     PrintOccurrence,
+    Sect,
 )
+from app.services.vtes_rules import crypt_sect
 
 KRCG_SOURCES: dict[str, str] = {
     "vtes.json": "https://static.krcg.org/data/v5/vtes.json",
     "expansions.json": "https://static.krcg.org/data/v5/expansions.json",
 }
+
+# Seconde source (lot Chercher, P15). Figée sur la branche `main` du dépôt
+# officiel, comme krcg l'est sur `v5` : un changement de forme du fichier se
+# voit à la lecture de l'en-tête (`parse_library_meta`), pas en silence.
+LIBRARY_META_FILE = "vteslibmeta.csv"
+LIBRARY_META_URL = (
+    "https://raw.githubusercontent.com/GiottoVerducci/vtescsv/main/vteslibmeta.csv"
+)
+LIBRARY_META_HEADER = ("Id", "Name", "Requirement")
 
 # krcg ne publie que les codes trois lettres des disciplines ; le nom complet
 # est celui du règlement. Un code inconnu (discipline future) retombe sur le
@@ -134,10 +164,45 @@ PLACEHOLDER_CARD_SET_NAME = "Extension tampon (carte sans impression connue)"
 
 @dataclass(frozen=True, slots=True)
 class PlaceholderCard:
-    """Une carte signalée par l'import (D2c) : identifiant VEKN et nom."""
+    """Une carte signalée par l'import (D2c, puis secte inconnue au lot
+    Chercher) : identifiant VEKN et nom."""
 
     vekn_id: int
     name: str
+
+
+@dataclass(frozen=True, slots=True)
+class LibraryMetaRow:
+    """Une ligne de `vteslibmeta.csv`, telle que lue (champs rognés)."""
+
+    row_id: str
+    name: str
+    requirement: str
+
+
+class LibraryMetaIssue:
+    """Motifs d'un écart entre `vteslibmeta.csv` et le catalogue krcg."""
+
+    UNKNOWN_ID = "unknown_id"
+    """Identifiant inconnu du catalogue (ou illisible) : ligne ignorée."""
+    CRYPT_CARD = "crypt_card"
+    """La ligne vise une carte de crypte : ignorée, une exigence de
+    bibliothèque n'a pas de sens pour elle."""
+    NAME_MISMATCH = "name_mismatch"
+    """Le nom diverge de celui de krcg : la ligne est appliquée, l'identifiant
+    VEKN faisant foi, et signalée pour qu'on vérifie."""
+    DUPLICATE_ID = "duplicate_id"
+    """Second exemplaire d'un identifiant déjà lu : ignoré, le premier reste."""
+
+
+@dataclass(frozen=True, slots=True)
+class LibraryMetaReport:
+    """Une ligne du CSV signalée par l'import, sans le faire échouer."""
+
+    row_id: str
+    name: str
+    reason: str
+    catalog_name: str | None = None
 
 
 @dataclass
@@ -155,6 +220,15 @@ class ImportReport:
     # réattribuer » côté utilisateur).
     placeholder_cards: list[PlaceholderCard] = field(default_factory=list)
     reassign_cards: list[PlaceholderCard] = field(default_factory=list)
+    # Lot Chercher (P13) : cartes de crypte classées par secte, et vampires
+    # dont le texte ne commence pas par une secte connue (secte laissée vide).
+    crypt_sects: dict[str, int] = field(default_factory=dict)
+    unknown_sect_cards: list[PlaceholderCard] = field(default_factory=list)
+    # Lot Chercher (P15) : `None` quand `vteslibmeta.csv` n'a pas été fourni
+    # (colonne laissée telle quelle), sinon le nombre de cartes qui ont reçu
+    # une exigence ; et les lignes signalées.
+    library_requirements: int | None = None
+    library_meta_issues: list[LibraryMetaReport] = field(default_factory=list)
 
     @property
     def cards(self) -> int:
@@ -170,6 +244,54 @@ def fetch_krcg_sources(
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
             parsed[name] = json.load(response)
     return parsed["vtes.json"], parsed["expansions.json"]
+
+
+def fetch_library_meta(url: str = LIBRARY_META_URL, timeout: float = 60.0) -> str:
+    """Télécharge `vteslibmeta.csv` et le rend en texte (UTF-8, BOM retiré)."""
+    with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
+        return response.read().decode("utf-8-sig")
+
+
+def parse_library_meta(text: str) -> list[LibraryMetaRow]:
+    """Lit `vteslibmeta.csv` : en-tête `"Id","Name","Requirement"` exigé.
+
+    Un en-tête différent lève `ValueError` avant que l'import ne touche la
+    base : le fichier est suivi sur une branche, pas sur une version, et un
+    changement de forme doit se voir. Une ligne vide est sautée ; une ligne
+    qui n'a pas trois champs aussi, sous un identifiant illisible, pour être
+    signalée comme inconnue.
+    """
+    reader = csv.reader(io.StringIO(text.removeprefix("﻿")))
+    header = tuple(next(reader, ()))
+    if header != LIBRARY_META_HEADER:
+        raise ValueError(
+            f"{LIBRARY_META_FILE} : en-tête inattendu {header!r}, "
+            f"{LIBRARY_META_HEADER!r} attendu."
+        )
+    return [_library_meta_row(fields) for fields in reader if any(fields)]
+
+
+def _library_meta_row(fields: list[str]) -> LibraryMetaRow:
+    if len(fields) != len(LIBRARY_META_HEADER):
+        return LibraryMetaRow(row_id="", name=",".join(fields), requirement="")
+    row_id, name, requirement = (value.strip() for value in fields)
+    return LibraryMetaRow(row_id=row_id, name=name, requirement=requirement)
+
+
+_VEKN_ID = re.compile(r"[0-9]{1,9}")
+"""`[0-9]` et non `\\d`, qui couvre les chiffres Unicode ; neuf chiffres au
+plus, donc sous `MAX_DB_INT`."""
+
+_TRAILING_ARTICLE = re.compile(r"^(?P<rest>.+), The$")
+
+
+def same_card_name(catalog_name: str, csv_name: str) -> bool:
+    """Le nom de vtescsv désigne-t-il la carte de krcg ? vtescsv range
+    l'article en fin de nom (« Embrace, The »), krcg le laisse en tête (« The
+    Embrace ») : 18 cartes au 2026-11-03, qui ne sont pas des écarts."""
+    match = _TRAILING_ARTICLE.match(csv_name)
+    expected = f"The {match['rest']}" if match else csv_name
+    return expected == catalog_name
 
 
 def _date_or_none(value: str | None) -> date | None:
@@ -201,6 +323,13 @@ class _References:
         self.disciplines = {d.abbrev: d for d in db.scalars(select(Discipline))}
         self.card_types = {t.name: t for t in db.scalars(select(CardType))}
         self.languages = {lang.code: lang for lang in db.scalars(select(Language))}
+        self.sects = {s.name: s for s in db.scalars(select(Sect))}
+
+    def sect(self, name: str) -> Sect:
+        if name not in self.sects:
+            self.sects[name] = Sect(name=name)
+            self._db.add(self.sects[name])
+        return self.sects[name]
 
     def clan(self, name: str) -> Clan:
         if name not in self.clans:
@@ -355,6 +484,73 @@ def _sync_links(card: Card, raw: dict, refs: _References) -> None:
     card.discipline_links = kept_disciplines
 
 
+def _sync_sect(card: Card, raw: dict, refs: _References, report: ImportReport) -> None:
+    """Secte dérivée du texte pour une carte de crypte (P13), nulle sinon."""
+    if raw["kind"] != "Crypt":
+        card.sect = None
+        return
+    name = crypt_sect(raw.get("text"), imbued="Imbued" in raw["types"])
+    if name is None:
+        card.sect = None
+        report.unknown_sect_cards.append(
+            PlaceholderCard(vekn_id=card.vekn_id, name=card.name)
+        )
+        return
+    card.sect = refs.sect(name)
+    report.crypt_sects[name] = report.crypt_sects.get(name, 0) + 1
+
+
+def _library_meta_verdict(
+    row: LibraryMetaRow, cards: dict[int, Card], seen: set[int]
+) -> tuple[Card | None, LibraryMetaReport | None]:
+    """La carte que la ligne alimente (ou aucune), et l'écart à signaler."""
+    vekn_id = int(row.row_id) if _VEKN_ID.fullmatch(row.row_id) else None
+    card = cards.get(vekn_id) if vekn_id is not None else None
+    if card is None:
+        return None, _issue(row, LibraryMetaIssue.UNKNOWN_ID)
+    if card.vekn_id in seen:
+        return None, _issue(row, LibraryMetaIssue.DUPLICATE_ID, card)
+    seen.add(card.vekn_id)
+    if card.category is CardCategory.CRYPT:
+        return None, _issue(row, LibraryMetaIssue.CRYPT_CARD, card)
+    if not same_card_name(card.name, row.name):
+        return card, _issue(row, LibraryMetaIssue.NAME_MISMATCH, card)
+    return card, None
+
+
+def _issue(
+    row: LibraryMetaRow, reason: str, card: Card | None = None
+) -> LibraryMetaReport:
+    return LibraryMetaReport(
+        row_id=row.row_id,
+        name=row.name,
+        reason=reason,
+        catalog_name=card.name if card is not None else None,
+    )
+
+
+def _sync_library_requirements(
+    cards: dict[int, Card], rows: list[LibraryMetaRow], report: ImportReport
+) -> None:
+    """Aligne `card.library_requirement` sur `vteslibmeta.csv` (P15).
+
+    Toute carte du catalogue est revue : celle qu'une ligne retenue désigne
+    reçoit sa valeur brute, les autres n'ont plus d'exigence. Un rejeu
+    réécrit les mêmes valeurs, sans doublon possible (une colonne par carte).
+    """
+    wanted: dict[int, str | None] = {}
+    seen: set[int] = set()
+    for row in rows:
+        card, issue = _library_meta_verdict(row, cards, seen)
+        if issue is not None:
+            report.library_meta_issues.append(issue)
+        if card is not None:
+            wanted[card.vekn_id] = row.requirement or None
+    for card in cards.values():
+        card.library_requirement = wanted.get(card.vekn_id)
+    report.library_requirements = sum(1 for value in wanted.values() if value)
+
+
 def _occurrences(
     raw_print: dict,
     card_set: CardSet,
@@ -504,9 +700,17 @@ def _sync_translations(
 
 
 def import_catalog(
-    db: Session, vtes: list[dict], expansions: list[dict]
+    db: Session,
+    vtes: list[dict],
+    expansions: list[dict],
+    library_meta: list[LibraryMetaRow] | None = None,
 ) -> ImportReport:
-    """Importe (ou met à jour) le catalogue, en une seule transaction."""
+    """Importe (ou met à jour) le catalogue, en une seule transaction.
+
+    `library_meta` : lignes de `vteslibmeta.csv` (`parse_library_meta`). Sans
+    elles, les exigences déjà en base ne sont pas touchées : un import krcg
+    seul ne les efface pas.
+    """
     report = ImportReport()
     try:
         refs = _References(db)
@@ -544,9 +748,12 @@ def import_catalog(
                 report.cards_created += 1
             else:
                 report.cards_updated += 1
+            _sync_sect(card, raw, refs, report)
             _sync_links(card, raw, refs)
             _sync_printings(db, card, raw, card_sets, bundles, report)
             _sync_translations(card, raw, refs, report)
+        if library_meta is not None:
+            _sync_library_requirements(existing, library_meta, report)
         db.commit()
     except Exception:
         db.rollback()

@@ -702,8 +702,22 @@ READ_PAIRS = [
     # des colonnes ni des relations du modèle — `computed` les excuse dans la
     # réciproque ci-dessous, sans les dispenser d'être testés ailleurs
     # (`test_catalog.py` côté service).
+    # Lot Chercher (A3) : la lecture de `library_requirement` en sectes,
+    # titres et autres valeurs est calculée par le service, pas une colonne.
     pytest.param(
-        Card, CardRead, set(), {"card_set_ids", "latest_card_set_id"}, id="Card"
+        Card,
+        CardRead,
+        set(),
+        {
+            "card_set_ids",
+            "latest_card_set_id",
+            "required_sects",
+            "required_titles",
+            "requires_titled",
+            "requires_non_titled",
+            "other_requirements",
+        },
+        id="Card",
     ),
     # `user_id` (Lot 6) : le compte vient de la session, jamais du client ni
     # d'une réponse — omis de toutes les lectures de données privées.

@@ -215,3 +215,151 @@ def test_create_language_trims_the_code_before_normalizing(api, db):
     assert created.status_code == 201
     assert created.json()["code"] == "DE"
     assert api.post("/langues", json={"code": "DE", "label": "x"}).status_code == 409
+
+
+# --------------------------------------------------------------------------
+# Lot Chercher : ce que la liste porte pour les filtres (A1, A3, A7)
+# --------------------------------------------------------------------------
+# La forme est livrée à l'étape A1 ; l'ordre des types et des disciplines et le
+# nombre de requêtes à l'étape B1 (la compression : `test_compression.py`).
+
+
+@pytest.fixture
+def catalog_with_requirements(db):
+    from app.services.catalog_import import parse_library_meta
+
+    vtes = json.loads((FIXTURES / "krcg_vtes.json").read_text(encoding="utf-8"))
+    expansions = json.loads(
+        (FIXTURES / "krcg_expansions.json").read_text(encoding="utf-8")
+    )
+    meta = parse_library_meta(
+        (FIXTURES / "vteslibmeta_sample.csv").read_text(encoding="utf-8")
+    )
+    import_catalog(db, vtes, expansions, meta)
+
+
+def by_vekn_id(response) -> dict[int, dict]:
+    return {card["vekn_id"]: card for card in response.json()}
+
+
+def test_list_cards_carries_the_derived_sect(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+    assert cards[200025]["sect"]["name"] == "Camarilla"
+    assert cards[200102]["sect"]["name"] == "Imbued"
+    assert cards[100002]["sect"] is None
+
+
+def test_list_cards_reads_the_library_requirement(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+
+    operation = cards[100002]
+    assert operation["library_requirement"] == "prince,justicar"
+    assert operation["required_sects"] == ["Camarilla"]
+    assert operation["required_titles"] == ["Prince", "Justicar"]
+    assert (operation["requires_titled"], operation["requires_non_titled"]) == (
+        False,
+        False,
+    )
+    assert operation["other_requirements"] == []
+
+    tyranny = cards[102308]
+    # « non-anarch,titled » : toute secte de vampire sauf Anarch, et titré.
+    assert tyranny["required_sects"] == [
+        "Camarilla",
+        "Sabbat",
+        "Laibon",
+        "Independent",
+    ]
+    assert tyranny["requires_titled"] is True
+    assert tyranny["other_requirements"] == []
+
+    awe = cards[100119]
+    assert awe["library_requirement"] is None
+    assert awe["required_sects"] == awe["required_titles"] == []
+
+
+def test_list_cards_carries_the_filter_fields(api, catalog_with_requirements):
+    cards = by_vekn_id(api.get("/cartes"))
+    aidan = cards[200025]
+    assert {d["discipline"]["abbrev"] for d in aidan["discipline_links"]} == {
+        "dom",
+        "aus",
+        "chi",
+        "tha",
+    }
+    assert [t["name"] for t in aidan["types"]] == ["Vampire"]
+    assert aidan["card_text"].startswith("Camarilla")
+    assert aidan["legal_from"] is not None
+    tyranny = cards[102308]
+    assert {t["name"] for t in tyranny["types"]} == {"Action Modifier", "Reaction"}
+
+
+def test_list_cards_carries_translated_names_only(api, catalog_with_requirements):
+    aidan = by_vekn_id(api.get("/cartes"))[200025]
+    assert [n["language_code"] for n in aidan["translated_names"]] == ["ES", "FR"]
+    assert set(aidan["translated_names"][0]) == {"language_code", "name"}
+    assert "translations" not in aidan and "printings" not in aidan
+
+
+def test_the_sheet_has_the_requirement_but_no_translated_names(
+    api, catalog_with_requirements
+):
+    operation_id = by_vekn_id(api.get("/cartes"))[100002]["id"]
+    body = api.get(f"/cartes/{operation_id}").json()
+    assert body["required_titles"] == ["Prince", "Justicar"]
+    assert "translated_names" not in body
+    assert "translations" in body
+
+
+def test_types_and_disciplines_come_in_a_defined_order(
+    api, catalog_with_requirements
+):
+    """Types par nom, disciplines par abréviation (B1), sur la liste comme sur
+    la fiche : sans ordre défini, deux réponses identiques en base pouvaient
+    différer d'un appel à l'autre selon le plan de requête de SQLite."""
+    cards = by_vekn_id(api.get("/cartes"))
+    aidan, tyranny = cards[200025], cards[102308]
+    sheet = api.get(f"/cartes/{aidan['id']}").json()
+
+    for source in (aidan, sheet):
+        assert [d["discipline"]["abbrev"] for d in source["discipline_links"]] == [
+            "aus",
+            "chi",
+            "dom",
+            "tha",
+        ]
+    assert [t["name"] for t in tyranny["types"]] == ["Action Modifier", "Reaction"]
+
+
+def _selects_for(api, db_engine, **params) -> list[str]:
+    from sqlalchemy import event
+
+    statements: list[str] = []
+
+    def record(_conn, _cursor, statement, *_rest):
+        statements.append(statement)
+
+    event.listen(db_engine, "before_cursor_execute", record)
+    try:
+        response = api.get("/cartes", params=params)
+    finally:
+        event.remove(db_engine, "before_cursor_execute", record)
+    assert response.status_code == 200
+    assert len(response.json()) == params["limit"]
+    return [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+
+
+def test_list_cards_query_count_does_not_grow_with_the_page(
+    api, db_engine, catalog_with_requirements
+):
+    """Une page coûte le même nombre de requêtes pour une carte et pour dix
+    (B1) : cartes, puis un `selectin` par relation lue, jamais une requête par
+    carte. Sans les préchargements de `list_cards`, une page de 200 cartes en
+    coûtait plus de 400."""
+    one = _selects_for(api, db_engine, limit=1)
+    ten = _selects_for(api, db_engine, limit=10)
+
+    assert len(one) == len(ten), (one, ten)
+    # Cartes (clan et secte joints), types, disciplines, traductions,
+    # impressions (extension jointe), occurrences.
+    assert len(ten) <= 6, ten

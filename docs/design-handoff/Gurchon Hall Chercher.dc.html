@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  @font-face { font-family: "Ankha VTES"; src: url("https://static.krcg.org/web/ankha2.otf") format("opentype"); font-display: block; }
+  @font-face { font-family: "VTES Clans"; src: url("https://static.krcg.org/web/vtes-clans.otf") format("opentype"); font-display: block; }
+  body { margin: 0; background: #0d0e16; }
+  a { color: var(--color-accent-300); text-decoration: none; }
+  a:hover { color: var(--color-accent-200); }
+  i[class^="ph"] { display: block; }
+</style>
+</helmet>
+
+<section style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:40px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:760px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · lot Chercher · mobile 390 · direction 1b</div>
+    <h2 style="font-size:30px;margin:0">Chercher — le catalogue au pouce</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:66ch;text-wrap:pretty">Une liste sans vignette, des icônes KRCG précachées (disciplines, clans, types, coûts), des filtres en écrans successifs comme des réglages, une fiche en demi-feuille extensible et une feuille d'ajout à steppers seulement. L'écran 36 est interactif : changez Deck / Collection / Les deux et les quantités.</p>
+  </div>
+
+  <div id="chercher-mobile" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Chercher</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Écrans 26 à 42</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">Sur le canapé, un deck Banu Haqim en chantier</span>
+    </div>
+
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+
+      <!-- 26 Résultats, deck ciblé -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">26 · Résultats — deck ciblé, 4 filtres</span>
+        <div id="shot-1b-26-resultats" data-screen-label="1b-26 Résultats" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:08</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Chercher</h3>
+              <span style="font-size:13px;color:var(--color-neutral-400)">Catalogue local · 4 149 cartes</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-left:2px solid var(--color-accent);padding-left:14px;min-height:44px">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Pour le deck</span>
+                <span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent-200)">Banu Haqim Quietus</span>
+              </div>
+              <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)" aria-label="Ne plus cibler ce deck"><i class="ph ph-x" style="font-size:18px"></i></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-neutral-500)"></i>
+              <span style="font-size:15px;color:var(--color-neutral-500)">Nom ou texte de carte</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px">
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Toutes</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Crypte</span>
+              <span style="font-family:var(--font-heading);border-bottom:2px solid var(--color-accent);padding-bottom:5px">Bibliothèque</span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px;padding-bottom:5px;min-height:24px;white-space:nowrap"><i class="ph ph-funnel-simple" style="font-size:15px;color:var(--color-accent-300)"></i><span style="color:var(--color-neutral-300)">4 filtres</span><span style="color:var(--color-neutral-600)">·</span><span style="color:var(--color-accent-300)">Modifier</span></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--color-neutral-500)">
+              <span>86 résultats</span>
+              <span style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-400)"><i class="ph ph-sort-ascending" style="font-size:14px"></i>Nom</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ rows26 }}" as="r" hint-placeholder-count="5">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:15px 0;border-top:1px solid var(--color-divider)">
+                  <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                    <span style="font-family:var(--font-heading);font-size:17px">{{ r.name }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-neutral-500)"><span style="font-family:'Ankha VTES';font-size:15px;color:var(--color-neutral-400)">{{ r.typeG }}</span><span style="font-family:'VTES Clans';font-size:15px;color:var(--color-neutral-400)">{{ r.clanG }}</span>{{ r.meta }}</span>
+                    <span style="display:flex;align-items:center;gap:12px;font-size:12px"><span style="font-family:'Ankha VTES';font-size:17px;letter-spacing:4px;color:var(--color-neutral-300)">{{ r.discs }}</span><span style="color:var(--color-neutral-400)">{{ r.owned }}</span><span style="color:var(--color-accent-300)">{{ r.inDeck }}</span><sc-if value="{{ r.legal }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:4px;color:var(--color-accent-200)"><i class="ph ph-prohibit" style="font-size:13px"></i>{{ r.legal }}</span></sc-if></span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none;min-width:28px">
+                    <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">{{ r.cap }}</span>
+                    <span style="font-family:'Ankha VTES';font-size:22px;color:var(--color-neutral-300);line-height:1">{{ r.cost }}</span>
+                    <span style="font-size:11px;color:var(--color-neutral-500)">{{ r.capLabel }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 27 Toutes + champ -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">27 · Résultats — Toutes, nom puis texte</span>
+        <div id="shot-1b-27-nom-texte" data-screen-label="1b-27 Nom et texte" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:10</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Chercher</h3>
+              <span style="font-size:13px;color:var(--color-neutral-400)">Catalogue local · 4 149 cartes</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--color-accent);padding:0 2px 10px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-accent)"></i>
+              <span style="font-size:16px;display:flex;align-items:center">govern<span style="width:1px;height:20px;background:var(--color-accent);margin-left:1px"></span></span>
+              <i class="ph ph-x-circle" style="font-size:18px;color:var(--color-neutral-500);margin-left:auto"></i>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px">
+              <span style="font-family:var(--font-heading);border-bottom:2px solid var(--color-accent);padding-bottom:5px">Toutes</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Crypte</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Bibliothèque</span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--color-neutral-400);padding-bottom:5px"><i class="ph ph-funnel-simple" style="font-size:15px"></i>Filtres</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--color-neutral-500)">
+              <span>4 par le nom · 17 par le texte</span>
+              <span style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-400)"><i class="ph ph-sort-ascending" style="font-size:14px"></i>Nom</span>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ rows27 }}" as="r" hint-placeholder-count="5">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:15px 0;border-top:1px solid var(--color-divider)">
+                  <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                    <span style="font-family:var(--font-heading);font-size:17px">{{ r.name }}</span>
+                    <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-neutral-500)"><span style="font-family:'Ankha VTES';font-size:15px;color:var(--color-neutral-400)">{{ r.typeG }}</span><span style="font-family:'VTES Clans';font-size:15px;color:var(--color-neutral-400)">{{ r.clanG }}</span>{{ r.meta }}</span>
+                    <span style="display:flex;align-items:center;gap:12px;font-size:12px"><span style="font-family:'Ankha VTES';font-size:17px;letter-spacing:4px;color:var(--color-neutral-300)">{{ r.discs }}</span><span style="color:var(--color-neutral-400)">{{ r.owned }}</span><span style="color:var(--color-accent-300)">{{ r.inDeck }}</span><sc-if value="{{ r.legal }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:4px;color:var(--color-accent-200)"><i class="ph ph-prohibit" style="font-size:13px"></i>{{ r.legal }}</span></sc-if></span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none;min-width:28px">
+                    <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">{{ r.cap }}</span>
+                    <span style="font-family:'Ankha VTES';font-size:22px;color:var(--color-neutral-300);line-height:1">{{ r.cost }}</span>
+                    <span style="font-size:11px;color:var(--color-neutral-500)">{{ r.capLabel }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 28 Crypte, fin de tranche -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">28 · Crypte, tri capacité — fin d'une tranche</span>
+        <div id="shot-1b-28-tranche" data-screen-label="1b-28 Fin de tranche" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="display:flex;flex-direction:column;gap:10px;padding:14px 26px 12px;border-bottom:1px solid var(--color-divider);background:var(--color-bg)">
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px">
+              <span style="color:var(--color-neutral-500)">Toutes</span>
+              <span style="font-family:var(--font-heading);color:var(--color-text)">Crypte</span>
+              <span style="color:var(--color-neutral-500)">Bibliothèque</span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px;white-space:nowrap"><i class="ph ph-funnel-simple" style="font-size:15px;color:var(--color-accent-300)"></i><span style="color:var(--color-neutral-300)">2 filtres</span><span style="color:var(--color-neutral-600)">·</span><span style="color:var(--color-accent-300)">Modifier</span></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-500)"><span>312 résultats</span><span style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-400)"><i class="ph ph-sort-descending" style="font-size:14px"></i>Capacité</span></div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;padding:0 26px 112px;overflow:hidden">
+            <sc-for list="{{ rows28 }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:15px 0;border-bottom:1px solid var(--color-divider)">
+                <div style="display:flex;flex-direction:column;gap:5px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px">{{ r.name }}</span>
+                  <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-neutral-500)"><span style="font-family:'VTES Clans';font-size:15px;color:var(--color-neutral-400)">{{ r.clanG }}</span>{{ r.meta }}</span>
+                  <span style="display:flex;align-items:center;gap:12px;font-size:12px"><span style="font-family:'Ankha VTES';font-size:17px;letter-spacing:4px;color:var(--color-neutral-300)">{{ r.discs }}</span><span style="color:var(--color-neutral-400)">{{ r.owned }}</span><sc-if value="{{ r.legal }}" hint-placeholder-val="{{ false }}"><span style="display:flex;align-items:center;gap:4px;color:var(--color-accent-200)"><i class="ph ph-clock" style="font-size:13px"></i>{{ r.legal }}</span></sc-if></span>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;flex:none">
+                  <span style="font-family:var(--font-heading);font-size:18px;font-variant-numeric:tabular-nums">{{ r.cap }}</span>
+                  <span style="font-size:11px;color:var(--color-neutral-500)">cap.</span>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:flex;flex-direction:column;gap:8px;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+              <div style="height:17px;width:58%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div>
+              <div style="height:12px;width:42%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px 0 0">
+              <span style="font-size:12px;color:var(--color-neutral-500)">50 sur 312 · la suite se charge en descendant</span>
+              <span style="min-height:44px;padding:0 20px;border-radius:999px;border:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-neutral-300)"><i class="ph ph-arrow-down" style="font-size:16px"></i>Afficher 50 de plus</span>
+            </div>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 29 Filtres : liste -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">29 · Filtres — la liste (Bibliothèque)</span>
+        <div id="shot-1b-29-filtres" data-screen-label="1b-29 Filtres" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:09</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:22px 26px 150px;overflow:hidden">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Bibliothèque · 86 résultats</span>
+                <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Filtres</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:6px">Communs</span>
+              <sc-for list="{{ fCommon }}" as="f" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--color-divider)">
+                  <span style="font-size:15px;flex:none">{{ f.label }}</span>
+                  <span style="margin-left:auto;font-size:13px;color:{{ f.color }};text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.value }}</span>
+                  <i class="ph ph-caret-right" style="font-size:14px;color:var(--color-neutral-600)"></i>
+                </div>
+              </sc-for>
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding:18px 0 6px">Bibliothèque</span>
+              <sc-for list="{{ fLib }}" as="f" hint-placeholder-count="7">
+                <div style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--color-divider)">
+                  <span style="font-size:15px;flex:none">{{ f.label }}</span>
+                  <sc-if value="{{ f.mode }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid var(--color-accent-700);color:var(--color-accent-300)">{{ f.mode }}</span></sc-if>
+                  <span style="margin-left:auto;font-size:13px;color:{{ f.color }};text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px"><span style="font-family:'Ankha VTES';font-size:16px;letter-spacing:3px">{{ f.glyphs }}</span>{{ f.value }}</span>
+                  <i class="ph ph-caret-right" style="font-size:14px;color:var(--color-neutral-600)"></i>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--color-divider);color:var(--color-neutral-500);font-size:13px"><i class="ph ph-swap" style="font-size:16px"></i>Filtres de crypte : passer en Crypte</div>
+            </div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:12px;padding:0 26px 30px;background:var(--color-bg)">
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="min-height:44px;display:flex;align-items:center;font-size:14px;color:var(--color-accent-300)">Réinitialiser</span>
+              <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Voir 86 résultats</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 30 Disciplines bibliothèque -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">30 · Filtre Disciplines (bibliothèque) — mode SEULEMENT</span>
+        <div id="shot-1b-30-disciplines-bib" data-screen-label="1b-30 Disciplines bibliothèque" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:09</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:22px 26px 150px;overflow:hidden">
+            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-neutral-400);min-height:24px"><i class="ph ph-arrow-left" style="font-size:20px"></i>Filtres</span>
+            <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Disciplines requises</h3>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Mode · toucher pour changer</span>
+                <span onClick="{{ cycleMode }}" style="min-height:44px;display:flex;align-items:center;cursor:pointer">
+                  <span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-accent-900);font-family:var(--font-heading);font-size:12px;letter-spacing:.08em;color:var(--color-accent-200)">{{ mode.label }}<span style="display:flex;gap:3px"><sc-for list="{{ mode.dots }}" as="d" hint-placeholder-count="4"><span style="width:5px;height:5px;border-radius:999px;background:{{ d }}"></span></sc-for></span></span>
+                </span>
+              </div>
+              <span style="font-size:13px;color:var(--color-neutral-400);text-wrap:pretty">{{ mode.help }}</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+              <sc-for list="{{ discLib }}" as="d" hint-placeholder-count="28">
+                <span style="min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:var(--radius-md);border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.color }}"><span style="font-family:'Ankha VTES';font-size:20px;line-height:1">{{ d.g }}</span><span style="font-size:10px;letter-spacing:.04em">{{ d.code }}</span></span>
+              </sc-for>
+            </div>
+            <span style="min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Non requise (cartes sans discipline)</span>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:12px;padding:0 26px 30px;background:var(--color-bg)">
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="min-height:44px;display:flex;align-items:center;font-size:14px;color:var(--color-accent-300)">Effacer</span>
+              <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Voir 86 résultats</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 31 Disciplines crypte -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">31 · Filtre Disciplines (crypte) — trois états, paires OU</span>
+        <div id="shot-1b-31-disciplines-crypte" data-screen-label="1b-31 Disciplines crypte" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:11</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px;padding:22px 26px 150px;overflow:hidden">
+            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-neutral-400);min-height:24px"><i class="ph ph-arrow-left" style="font-size:20px"></i>Filtres</span>
+            <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Disciplines</h3>
+            <div style="display:flex;align-items:center;gap:14px;font-size:12px;color:var(--color-neutral-400)">
+              <span>Toucher :</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:16px;height:16px;border-radius:var(--radius-sm);border:1px solid var(--color-divider)"></span>rien</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="font-family:'Ankha VTES';font-size:16px;color:var(--color-accent-200)">a</span>inférieure</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="font-family:'Ankha VTES';font-size:16px;color:var(--color-accent-100)">A</span>supérieure</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+              <sc-for list="{{ discCrypt }}" as="d" hint-placeholder-count="28">
+                <span onClick="{{ d.tap }}" style="min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:var(--radius-md);border:1px solid {{ d.border }};background:{{ d.bg }};color:{{ d.color }};cursor:pointer"><span style="font-family:'Ankha VTES';font-size:20px;line-height:1">{{ d.g }}</span><span style="font-size:10px;letter-spacing:.04em">{{ d.code }}</span></span>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Paires « OU »</span><span style="font-size:12px;color:var(--color-neutral-500)">OU dans la paire, ET entre paires</span></div>
+              <div style="display:flex;align-items:center;gap:10px;min-height:48px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider)">
+                <span style="display:flex;align-items:center;gap:6px;font-size:14px"><span style="font-family:'Ankha VTES';font-size:20px;color:var(--color-accent-100)">C</span>Celerity sup.</span>
+                <span style="font-size:10px;letter-spacing:.08em;padding:2px 7px;border-radius:999px;border:1px solid var(--color-divider);color:var(--color-neutral-400)">OU</span>
+                <span style="display:flex;align-items:center;gap:6px;font-size:14px"><span style="font-family:'Ankha VTES';font-size:20px;color:var(--color-accent-200)">p</span>Potence inf.</span>
+                <i class="ph ph-x" style="font-size:16px;color:var(--color-neutral-500);margin-left:auto"></i>
+              </div>
+              <span style="min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-accent-300)"><i class="ph ph-plus" style="font-size:16px"></i>Ajouter une paire</span>
+            </div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:12px;padding:0 26px 30px;background:var(--color-bg)">
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="min-height:44px;display:flex;align-items:center;font-size:14px;color:var(--color-accent-300)">Effacer</span>
+              <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Voir {{ cryptCount }} résultats</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 32 Texte -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">32 · Filtre Texte — lignes ET / NON</span>
+        <div id="shot-1b-32-texte" data-screen-label="1b-32 Filtre texte" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:13</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:22px 26px 150px;overflow:hidden">
+            <span style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-neutral-400);min-height:24px"><i class="ph ph-arrow-left" style="font-size:20px"></i>Filtres</span>
+            <h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Texte</h3>
+            <span style="font-size:13px;color:var(--color-neutral-400);text-wrap:pretty">Chaque ligne s'ajoute au champ principal. Un mot court trouve aussi les icônes : « pre » trouve toutes les cartes à icône <span style="font-family:'Ankha VTES';font-size:15px;color:var(--color-neutral-300)">r</span> Presence.</span>
+            <sc-for list="{{ textLines }}" as="t" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:10px;padding:14px 0;border-top:1px solid var(--color-divider)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex:none;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+                    <sc-for list="{{ t.scopes }}" as="s" hint-placeholder-count="3">
+                      <span style="min-height:36px;padding:0 10px;display:flex;align-items:center;font-size:12px;color:{{ s.color }};box-shadow:{{ s.ring }};border-radius:var(--radius-md)">{{ s.label }}</span>
+                    </sc-for>
+                  </div>
+                  <span style="min-height:44px;display:flex;align-items:center"><span style="display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-accent-900);font-family:var(--font-heading);font-size:12px;letter-spacing:.08em;color:var(--color-accent-200)">{{ t.mode }}<span style="display:flex;gap:3px"><sc-for list="{{ t.dots }}" as="d" hint-placeholder-count="2"><span style="width:5px;height:5px;border-radius:999px;background:{{ d }}"></span></sc-for></span></span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--color-divider);padding:0 2px 8px;min-height:40px">
+                  <span style="font-size:16px;flex:1">{{ t.value }}</span>
+                  <i class="ph ph-trash" style="font-size:16px;color:var(--color-neutral-500)"></i>
+                </div>
+              </div>
+            </sc-for>
+            <span style="min-height:44px;display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-accent-300)"><i class="ph ph-plus" style="font-size:16px"></i>Ajouter une ligne</span>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:12px;padding:0 26px 30px;background:var(--color-bg)">
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="min-height:44px;display:flex;align-items:center;font-size:14px;color:var(--color-accent-300)">Effacer</span>
+              <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Voir 58 résultats</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 33 Fiche demi-feuille -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">33 · Fiche — demi-feuille</span>
+        <div id="shot-1b-33-fiche" data-screen-label="1b-33 Fiche demi-feuille" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="opacity:.35;display:flex;flex-direction:column;gap:18px;padding:16px 26px 0" inert="">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--color-neutral-500)"><span>21:14</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+            <h3 style="font-size:30px;margin:10px 0 0;letter-spacing:-.02em">Chercher</h3>
+            <div style="border-left:2px solid var(--color-accent);padding-left:14px;font-family:var(--font-heading);font-size:15px;color:var(--color-accent-200)">Banu Haqim Quietus</div>
+            <div style="padding:15px 0;border-top:1px solid var(--color-divider);font-family:var(--font-heading);font-size:17px">Blood Sweat</div>
+            <div style="padding:15px 0;border-top:1px solid var(--color-divider);font-family:var(--font-heading);font-size:17px">Cloak the Gathering</div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:0;top:318px;background:var(--color-surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:16px;padding:10px 26px 30px">
+            <span style="align-self:center;width:36px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Bibliothèque</span>
+                <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Cloak the Gathering</h3>
+                <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-neutral-400)"><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-neutral-300)">1</span>Action Modifier<span style="color:var(--color-neutral-600)">·</span><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-neutral-300)">o</span>Obfuscate<span style="color:var(--color-neutral-600)">·</span>sans coût</span>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-200);text-wrap:pretty"><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">o</span> +1 stealth.<br><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">O</span> +2 stealth.</p>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">En collection</span><span style="font-family:var(--font-heading)">4 · EN, FR</span></div>
+              <div style="display:flex;justify-content:space-between;padding:12px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">Dans mes decks</span><span style="font-family:var(--font-heading)">Nosferatu Rush ×4</span></div>
+            </div>
+            <span style="display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:var(--color-neutral-500)"><i class="ph ph-caret-up" style="font-size:14px"></i>Tirer vers le haut : image, impressions, légalité</span>
+            <span style="margin-top:auto;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Ajouter…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 34 Fiche étendue, en ligne -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">34 · Fiche — étendue, en ligne</span>
+        <div id="shot-1b-34-fiche-etendue" data-screen-label="1b-34 Fiche étendue" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:14</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;top:44px;background:var(--color-surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:18px;padding:10px 26px 120px;overflow:hidden">
+            <span style="align-self:center;width:36px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Bibliothèque</span>
+                <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Cloak the Gathering</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;gap:18px;align-items:flex-start">
+              <div style="width:132px;height:184px;flex:none;border-radius:var(--radius-md);overflow:hidden;background:var(--color-neutral-900)"><img src="https://static.krcg.org/card/cloakthegathering.jpg" alt="Cloak the Gathering" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+              <div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;font-size:13px">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Type</span><span style="display:flex;align-items:center;gap:6px"><span style="font-family:'Ankha VTES';font-size:16px">1</span>Action Modifier</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Discipline</span><span style="display:flex;align-items:center;gap:6px"><span style="font-family:'Ankha VTES';font-size:16px">o</span>Obfuscate</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Coût</span><span>aucun</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Légalité</span><span>légale</span></div>
+              </div>
+            </div>
+            <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-200)"><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">o</span> +1 stealth.<br><span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">O</span> +2 stealth.</p>
+            <p style="margin:0;font-size:13px;line-height:1.5;color:var(--color-neutral-400);font-style:italic;border-left:2px solid var(--color-divider);padding-left:14px">Texte d'ambiance de la carte, s'il existe. <span style="font-style:normal;color:var(--color-neutral-500)">— Artiste</span></p>
+            <div style="display:flex;flex-direction:column">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:6px">Mes exemplaires</span>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span>EN · Third Edition</span><span style="font-family:var(--font-heading);font-variant-numeric:tabular-nums">×3</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span>FR · Fifth Edition</span><span style="font-family:var(--font-heading);font-variant-numeric:tabular-nums">×1</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">Joué dans</span><span>Nosferatu Rush ×4</span></div>
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding:14px 0 6px">Impressions</span>
+              <span style="font-size:13px;color:var(--color-neutral-300);line-height:1.6">Jyhad · VTES · Third Edition · Keepers of Tradition · Fifth Edition</span>
+            </div>
+          </div>
+          <div style="position:absolute;left:26px;right:26px;bottom:30px;display:flex">
+            <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Ajouter…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 35 Fiche crypte, hors ligne -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">35 · Fiche crypte — hors ligne, au club</span>
+        <div id="shot-1b-35-fiche-hors-ligne" data-screen-label="1b-35 Fiche hors ligne" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>16:02</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;top:44px;background:var(--color-surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:18px;padding:10px 26px 120px;overflow:hidden">
+            <span style="align-self:center;width:36px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Crypte</span>
+                <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Lodin (G4, Adv)</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;gap:18px;align-items:flex-start">
+              <div style="width:132px;height:184px;flex:none;border-radius:var(--radius-md);background:var(--color-neutral-900);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--color-neutral-500);text-align:center;padding:0 12px;box-sizing:border-box"><i class="ph ph-wifi-slash" style="font-size:22px"></i><span style="font-size:12px;line-height:1.35">Image indisponible hors ligne</span></div>
+              <div style="display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;font-size:13px">
+                <div style="display:flex;gap:18px">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Capacité</span><span style="font-family:var(--font-heading);font-size:20px">9</span></div>
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Groupe</span><span style="font-family:var(--font-heading);font-size:20px">4</span></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Clan · secte</span><span style="display:flex;align-items:center;gap:6px"><span style="font-family:'VTES Clans';font-size:16px">v</span>Ventrue · Camarilla</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Titre</span><span>Prince</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-500);font-size:12px">Disciplines</span><span style="font-family:'Ankha VTES';font-size:20px;letter-spacing:4px">aDFR</span></div>
+              </div>
+            </div>
+            <p style="margin:0;font-size:15px;line-height:1.55;color:var(--color-neutral-200)">Advanced, Camarilla Prince of Chicago. <span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">µ</span> Texte de la version fusionnée, avec ses icônes <span style="font-family:'Ankha VTES';font-size:17px;color:var(--color-text)">D</span> en ligne.</p>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">Légalité</span><span>légale</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">En collection</span><span>EN · Keepers of Tradition ×1</span></div>
+              <div style="display:flex;justify-content:space-between;padding:11px 0;border-top:1px solid var(--color-divider);font-size:14px"><span style="color:var(--color-neutral-400)">Joué dans</span><span>aucun deck</span></div>
+            </div>
+          </div>
+          <div style="position:absolute;left:26px;right:26px;bottom:30px;display:flex">
+            <span style="flex:1;min-height:50px;border-radius:999px;border:1px solid var(--color-accent);background:var(--color-bg);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Ajouter…</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 36 Feuille d'ajout (interactive) -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">36 · Feuille d'ajout — Deck, Collection, Les deux (interactif)</span>
+        <div id="shot-1b-36-ajout" data-screen-label="1b-36 Feuille d'ajout" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:15</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;top:110px;background:var(--color-surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:18px;padding:10px 26px 30px">
+            <span style="align-self:center;width:36px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Ajouter</span>
+                <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Cloak the Gathering</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;flex:none;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+              <sc-for list="{{ seg }}" as="o" hint-placeholder-count="3">
+                <sc-if value="{{ o.sel }}" hint-placeholder-val="{{ false }}"><span onClick="{{ o.pick }}" style="flex:1;min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14px;font-family:var(--font-heading);color:var(--color-accent);box-shadow:inset 0 0 0 1px var(--color-accent);border-radius:var(--radius-md);cursor:pointer">{{ o.label }}</span></sc-if>
+                <sc-if value="{{ o.unsel }}" hint-placeholder-val="{{ true }}"><span onClick="{{ o.pick }}" style="flex:1;min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--color-neutral-400);cursor:pointer">{{ o.label }}</span></sc-if>
+              </sc-for>
+            </div>
+            <sc-if value="{{ hasDeck }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:var(--color-neutral-400)">Deck</span><span style="font-size:16px">Banu Haqim Quietus</span></div>
+                <span style="font-size:13px;color:var(--color-accent-300)">Changer</span>
+              </div>
+            </sc-if>
+            <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:18px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Langue</span>
+                <div style="display:flex;gap:6px">
+                  <span style="min-height:40px;padding:0 12px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-accent-900);color:var(--color-accent-200);font-size:14px">EN</span>
+                  <span style="min-height:40px;padding:0 12px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300);font-size:14px">FR</span>
+                  <span style="min-height:40px;padding:0 10px;display:flex;align-items:center;gap:4px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300);font-size:14px"><i class="ph ph-caret-down" style="font-size:12px"></i></span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:12px;color:var(--color-neutral-400)">Extension</span>
+                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-divider);min-height:40px;padding:0 2px"><span style="font-size:15px">KoT</span><i class="ph ph-caret-down" style="font-size:14px;color:var(--color-neutral-500)"></i></div>
+              </div>
+            </div>
+            <sc-if value="{{ isDeck }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">Copies</span><span style="font-size:12px;color:var(--color-neutral-500)">dans le deck</span></div>
+                  <div style="display:flex;align-items:center;gap:14px"><span onClick="{{ decCopies }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px;cursor:pointer">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center;font-variant-numeric:tabular-nums">{{ copies }}</span><span onClick="{{ incCopies }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;cursor:pointer">+</span></div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                  <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">dont possédées</span><span style="font-size:12px;color:var(--color-neutral-500)">4 disponibles au stock</span></div>
+                  <div style="display:flex;align-items:center;gap:14px"><span onClick="{{ decOwned }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px;cursor:pointer">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center;font-variant-numeric:tabular-nums">{{ owned }}</span><span onClick="{{ incOwned }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;cursor:pointer;opacity:{{ ownedMax }}">+</span></div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isColl }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">Quantité</span><span style="font-size:12px;color:var(--color-neutral-500)">s'ajoute aux 4 possédés</span></div>
+                <div style="display:flex;align-items:center;gap:14px"><span onClick="{{ decQty }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px;cursor:pointer">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center;font-variant-numeric:tabular-nums">{{ qty }}</span><span onClick="{{ incQty }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;cursor:pointer">+</span></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ isBoth }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">Quantité achetée</span><span style="font-size:12px;color:var(--color-neutral-500)">le deck en joue 2 en proxy</span></div>
+                <div style="display:flex;align-items:center;gap:14px"><span onClick="{{ decQty }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px;cursor:pointer">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center;font-variant-numeric:tabular-nums">{{ qty }}</span><span onClick="{{ incQty }}" style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;cursor:pointer">+</span></div>
+              </div>
+            </sc-if>
+            <div style="border-left:2px solid var(--color-accent);padding-left:14px;font-size:14px;color:var(--color-accent-200);min-height:20px">{{ addSummary }}</div>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+              <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">{{ addCta }}</span>
+              <span style="font-size:12px;color:var(--color-neutral-500);text-align:center">Enregistré localement, envoyé au prochain réseau</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 37 Erreur locale -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">37 · Feuille d'ajout — erreur locale</span>
+        <div id="shot-1b-37-ajout-erreur" data-screen-label="1b-37 Ajout erreur" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:16</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;top:110px;background:var(--color-surface);border-radius:var(--radius-lg) var(--radius-lg) 0 0;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:18px;padding:10px 26px 30px">
+            <span style="align-self:center;width:36px;height:4px;border-radius:999px;background:var(--color-neutral-700)"></span>
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Ajouter</span>
+                <h3 style="font-size:24px;margin:0;letter-spacing:-.02em">Scorpion Sting</h3>
+              </div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;flex:none;border:1px solid var(--color-divider);border-radius:var(--radius-md);overflow:hidden">
+              <span style="flex:1;min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14px;font-family:var(--font-heading);color:var(--color-accent);box-shadow:inset 0 0 0 1px var(--color-accent);border-radius:var(--radius-md)">Deck</span>
+              <span style="flex:1;min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--color-neutral-400)">Collection</span>
+              <span style="flex:1;min-height:42px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--color-neutral-400)">Les deux</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:var(--color-neutral-400)">Deck</span><span style="font-size:16px">Open de Lyon — Banu</span></div>
+              <span style="font-size:13px;color:var(--color-accent-300)">Changer</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">Copies</span><span style="font-size:12px;color:var(--color-neutral-500)">dans le deck</span></div>
+              <div style="display:flex;align-items:center;gap:14px"><span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center">8</span><span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px">+</span></div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px">dont possédées</span><span style="font-size:12px;color:var(--color-neutral-500)">6 disponibles au stock</span></div>
+              <div style="display:flex;align-items:center;gap:14px"><span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400);font-size:20px">−</span><span style="font-family:var(--font-heading);font-size:24px;min-width:24px;text-align:center">6</span><span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent);font-size:20px;opacity:.45">+</span></div>
+            </div>
+            <span role="alert" style="font-size:13px;color:var(--color-accent-200);display:flex;gap:8px;align-items:flex-start"><i class="ph ph-warning-circle" style="font-size:16px;flex:none"></i>Ce deck n'autorise pas les proxies : il manque 2 exemplaires au stock. Baissez les copies à 6 ou ajoutez-les aussi à la collection (Les deux).</span>
+            <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+              <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent);opacity:.45">Ajouter au deck</span>
+              <span style="font-size:12px;color:var(--color-neutral-500);text-align:center">Enregistré localement, envoyé au prochain réseau</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 38 Confirmation -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">38 · Après l'ajout — la ligne se teinte ~3 s</span>
+        <div id="shot-1b-38-confirmation" data-screen-label="1b-38 Confirmation" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:15</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px"><h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Chercher</h3><span style="font-size:13px;color:var(--color-neutral-400)">Catalogue local · 4 149 cartes</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;border-left:2px solid var(--color-accent);padding-left:14px;min-height:44px">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:12px;color:var(--color-neutral-400)">Pour le deck</span><span style="font-family:var(--font-heading);font-size:15px;color:var(--color-accent-200)">Banu Haqim Quietus</span></div>
+              <span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:18px"></i></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--color-neutral-500)"><span>86 résultats · 4 filtres</span><span style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-400)"><i class="ph ph-sort-ascending" style="font-size:14px"></i>Nom</span></div>
+            <div style="display:flex;flex-direction:column">
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Blood Sweat</span><span style="font-size:12px;color:var(--color-neutral-500)">Action · 2 en collection</span></div>
+              <div style="padding:15px 12px;margin:0 -12px;border-top:1px solid var(--color-divider);background:color-mix(in srgb, var(--color-accent) 12%, transparent);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                <div style="display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Cloak the Gathering</span><span style="font-size:12px;color:var(--color-neutral-500)">Action Modifier · 4 en collection · <span style="color:var(--color-accent-300)">dans ce deck ×3</span></span></div>
+                <span style="font-size:12px;color:var(--color-accent-200);display:flex;align-items:center;gap:5px;white-space:nowrap"><i class="ph-fill ph-check-circle" style="font-size:14px"></i>+3 à l'instant</span>
+              </div>
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Faceless Night</span><span style="font-size:12px;color:var(--color-neutral-500)">Action Modifier</span></div>
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Lost in Crowds</span><span style="font-size:12px;color:var(--color-neutral-500)">Action Modifier · 3 en collection</span></div>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">La ligne reste à sa place jusqu'au prochain changement de filtre, même si « pas dans ce deck » devrait l'écarter.</span>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 39 Catalogue à mettre à jour -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">39 · Catalogue à mettre à jour — nom seul</span>
+        <div id="shot-1b-39-maj" data-screen-label="1b-39 Catalogue à mettre à jour" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>16:04</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:18px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:2px"><h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Chercher</h3><span style="font-size:13px;color:var(--color-neutral-400)">Catalogue local · 4 149 noms</span></div>
+            <div style="display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--color-accent);padding-left:14px">
+              <span style="font-size:15px;color:var(--color-accent-200)">Recherche dans le nom seulement</span>
+              <span style="font-size:13px;color:var(--color-neutral-400);text-wrap:pretty">Le catalogue attend sa mise à jour : les textes et les détails ne sont pas encore là, les filtres non plus. Elle partira d'elle-même au retour du réseau.</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--color-accent);padding:0 2px 10px;min-height:44px">
+              <i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-accent)"></i>
+              <span style="font-size:16px;display:flex;align-items:center">tab<span style="width:1px;height:20px;background:var(--color-accent);margin-left:1px"></span></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px">
+              <span style="font-family:var(--font-heading);border-bottom:2px solid var(--color-accent);padding-bottom:5px">Toutes</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Crypte</span>
+              <span style="color:var(--color-neutral-500);padding-bottom:5px">Bibliothèque</span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--color-neutral-400);padding-bottom:5px;opacity:.45"><i class="ph ph-funnel-simple" style="font-size:15px"></i>Filtres</span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">3 résultats par le nom</span>
+            <div style="display:flex;flex-direction:column">
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Tabou</span><span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · détails à venir</span></div>
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Tabletop Strategy</span><span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · détails à venir</span></div>
+              <div style="padding:15px 0;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:5px"><span style="font-family:var(--font-heading);font-size:17px">Table Talk</span><span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · détails à venir</span></div>
+            </div>
+            <span style="align-self:flex-start;min-height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--color-divider);display:flex;align-items:center;gap:8px;font-size:14px;color:var(--color-neutral-300);opacity:.45"><i class="ph ph-arrows-clockwise" style="font-size:16px"></i>Mettre à jour maintenant</span>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 40 États -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">40 · États — catalogue absent, aucun résultat, chargement</span>
+        <div id="shot-1b-40-etats" data-screen-label="1b-40 États" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>16:05</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:28px;padding:26px 26px 112px;overflow:hidden">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Catalogue absent</span>
+              <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--color-divider);padding:0 2px 10px;min-height:44px;opacity:.45"><i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-neutral-500)"></i><span style="font-size:15px;color:var(--color-neutral-500)">Nom ou texte de carte</span></div>
+              <div style="display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--color-divider);padding-left:14px">
+                <span style="display:flex;align-items:center;gap:8px;font-size:15px"><i class="ph ph-database" style="font-size:16px;color:var(--color-neutral-400)"></i>Catalogue pas encore chargé</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Il se télécharge une fois, au premier passage en ligne ; ensuite tout se cherche hors ligne.</span>
+              </div>
+            </div>
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Aucun résultat</span>
+              <span style="font-size:22px;font-family:var(--font-heading);letter-spacing:-.01em">Aucune carte ne correspond</span>
+              <span style="font-size:14px;color:var(--color-neutral-400)">« tabouret » avec 4 filtres, en Bibliothèque.</span>
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <span style="min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;font-size:14px;color:var(--color-accent)">Retirer les 4 filtres</span>
+                <span style="min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--color-divider);display:flex;align-items:center;font-size:14px;color:var(--color-neutral-300)">Toutes catégories</span>
+              </div>
+            </div>
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Chargement</span>
+              <div style="display:flex;flex-direction:column;gap:8px"><div style="height:17px;width:62%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div><div style="height:12px;width:40%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div></div>
+              <div style="display:flex;flex-direction:column;gap:8px"><div style="height:17px;width:48%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div><div style="height:12px;width:54%;border-radius:var(--radius-sm);background:var(--color-neutral-900)"></div></div>
+              <span style="font-size:13px;color:var(--color-neutral-500)">Lecture du miroir local — aucun appel réseau.</span>
+            </div>
+          </div>
+          <dc-import name="TabBar" active="chercher" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+      <!-- 41 Picker avec image -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">41 · Ajouter (picker 1b-05) — image de la carte choisie</span>
+        <div id="shot-1b-41-picker-image" data-screen-label="1b-41 Picker image" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:25</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:30px 26px 0;overflow:hidden">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Toreador Mass Vote</span><h3 style="font-size:26px;margin:0;letter-spacing:-.02em">Ajouter</h3></div>
+              <i class="ph ph-x" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--color-accent);padding:0 2px 10px;min-height:44px"><i class="ph ph-magnifying-glass" style="font-size:18px;color:var(--color-accent)"></i><span style="font-size:16px;display:flex;align-items:center">govern<span style="width:1px;height:20px;background:var(--color-accent);margin-left:1px"></span></span></div>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--color-divider)">
+                <div style="width:88px;height:123px;flex:none;border-radius:var(--radius-sm);overflow:hidden;background:var(--color-neutral-900)"><img src="https://static.krcg.org/card/governtheunaligned.jpg" alt="Govern the Unaligned" style="width:100%;height:100%;object-fit:cover;display:block"></div>
+                <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+                  <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-200)">Govern the Unaligned</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Action · en collection : 6</span>
+                  <span style="font-size:12px;color:var(--color-neutral-500)">Touchez l'image pour l'agrandir</span>
+                </div>
+                <span style="font-size:13px;color:var(--color-accent)">+2</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--color-divider)"><div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:var(--font-heading);font-size:17px">Governed Territory</span><span style="font-size:12px;color:var(--color-neutral-500)">Bibliothèque · Master · en collection : 2</span></div><i class="ph ph-plus" style="font-size:18px;color:var(--color-accent)"></i></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:1px solid var(--color-divider)"><div style="display:flex;flex-direction:column;gap:4px"><span style="font-family:var(--font-heading);font-size:17px">Sela (G6)</span><span style="font-size:12px;color:var(--color-neutral-500)">Crypte · Gangrel · capacité 6 · absente</span></div><i class="ph ph-plus" style="font-size:18px;color:var(--color-accent)"></i></div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px;padding:0 26px 30px">
+            <div style="height:1px;background:linear-gradient(to right,transparent,var(--color-divider) 48px,var(--color-divider) calc(100% - 48px),transparent)"></div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;color:var(--color-neutral-400)">Panier</span><span style="font-family:var(--font-heading);font-size:15px">3 cartes · 5 exemplaires</span></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider)">Govern ×2</span><span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider)">Villein ×2</span><span style="font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--color-divider)">Sela ×1</span></div>
+            <span style="min-height:50px;border-radius:999px;border:1px solid var(--color-accent);display:flex;align-items:center;justify-content:center;font-family:var(--font-heading);font-size:16px;color:var(--color-accent)">Enregistrer dans le deck</span>
+            <span style="font-size:12px;color:var(--color-neutral-500);text-align:center">Enregistré localement, envoyé au prochain réseau</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 42 Détail du deck + lien -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span style="font-size:13px;color:var(--color-neutral-400)">42 · Détail du deck (1b-04) — lien vers Chercher</span>
+        <div id="shot-1b-42-deck-lien" data-screen-label="1b-42 Deck lien Chercher" style="width:390px;height:844px;border-radius:38px;background:var(--color-bg);box-shadow:var(--shadow-md);overflow:hidden;position:relative;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 26px 0;font-size:12px;color:var(--color-neutral-500)"><span>21:22</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:20px;padding:22px 26px 176px;overflow:hidden">
+            <i class="ph ph-arrow-left" style="font-size:20px;color:var(--color-neutral-400)"></i>
+            <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Deck actif</span><h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Banu Haqim Quietus</h3></div>
+            <div style="display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--color-accent);padding-left:16px"><span style="font-family:var(--font-heading);font-size:21px;color:var(--color-accent-200)">Deck légal</span><span style="font-size:13px;color:var(--color-neutral-400)">Verdict du serveur, 03/11/2026 · recalculer</span></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--color-divider)"><span style="font-size:14px;color:var(--color-neutral-400)">Crypte</span><span style="font-family:var(--font-heading);font-size:16px">12 <span style="font-size:12px;color:var(--color-neutral-500)">/ min 12</span></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid var(--color-divider)"><span style="font-size:14px;color:var(--color-neutral-400)">Bibliothèque</span><span style="font-family:var(--font-heading);font-size:16px">64 <span style="font-size:12px;color:var(--color-neutral-500)">/ 60–90</span></span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Composition</span><span style="font-size:12px;color:var(--color-accent)">Tout voir</span></div>
+              <div style="display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid var(--color-divider)"><span style="font-size:15px">Tegyrius, Vizier (G5)</span><span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-400)">×2</span></div>
+              <div style="display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid var(--color-divider)"><span style="font-size:15px">Scorpion Sting</span><span style="font-family:var(--font-heading);font-size:15px;color:var(--color-neutral-400)">×6</span></div>
+              <div style="display:flex;align-items:center;gap:8px;min-height:44px;border-top:1px solid var(--color-divider);font-size:14px;color:var(--color-accent-300)"><i class="ph ph-magnifying-glass" style="font-size:16px"></i>Chercher une carte pour ce deck<i class="ph ph-arrow-right" style="font-size:14px;margin-left:auto"></i></div>
+            </div>
+          </div>
+          <div style="position:absolute;left:26px;right:26px;bottom:104px;display:flex;gap:10px">
+            <span style="flex:1;min-height:48px;border-radius:999px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--font-heading);font-size:15px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:18px"></i>Ajouter des cartes</span>
+            <span style="width:48px;min-height:48px;border-radius:999px;background:var(--color-surface);box-shadow:var(--shadow-md);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-300)"><i class="ph ph-dots-three" style="font-size:20px"></i></span>
+          </div>
+          <dc-import name="TabBar" active="decks" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const DI = {abo:'w',ani:'i',aus:'a',cel:'c',chi:'k',dai:'y',dem:'e',dom:'d',for:'f',mel:'m',myt:'x',nec:'n',obe:'b',obf:'o',obt:'$',pot:'p',pre:'r',pro:'j',qui:'q',san:'g',ser:'s',spi:'z',tem:'?',thn:'h',tha:'t',val:'l',vic:'v',vis:'u'};
+const DS = {tem:'!',obt:'£'};
+const g = s => (s || '').split(' ').filter(Boolean).map(k => k === k.toLowerCase() ? DI[k] : (DS[k.toLowerCase()] || DI[k.toLowerCase()].toUpperCase())).join('');
+const CLAN = {banu:'n',brujah:'o',toreador:'t',ventrue:'v',nosferatu:'s',malkavian:'q',gangrel:'p',tremere:'u',lasombra:'w',ministry:'r'};
+const TYPE = {action:'0',mod:'1',political:'2',ally:'3',combat:'4',equipment:'5',reflex:'6',reaction:'7',retainer:'8'};
+const COST = {b1:"'",b2:';',b3:'.',p1:'"',p2:':',p3:'/'};
+const DISC_ORDER = ['abo','ani','aus','cel','chi','dai','dem','dom','for','mel','myt','nec','obe','obf','obt','pot','pre','pro','qui','san','ser','spi','tem','thn','tha','val','vic','vis'];
+const MODES = [
+  {label:'OU', help:'Au moins une des disciplines cochées.'},
+  {label:'ET', help:'Toutes les disciplines cochées, sur la même carte.'},
+  {label:'NON', help:'Aucune des disciplines cochées.'},
+  {label:'SEULEMENT', help:'Jouable avec les seules disciplines cochées : les cartes sans discipline restent, celles qui en demandent une autre sortent.'},
+];
+const lib = (name, t, meta, discs, o = {}) => ({name, typeG: t.split(' ').map(x => TYPE[x] || '').join(''), clanG: o.clan ? CLAN[o.clan] : '', meta, discs: g(discs), cost: o.cost ? COST[o.cost] : '', cap: '', capLabel: o.cost ? (o.cost[0] === 'b' ? 'sang' : 'pool') : '', owned: o.owned || '', inDeck: o.inDeck || '', legal: o.legal || false});
+const vamp = (name, clan, meta, discs, cap, o = {}) => ({name, typeG: '', clanG: CLAN[clan], meta, discs: g(discs), cost: '', cap: String(cap), capLabel: 'cap.', owned: o.owned || '', inDeck: o.inDeck || '', legal: o.legal || false});
+
+class Component extends DCLogic {
+  state = { mode: 3, crypt: { aus: 1, dom: 2, pre: 1 }, add: 'deck', copies: 3, owned: 2, qty: 2 };
+  renderVals() {
+    const s = this.state;
+    const dots = n => Array.from({length: n}, (_, i) => i);
+    const m = MODES[s.mode];
+    const libSel = { qui: 1, obf: 1 };
+    const discLib = DISC_ORDER.map(k => {
+      const on = libSel[k];
+      return { g: g(k), code: k, border: on ? 'var(--color-accent)' : 'var(--color-divider)', bg: on ? 'var(--color-accent-900)' : 'transparent', color: on ? 'var(--color-accent-200)' : 'var(--color-neutral-400)' };
+    });
+    const discCrypt = DISC_ORDER.filter(k => !['abo','dai','mel','myt','san','spi','vis','val'].includes(k) || true).map(k => {
+      const lv = s.crypt[k] || 0;
+      return { g: lv === 2 ? g(k.toUpperCase()) : g(k), code: lv === 2 ? k.toUpperCase() : k,
+        border: lv ? 'var(--color-accent)' : 'var(--color-divider)',
+        bg: lv === 2 ? 'var(--color-accent-800)' : lv === 1 ? 'var(--color-accent-900)' : 'transparent',
+        color: lv === 2 ? 'var(--color-accent-100)' : lv === 1 ? 'var(--color-accent-200)' : 'var(--color-neutral-400)',
+        tap: () => this.setState(st => ({ crypt: { ...st.crypt, [k]: ((st.crypt[k] || 0) + 1) % 3 } })) };
+    });
+    const nCrypt = Object.values(s.crypt).filter(Boolean).length;
+    const scopes = sel => ['Nom et texte','Nom','Texte'].map(l => ({ label: l, color: l === sel ? 'var(--color-accent)' : 'var(--color-neutral-400)', ring: l === sel ? 'inset 0 0 0 1px var(--color-accent)' : 'none' }));
+    const on = 'var(--color-accent-200)', off = 'var(--color-accent-700)';
+    // add sheet
+    const add = s.add;
+    const proxies = Math.max(0, s.copies - s.owned);
+    const seg = ['deck','collection','both'].map(k => ({ label: {deck:'Deck',collection:'Collection',both:'Les deux'}[k], sel: add === k, unsel: add !== k, pick: () => this.setState({ add: k }) }));
+    const step = (key, d, min, max) => () => this.setState(st => { const v = Math.min(max, Math.max(min, st[key] + d)); const o = { [key]: v }; if (key === 'copies' && st.owned > v) o.owned = v; return o; });
+    const deckProxies = 2;
+    const replaced = Math.min(s.qty, deckProxies);
+    return {
+      rows26: [
+        lib('Blood Sweat', 'action', 'Action', 'qui', { cost: 'b1', owned: '2 en collection' }),
+        lib('Cloak the Gathering', 'mod', 'Action Modifier', 'obf', { owned: '4 en collection' }),
+        lib('Faceless Night', 'mod', 'Action Modifier', 'obf'),
+        lib('Lost in Crowds', 'mod', 'Action Modifier', 'obf', { owned: '3 en collection' }),
+        lib('Scorpion Sting', 'combat', 'Combat', 'qui', { owned: '6 en collection' }),
+        lib('Silence of Death', 'mod', 'Action Modifier', 'qui', { cost: 'b1' }),
+      ],
+      rows27: [
+        lib('Govern the Unaligned', 'action', 'Action', 'dom', { owned: '6 en collection' }),
+        lib('Governed Territory', '', 'Master', '', { cost: 'p1', owned: '2 en collection' }),
+        lib('Government Liaison', 'ally', 'Ally', '', { cost: 'p3' }),
+        lib("Governor's Mansion", 'equipment', 'Equipment', '', { cost: 'p2', owned: '1 en collection' }),
+        lib('Dramatic Upheaval', 'political', 'Political Action', '', { legal: 'Bannie' }),
+      ],
+      rows28: [
+        vamp('Lodin (G4, Adv)', 'ventrue', 'Ventrue · Camarilla · Prince · G4', 'aus DOM FOR PRE', 9, { owned: '1 en collection' }),
+        vamp('Victoria Ash (G5)', 'toreador', 'Toreador · Camarilla · G5', 'aus CEL dom PRE', 9, { owned: '3 en collection' }),
+        vamp('Anneke (G4)', 'ventrue', 'Ventrue · Camarilla · Primogen · G4', 'aus DOM FOR pre', 9),
+        vamp('Tegyrius, Vizier (G5)', 'banu', 'Banu Haqim · Independent · G5', 'cel OBF QUI', 9, { legal: 'Légale le 01/12/2026' }),
+      ],
+      fCommon: [
+        { label: 'Texte', value: 'aucune ligne', color: 'var(--color-neutral-500)' },
+        { label: 'Extension', value: 'toutes', color: 'var(--color-neutral-500)' },
+        { label: 'Légalité', value: 'légale aujourd\u2019hui', color: 'var(--color-accent-200)' },
+        { label: 'Possédée', value: 'indifférent', color: 'var(--color-neutral-500)' },
+        { label: 'Deck', value: 'Banu Haqim Quietus · pas dedans', color: 'var(--color-accent-200)' },
+      ],
+      fLib: [
+        { label: 'Type', value: 'tous', color: 'var(--color-neutral-500)', mode: false, glyphs: '' },
+        { label: 'Disciplines', value: '', color: 'var(--color-accent-200)', mode: 'SEULEMENT', glyphs: g('obf qui') },
+        { label: 'Clan requis', value: 'indifférent', color: 'var(--color-neutral-500)', mode: false, glyphs: '' },
+        { label: 'Secte requise', value: 'indifférent', color: 'var(--color-neutral-500)', mode: false, glyphs: '' },
+        { label: 'Titre requis', value: 'indifférent', color: 'var(--color-neutral-500)', mode: false, glyphs: '' },
+        { label: 'Coût en sang', value: '≤ 2', color: 'var(--color-accent-200)', mode: false, glyphs: '' },
+        { label: 'Coût en pool', value: 'indifférent', color: 'var(--color-neutral-500)', mode: false, glyphs: '' },
+      ],
+      mode: { label: m.label, help: m.help, dots: dots(4).map(i => i === s.mode ? on : off) },
+      cycleMode: () => this.setState(st => ({ mode: (st.mode + 1) % 4 })),
+      discLib, discCrypt,
+      cryptCount: Math.max(3, 312 - nCrypt * 68),
+      textLines: [
+        { scopes: scopes('Texte'), mode: 'ET', dots: [on, off], value: 'pre' },
+        { scopes: scopes('Nom et texte'), mode: 'NON', dots: [off, on], value: 'stealth' },
+      ],
+      seg, isDeck: add === 'deck', isColl: add === 'collection', isBoth: add === 'both', hasDeck: add !== 'collection',
+      copies: s.copies, owned: s.owned, qty: s.qty,
+      incCopies: step('copies', 1, 1, 12), decCopies: step('copies', -1, 1, 12),
+      incOwned: step('owned', 1, 0, Math.min(s.copies, 4)), decOwned: step('owned', -1, 0, 4),
+      incQty: step('qty', 1, 1, 12), decQty: step('qty', -1, 1, 12),
+      ownedMax: s.owned >= Math.min(s.copies, 4) ? '.45' : '1',
+      addSummary: add === 'deck'
+        ? (proxies ? `${s.owned} pris au stock · ${proxies} en proxy` : `${s.owned} pris au stock, aucun proxy`)
+        : add === 'collection' ? `Vous en aurez ${4 + s.qty} en anglais (KoT)` 
+        : (replaced ? `${replaced} exemplaire${replaced > 1 ? 's' : ''} remplace${replaced > 1 ? 'nt' : ''} ${replaced} prox${replaced > 1 ? 'ies' : 'y'}` + (s.qty > replaced ? ` · ${s.qty - replaced} s\u2019ajoute${s.qty - replaced > 1 ? 'nt' : ''} au deck` : '') : ''),
+      addCta: { deck: 'Ajouter au deck', collection: 'Ajouter à la collection', both: 'Ajouter au deck et à la collection' }[add],
+    };
+  }
+}
+</script>
+</body>
+</html>

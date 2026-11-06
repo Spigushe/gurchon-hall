@@ -4,9 +4,10 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6 et 7 livrés** (vérification manuelle de la
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7 et Chercher livrés** (vérification manuelle de la
 PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7 vérifié à la main sur
-téléphone le 2026-11-02, §12). Lot 0 : squelette
+téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur téléphone le
+2026-11-06, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -41,23 +42,38 @@ GW certain, mono-deck, multi-deck interdit aux championnats, deck de finale, cla
 saisi et contrôlé), douze types d'opérations `/sync` de plus avec des références client
 de quatre genres qui se chaînent, onglet Parties, carnet et carte « Tournoi en cours »
 de l'Atelier, en mobile et en bureau (plan dans `docs/lot7-plan-parties.md`, décisions
-au §11). Le modèle compte **25 tables** et onze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+au §11). Lot Chercher : l'onglet Chercher parcourt tout le catalogue hors ligne, avec
+les filtres de VDB (disciplines, clans, sectes, titres, types, coûts, texte, légalité,
+statut en collection et dans un deck), une fiche de carte, et une feuille d'ajout au
+deck, à la collection ou aux deux ; la secte des vampires est dérivée du texte à
+l'import, l'exigence de secte et de titre des cartes de bibliothèque est lue dans
+`vteslibmeta.csv` de vtescsv, seconde source du catalogue ; champ de recherche global
+au bureau et images par impression en ligne (plan dans `docs/lot-chercher-plan.md`,
+décisions au §11). Le modèle compte **25 tables** et douze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
-Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|build|dev>`
-(équivalent `scripts/run.sh`). Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (2276 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
+(équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
+`vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
+pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
+`uv run pytest` (2491 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
-`uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg ;
-`--from-dir` pour des fichiers locaux, `--json` pour un rapport lisible par un script ;
-à lancer une fois la base migrée),
+`uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
+les exigences de `vteslibmeta.csv` ;
+`--from-dir` pour des fichiers locaux, le CSV y étant facultatif, `--json` pour un
+rapport lisible par un script ; à lancer une fois la base migrée),
+`uv run python scripts/compare_db.py <backup|snapshot|diff>` (copie d'une base par
+l'API de sauvegarde de SQLite, relevé en lecture seule, comparaison ligne à ligne de
+deux relevés : l'outil des mises en service, depuis le lot Chercher),
 `uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions|check-me>`
 (comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 752 tests sur 49 fichiers),
-`npm run test:e2e` (Playwright, 59 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 30 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 18 dans
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 983 tests sur 61 fichiers),
+`npm run test:e2e` (Playwright, 73 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 39 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 23 dans
 `desktop-real-backend`),
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot-chercher-ouverture.txt`
+(recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
 `npm run generate:client` (régénère `src/api-client/schema.d.ts`).
@@ -78,10 +94,14 @@ aux tests). Cette base n'est
 pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
 avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
 le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (Lot 6), puis le
-2026-11-02 à `e2a7819dd4a2` (la tête, Lot 7 : R10 puis R11 en un seul `upgrade head`),
-chaque fois après un essai sur une copie ; les sauvegardes d'avant migration sont
-conservées dans `backend/vtes.db.pre-lot6-20261002-201755.bak` et
-`backend/vtes.db.lot-7-etape-e.bak` (à la révision du Lot 6). Elle contient la vraie
+2026-11-02 à `e2a7819dd4a2` (Lot 7 : R10 puis R11 en un seul `upgrade head`), puis
+le 2026-11-05 à `8ab23342a26f` (la tête, lot Chercher, catalogue réimporté : 4212
+cartes, 115 produits, une secte pour chacune des 1822 cartes de crypte, 382 exigences
+de bibliothèque), chaque fois après un essai sur une copie ; les sauvegardes d'avant
+migration sont conservées dans `backend/vtes.db.pre-lot6-20261002-201755.bak`,
+`backend/vtes.db.lot-7-etape-e.bak` (à la révision du Lot 6) et
+`backend/vtes.db.pre-lot-chercher-20261105.bak` (à la révision du Lot 7), le
+rapport d'import du lot Chercher dans `backend/vtes.db.lot-chercher-import-20261105.json.bak`. Elle contient la vraie
 collection de l'utilisateur : 28 entrées de stock, le deck « Banu Princes » et ses 20
 lignes, toutes au compte historique (`user_account.id = 1`, rôle `admin`). Au Lot 6,
 les disponibilités du stock ont été comparées ligne à ligne avant et après :
@@ -90,7 +110,10 @@ ont été comparés ligne à ligne à la sauvegarde : identiques, avec un « Moi
 l'unique compte, `player`, `venue`, `tournament` et `game` en `AUTOINCREMENT`,
 `foreign_key_check` vide et `integrity_check` à `ok`. S'y ajoutent depuis les saisies
 de la vérification sur téléphone (deux lieux, un adversaire, un tournoi, deux parties,
-soit 66 opérations au journal). Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
+soit 66 opérations au journal). Au lot Chercher, les treize tables privées ou de
+référence non importées ont été comparées ligne à ligne avant et après migration et
+réimport (`scripts/compare_db.py`) : identiques ; le second rejeu de l'import n'a
+rien changé. Ce compte a été **réclamé par l'utilisateur le 2026-10-02**
 (`manage_accounts.py claim-legacy`) : il porte désormais une vraie adresse, un nom et
 un mot de passe, à la place de l'adresse provisoire
 `compte-historique@gurchon-hall.invalid` et du mot de passe inutilisable posés par la
@@ -120,7 +143,8 @@ neuve), puis `upgrade head` avant de relancer l'import.
 `PUT /parties/{id}/participations`) — 49 opérations sur 29 chemins au contrat, détail
 au §7. Hors catalogue et authentification, toute route exige une session. Une UI
 métier de consultation et de saisie existe pour la collection, les decks, les parties,
-les tournois et le carnet d'adversaires et de lieux (`frontend/src/features/`, routeur
+les tournois, le carnet d'adversaires et de lieux, et la recherche dans le catalogue
+(`#/chercher`, depuis le lot Chercher) (`frontend/src/features/`, routeur
 à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
 compte, déconnexion), mobile et bureau.
 
@@ -236,6 +260,22 @@ du seuil touche les deux.
   clan, disciplines, sect) et **Library** (un ou plusieurs types : Master, Action,
   Action Modifier, Ally, Combat, Equipment, Event, Political Action, Power,
   Reaction, Retainer).
+- **Secte d'une carte de crypte** (lot Chercher, P13) : krcg ne la publie pas ; elle
+  est dérivée du texte à l'import, comme le fait VDB : premier mot du texte, ou
+  second après « Advanced, », s'il nomme Camarilla, Sabbat, Laibon, Independent ou
+  Anarch ; un *imbued* est « Imbued ». Un premier mot inconnu est signalé, jamais
+  deviné. Un *advanced* fusionné qui change de secte garde celle de sa face (six
+  cartes au 2026-11-03). Fonction pure `crypt_sect`.
+- **Exigence d'une carte de bibliothèque** (lot Chercher, P15) : secte et titre que
+  la carte demande au vampire qui la joue, lus dans la colonne `Requirement` de
+  `vteslibmeta.csv` (vtescsv), que krcg n'expose pas. Un titre implique sa secte
+  (un Prince est Camarilla) ; « bishop » est un titre du Sabbat, contre VDB qui le
+  range dans la Camarilla. Une exclusion (« non-anarch ») exige toute autre secte de
+  vampire : la carte ne répond ni à Anarch ni à « secte non requise ». Black Hand et
+  Seraph, traits du Sabbat, restent des valeurs brutes sans impliquer le Sabbat, comme
+  les valeurs non filtrables (`non-sterile`, `capacity 7 or …`). Fonction pure
+  `library_requirement`. Écart volontaire à VDB sur les disciplines de bibliothèque :
+  les modes ET et SEULEMENT suivent le sens de krcg (P1 de `docs/lot-chercher-plan.md`).
 - **Deck** : cinq règles, toutes vérifiées par le code depuis le Lot 2 passe 2
   (`backend/app/services/vtes_rules.py`, fonctions pures) — **Crypt ≥ 12** cartes ;
   crypt limitée à deux groupes **adjacents** au plus (1+2, 2+3, …, 6+7 ; jamais 2+4 ;
@@ -244,7 +284,12 @@ du seuil touche les deux.
   `banned_on`, jour inclus) ; aucune carte **pas encore légale** (jouable à partir de sa
   `legal_from`, jour inclus). Les deux dates se lisent à une date d'évaluation passée
   en paramètre, et une carte sans date est tenue pour jouable. Les proxies comptent
-  dans les effectifs. L'autorisation de jouer des proxies est une propriété du deck
+  dans les effectifs. La légalité d'une **carte seule** à une date (lot Chercher, A5)
+  se lit en deux booléens qui ne s'excluent pas, bannie et pas encore légale
+  (`card_legality`) : *Playing for Keeps*, bannie le 1995-11-01 et légale à partir
+  du 1996-01-14, est les deux entre ces dates. Elle a une jumelle TypeScript pour le
+  filtre hors ligne, sur une table de cas commune (`card_legality_cases.json`).
+  L'autorisation de jouer des proxies est une propriété du deck
   (`proxy_allowed`), car elle dépend du tournoi auquel le deck est destiné et non de
   la carte ou de la collection ; le nombre de proxies reste porté par chaque ligne
   (`proxy_quantity`), avec `quantity - proxy_quantity` exemplaires réels consommés.
@@ -364,14 +409,20 @@ l'identifiant d'une ligne supprimée à la suivante, si bien qu'une `client_ref`
 journal visant la ressource supprimée désignait en silence la nouvelle. La séquence
 est posée au plus grand identifiant que les lignes ou le journal citent encore. Les
 deux révisions suivent la forme de R9 (renommage puis recréation à la main, hors mode
-batch) et se rendent hors ligne (`--sql`). Le modèle compte **25 tables** et onze
-révisions.
+batch) et se rendent hors ligne (`--sql`).
+Le lot Chercher ajoute la douzième révision, `8ab23342a26f` (R12, A3 du plan) : un
+`ADD COLUMN` nullable, `card.library_requirement`, recopie brute de l'exigence de
+`vteslibmeta.csv`, sans recréer `card` (visée par six clés étrangères) ni convertir de
+données. Elle se rend hors ligne dans les deux sens et sa descente retire la colonne
+sans garde, l'exigence étant la copie d'une source publique qu'un rejeu de l'import
+rétablit. La secte, elle, n'a demandé aucune migration : `card.sect_id` existait depuis
+le Lot 1 et l'import la remplit. Le modèle compte **25 tables** et douze révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
 | Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé). Révoquer une session, c'est supprimer sa ligne |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
-| Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
+| Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; `sect_id` rempli par l'import pour toute carte de crypte (secte dérivée du texte, lot Chercher), nul en bibliothèque ; `library_requirement`, exigence brute de `vteslibmeta.csv`, lue à la sortie par `library_requirement` (R12) ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
 | Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme) |
 | Pratique | `player`, `tournament`, `game`, `participation` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
@@ -402,13 +453,15 @@ main. Le contenu d'un bundle n'est pas une table :
 c'est la projection des occurrences `precon` qui le désignent (`BundleContentRead`),
 au format carte × exemplaires, entrée prévue pour verser un produit dans le stock.
 
-Points ouverts, **[à confirmer]** : `card.sect_id` nullable et non importé (aucune
-source ne fournit la sect) ; énumération réelle des langues (dépend des exemplaires
-possédés). VP et GW sont tranchés depuis la relecture VEKN du Lot 7 (§5) et codés au
-Lot 7. La sémantique du proxy est tranchée depuis le Lot 2, et portée par le
-deck depuis le Lot 4 (§11).
-Le prérequis de titre/sect/capacité des cartes Library n'est pas structuré (krcg ne
-l'expose pas, il reste dans le texte de carte).
+Point ouvert, **[à confirmer]** : énumération réelle des langues (dépend des
+exemplaires possédés). La secte est tranchée depuis le lot Chercher : dérivée du texte
+à l'import (§5), elle remplit `card.sect_id` pour les 1822 cartes de crypte, toujours
+nullable pour la bibliothèque. VP et GW sont tranchés depuis la relecture VEKN du
+Lot 7 (§5) et codés au Lot 7. La sémantique du proxy est tranchée depuis le Lot 2, et
+portée par le deck depuis le Lot 4 (§11).
+Le prérequis de secte et de titre des cartes de bibliothèque est structuré depuis le
+lot Chercher (`vteslibmeta.csv`, §5) ; les autres valeurs (capacité, Gehenna,
+`non-sterile`…) restent brutes et non filtrables.
 
 **Règles portant sur plusieurs lignes** (non exprimables en simples contraintes de
 colonne) → en logique de service + tests :
@@ -460,7 +513,7 @@ Livré aux Lots 2 à 7 (chemins en français, `operationId` en anglais camelCase
 | `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour une adresse inconnue et un mauvais mot de passe ; 429 + `Retry-After` |
 | `POST /deconnexion` (`logOut`) | Lot 6. Supprime la session courante et efface le cookie ; 204 toujours, même sans session valide |
 | `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`) ; 401 sans session |
-| `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule ; chaque carte porte `card_set_ids` (ses impressions) et `latest_card_set_id` (sa dernière version, §11 Lot 4) |
+| `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule ; chaque carte porte `card_set_ids` (ses impressions) et `latest_card_set_id` (sa dernière version, §11 Lot 4). Depuis le lot Chercher, la liste rend `CardSearchItem` : tout ce que les filtres hors ligne demandent (secte, types et disciplines dans un ordre stable, texte, coûts, prérequis, dates de légalité, exigence lue en `required_sects`, `required_titles`, `requires_titled`, `requires_non_titled`, `other_requirements`) et les noms traduits (`translated_names`) ; la fiche gagne l'exigence |
 | `GET /extensions` | liste des extensions du catalogue, marqueur `is_placeholder` compris (Lot 4) |
 | `GET /bundles`, `GET /bundles/{id}` | produits et leur contenu (carte × exemplaires) |
 | `POST /bundles/{id}/stock` | verse le contenu d'un produit dans le stock (`language_code`, `count`), chaque carte sous l'extension du produit ; 409 si un total dépasserait le plafond entier |
@@ -482,6 +535,15 @@ Livré aux Lots 2 à 7 (chemins en français, `operationId` en anglais camelCase
 
 Les routes `/decks/{id}/archiver` et `/decks/{id}/restaurer` n'existent pas :
 l'archivage passe par le `PATCH`, seul point d'entrée de la modification d'un deck.
+
+Le lot Chercher n'a ajouté ni route ni type d'opération `/sync` : le contrat reste à
+49 opérations sur 29 chemins, et `API_ROUTE_PREFIXES` ne bouge pas. Toute réponse de
+plus de 1000 octets est compressée en gzip (niveau 6) quand le client l'accepte :
+une lecture complète du catalogue passe de 4,3 Mo de JSON à 501 Ko en 22 pages de
+200. La compression est posée au plus près des routes, sous les couches
+`BaseHTTPMiddleware` (slowapi, contrôle d'origine), qui relaient le corps en flux ;
+au-dessus d'elles, elle perdait le `Content-Length` des réponses courtes. Aucun corps
+ne portant de secret, il n'y a pas de risque de type BREACH.
 
 Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
 format standard de FastAPI, y compris ceux que le service produit lui-même. `POST /sync`
@@ -667,6 +729,19 @@ Tranchées (contexte VtES, avant Lot 1) :
    impressions et produits déjà structurés (licence MIT). `id` krcg = id VEKN.
    Contrepartie : schéma tiers versionné (`v5`, mainteneur unique) → figer l'URL et
    tester l'import contre un fixture. krcg dérive lui-même de `vtescsv`.
+   *Amendé au lot Chercher (P15, 2026-11-03)* : krcg n'est plus la source unique.
+   `vteslibmeta.csv` du dépôt vtescsv
+   (`raw.githubusercontent.com/GiottoVerducci/vtescsv/main/vteslibmeta.csv`) devient
+   une seconde source, pour une seule donnée que krcg ne publie pas : l'exigence de
+   secte et de titre des cartes de bibliothèque. Jointure par identifiant VEKN, en-tête
+   `"Id","Name","Requirement"` vérifié avant toute écriture ; un identifiant inconnu,
+   une carte de crypte, un nom divergent ou un doublon sont signalés au rapport sans
+   faire échouer l'import. Le fichier est facultatif avec `--from-dir` : sans lui, les
+   exigences en base ne bougent pas. L'URL vise la branche `main` et non une version,
+   faute de version publiée. vtescsv ne déclare **aucune licence** (relevé à A1) :
+   l'import n'en garde que la colonne d'exigence, et un extrait de quelques lignes
+   sert de fixture de test (`backend/tests/fixtures/vteslibmeta_sample.csv`). Point à
+   revoir si vtescsv publie une licence ou si l'usage du fichier change.
    Traductions (vérifié le 2026-09-18) : **fr et es uniquement**, sur ~428 cartes sur
    4149 — elles n'existent que pour les sets imprimés dans ces langues et la couverture
    grandira. L'import du Lot 2 doit donc être **rejouable** (upsert de
@@ -746,7 +821,9 @@ Tranchées pendant le Lot 2, passe 1 :
   une transaction ; il ne supprime jamais une carte ni une traduction absente de la source.
   Les noms complets des disciplines viennent d'une table du code (krcg ne publie que les
   codes trois lettres) ; un code inconnu retombe sur le code en majuscules. Le fixture de
-  test (`backend/tests/fixtures/`) est un échantillon figé de neuf vraies cartes ; l'import
+  test (`backend/tests/fixtures/krcg_vtes.json`) est un échantillon figé de dix vraies
+  cartes (« neuf » écrit ici jusqu'au lot Chercher était faux), complété depuis ce lot
+  par un échantillon de `vteslibmeta.csv` (`vteslibmeta_sample.csv`) ; l'import
   complet a été vérifié à la main sur les 4149 cartes de krcg (rejeu sans doublon).
 - **Client TS** : `openapi-typescript` est lancé avec `--default-non-nullable false`. Sans
   cela, un champ de requête qui a une valeur par défaut (`proxy_quantity`, `quantity_owned`…)
@@ -1026,6 +1103,7 @@ renommage de l'étape 15 du Lot 5bis) :
   « archivé » rendus en texte dans la méta d'une ligne de deck, sans badge.
 - **Écran « Chercher » reporté** à un lot à part, hors ligne complet sur un miroir
   enrichi (`docs/lot-chercher-brief.md`). Son onglet reste désactivé jusque-là.
+  *Livré par le lot Chercher (2026-11-06).*
 - **`data-testid`** : 170 occurrences sur 23 fichiers à la clôture (108 sur 17 avant le
   lot) ; ce recensement sert de repère de non-régression au Lot 5bis.
 
@@ -1096,7 +1174,10 @@ ligne, dans `docs/lot5c-plan-design.md`) :
 - **Renvoyés au lot Chercher** : l'image de carte (`CardImage`, aperçu au survol et
   image de la carte choisie), y compris sa forme statique dans le picker mobile ; le
   champ de recherche global de la barre haute, qui ne faisait rien (ni filtre ni focus
-  par `/`) et qui est **masqué** jusqu'à ce que Chercher le rétablisse.
+  par `/`) et qui est **masqué** jusqu'à ce que Chercher le rétablisse. *Soldés au
+  lot Chercher* : image par impression dans le picker aux deux largeurs, image
+  générique dans la fiche, champ global rétabli au bureau avec `/` (§11, lot
+  Chercher).
 - **Reliquat du Lot 5bis** : la légende des raccourcis `?`, annoncée par le handoff
   bureau, n'a été livrée dans aucun mode. Pas de lot dédié.
 - **Défauts corrigés en passant** : `Entrée` sur la page Decks n'est plus écoutée qu'au
@@ -1464,6 +1545,122 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
   contre 191 s (+7 %). Deux passages successifs de vitest sous couverture donnent les
   mêmes scores, donc pas de contrôle instable à craindre de ce côté.
 
+Tranchées pendant le lot Chercher (P1 à P15 tranchées par l'utilisateur le
+2026-11-03 à l'étape A0, neuf précisions le même jour après A1, décisions A1 à A10 de
+conception ; plan, livraisons par étape et mesures dans `docs/lot-chercher-plan.md`,
+qui fait foi pour le détail, handoff dans `docs/design-handoff/CHERCHER.md`) :
+
+- **Hors ligne complet, filtres côté client (P5, A6).** Tous les filtres tournent sur
+  le miroir local, en fonctions pures (`frontend/src/offline/vtes/cardSearch.ts`,
+  `filterCards`), sans `switch` : chaque mode est une table de petites fonctions.
+  `GET /cartes` ne gagne aucun paramètre de filtre ; il rend tout ce qu'il faut pour
+  filtrer (§7), et le texte se replie côté client par le même `foldText` que la
+  recherche du Lot 3 (A4, mesuré à 1,7 ms pour 4149 cartes).
+- **Les filtres de VDB, avec le sens de krcg (P1).** Le cœur de VDB : disciplines
+  (niveaux, paires OU, vertus), clans, sectes, groupes (« Any » affiché avec tout groupe
+  coché), capacité par lignes, titres et votes en crypte ; types, clans, sectes et
+  titres requis, coûts, disciplines en bibliothèque ; extension, légalité du jour,
+  « possédée » et « dans ce deck » à trois états (P4), lignes de texte ET et NON sur le
+  nom, le texte ou les deux. Les modes ET et SEULEMENT des disciplines de bibliothèque
+  suivent krcg et non VDB (SEULEMENT : « jouable avec les seules disciplines cochées ») ;
+  l'aide de chaque mode le dit, et la table de cas de `filterCards` (80 cas) le fige.
+  Le reste de VDB est versé dans `docs/pistes-evolution.md`.
+- **Champ principal sur le nom et le texte (précision 5).** Comme VDB, contre la
+  recommandation « nom seul » : nom anglais, noms FR et ES (P2, `translated_names`) et
+  texte anglais (P3). Sous le tri par défaut (nom replié, P9), les cartes trouvées par
+  leur nom passent devant celles trouvées par leur seul texte, et le compteur le dit ;
+  un tri choisi efface ce regroupement.
+- **Un magasin de détails, sans vider le miroir (Dexie version 6).** `cardDetails`
+  (60 en IndexedDB brut) s'ajoute sans index ni `upgrade`, et `cards` ne grossit pas,
+  pour ne pas alourdir toutes les lectures de l'application. `refreshCatalog` lit toutes
+  les pages puis remplace les deux magasins dans une transaction. Un serveur d'avant le
+  lot se reconnaît à l'absence des champs : `cardDetails` n'est alors ni écrit ni vidé,
+  et le miroir est dit **incomplet** ; Chercher ne cherche plus que dans le nom et
+  désactive ses filtres. Le catalogue se relit une fois, seul, quand les détails
+  manquent (P11), hors du délai de 60 s des autres miroirs et sous le sien (180 s). Un
+  code du Lot 7 ouvre sans erreur une base déjà montée en version 6. Patron du magasin
+  de détails proposé à Barrin dans `frontend/src/offline/README.md`.
+- **Stockage persistant demandé (P14)** par `requestPersistentStorage()`
+  (`offline/core/storage.ts`, générique), au démarrage, sans jamais lever.
+- **Images en ligne seulement (P7, A8).** L'image par impression ne passe pas par le
+  contrat de liste : `useCardOnline` lit `GET /cartes/{id}` à la demande, une fois par
+  carte et par session, et rien hors ligne. `CardImage` essaie l'image de l'impression,
+  puis la générique, puis le pictogramme, et dit pourquoi (« Image indisponible hors
+  ligne », « Pas d'image pour cette impression »). Le texte d'ambiance et l'artiste
+  viennent de la même lecture.
+- **Feuille d'ajout à trois choix (P10).** Deck, collection, ou les deux, avec l'effet
+  dit avant l'envoi, par une fonction pure (`buildAddOperation`). « Les deux » est un
+  achat déclaré : une seule `deck_card.upsert` avec `acquired_quantity`, les exemplaires
+  achetés remplaçant d'abord les proxies de la ligne. Aucun type d'opération `/sync`
+  nouveau (A9). Une carte ajoutée reste à sa place jusqu'au prochain changement de
+  filtre, même si « pas dans ce deck » devrait l'écarter.
+- **Champ global et `/` (P8).** Rétabli dans la barre haute bureau, il ouvre Chercher
+  avec le texte saisi ; pas de sixième onglet. Un seul `/` à la fois, porté par `App` :
+  il focalise le champ de Chercher sur Chercher, le champ global ailleurs, et reste au
+  picker sur le deckbuilder.
+- **Depuis un deck (P12).** `#/chercher?deck=<clé>` présélectionne le deck cible
+  (bandeau, colonne Deck, filtre « pas dans ce deck ») ; le lien vit sous la composition
+  du détail mobile et sous le champ du picker bureau, absent d'un deck archivé.
+- **Icônes de krcg auto-hébergées.** `ankha2.otf` (disciplines, 185 Ko) et
+  `vtes-clans.otf` (clans, 336 Ko) sont copiées dans `frontend/src/assets/fonts/` et
+  précachées (`otf` dans les `globPatterns`), non converties en `woff2` faute d'outil.
+  **Licences** : `ankha2.otf` déclare la SIL OFL avec la mention de Paradox
+  Interactive ; `vtes-clans.otf` ne porte que la mention de Paradox, sans licence.
+  Chaque glyphe porte un nom accessible (« Potence supérieure ») ; une icône suivie de
+  son nom en texte est décorative, pour ne pas être lue deux fois. Hecata n'a pas de
+  glyphe connu et s'affiche sans icône.
+- **Correction de D1a : « Ajouter » additionne.** Le formulaire d'ajout du deckbuilder
+  envoyait `quantity: copies`, si bien qu'ajouter une copie à une ligne à deux
+  exemplaires la ramenait à un, au mobile comme au bureau. La logique est sortie dans
+  `useAddDeckCard` et corrigée dans la fonction pure `computeAddedLine` : quantité,
+  proxies et acquisition s'ajoutent à la ligne existante. Chercher et le deckbuilder
+  partagent ce calcul.
+- **Outil de mise en service.** `backend/scripts/compare_db.py` (`backup`,
+  `snapshot`, `diff`) rend rejouable la procédure éprouvée sur copie puis appliquée à
+  `backend/vtes.db` : sauvegarde, relevé, `upgrade head`, comparaison avec `--same` sur
+  les treize tables privées ou de référence non importées, réimport, comparaison,
+  second rejeu sans effet.
+- **Recensement des `data-testid` versionné** (`frontend/scripts/testid-census.mjs`,
+  référence d'ouverture `docs/qa-baselines/testids-lot-chercher-ouverture.txt`) : 464
+  littéraux distincts à la clôture (403 à l'ouverture, 193 au Lot 5c au même mode de
+  comptage), aucun disparu. Aucun script npm ajouté.
+
+Limites connues à la clôture du lot Chercher :
+
+- **Vérification sur téléphone faite le 2026-11-06, deux points non relevés.** Sur le
+  build servi par `scripts\run.ps1 preview`, en Wifi : catalogue complet (4212 cartes)
+  lu en une dizaine de secondes, puis en mode avion une recherche et un ajout au deck
+  et à la collection, synchronisés à la sortie du mode avion. Non relevés : la réponse
+  de `persist()`, et le service worker avec elle, parce qu'une page en `http://` sur
+  une IP n'est pas un contexte sécurisé (`navigator.storage` absent, la fonction rend
+  `unsupported`) ; il faudra HTTPS, au plus tard au Lot 11. Et la montée en version 6
+  d'une base déjà en service, l'origine `:4173` partant sans doute d'une base neuve ;
+  elle reste couverte par `vtesDbV6.test.ts` et les e2e Dexie 5. Les mesures de
+  l'étape E3, sur Chromium ralenti (150 ms, 1,6 Mbit/s, processeur divisé par
+  quatre) : lecture complète du catalogue en 14 à 16 s pour 508 Ko, 6,9 Mo d'origine
+  dont 5,4 Mo d'IndexedDB (plus que les 1,5 à 2,5 Mo estimés), Chercher à froid en
+  1,3 à 4,3 s, 30 à 121 ms par frappe, `persist()` refusé sur un navigateur sans
+  historique.
+- **Le catalogue est copié dans la base de chaque compte**, puisqu'il y a une base
+  IndexedDB par compte depuis le Lot 6 : deux comptes sur le même appareil le stockent
+  deux fois.
+- **`vteslibmeta.csv` sur la branche `main`**, sans version ni licence (§11.1) : un
+  changement de forme du fichier fait échouer l'import au rejeu, visiblement.
+- **Les sectes reposent sur la forme des textes krcg** : une carte nouvelle qui ne
+  commence pas par une secte est signalée, pas devinée. Black Hand et Seraph
+  n'impliquent pas le Sabbat ; « city title » et « inquisitor » restent bruts.
+- **Écart à VDB sur les disciplines de bibliothèque** (ET, SEULEMENT) et sur les
+  exclusions de secte : voulu, mais un habitué de VDB peut être surpris.
+- **`readProjection` non mesuré** de l'extérieur ; aucune régression constatée dans les
+  e2e existants.
+- **Tests de référence** : `backend/tests/test_vtes_rules_catalog.py` (secte, exigence,
+  légalité d'une carte, sur trois tables de cas), `test_catalog_import_chercher.py`,
+  `test_compression.py`, `test_card_sheet_snapshot.py`, `test_compare_db_script.py` ;
+  côté client `vtesCardSearch`, `vtesCardLegality`, `vtesDbV6`, `vtesCatalogRefresh`,
+  `addOperation` et `tests/unit/ui/search.test.tsx` ; e2e `chercher-filtres`,
+  `chercher-ajout` et `chercher-d1b` aux deux largeurs, `search-parity` étendu au texte,
+  aux noms traduits, à la catégorie et aux clans.
+
 ---
 
 ## 12. Roadmap
@@ -1601,11 +1798,27 @@ Tranchées hors lot (2026-11-02, pendant le Lot 7) — **score CRAP**. Règles c
    Migration appliquée sur `backend/vtes.db` (R10 puis R11) : journal, stock, decks et
    compte identiques à la sauvegarde, un « Moi » pour l'unique compte. Vérifié à la
    main sur téléphone le 2026-11-02 (partie saisie en mode avion puis synchronisée).
-9. **Lot Chercher** — *à venir, prochain lot* (P9 du Lot 7). Écran de recherche dans
-   le catalogue, hors ligne complet, livré en mobile et en bureau ; brief dans
-   `docs/lot-chercher-brief.md`. Son ajout « à la collection » vise la collection
-   unique d'aujourd'hui, qui deviendra l'inventaire principal au lot Inventaires.
-10. **Lot 8 — Analyse** : perf par deck, historique par lieu/date. Ajouté le
+9. **Lot Chercher** — *livré, clos et vérifié sur téléphone le 2026-11-06*
+   (`persist()` non relevé faute de HTTPS, §11). Écran de recherche dans le catalogue, hors ligne complet, en mobile et en
+   bureau sur le handoff `docs/design-handoff/CHERCHER.md` : filtres de VDB, tri, fiche
+   de carte, feuille d'ajout au deck, à la collection ou aux deux, champ global et `/`
+   au bureau, images par impression en ligne, entrée depuis un deck. Secte dérivée du
+   texte à l'import, exigence de secte et de titre lue dans `vteslibmeta.csv`, seconde
+   source du catalogue ; une révision, `8ab23342a26f` (R12) : 25 tables, douze
+   révisions. Contrat toujours à 49 opérations, `CardSearchItem` enrichi, réponses
+   compressées ; Dexie version 6 (magasin `cardDetails`, miroir incomplet sans
+   vidage). Corrigé en chemin : « Ajouter » écrasait la ligne de deck au lieu
+   d'additionner. Plan, livraisons par étape (A0 à F) et mesures dans
+   `docs/lot-chercher-plan.md`, brief clos dans `docs/lot-chercher-brief.md`,
+   décisions et limites au §11. 2491 tests backend (2 `xfail` assumés, `ruff check`
+   propre) ; 983 tests vitest sur 61 fichiers, lint et `tsc` propres ; 73 tests
+   Playwright (8 `chromium`, 39 `real-backend`, 3 `desktop`, 23
+   `desktop-real-backend`) ; références CRAP vides des deux côtés ; aucun
+   `data-testid` disparu. Migration et réimport appliqués le 2026-11-05 sur
+   `backend/vtes.db`, données de l'utilisateur identiques ligne à ligne. Son ajout
+   « à la collection » vise la collection unique d'aujourd'hui, qui deviendra
+   l'inventaire principal au lot Inventaires. Le **Lot 8** vient ensuite.
+10. **Lot 8 — Analyse** — *prochain lot.* Perf par deck, historique par lieu/date. Ajouté le
    2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
    table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
    deck de sa proie et à celui de son prédateur. Proposition : deux colonnes

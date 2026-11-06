@@ -4,6 +4,8 @@ import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
+import { GlobalSearchField } from "./features/search/GlobalSearchField";
+import { focusSearch } from "./features/search/globalSearch";
 import { AccountMenu } from "./features/auth/AccountMenu";
 import { ReconnectBanner } from "./features/auth/ReconnectBanner";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
@@ -38,6 +40,7 @@ const TournamentDetailPage = lazy(() =>
 );
 const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
+const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
 
 // Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
 // (en parallèle du tout premier rendu, pas après lui) : un `import()` d'un
@@ -72,12 +75,13 @@ for (const importRoute of [
   () => import("./features/games/TournamentDetailPage"),
   () => import("./features/games/NotebookPage"),
   () => import("./features/sync/SyncPage"),
+  () => import("./features/search/SearchPage"),
 ]) {
   importRoute().catch(() => {});
 }
 
 /** Les cinq onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
-type NavKey = "home" | "stock" | "decks" | "games" | "sync";
+type NavKey = "home" | "stock" | "decks" | "games" | "sync" | "search";
 
 /**
  * Route active par onglet. Factorisée pour que `TabBar` (< 1024px) et
@@ -101,6 +105,7 @@ function navActive(route: Route): Record<NavKey, boolean> {
       route.name === "tournament" ||
       route.name === "notebook",
     sync: route.name === "sync",
+    search: route.name === "search",
   };
 }
 
@@ -185,6 +190,12 @@ function Page({ route }: { route: Route }) {
       return <NotebookPage />;
     case "sync":
       return <SyncPage />;
+    case "search":
+      // Pas de `key` sur le deck : la page réécrit elle-même `q` et `deck` dans l'adresse
+      // (`replaceState`), et `useRoute` relit l'adresse à chaque rendu. Une clé tirée du
+      // deck remonterait la page, filtres perdus, dès qu'on choisit ou retire le deck cible.
+      // `q` et `deck` ne sont lus qu'au montage.
+      return <SearchPage initialQuery={route.q} deck={route.deck} />;
     case "not-found":
       return (
         <div className="page" data-testid="not-found">
@@ -200,7 +211,7 @@ function Page({ route }: { route: Route }) {
   }
 }
 
-/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Parties, Chercher (désactivé). */
+/** Tab bar fixe en bas (< 1024px) : Atelier, Collection, Decks, Parties, Chercher. */
 function TabBar({ route }: { route: Route }) {
   const status = useSyncStatus();
   const active = navActive(route);
@@ -230,10 +241,10 @@ function TabBar({ route }: { route: Route }) {
         <TrophyIcon size={22} weight={active.games ? "fill" : "regular"} />
         <span>Parties</span>
       </Link>
-      <span className="tabbar__item" aria-disabled="true">
-        <MagnifyingGlassIcon size={22} weight="regular" />
+      <Link to={{ name: "search" }} current={active.search} className="tabbar__item" data-testid="nav-search">
+        <MagnifyingGlassIcon size={22} weight={active.search ? "fill" : "regular"} />
         <span>Chercher</span>
-      </span>
+      </Link>
     </nav>
   );
 }
@@ -281,9 +292,8 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
  * touches (`G` puis `A/C/D/P/S`) est câblée dans `App` via `useKeyboardShortcuts`
  * (étape 2 du Lot 5bis, `docs/lot5bis-plan-design.md`), pas ici, pour que la
  * navigation clavier fonctionne quel que soit l'écran affiché et pas seulement quand
- * `TopBar` a le focus. Le champ de recherche global n'est plus rendu
- * (Lot 5c, étape 6) : il reviendra avec l'écran Chercher
- * (`docs/lot-chercher-brief.md`).
+ * `TopBar` a le focus. Le champ de recherche global, retiré au Lot 5c faute
+ * de cible, revient avec Chercher (D3) : `GlobalSearchField`.
  */
 function TopBar({ route }: { route: Route }) {
   const status = useSyncStatus();
@@ -331,18 +341,22 @@ function TopBar({ route }: { route: Route }) {
               {problems.join(" · ")}
             </Link>
           )}
-          {/*
-           * Champ de recherche global retiré du rendu (Lot 5c, étape 6) : inerte
-           * (ne délégait à aucune recherche), il promettait un `/` qui ne menait
-           * nulle part. Il revient avec l'écran Chercher, qui le repointera
-           * (`docs/lot-chercher-brief.md`). Le `/` du picker du deckbuilder
-           * (`AddDeckCardForm`) reste, lui, fonctionnel.
-           */}
+          {/* Champ global (lot Chercher, D3, P8) : il ouvre Chercher avec le texte saisi ;
+              sur Chercher, il désigne le champ de la page. */}
+          <GlobalSearchField onSearchPage={route.name === "search"} />
         </div>
       </div>
     </header>
   );
 }
+
+const openDialog = () => document.querySelector('[role="dialog"]') !== null;
+
+const SLASH_BINDING = (onSearchPage: boolean): ShortcutBinding => ({
+  keys: ["/"],
+  onTrigger: () => focusSearch(onSearchPage),
+  ignoreTarget: openDialog,
+});
 
 /**
  * Coquille de l'application. Doit être rendue sous `<VtesOfflineProvider>` :
@@ -372,6 +386,12 @@ function App() {
   //    (champ de recherche fonctionnel, panneaux bureau concrets) arrivent aux étapes
   //    7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
   useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS);
+
+  // `/` (lot Chercher, D3, P8) : un seul à la fois. Il focalise le champ global, ou
+  // celui de la page sur Chercher ; inerte dans un champ (comportement par défaut du
+  // hook) et tant qu'une feuille est ouverte. Coupé sur le deckbuilder, où `/` reste
+  // au picker (`AddDeckCardForm`).
+  useKeyboardShortcuts([SLASH_BINDING(route.name === "search")], { enabled: route.name !== "deck" });
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.

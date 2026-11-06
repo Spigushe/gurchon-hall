@@ -200,6 +200,83 @@ export async function readDeckCountByCard(db: VtesOfflineDb): Promise<Map<number
   return new Map([...decksByCard].map(([cardId, decks]) => [cardId, decks.size]));
 }
 
+/** Ce que les filtres de statut de Chercher lisent dans la projection (P4). */
+export interface CardSearchStatus {
+  /** Cartes dont une entrée de collection a au moins un exemplaire. */
+  ownedCardIds: Set<number>;
+  /** Cartes du deck choisi, file comprise ; vide sans deck. */
+  deckCardIds: Set<number>;
+  /** Exemplaires possédés par carte, toutes langues et extensions (« 3 en collection »). */
+  ownedCounts: Map<number, number>;
+  /** Exemplaires par carte dans le deck choisi, proxies compris (« dans ce deck ×2 ») ; vide sans deck. */
+  deckQuantities: Map<number, number>;
+}
+
+const sumBy = <T>(items: readonly T[], key: (item: T) => number, value: (item: T) => number) => {
+  const totals = new Map<number, number>();
+  for (const item of items) totals.set(key(item), (totals.get(key(item)) ?? 0) + value(item));
+  return totals;
+};
+
+export async function readCardSearchStatus(db: VtesOfflineDb, deckKey?: DeckKey | null): Promise<CardSearchStatus> {
+  const { stock, deckCards } = await readProjection(db);
+  const lines = deckKey ? (deckCards.get(deckKey) ?? []) : [];
+  const owned = stock.filter((entry) => entry.quantityOwned > 0);
+  return {
+    ownedCardIds: new Set(owned.map((entry) => entry.cardId)),
+    deckCardIds: new Set(lines.map((line) => line.cardId)),
+    ownedCounts: sumBy(owned, (entry) => entry.cardId, (entry) => entry.quantityOwned),
+    deckQuantities: sumBy(lines, (line) => line.cardId, (line) => line.quantity),
+  };
+}
+
+/** Ce que la fiche d'une carte montre de la collection et des decks (Chercher, D1c). */
+export interface CardUsage {
+  /** Entrées de collection de la carte qui ont au moins un exemplaire, langue puis extension. */
+  copies: LocalStockEntry[];
+  /** Decks vivants qui jouent la carte, avec leurs exemplaires (proxies compris), par nom. */
+  decks: Array<{ deck: LocalDeck; quantity: number }>;
+}
+
+export async function readCardUsage(db: VtesOfflineDb, cardId: number): Promise<CardUsage> {
+  const { stock, decks, deckCards } = await readProjection(db);
+  const copies = stock
+    .filter((entry) => entry.cardId === cardId && entry.quantityOwned > 0)
+    .sort((a, b) => compare(a.languageCode, b.languageCode) || a.cardSetId - b.cardSetId);
+  const playing = decks
+    .map((deck) => ({
+      deck,
+      quantity: (deckCards.get(deck.key) ?? [])
+        .filter((line) => line.cardId === cardId)
+        .reduce((total, line) => total + line.quantity, 0),
+    }))
+    .filter((usage) => usage.quantity > 0)
+    .sort((a, b) => compare(foldText(a.deck.name), foldText(b.deck.name)));
+  return { copies, decks: playing };
+}
+
+/** Où en est le miroir du catalogue (lot Chercher). */
+export interface CatalogMirrorState {
+  /** Lignes de `cards`. */
+  cards: number;
+  /** Lignes de `cardDetails`. */
+  details: number;
+  /**
+   * Détails présents pour tout le catalogue. « Incomplet » se lit sans
+   * marqueur : `cardDetails` vide ou plus court que `cards` (montée de la
+   * version 5, ancien serveur, catalogue jamais relu depuis le lot Chercher).
+   * Un catalogue vide n'est pas complet.
+   */
+  complete: boolean;
+}
+
+export async function readCatalogState(db: VtesOfflineDb): Promise<CatalogMirrorState> {
+  return db.transaction("r", db.cards, db.cardDetails, async () => {
+    const [cards, details] = await Promise.all([db.cards.count(), db.cardDetails.count()]);
+    return { cards, details, complete: cards > 0 && details >= cards };
+  });
+}
+
 /**
  * Extensions du catalogue (miroir de `GET /extensions`), triées comme le
  * serveur : date de sortie, les extensions sans date en dernier, puis

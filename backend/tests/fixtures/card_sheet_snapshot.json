@@ -1,0 +1,311 @@
+{
+  "200025": {
+    "name": "Aidan Lyle",
+    "category": "crypt",
+    "clan": {
+      "name": "Tremere",
+      "abbrev": null
+    },
+    "capacity": 7,
+    "group_code": "G5",
+    "advanced": false,
+    "image_url": "https://static.krcg.org/card/aidanlyleg5.jpg",
+    "sect": {
+      "name": "Camarilla"
+    },
+    "title": null,
+    "path": null,
+    "cost_type": null,
+    "cost_value": null,
+    "clan_requirement": null,
+    "path_requirement": null,
+    "discipline_requirement": null,
+    "library_requirement": null,
+    "required_sects": [],
+    "required_titles": [],
+    "requires_titled": false,
+    "requires_non_titled": false,
+    "other_requirements": [],
+    "card_text": "Camarilla: Aidan gets 1 optional press each combat.",
+    "banned_on": null,
+    "legal_from": "2008-12-19",
+    "types": [
+      {
+        "name": "Vampire"
+      }
+    ],
+    "discipline_links": [
+      {
+        "discipline": {
+          "name": "Auspex",
+          "abbrev": "aus"
+        },
+        "superior": true
+      },
+      {
+        "discipline": {
+          "name": "Chimerstry",
+          "abbrev": "chi"
+        },
+        "superior": true
+      },
+      {
+        "discipline": {
+          "name": "Dominate",
+          "abbrev": "dom"
+        },
+        "superior": false
+      },
+      {
+        "discipline": {
+          "name": "Thaumaturgy",
+          "abbrev": "tha"
+        },
+        "superior": true
+      }
+    ],
+    "burn_option": false,
+    "trifle": false,
+    "flavor_text": null,
+    "artist": "Leif Jones",
+    "printings": [
+      {
+        "card_set": {
+          "abbrev": "FB",
+          "full_name": "First Blood",
+          "release_date": "2019-10-01",
+          "company": "White Wolf Entertainment AB",
+          "is_placeholder": false
+        },
+        "image_url": "https://static.krcg.org/card/set/first-blood/aidanlyleg5.jpg",
+        "occurrences": [
+          {
+            "occurrence_type": "precon",
+            "frequency": null,
+            "multiplier": null,
+            "copies": 1,
+            "released_on": null,
+            "bundle": {
+              "code": "PTr",
+              "name": "Tremere",
+              "size": 55,
+              "release_date": null
+            }
+          }
+        ]
+      },
+      {
+        "card_set": {
+          "abbrev": "KoT",
+          "full_name": "Keepers of Tradition",
+          "release_date": "2008-11-19",
+          "company": "White Wolf",
+          "is_placeholder": false
+        },
+        "image_url": "https://static.krcg.org/card/set/keepers-of-tradition/aidanlyleg5.jpg",
+        "occurrences": [
+          {
+            "occurrence_type": "rarity",
+            "frequency": "V",
+            "multiplier": 1.0,
+            "copies": null,
+            "released_on": null,
+            "bundle": null
+          }
+        ]
+      },
+      {
+        "card_set": {
+          "abbrev": "KoTR",
+          "full_name": "Keepers of Tradition Reprint",
+          "release_date": "2018-05-05",
+          "company": "Paradox Interactive AB",
+          "is_placeholder": false
+        },
+        "image_url": null,
+        "occurrences": [
+          {
+            "occurrence_type": "precon",
+            "frequency": null,
+            "multiplier": null,
+            "copies": 1,
+            "released_on": null,
+            "bundle": {
+              "code": "B",
+              "name": "Reprint Bundle 2",
+              "size": 120,
+              "release_date": null
+            }
+          }
+        ]
+      }
+    ],
+    "translations": [
+      {
+        "language_code": "FR",
+        "name": "Aidan Lyle",
+        "card_text": "Camarilla : Aidan reçoit 1 poursuite optionnelle durant chaque combat.",
+        "flavor_text": null,
+        "image_url": null
+      },
+      {
+        "language_code": "ES",
+        "name": "Aidan Lyle",
+        "card_text": "Camarilla: Aidan obtiene 1 acoso opcional por combate.",
+        "flavor_text": null,
+        "image_url": null
+      }
+    ]
+  },
+  "100002": {
+    "name": "419 Operation",
+    "category": "library",
+    "clan": null,
+    "capacity": null,
+    "group_code": null,
+    "advanced": false,
+    "image_url": "https://static.krcg.org/card/419operation.jpg",
+    "sect": null,
+    "title": null,
+    "path": null,
+    "cost_type": null,
+    "cost_value": null,
+    "clan_requirement": "Osebo",
+    "path_requirement": null,
+    "discipline_requirement": null,
+    "library_requirement": "prince,justicar",
+    "required_sects": [
+      "Camarilla"
+    ],
+    "required_titles": [
+      "Prince",
+      "Justicar"
+    ],
+    "requires_titled": false,
+    "requires_non_titled": false,
+    "other_requirements": [],
+    "card_text": "+1 stealth action.\nPut this card in play. During your unlock phase, you may move 1 pool from your prey's pool to this card or move the pool on this card to your pool. Your prey can burn the Edge to move the counters on this card to his or her pool and burn this card.",
+    "banned_on": null,
+    "legal_from": "2009-06-26",
+    "types": [
+      {
+        "name": "Action"
+      }
+    ],
+    "discipline_links": [],
+    "burn_option": false,
+    "trifle": false,
+    "flavor_text": null,
+    "artist": "Avery Butterworth",
+    "printings": [
+      {
+        "card_set": {
+          "abbrev": "EK",
+          "full_name": "Ebony Kingdom",
+          "release_date": "2009-05-27",
+          "company": "White Wolf",
+          "is_placeholder": false
+        },
+        "image_url": "https://static.krcg.org/card/set/ebony-kingdom/419operation.jpg",
+        "occurrences": [
+          {
+            "occurrence_type": "rarity",
+            "frequency": "C",
+            "multiplier": 1.0,
+            "copies": null,
+            "released_on": null,
+            "bundle": null
+          }
+        ]
+      }
+    ],
+    "translations": []
+  },
+  "102308": {
+    "name": "Absolute Tyranny",
+    "category": "library",
+    "clan": null,
+    "capacity": null,
+    "group_code": null,
+    "advanced": false,
+    "image_url": "https://static.krcg.org/card/absolutetyranny.jpg",
+    "sect": null,
+    "title": null,
+    "path": null,
+    "cost_type": "blood",
+    "cost_value": "1",
+    "clan_requirement": null,
+    "path_requirement": "Power and the Inner Voice",
+    "discipline_requirement": "combo",
+    "library_requirement": "non-anarch,titled",
+    "required_sects": [
+      "Camarilla",
+      "Sabbat",
+      "Laibon",
+      "Independent"
+    ],
+    "required_titles": [],
+    "requires_titled": true,
+    "requires_non_titled": false,
+    "other_requirements": [],
+    "card_text": "Only usable during the polling step of a political action.\n[pot][pre] This vampire gets +3 votes.\n[POT][PRE] Vampires who do not follow the Path of Power and the Inner Voice get -1 vote.",
+    "banned_on": null,
+    "legal_from": "2025-10-26",
+    "types": [
+      {
+        "name": "Action Modifier"
+      },
+      {
+        "name": "Reaction"
+      }
+    ],
+    "discipline_links": [
+      {
+        "discipline": {
+          "name": "Potence",
+          "abbrev": "pot"
+        },
+        "superior": false
+      },
+      {
+        "discipline": {
+          "name": "Presence",
+          "abbrev": "pre"
+        },
+        "superior": false
+      }
+    ],
+    "burn_option": false,
+    "trifle": false,
+    "flavor_text": null,
+    "artist": "Cos Koniotis",
+    "printings": [
+      {
+        "card_set": {
+          "abbrev": "SV5",
+          "full_name": "Sabbat V5",
+          "release_date": "2025-10-26",
+          "company": "Paradox Interactive AB",
+          "is_placeholder": false
+        },
+        "image_url": "https://static.krcg.org/card/set/sabbat-v5/absolutetyranny.jpg",
+        "occurrences": [
+          {
+            "occurrence_type": "precon",
+            "frequency": null,
+            "multiplier": null,
+            "copies": 3,
+            "released_on": null,
+            "bundle": {
+              "code": "PPower",
+              "name": "Path of Power and the Inner Voice",
+              "size": 89,
+              "release_date": null
+            }
+          }
+        ]
+      }
+    ],
+    "translations": []
+  }
+}

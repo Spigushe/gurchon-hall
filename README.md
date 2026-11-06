@@ -79,6 +79,24 @@ accepte les requêtes venant de ces deux origines. Ports personnalisables via
 `-BackendPort`/`-FrontendPort` (`run.ps1`) ou les variables d'environnement
 `BACKEND_PORT`/`FRONTEND_PORT` (`run.sh`).
 
+Le serveur de dev Vite n'a pas de service worker : pour vérifier le hors-ligne et
+l'installation sur un téléphone, il faut le build. La sous-commande `preview` le
+refait, puis lance le backend et `vite preview` (port 4173, `-PreviewPort` ou
+`PREVIEW_PORT`), avec les mêmes réglages de CORS et de cookie que `dev` :
+
+```powershell
+.\scripts\run.ps1 preview            # -SkipBuild pour servir le build existant
+```
+
+```bash
+./scripts/run.sh preview             # --skip-build pour servir le build existant
+```
+
+Les deux sous-commandes autorisent en CORS les ports 5173 et 4173 sur chaque hôte,
+si bien qu'un `npm run preview` lancé à part fonctionne aussi derrière `dev`. Le build
+fige `VITE_API_BASE_URL` : pour un téléphone, `frontend/.env.local` doit viser l'IP du
+poste sur le réseau, et `preview` prévient si elle n'y figure pas.
+
 ### Première connexion (comptes, Lot 6)
 
 Depuis le Lot 6, toute route métier exige une session : au premier lancement,
@@ -107,7 +125,7 @@ via CORS (`BACKEND_CORS_ORIGINS`, voir `backend/app/main.py`), plutôt qu'un
 proxy Vite (`server.proxy`) qui ferait apparaître l'API en même origine que le
 frontend. Deux raisons à ce choix, déjà engagées dans le code existant :
 
-- `scripts/run.ps1 dev` / `run.sh dev` calculent dynamiquement la liste des origines
+- `scripts/run.ps1 dev|preview` / `run.sh dev|preview` calculent dynamiquement la liste des origines
   autorisées (localhost, 127.0.0.1, IP Wifi locale) pour permettre les tests
   d'installation PWA sur téléphone ; ce mécanisme n'a de sens que si le front
   appelle le backend cross-origin. Un proxy Vite rendrait cette configuration

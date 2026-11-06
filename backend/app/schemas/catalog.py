@@ -107,15 +107,23 @@ class CardSummary(ReadModel):
 
 
 class CardListItem(CardSummary):
-    """Une carte dans les résultats de recherche, avec ses impressions (Lot 4).
+    """Une carte du catalogue avec tout ce que la recherche filtre.
 
-    Ce que le client hors ligne doit connaître pour ranger un exemplaire sous
-    une impression réelle sans rappeler l'API : les extensions où la carte a
-    été imprimée, et celle qu'il faut prendre par défaut quand rien ne désigne
-    l'impression — une carte jouée en proxy, par exemple (décision D2a).
+    Base commune de la ligne de liste (`CardSearchItem`) et de la fiche
+    (`CardRead`). Deux familles de champs :
+
+    * les impressions (Lot 4) : ce que le client hors ligne doit connaître pour
+      ranger un exemplaire sous une impression réelle sans rappeler l'API, les
+      extensions où la carte a été imprimée et celle qu'il faut prendre par
+      défaut quand rien ne désigne l'impression (une carte jouée en proxy,
+      décision D2a) ;
+    * depuis le lot Chercher (A1), ce que les filtres de l'écran Chercher
+      lisent dans le miroir local : secte, titre, voie, coût, prérequis,
+      disciplines, types, texte anglais, dates de légalité, et l'exigence
+      envers le vampire, lue par le serveur (A3).
 
     Distinct de `CardSummary`, qui reste la vue courte embarquée dans le
-    stock, les decks et les produits : ces deux champs n'y ont pas d'usage.
+    stock, les decks et les produits : ces champs n'y ont pas d'usage.
     """
 
     card_set_ids: list[int] = Field(
@@ -139,11 +147,22 @@ class CardListItem(CardSummary):
     )
 
 
-class CardRead(CardListItem):
-    """Fiche complète d'une carte du catalogue."""
-
-    sect: SectRead | None = None
-    title: str | None = None
+    sect: SectRead | None = Field(
+        default=None,
+        description=(
+            "Secte d'une carte de crypte, dérivée de son texte à l'import "
+            "(premier mot, ou second après « Advanced » ; « Imbued » pour un "
+            "imbued). Vide pour une carte de bibliothèque, et pour un vampire "
+            "dont le texte ne commence pas par une secte connue."
+        ),
+    )
+    title: str | None = Field(
+        default=None,
+        description=(
+            "Titre d'un vampire, tel que krcg l'écrit (« Prince », « Inner "
+            "Circle », « 1 Vote »…) : celui de sa face, pas d'un texte fusionné."
+        ),
+    )
     path: str | None = None
     cost_type: CostType | None = Field(
         default=None,
@@ -155,11 +174,12 @@ class CardRead(CardListItem):
             "Montant du coût. Chaîne et non entier : 25 cartes coûtent « X »."
         ),
     )
-    burn_option: bool = False
-    trifle: bool = False
     clan_requirement: str | None = Field(
         default=None,
-        description="Clan(s) exigé(s) par la carte, séparés par une virgule.",
+        description=(
+            "Clan(s) exigé(s) par la carte, joints par « , » (virgule et "
+            "espace) ; aucun nom de clan ne contient de virgule."
+        ),
     )
     path_requirement: str | None = None
     discipline_requirement: DisciplineRequirement | None = Field(
@@ -169,9 +189,54 @@ class CardRead(CardListItem):
             "ou toutes ensemble."
         ),
     )
-    card_text: str | None = None
-    flavor_text: str | None = None
-    artist: str | None = None
+    library_requirement: str | None = Field(
+        default=None,
+        description=(
+            "Exigence envers le vampire qui joue la carte, brute, telle que "
+            "`vteslibmeta.csv` (vtescsv) l'écrit : valeurs séparées par une "
+            "virgule (« prince,justicar », « sabbat,titled »). Vide quand le "
+            "fichier n'a pas de ligne pour la carte. Les quatre champs "
+            "`required_*` et `other_requirements` en sont la lecture."
+        ),
+    )
+    required_sects: list[str] = Field(
+        default=[],
+        description=(
+            "Sectes exigées, l'une ou l'autre, noms de la table des sectes "
+            "(Camarilla, Sabbat, Laibon, Independent, Anarch, Imbued), celles "
+            "qu'un titre exigé implique comprises (un Prince exige la "
+            "Camarilla). Une exclusion se lit sur les sectes de vampire : "
+            "« non-anarch » exige Camarilla, Sabbat, Laibon ou Independent, et "
+            "« non-anarch,prince » la Camarilla. Vide : aucune secte exigée."
+        ),
+    )
+    required_titles: list[str] = Field(
+        default=[],
+        description=(
+            "Titres précis exigés, l'un ou l'autre, écrits comme le titre d'un "
+            "vampire (`title`) : « Prince », « Inner Circle », « 1 Vote »…"
+        ),
+    )
+    requires_titled: bool = Field(
+        default=False,
+        description="Exige un vampire titré, quel que soit son titre.",
+    )
+    requires_non_titled: bool = Field(
+        default=False,
+        description="Exige un vampire sans titre.",
+    )
+    other_requirements: list[str] = Field(
+        default=[],
+        description=(
+            "Le reste de l'exigence, tel qu'écrit dans le fichier : capacité "
+            "(« capacity 5 or more »), Gehenna, Black Hand, Seraph, "
+            "« non-sterile », « non-red list »… Non filtrable au lot Chercher."
+        ),
+    )
+    card_text: str | None = Field(
+        default=None,
+        description="Texte anglais de la carte (icônes de discipline « [pot] »).",
+    )
     banned_on: date | None = Field(
         default=None,
         description="Date de bannissement publiée par le VEKN, vide sinon.",
@@ -185,6 +250,39 @@ class CardRead(CardListItem):
     )
     types: list[CardTypeRead] = []
     discipline_links: list[CardDisciplineRead] = []
+
+
+class CardTranslatedName(ReadModel):
+    """Nom d'une carte dans une langue de traduction (lot Chercher, A7)."""
+
+    language_code: str = Field(description="Code de langue, en majuscules.")
+    name: str
+
+
+class CardSearchItem(CardListItem):
+    """Une carte dans les résultats de `GET /cartes` (lot Chercher, A7).
+
+    Ajoute les noms traduits, que la recherche locale compare au texte saisi.
+    Propre à la liste : la fiche (`CardRead`) porte déjà les traductions
+    entières et n'en hérite pas.
+    """
+
+    translated_names: list[CardTranslatedName] = Field(
+        default=[],
+        description=(
+            "Noms traduits connus (FR et ES aujourd'hui), triés par code de "
+            "langue. Sans le texte ni l'image, qui restent à la fiche."
+        ),
+    )
+
+
+class CardRead(CardListItem):
+    """Fiche complète d'une carte du catalogue."""
+
+    burn_option: bool = False
+    trifle: bool = False
+    flavor_text: str | None = None
+    artist: str | None = None
     printings: list[CardPrintingRead] = []
     translations: list[CardTranslationRead] = []
 

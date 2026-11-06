@@ -119,3 +119,96 @@ def test_replaying_from_dir_does_not_warn_twice_about_the_same_card(tmp_path):
     assert second_report["placeholder_cards"] == [
         {"vekn_id": 100999, "name": "Fantome Sans Extension"}
     ]
+
+
+# --------------------------------------------------------------------------
+# Lot Chercher : secte dérivée et `vteslibmeta.csv` (P13, P15)
+# --------------------------------------------------------------------------
+
+
+def test_from_dir_reads_the_library_meta_file_when_present(tmp_path):
+    db_path = migrated_db(tmp_path)
+    source = local_source(tmp_path)
+    shutil.copyfile(FIXTURES / "vteslibmeta_sample.csv", source / "vteslibmeta.csv")
+
+    result = run(
+        [sys.executable, str(SCRIPT), "--from-dir", str(source), "--json"], db_path
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["crypt_sects"] == {
+        "Camarilla": 1,
+        "Imbued": 1,
+        "Independent": 1,
+        "Sabbat": 2,
+    }
+    assert report["unknown_sect_cards"] == []
+    assert report["library_requirements"] == 3
+    assert [issue["reason"] for issue in report["library_meta_issues"]] == [
+        "name_mismatch",
+        "crypt_card",
+        "unknown_id",
+        "duplicate_id",
+    ]
+    assert report["library_meta_issues"][0] == {
+        "id": "100111",
+        "name": "Aura Absorbtion",
+        "reason": "name_mismatch",
+        "catalog_name": "Aura Absorption",
+    }
+    # Signalé sur stderr, sans faire échouer l'import.
+    assert "vteslibmeta.csv en écart" in result.stderr
+    assert "Aura Absorbtion" in result.stderr
+
+
+def test_from_dir_without_the_library_meta_file_warns_and_keeps_going(tmp_path):
+    db_path = migrated_db(tmp_path)
+    source = local_source(tmp_path)
+
+    result = run(
+        [sys.executable, str(SCRIPT), "--from-dir", str(source), "--json"], db_path
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report["library_requirements"] is None
+    assert report["library_meta_issues"] == []
+    assert "vteslibmeta.csv absent" in result.stderr
+
+
+def test_from_dir_refuses_a_library_meta_file_with_another_header(tmp_path):
+    """Un changement de forme du fichier se voit : l'import échoue avant de
+    toucher la base, qui reste vide."""
+    db_path = migrated_db(tmp_path)
+    source = local_source(tmp_path)
+    (source / "vteslibmeta.csv").write_text('"Id","Nom","Exigence"\n', encoding="utf-8")
+
+    result = run(
+        [sys.executable, str(SCRIPT), "--from-dir", str(source), "--json"], db_path
+    )
+
+    assert result.returncode != 0
+    assert "en-tête inattendu" in result.stderr
+    check = run(
+        [
+            sys.executable,
+            "-c",
+            "import sqlite3, sys; print(sqlite3.connect(sys.argv[1])"
+            ".execute('SELECT COUNT(*) FROM card').fetchone()[0])",
+            str(db_path),
+        ],
+        db_path,
+    )
+    assert check.stdout.strip() == "0"
+
+
+def test_from_dir_text_summary_counts_sects_and_requirements(tmp_path):
+    db_path = migrated_db(tmp_path)
+    source = local_source(tmp_path)
+    shutil.copyfile(FIXTURES / "vteslibmeta_sample.csv", source / "vteslibmeta.csv")
+
+    result = run([sys.executable, str(SCRIPT), "--from-dir", str(source)], db_path)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "5 sectes de crypte, 3 exigences de bibliothèque." in result.stdout

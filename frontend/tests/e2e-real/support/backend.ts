@@ -1,6 +1,6 @@
 import { test as base, expect } from "@playwright/test";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -34,6 +34,14 @@ const execFileAsync = promisify(execFile);
  */
 
 const FIXTURES_DIR = path.join(BACKEND_DIR, "tests", "fixtures");
+
+/** `vteslibmeta.csv` réduit à deux cartes de la fixture (cf. `templateDb`). */
+const E2E_LIBRARY_REQUIREMENTS = [
+  '"Id","Name","Requirement"',
+  '"100002","419 Operation","prince,justicar"',
+  '"102308","Absolute Tyranny","non-anarch,titled"',
+  "",
+].join("\n");
 
 /**
  * Compte de test créé une fois par worker dans la base modèle (Lot 6), pour
@@ -202,6 +210,14 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
         path.join(FIXTURES_DIR, "krcg_expansions.json"),
         path.join(fixtures, "expansions.json"),
       );
+      // Exigences de bibliothèque (lot Chercher, P15) : deux lignes de
+      // `vteslibmeta.csv`, celles de l'échantillon pytest qui visent une carte de
+      // la fixture sous son nom exact, sans les lignes d'erreur volontaires
+      // (doublon, identifiant inconnu, carte de crypte). Elles donnent aux e2e de
+      // Chercher un titre requis (Prince, Justicar : Camarilla impliquée) et une
+      // exclusion (« non-anarch »), que les filtres « Titre requis » et « Secte
+      // requise » lisent.
+      writeFileSync(path.join(fixtures, "vteslibmeta.csv"), E2E_LIBRARY_REQUIREMENTS, "utf-8");
       await execFileAsync(
         python,
         [path.join("scripts", "import_catalog.py"), "--from-dir", fixtures],
