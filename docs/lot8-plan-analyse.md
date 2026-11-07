@@ -1,0 +1,683 @@
+# Lot 8 — Analyse : plan d'implémentation
+
+Statut : **A0 close le 2026-11-08, aucun code.** Rédigé sur la branche
+`lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
+tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
+à A0 » sous chaque proposition). Trois écarts aux recommandations : une
+version par deck et par tournoi (P3, qui rend P12 sans objet), une liste
+fermée de six archétypes pour toute l'application (P5), jamais de pourcentage
+et l'étude de la grande proie et du grand prédateur (P8). Brief Claude Design
+écrit (`docs/design-handoff/lot8-brief-claude-design.md`), handoff attendu
+(D0). Les décisions A1 à A8 sont des propositions de conception pour
+l'architecte-contrat, qui les reprendra ou les amendera dans ce fichier. La
+forme suit `docs/lot7-plan-parties.md`.
+
+## Portée
+
+La feuille de route (CLAUDE.md §12, point 11) donne au Lot 8 trois objets, dont
+un préalable relevé le 2026-11-03 :
+
+1. **figer la decklist jouée** à chaque partie, pour qu'un deck modifié après
+   un tournoi ne réécrive pas l'historique de ce tournoi (préalable, première
+   piste de `docs/pistes-evolution.md`) ;
+2. **le deck de chaque adversaire nommé** (nom et archétype), pour lire les
+   résultats d'un de mes decks face au deck de ma proie et à celui de mon
+   prédateur (décision 3 du §11, revue le 2026-11-02) ;
+3. **l'analyse elle-même** : performance par deck, historique par lieu et par
+   date.
+
+Un quatrième objet, facultatif, vient de `docs/pistes-evolution.md` : la
+légalité d'un deck à la date d'un tournoi (P11).
+
+Ce que le lot ne fait pas : suivre les résultats des adversaires (décision 3
+maintenue), calculer des points de tournoi (P7 du Lot 7), importer un tournoi
+d'Archon (Lot 9), suggérer des decks (lot Inventaires), ni produire des
+statistiques de composition d'un deck (disciplines, coûts), qui restent une
+piste.
+
+### État de départ relevé le 2026-11-07
+
+Base de développement `backend/vtes.db`, lue en lecture seule :
+
+- révision `8ab23342a26f` (R12), 25 tables, douze révisions ;
+- un compte, deux joueurs (le « Moi » et Mikael Lavallee), deux lieux, un
+  tournoi (Championnat de France, mono-deck, 67 joueurs, classement 56,
+  trois rondes), deux parties, trois participations, deux decks dont un
+  supprimé, 20 lignes de deck, 29 entrées de stock, 71 opérations au journal ;
+- les deux parties (la ronde 1 du championnat le 2026-10-31, une amicale à cinq
+  le 2026-11-02) pointent le deck 1, « Banu Princes », **modifié pour la
+  dernière fois le 2026-11-07**, après les deux parties. Le risque que le
+  préalable veut fermer s'est donc déjà réalisé : rien ne dit aujourd'hui
+  quelle liste a été jouée au championnat (P4) ;
+- sièges : à l'amicale, je suis au siège 3 et Mikael Lavallee au siège 2, soit
+  mon prédateur selon la convention proposée en P7 ; à la ronde 1, je suis au
+  siège 1, sans adversaire saisi.
+
+Code :
+
+- `participation.deck_id` pointe le deck vivant ; `deck.archetype` est un texte
+  libre de 120 caractères ; `deleted_deck_card` fige déjà une decklist à la
+  suppression logique (Lot 2), patron le plus proche de ce que demande le
+  préalable ;
+- la ligne d'un adversaire ne porte que son joueur, son siège, un deck prêté
+  et des notes ; VP et GW sont réservés à ma ligne par le service (A13 du
+  Lot 7) ;
+- côté client, Dexie version 6 ; la table d'une partie est rangée dans sa ligne
+  du magasin `games` et relue quand `updated_at` change ; le bilan d'un tournoi
+  est déjà recalculé hors ligne (`playRules.tournamentSummary`) ;
+- aucune bibliothèque de graphiques dans `frontend/package.json` (Inter,
+  Phosphor, Dexie, openapi-fetch, React) ;
+- onglet Parties avec le sélecteur « Parties | Tournois » (`PlaySwitcher`),
+  carnet à `#/carnet`.
+
+Chiffres de départ : 2491 tests backend (2 `xfail`), 1030 tests vitest sur 63
+fichiers, 78 e2e Playwright, 475 `data-testid` distincts, références CRAP vides
+des deux côtés, 49 opérations sur 29 chemins au contrat.
+
+## Propositions à trancher par l'utilisateur
+
+Chaque proposition donne une recommandation et ce qu'elle écarte. P1 à P4
+portent sur le préalable et changent le modèle : ce sont celles qu'A1 attend.
+
+### P1. Figer : une copie par partie, ou des versions de deck ?
+
+Trois formes possibles.
+
+- **Une copie par participation**, sur le patron de `deleted_deck_card` : à
+  chaque partie, la liste du deck est recopiée sous la participation. Simple,
+  mais trois rondes d'un tournoi mono-deck donnent trois copies identiques, et
+  rien ne permet de dire « la liste d'avril et celle de juin » sans comparer
+  les copies entre elles.
+- **Une version à chaque modification du deck** : chaque `+` du deckbuilder en
+  créerait une. Inutilisable.
+- **Des versions coupées au moment où le deck est joué** (recommandé). Quand
+  une partie désigne un deck, le serveur compare la liste courante à la
+  dernière version de ce deck : identique, il la réutilise ; différente, il en
+  crée une nouvelle, numérotée (v1, v2…). La participation pointe la version.
+
+Recommandation : la troisième. Les trois rondes d'un tournoi partagent une
+version, l'analyse peut comparer « Banu Princes v2 » à « v3 », et la piste
+« historique des versions d'un deck » trouve son support sans travail de plus.
+Un deck jamais joué n'a aucune version.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue, complétée par la règle
+du tournoi de P3.
+
+### P2. Qu'est-ce qui distingue deux versions ?
+
+Recommandation : **la liste carte × quantité totale**, sans langue, extension ni
+proxy. Convertir un proxy en exemplaire réel ou remplacer une impression
+française par une anglaise ne change pas le deck joué, et ne doit pas couper
+une version. La version ne stocke donc que carte × quantité, ce qui suffit à
+reconstituer une liste de tournoi.
+
+Écarté : recopier les lignes complètes comme `deleted_deck_card`. Elles
+diraient avec quels exemplaires physiques j'ai joué, ce que personne n'a
+demandé, et chaque changement d'impression créerait une version.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue.
+
+### P3. À quel moment la liste est-elle figée ?
+
+Recommandation : **par le serveur, quand il applique l'écriture de la partie**
+(création, remplacement de la table, ou modification qui change le deck d'une
+ligne), jamais à une autre occasion. Par `/sync`, l'ordre de la file reproduit
+l'ordre de saisie d'un même appareil : une partie saisie hors ligne au club,
+puis le deck retouché dans le train, arrivent dans cet ordre, et la partie
+prend la liste d'avant la retouche.
+
+S'y ajoute une action explicite dans le détail d'une partie, **« Figer sur la
+liste actuelle »**, pour la partie saisie après coup (le lendemain, une fois le
+deck déjà modifié) ou pour les parties d'avant le lot (P4). Elle passe par
+`game.update`, avec un drapeau, et ne propose que la liste courante : pas de
+choix parmi les versions passées.
+
+Écarté : faire envoyer la liste par le client dans l'opération. Plus exact
+quand deux appareils se croisent, mais le contrat devient lourd, le serveur
+doit valider une decklist entière par partie, et le miroir du client peut être
+en retard. Limite acceptée en échange : une partie saisie hors ligne sur le
+téléphone pendant que le deck est modifié en ligne sur l'ordinateur prend la
+liste de l'ordinateur.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue, avec une règle de
+plus pour les tournois, voulue par l'utilisateur : **dans un tournoi, la liste
+figée à la première partie où un deck est joué est la version de ce deck pour
+toutes les autres parties du tournoi**, finale comprise. Un deck ne change pas
+pendant un tournoi (VEKN), et l'application ne laisse pas une retouche faite
+entre deux rondes produire deux versions dans le même tournoi.
+
+Conséquences :
+
+- au gel d'une partie de tournoi, le serveur cherche d'abord une partie du
+  même tournoi déjà figée pour ce deck ; s'il en trouve une, il reprend sa
+  version, quelle que soit la liste courante. « Première » veut dire la
+  première figée, pas la ronde au plus petit numéro : une ronde 2 saisie avant
+  la ronde 1 fixe la version, et la ronde 1 la reprend ;
+- la règle vaut par deck : en multi-deck, chaque deck a sa version dans le
+  tournoi, figée à sa première partie ;
+- une partie déplacée dans un tournoi (`game.update` qui change son tournoi)
+  prend la version du tournoi pour son deck s'il y en a une, et la fixe sinon ;
+- « Figer sur la liste actuelle » sur une partie de tournoi refige **toutes**
+  les parties du tournoi jouées avec ce deck, et la confirmation le dit. C'est
+  le seul moyen de corriger la version d'un tournoi, et il garde la règle
+  d'une version par deck et par tournoi ;
+- une amicale reste figée partie par partie.
+
+### P4. Que faire des parties déjà saisies ?
+
+Deux parties existent, et le deck qu'elles désignent a changé depuis.
+
+- **(a) Les laisser sans version** (recommandé) : la migration ne convertit
+  rien, l'analyse les compte sous le deck, dans une ligne « liste non figée ».
+  L'utilisateur, qui seul sait si « Banu Princes » a changé depuis le
+  championnat, peut figer chaque partie sur la liste actuelle par l'action de
+  P3.
+- **(b) Figer la liste actuelle** pour toutes, avec une marque « reconstituée ».
+  La migration devinerait à la place de l'utilisateur, et la marque devrait
+  vivre dans le modèle pour toujours.
+
+Question directe, pour décider de (a) ou (b) : la liste actuelle de « Banu
+Princes » est-elle celle jouée au Championnat de France ?
+
+**Tranché à A0 (2026-11-07)** : ni (a) ni (b). L'application n'est pas encore
+en ligne, et ce que contient `backend/vtes.db` (parties, decks, stock) est de
+la recette : la base sera **écrasée** et reconstruite à neuf à la mise en
+service (F0). Il n'y aura donc aucune partie antérieure au gel, et R13 n'a rien
+à convertir. L'action « Figer sur la liste actuelle » de P3 garde son usage
+pour la partie saisie après coup.
+
+### P5. Comment décrire le deck d'un adversaire ?
+
+La feuille de route propose deux textes libres sur la ligne d'adversaire, nom
+et archétype, avec en suggestion les valeurs déjà saisies.
+
+Recommandation : **nom et archétype en texte libre, plus un clan facultatif
+choisi dans la liste des clans du catalogue.** Joueurs et organisateurs
+décrivent d'abord un deck par son clan (« un Ministry », « du Tremere »), et un
+texte libre se fragmente vite : « Ministry », « ministry bleed », « Ministère »
+font trois groupes. Le clan, pris dans une liste fermée qui existe déjà, donne
+un axe d'analyse fiable ; l'archétype reste libre, regroupé à l'affichage par
+`foldText`, et suggéré à partir des archétypes déjà saisis, ceux de mes propres
+decks compris.
+
+Les trois champs sont refusés sur ma ligne et sur une ligne qui joue un de mes
+decks prêtés (P4 du Lot 7) : là, le deck est déjà connu.
+
+Écarté : une liste fermée d'archétypes. Aucun référentiel ne fait foi (la TWDA
+n'en publie pas de structuré), et la tenir serait un travail sans fin.
+
+**Tranché à A0 (2026-11-08)** : **liste fermée d'archétypes, pour toute
+l'application**, contre la recommandation : Bleed, Vote, Wall, Toolbox, Rush,
+Combo. Le clan principal est retenu. Ce que cela donne :
+
+- **un seul choix** parmi les six, facultatif, sur mes decks comme sur ceux des
+  adversaires. Codes `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo` en
+  base et au contrat (enum fermé, CHECK nommé, convention du §6) ; libellés
+  affichés tels que l'utilisateur les a donnés, en anglais, puisque c'est le
+  vocabulaire des joueurs ;
+- `deck.archetype`, texte libre depuis le Lot 1, **devient cet enum** :
+  formulaire de deck à six puces au lieu d'un champ texte, et changement de
+  contrat sur `DeckCreate`, `DeckUpdate`, `DeckRead` et les opérations
+  `deck.create` / `deck.update` de `/sync` (A4, A5, A8) ;
+- deck d'un adversaire : **clan principal** (liste des clans du catalogue, avec
+  son glyphe), **archétype** (les six), et un **nom** de deck en texte libre,
+  gardé pour mémoire mais qui n'entre dans aucun axe d'analyse ;
+- le clan principal de **mes** decks ne se saisit pas : il se déduit de la
+  crypte de la version jouée (le clan qui y compte le plus d'exemplaires), et
+  sert à l'affichage du bilan. Interprétation de l'orchestrateur, à corriger
+  si l'utilisateur voulait aussi un champ sur ses propres decks.
+
+### P6. Un adversaire sans nom peut-il avoir un deck ?
+
+Aujourd'hui, une ligne de table exige un joueur du carnet. Au Championnat de
+France, 67 joueurs : on ne retient pas toujours le nom de sa proie, mais on sait
+qu'elle jouait Tremere. L'analyse face à la proie et au prédateur repose sur les
+sièges et les decks, pas sur les noms.
+
+Recommandation : **oui, une ligne d'adversaire peut ne désigner aucun joueur**,
+à condition de porter un siège ou un deck (sinon elle ne dit rien). L'interface
+la montre comme « Joueur non nommé ». Sans cela, l'utilisateur créerait des
+joueurs « Inconnu 1 », « Inconnu 2 » qui pollueraient le carnet.
+
+Coût : `participation.player_id` devient nullable, et la règle « exactement une
+ligne du Moi » se lit sur les lignes qui ont un joueur. À écarter si
+l'utilisateur préfère garder le carnet comme seule source des lignes.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue.
+
+### P7. Convention de siège
+
+Le siège est facultatif et le modèle dit seulement « 1 = premier joueur ».
+
+Recommandation : **le jeu tourne dans l'ordre des sièges** ; la proie du siège
+*n* est le siège *n* + 1, celle du dernier siège est le siège 1, et le
+prédateur du siège *n* est le siège *n* − 1 (le dernier pour le siège 1). Ce
+sont la proie et le prédateur **de départ** : les évictions en cours de partie
+ne sont pas saisies.
+
+Conséquences, à écrire telles quelles dans l'aide de l'écran :
+
+- une partie sans mon siège sort de l'analyse proie / prédateur, et l'écran
+  dit combien (« 3 parties sur 12 sans siège ») ; elle compte partout ailleurs ;
+- mon siège et le nombre de joueurs suffisent à savoir **quel** siège est ma
+  proie ; si aucune ligne n'est saisie à ce siège, la proie est « inconnue »,
+  ce qui reste un groupe affiché ;
+- à deux joueurs, proie et prédateur sont le même adversaire : la partie compte
+  des deux côtés, sans marque particulière.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue. Raison donnée par
+l'utilisateur : en début de partie, le jeu se joue surtout face aux deux decks
+voisins, à gauche et à droite. Proie et prédateur restent donc l'axe principal
+de l'analyse par position (P8).
+
+### P8. Que montre l'analyse ?
+
+Recommandation, en indicateurs : parties jouées, GW, VP total et VP moyen par
+partie ; pour les tournois, rondes jouées, finales atteintes et classement.
+Pas de pourcentage sous cinq parties : « 2 GW sur 3 » plutôt que « 67 % ».
+
+En axes, chacun filtrable par période (de, à), par type de partie (amicale,
+préliminaire, finale) et par deck :
+
+- **par deck**, puis par version de ce deck ;
+- **par lieu** ;
+- **par période** : une ligne par mois, et le cumul ;
+- **face à la proie et au prédateur** : par clan, puis par archétype ;
+- **par adversaire nommé** : mes résultats aux tables où il était, ce qui reste
+  le suivi de **mes** résultats (décision 3).
+
+Écarté pour ce lot : les courbes dans le temps. Le volume (deux parties
+aujourd'hui) ne les justifie pas encore.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue, avec deux
+changements.
+
+- **Jamais de pourcentage**, quel que soit le nombre de parties : « 6 GW sur
+  14 parties », jamais « 43 % ». Le VP moyen par partie reste, ce n'est pas un
+  pourcentage.
+- **Grande proie et grand prédateur**, à étudier « sans créer de donnée trop
+  littérale ». Réponse : rien à saisir ni à stocker, tout se déduit des sièges
+  déjà saisis, comme la proie et le prédateur. La grande proie du siège *n* est
+  le siège *n* + 2, le grand prédateur le siège *n* − 2. Ce que cela vaut
+  selon la taille de la table :
+
+  | Joueurs | Grande proie | Grand prédateur | Traitement |
+  | --- | --- | --- | --- |
+  | 5 | *n* + 2 | *n* − 2 | les quatre adversaires sont exactement proie, grande proie, grand prédateur et prédateur |
+  | 6 | *n* + 2 | *n* − 2 | le siège d'en face (*n* + 3) n'entre dans aucune des quatre positions |
+  | 4 | *n* + 2 | *n* + 2 | le siège d'en face est les deux à la fois ; il compte des deux côtés, comme la table à deux de P7 |
+  | 3 ou moins | — | — | *n* + 2 est mon prédateur : pas de grande position, la partie sort de cet axe |
+
+  À l'écran, ces deux positions viennent **après** la proie et le prédateur,
+  dans une section repliée (« Plus loin à la table »), pour ne pas leur donner
+  le même poids (P7). Elles suivent les mêmes règles : partie sans siège
+  exclue et comptée, siège sans ligne saisie « inconnu ».
+
+Avec l'archétype fermé de P5, l'axe par position se regroupe au choix par
+archétype ou par clan, et non plus par clan puis archétype libre.
+
+### P9. Où se calcule l'analyse ?
+
+Recommandation : **côté client, en fonctions pures sur le miroir**, hors ligne
+comme le reste de l'application, sans route d'analyse. Le miroir contient déjà
+les parties et leurs tables ; il lui faut seulement les versions (A6). Le
+volume visé, quelques centaines de parties, se parcourt en quelques
+millisecondes.
+
+Écarté : une route `/analyse` côté serveur. Elle serait indisponible au club,
+dupliquerait le calcul pour les parties encore en file, et n'apporterait rien
+au portage vers Barrin.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue.
+
+### P10. Navigation et design
+
+Recommandation :
+
+- un troisième segment **« Bilan »** dans le sélecteur de l'onglet Parties
+  (« Parties | Tournois | Bilan », route `#/bilan`), sans sixième onglet ;
+- un encart **« Résultats »** dans l'aperçu bureau d'un deck et dans le détail
+  mobile, qui renvoie au bilan filtré sur ce deck ;
+- dans le détail d'une partie, la version jouée (« Banu Princes#1234, v3 ») et
+  l'action « Figer sur la liste actuelle » ; dans le formulaire, les champs de
+  deck adverse sous chaque adversaire ;
+- **un handoff Claude Design** avant les écrans, comme aux Lots 7 et Chercher :
+  le bilan est un écran neuf, fait de chiffres, et sa lisibilité au téléphone
+  ne se devine pas. Brief à écrire dans
+  `docs/design-handoff/lot8-brief-claude-design.md` dès A0 ;
+- **aucune dépendance de graphique** : tableaux et barres en CSS ou en SVG
+  écrit à la main.
+
+**Tranché à A0 (2026-11-07)** : recommandation retenue. Le brief est écrit à
+cette étape (`docs/design-handoff/lot8-brief-claude-design.md`), puis
+l'utilisateur le transmet à Claude Design et verse le handoff reçu dans
+`docs/design-handoff/` (étape D0). Le brief suit les recommandations de P5 à
+P8 ; une décision qui s'en écarte se reporte dans le brief avant envoi.
+
+### P11. La légalité d'un deck à la date d'un tournoi
+
+Piste du §11 (limite n°6 du Lot 2), rangée au Lot 8 par `pistes-evolution.md`.
+Avec les versions, la question devient précise : la liste jouée était-elle
+légale le jour du tournoi ?
+
+Recommandation : **l'inclure, en dernière étape back, détachable** : une route
+`GET /decks/{id}/versions/{numero}/legalite?on=AAAA-MM-JJ`, qui réutilise les
+fonctions pures existantes, et une pastille dans le détail du tournoi, en ligne
+seulement comme toute légalité. Si le lot traîne, on la coupe sans rien
+défaire.
+
+**Tranché à A0 (2026-11-08)** : recommandation retenue. Avec la règle de P3,
+la version évaluée est celle du tournoi, la même pour toutes ses parties.
+
+### P12. Une liste qui change pendant un tournoi mono-deck
+
+Le règlement interdit de modifier son deck entre deux rondes. Avec les
+versions, deux rondes d'un tournoi mono-deck peuvent montrer deux versions du
+même deck.
+
+Recommandation : **le signaler dans le détail du tournoi, sans refuser.** Une
+correction après coup (P3) peut produire cet état légitimement, et le contrôle
+de mono-deck du Lot 7 ne regarde que le deck, pas sa version.
+
+**Tranché à A0 (2026-11-08)** : sans objet. Avec la règle de P3 (une version
+par deck et par tournoi, figée à sa première partie), deux versions d'un même
+deck ne peuvent plus coexister dans un tournoi. Rien à signaler, rien à
+contrôler ; le détail du tournoi dit seulement à quelle partie la liste a été
+figée.
+
+## Décisions de conception proposées à l'architecte
+
+Rédigées d'après les décisions de A0 (2026-11-08).
+
+### A1. Deux tables : `deck_version` et `deck_version_card`
+
+`deck_version` : `id` (en `AUTOINCREMENT`, comme les tables du Lot 7 depuis
+R11), `user_id`, `deck_id`, `number` (≥ 1), `created_at`. Unicités
+(`deck_id`, `number`) et (`id`, `deck_id`, `user_id`), la seconde servant de
+cible à la clé composite de `participation`. Clé composite (`deck_id`,
+`user_id`) vers `deck`.
+
+`deck_version_card` : `deck_version_id`, `card_id`, `quantity` (≥ 1), clé
+primaire sur les deux premiers, clé étrangère vers `card` seulement, comme
+`deleted_deck_card` vers `card_set` : une liste figée ne réserve rien.
+
+Pas de colonne d'empreinte : la comparaison de la liste courante à la dernière
+version se fait sur une centaine de lignes au plus, en mémoire.
+
+### A2. `participation` gagne quatre colonnes, `deck.archetype` devient un enum
+
+- `deck_version_id`, nullable, avec une clé composite (`deck_version_id`,
+  `deck_id`, `user_id`) vers `deck_version` : la base garantit que la version
+  appartient au deck de la ligne et au compte. Un CHECK
+  `deck_version_id IS NULL OR deck_id IS NOT NULL` complète la clé, que
+  `MATCH SIMPLE` désactive dès que `deck_id` est nul ;
+- `opponent_deck_name`, texte de 120 caractères ;
+- `opponent_deck_archetype`, enum `DeckArchetype` (P5) ;
+- `opponent_clan_id`, clé étrangère vers `clan`.
+
+Un enum `DeckArchetype` (`bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`)
+dans `app/models/enums.py`, porté par un CHECK nommé sur `participation` et sur
+`deck.archetype`, qui passe de `String(120)` à cet enum, nullable.
+
+Avec P6, `player_id` devient nullable ; l'unicité (`game_id`, `player_id`)
+tient, SQLite ne comparant pas les NULL entre eux. Les règles « champs adverses
+seulement sur une ligne d'adversaire sans deck prêté » et « une ligne sans
+joueur porte un siège ou un deck » sont des règles de service, comme A13.
+
+### A3. Service de gel
+
+Une fonction `freeze_decklist(db, deck, user_id) -> DeckVersion` agrège les
+lignes vivantes par carte, compare à la dernière version du deck, la réutilise
+ou crée la suivante. Un deck supprimé se fige depuis `deleted_deck_card`.
+Appelée par la création d'une partie, le remplacement de sa table et une
+modification qui change le deck d'une ligne, pour toute ligne qui désigne un
+deck (prêts compris : la règle reste uniforme), et par le drapeau
+`refreeze_decklists` de P3. Une écriture qui ne touche pas le deck d'une ligne
+garde sa version.
+
+Règle du tournoi (P3) : pour une partie de tournoi, la fonction cherche
+d'abord une participation d'une autre partie du même tournoi, avec le même
+deck, déjà figée ; elle reprend alors sa version sans regarder la liste
+courante. Le drapeau `refreeze_decklists` sur une partie de tournoi fige la
+liste courante puis l'applique à toutes les participations du tournoi qui
+jouent ce deck, dans la même transaction. Une ligne d'adversaire qui joue un
+deck prêté suit la même règle : la version est celle du deck dans le tournoi,
+qui que soit le joueur.
+
+Le gel par drapeau doit toucher `updated_at` de chaque partie modifiée, sans
+quoi le miroir ne relirait pas leurs tables (A6).
+
+### A4. Contrat
+
+- `ParticipationRead` : `deck_version_id`, `deck_version_number`, et les champs
+  adverses ; `ParticipationSummary` (ma ligne en résumé) : `deck_version_id` et
+  `deck_version_number`.
+- `ParticipationCreate` : les champs adverses, contrôlés en forme seulement ;
+  le refus sur ma ligne est un verdict du service, pour qu'un refus par `/sync`
+  reste celui d'une seule opération (convention du Lot 7).
+- `GameUpdate` : `refreeze_decklists: bool = false`.
+- `DeckCreate`, `DeckUpdate`, `DeckRead` : `archetype` devient `DeckArchetype`
+  (P5) ; une valeur hors des six rend 422.
+- Une route nouvelle, `GET /decks/{id}/versions` : chaque version avec son
+  numéro, sa date, ses cartes (carte × quantité) et ses comptes crypte et
+  bibliothèque ; lisible pour un deck supprimé, comme `GET /decks/{id}`.
+- Avec P11, `GET /decks/{id}/versions/{numero}/legalite` avec `on`.
+
+Soit 50 opérations sur 30 chemins (51 sur 31 avec P11). `API_ROUTE_PREFIXES`
+ne bouge pas, tout restant sous `/decks`.
+
+### A5. `/sync`
+
+Aucun type d'opération nouveau. `game.create`, `game.update` et le
+remplacement de table gagnent des champs **facultatifs** : une opération de
+partie déjà en file, écrite avant le lot, reste valide et se rejoue telle
+quelle. Un rejeu rend le verdict mémorisé et ne refige rien.
+
+Une exception, voulue par P5 : `deck.create` et `deck.update` n'acceptent plus
+qu'un des six archétypes. Une opération en file avec un archétype en texte
+libre ferait refuser le lot en 422, et la bissection l'isolerait. Aucune file
+n'existe hors des postes de recette (base écrasée, application en local), si
+bien que la rupture est acceptée sans période de transition ; pour Barrin, la
+marche à suivre d'une base en service reste celle du README offline (champ
+d'abord toléré, le temps de vider les files).
+Section « Lot 8 » à ajouter à `docs/lot3-sync-contrat.md`.
+
+### A6. Couche hors ligne : Dexie version 7
+
+Un magasin `deckVersions` (`id, deckId`), ajouté sans changement de clé ni
+`upgrade`. `GameMeRow` et `GameTableLineRow` gagnent les champs de A4. Une
+partie déjà au miroir sans ces champs les lit comme nuls ; avec la base écrasée
+(P4), ce cas ne se présente que dans les tests de montée de version.
+
+Les versions se relisent avec les decks, à chaque rafraîchissement, par
+`GET /decks/{id}/versions` pour les decks qui ont des parties. Une partie
+saisie hors ligne affiche « liste figée à la synchronisation » jusqu'au rejeu.
+Le cœur générique (`core/`) ne change pas.
+
+### A7. Modèle d'analyse côté client
+
+`frontend/src/features/analysis/analysisModel.ts`, en fonctions pures et en
+tables de petites fonctions par axe, sans `switch`, pour tenir les références
+CRAP vides : `seatPositions(seat, playerCount)` (P7, P8 : proie, prédateur,
+grande proie, grand prédateur, chacune un siège ou absente selon la table de
+P8), `gameFacts(game)` (ma ligne, adversaire à chaque position, type),
+`aggregate(games, axis, filters)`, `mainClan(versionCards)` (P5, clan le plus
+représenté de la crypte). Plus de regroupement de texte libre : les
+archétypes sont fermés. Aucun pourcentage produit, même en interne, pour que
+l'écran ne puisse pas en afficher par mégarde. Une table de cas pour les
+sièges (tables de 2 à 6, siège absent, position non saisie), à la manière de
+`certain_game_win_cases.json`, mais côté client seulement puisque le serveur
+ne calcule rien (P9).
+
+### A8. Migration R13
+
+Une treizième révision : création des deux tables, puis `participation`
+renommée et recréée à la main, hors mode batch, comme R9 et R10 (une clé
+étrangère composite ne s'ajoute pas par `ALTER TABLE` sous SQLite). `deck`
+est recréée de la même façon pour le CHECK de son archétype, comme R9 l'a
+fait ; c'est la table visée par le plus de clés étrangères (`deck_card`,
+`deleted_deck_card`, `participation`, et désormais `deck_version`), d'où la
+coupure des clés étrangères le temps de la migration et le
+`foreign_key_check` final déjà assurés par `migrations/env.py`.
+
+Une seule conversion : `deck.archetype`. Une valeur égale à l'un des six
+codes une fois repliée (`fold_text`, « Toolbox » → `toolbox`) est convertie ;
+toute autre valeur fait **refuser la montée** (`RuntimeError`, avant toute
+modification, la liste des valeurs fautives dans le message), sur le patron
+des gardes du Lot 4 : la migration ne devine pas qu'un « stealth bleed » est
+un Bleed. La descente refuse de tourner s'il existe une version ou une ligne
+avec un champ adverse, sur le patron de R10 ; elle rend les archétypes en
+texte, sans perte. Montée et descente rendues hors ligne (`--sql`).
+
+La base de développement étant écrasée (P4), R13 n'y sera pas appliquée sur
+des données en place. Elle doit pourtant savoir le faire : la base de
+production, au Lot 11, partira peut-être d'une révision antérieure. Les tests
+d'aller-retour la passent donc sur une base peuplée par les fixtures (parties,
+tables, decks prêtés, archétypes convertibles et non convertibles), et
+vérifient que les participations ressortent identiques, colonnes nouvelles à
+nul.
+
+Le modèle passe à 27 tables et treize révisions.
+
+## Écrans (frontend-react)
+
+Sur le handoff de D0, en mobile puis en bureau :
+
+1. **Formulaire de partie** : sous chaque adversaire, clan principal,
+   archétype (six puces) et nom de deck, repliés par défaut ; aide « Votre
+   proie : siège 4 · Votre prédateur : siège 2 ». « Ajouter un siège sans nom »
+   (P6).
+2. **Détail de partie** : version jouée, lien vers sa liste, action « Figer sur
+   la liste actuelle » (sur tout le tournoi pour une partie de tournoi, P3),
+   deck de chaque adversaire, positions marquées.
+3. **Liste d'une version** : `DeckTables` en lecture seule.
+4. **Bilan** (`#/bilan`) : filtres communs, puis les axes de P8 en tableaux, le
+   nombre de parties toujours visible, les parties exclues d'un axe comptées,
+   aucun pourcentage ; grande proie et grand prédateur dans une section
+   repliée.
+5. **Résultats d'un deck** : encart dans l'aperçu bureau de `#/decks` et dans le
+   détail mobile, par version.
+6. **Détail de tournoi** : version du tournoi et partie où elle a été figée,
+   légalité à la date du tournoi (P11).
+7. **Formulaire de deck** (création et modification, mobile et bureau) :
+   l'archétype passe d'un champ texte à six puces (P5).
+
+## Découpage en étapes ordonnées
+
+| Étape | Agent | Contenu | Dépend de |
+| --- | --- | --- | --- |
+| A0 | utilisateur, orchestrateur | P1 à P12 tranchées dans ce fichier ; brief Claude Design écrit — **fait le 2026-11-08** | rien |
+| A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures | A0 |
+| A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync | A1 |
+| B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` | A2 |
+| B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
+| F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
+| C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche | B2 |
+| D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` | A0 |
+| D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) | C1, D0 |
+| D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) | D1 |
+| B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne | B1 |
+| E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs | D2 (et B3) |
+| F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone | E |
+
+**F0 : la base est écrasée, pas migrée** (décision du 2026-11-07, P4).
+L'application n'est pas en ligne et les données actuelles sont de la recette.
+Placée après B2, la reconstruction donne une base où toute partie saisie
+pendant la suite du lot a sa liste figée. Les changements de contrat des
+parties étant additifs, le front d'aujourd'hui fonctionne contre le back de B2
+en attendant les écrans, à une exception près : l'archétype d'un deck (P5).
+Jusqu'à D2, créer un deck en laissant l'archétype vide, ou taper exactement un
+des six codes en minuscules ; toute autre saisie est refusée.
+
+L'application ne tourne qu'en local : aucun appareil à déconnecter (précisé
+par l'utilisateur le 2026-11-08). Procédure :
+
+1. copie de `vtes.db` en `.bak` par habitude, sans comparaison ;
+2. suppression de `vtes.db`, `uv run alembic upgrade head` (en vérifiant
+   `DATABASE_URL`), `uv run python scripts/import_catalog.py` ;
+3. réclamation du compte historique recréé par R8 (`manage_accounts.py
+   claim-legacy`) ou création d'un compte (`create`), au choix de
+   l'utilisateur ;
+4. si le navigateur du poste montre ensuite des decks ou des parties de
+   l'ancienne base, effacer les données du site : le compte réclamé reprend
+   l'identifiant `1`, donc le même nom de base IndexedDB
+   (`gurchon-hall-offline-u1`) ;
+5. en-tête de CLAUDE.md corrigé : la base ne contient plus « la vraie
+   collection », les sauvegardes `.bak` des mises en service précédentes
+   deviennent sans objet.
+
+D0 avance en parallèle de A1 à C1. C1 peut commencer ce qui ne dépend pas des
+types générés dès A2, comme C1a au Lot 7.
+
+### Tests attendus (E)
+
+- Back : gel (liste identique réutilisée, liste changée numérotée, deck
+  supprimé figé depuis sa liste figée, changement d'impression ou de proxy sans
+  nouvelle version, partie modifiée sans changer de deck qui garde sa version,
+  drapeau qui refige et touche `updated_at`) ; règle du tournoi (deck modifié
+  entre deux rondes qui garde la version de la première, ronde 2 saisie avant
+  la ronde 1, multi-deck avec une version par deck, partie déplacée dans un
+  tournoi, drapeau qui refige tout le tournoi pour ce deck et seulement lui) ;
+  archétype fermé (422 hors des six, en ligne et par `/sync`) ; règles des
+  champs adverses ; ligne sans joueur (P6) ; route des versions et légalité
+  datée sous la matrice d'autorisation (401, 404 pour un autre compte) ;
+  `/sync` avec une opération de partie d'avant le lot, rejeu sans regel ; R13
+  aller-retour, conversion des archétypes, montée refusée sur un archétype non
+  convertible, descente refusée.
+- Client : `vtesDbV7` (montée depuis une base en version 6 peuplée),
+  `seatPositions` sur sa table de cas (tables de 2 à 6, siège absent, position
+  non saisie, siège d'en face à quatre et à six), `mainClan`, agrégats par
+  axe, absence de tout pourcentage dans les sorties.
+- e2e contre le vrai back, aux deux largeurs : une partie saisie hors ligne,
+  le deck modifié ensuite hors ligne, puis le rejeu, la partie devant montrer
+  l'ancienne liste ; le bilan filtré sur un deck, avec sa proie et son
+  prédateur.
+- Non-régression : références CRAP vides, aucun `data-testid` disparu sans
+  justification (`testid-census.mjs`).
+
+## Risques et points d'attention
+
+- **Base IndexedDB du poste** : après F0, le compte reprend l'identifiant `1`
+  et retrouve sa base IndexedDB d'avant, avec des miroirs qui visent une base
+  disparue (procédure de F0, point 4).
+- **Règle du tournoi et saisie en désordre** : la version d'un tournoi est
+  celle de la première partie **figée**, pas forcément de la ronde 1. Sur deux
+  appareils, c'est l'ordre d'arrivée au serveur qui décide. Le drapeau de regel
+  corrige le tournoi entier d'un geste.
+- **Deux appareils** : le gel suit l'ordre d'application sur le serveur, pas
+  l'ordre de saisie entre appareils (P3). Le drapeau de regel est le remède.
+- **Petits nombres** : avec deux parties en base, tout l'écran du bilan
+  reposera au début sur des jeux d'essai. Les e2e doivent en semer assez pour
+  que chaque axe ait plusieurs groupes.
+- **Six archétypes seulement** : un deck à cheval (stealth-bleed avec du vote)
+  se range sous un seul. C'est le prix d'un axe d'analyse qui ne se fragmente
+  pas ; le nom de deck adverse, libre, garde la nuance pour mémoire.
+- **`deck` recréée par R13** : table visée par quatre clés étrangères. Même
+  forme que R9, qui l'a déjà fait sans perte.
+- **Lectures du miroir** : l'analyse relit toutes les tables de parties, dont
+  le premier chargement est déjà lent sur un long carnet (limite du Lot 7).
+  À mesurer au-delà de quelques centaines de parties.
+- **R13 recrée `participation`** : non exercée sur une vraie base au Lot 8,
+  puisque celle de développement est écrasée. Les tests d'aller-retour sur
+  base peuplée (A8) sont la seule garantie avant la mise en production du
+  Lot 11.
+
+## Critère de fin de lot
+
+- P1 à P12 tranchées et reportées sous chaque proposition ; handoff versé dans
+  `docs/design-handoff/` et écrans conformes en mobile et en bureau.
+- `backend/vtes.db` reconstruite à neuf à la tête (F0, avant les écrans),
+  compte recréé ou réclamé ; R13 éprouvée en aller-retour sur une base peuplée
+  par les tests.
+- Contrat à 51 opérations sur 31 chemins (P11 compris), archétype fermé dans
+  les schémas de deck, client TS régénéré, section « Lot 8 » du contrat de sync
+  écrite.
+- `uv run pytest` vert hors les deux `xfail` connus, `ruff check` propre ;
+  `npm run lint`, `npx tsc --noEmit -p tsconfig.app.json`, `npm run test` et
+  la suite Playwright verts ; références CRAP vides.
+- Vérification sur téléphone : une partie saisie en mode avion avec le deck de
+  ma proie, le deck modifié ensuite, puis la synchronisation, la partie gardant
+  sa liste et le bilan la comptant face à ce deck.
+- CLAUDE.md mis à jour (§ 5 pour les archétypes et les positions à la table,
+  § 6, 7, 11, 12) ; les pistes « figer la decklist jouée » et « légalité à la
+  date d'un tournoi » retirées de `docs/pistes-evolution.md`.
