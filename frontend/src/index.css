@@ -277,8 +277,7 @@ main:focus {
    * `.page--with-floating` (dégagement pour la tab bar mobile) n'a plus lieu
    * d'être sans tab bar fixe en bas.
    */
-  .page,
-  footer.shell-footer {
+  .page {
     max-width: var(--page-max-width-desktop);
     padding-left: var(--page-padding-desktop);
     padding-right: var(--page-padding-desktop);
@@ -319,19 +318,6 @@ main:focus {
   text-transform: uppercase;
   color: var(--color-neutral-500);
   margin: 0 0 6px;
-}
-
-footer.shell-footer {
-  max-width: var(--page-max-width);
-  margin: 0 auto;
-  padding: 0 var(--page-padding) 24px;
-  width: 100%;
-}
-
-.shell-note {
-  color: var(--color-neutral-600);
-  font-size: 12px;
-  margin: 0;
 }
 
 /* — règle qui s'estompe (signature Nocturne) — */
@@ -1900,10 +1886,12 @@ fieldset:disabled .chip {
 }
 
 @media (min-width: 1024px) {
+  /* Lot Affichage des decks (handoff `DECKS.md` d22) : colonne maître de
+     360px, aperçu à côté, sans filet entre les deux. */
   .decks-grid {
     display: grid;
-    grid-template-columns: 380px 1fr;
-    gap: 48px;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: var(--space-8);
     align-items: start;
   }
 
@@ -1915,11 +1903,9 @@ fieldset:disabled .chip {
   }
 
   .decks-detail {
-    border-left: 1px solid var(--color-divider);
-    padding-left: 32px;
     display: flex;
     flex-direction: column;
-    gap: 26px;
+    gap: var(--space-6);
   }
 
   /* Item actif de la liste maître (DESKTOP.md « d04 ») : fond accent-900 et
@@ -1928,11 +1914,13 @@ fieldset:disabled .chip {
   .decks-master .row {
     padding-left: 14px;
     padding-right: 6px;
-    border-left: 2px solid transparent;
+    border-left: 3px solid transparent;
+    border-radius: var(--radius-sm);
   }
 
+  /* Sélection (handoff `DECKS.md` d22) : fond neutre et barre accent de 3px. */
   .decks-master .row[data-selected="true"] {
-    background: var(--color-accent-900);
+    background: var(--color-neutral-800);
     border-left-color: var(--color-accent);
   }
 
@@ -1944,23 +1932,579 @@ fieldset:disabled .chip {
   }
 }
 
-/* Composition du deck prévisualisé (panneau de droite), en deux colonnes
-   Crypte / Bibliothèque — `DecksPage.tsx`, `DeckCompositionColumns`. */
-.deck-columns {
+/*
+ * Tableaux crypte / bibliothèque d'un deck (lot Affichage des decks, handoff
+ * `docs/design-handoff/DECKS.md`, `DeckTables.tsx`). Une section par
+ * catégorie, côte à côte à partir de 2 × 440px. Chaque section est un
+ * conteneur de requête (`container-type`) : la disposition étroite (P5) se
+ * règle sur la largeur de la section, pas sur celle de l'écran.
+ */
+.deck-tables {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: var(--space-6);
+  align-items: start;
 }
 
-.deck-columns__list {
+.deck-table {
+  --qty-col: 78px;
+  --qty-btn: 22px;
+  --qty-value: 24px;
+  --disc-size: 22px;
+  container-type: inline-size;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.deck-table__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border-bottom: 1px solid var(--color-neutral-800);
+}
+
+.deck-table__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.deck-table__total {
+  color: var(--color-accent-300);
+}
+
+.deck-table__stats {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-table__empty {
+  margin: 0;
+  padding: var(--space-4);
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.deck-table__body {
+  padding-bottom: var(--space-2);
+}
+
+.deck-table__row {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  font-size: 14px;
+}
+
+.deck-table__row--crypt {
+  min-height: 34px;
+  grid-template-columns: 26px 26px minmax(0, 1fr) auto 30px 30px;
+}
+
+.deck-table__row--library {
+  min-height: 32px;
+  grid-template-columns: 26px minmax(0, 1fr) auto 28px 28px;
+}
+
+.deck-table__row--library.deck-table__row--proxies {
+  grid-template-columns: 26px minmax(0, 1fr) auto 28px 28px 24px;
+}
+
+.deck-table__body--editable .deck-table__row--crypt {
+  grid-template-columns: var(--qty-col) 26px minmax(0, 1fr) auto 30px 30px;
+}
+
+.deck-table__body--editable .deck-table__row--library {
+  grid-template-columns: var(--qty-col) minmax(0, 1fr) auto 28px 28px;
+}
+
+.deck-table__body--editable .deck-table__row--library.deck-table__row--proxies {
+  grid-template-columns: var(--qty-col) minmax(0, 1fr) auto 28px 28px 24px;
+}
+
+/* Colonnes de disciplines de la crypte, alignées d'une ligne à l'autre (P5). */
+.deck-table__disc-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--disc-cols, 0), var(--disc-size));
+  gap: 5px;
+  justify-items: center;
+}
+
+.deck-table__disc-slot {
+  display: inline-flex;
+  justify-content: center;
+  min-width: var(--disc-size);
+}
+
+.deck-table__sect {
+  display: none;
+  text-decoration: none;
+  color: var(--color-neutral-400);
+  margin-right: 4px;
+}
+
+/* Stepper de quantité (handoff `DECKS.md` « Communs »), à gauche du nom. */
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.qty-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--qty-btn);
+  height: var(--qty-btn);
+  padding: 0;
+  border: 1px solid var(--color-neutral-700);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-neutral-200);
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.qty-stepper__btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-200);
+}
+
+.qty-stepper__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.qty-stepper__btn--icon {
+  border-style: dashed;
+}
+
+.qty-stepper__value {
+  min-width: var(--qty-value);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.deck-table__name-btn {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-table__name-btn:hover,
+.deck-table__name-btn[aria-expanded="true"] {
+  color: var(--color-accent-200);
+}
+
+.deck-table__recent {
+  flex: none;
+  font-size: 11px;
+  color: var(--color-accent-300);
+}
+
+.deck-table__row--recent {
+  background: color-mix(in oklab, var(--color-accent) 12%, transparent);
+}
+
+.deck-table__error {
+  margin: 0;
+  padding: var(--space-1) var(--space-4) var(--space-2);
+  font-size: 12px;
+}
+
+/* Détail d'une carte (P2), sous sa ligne. */
+.deck-card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0 var(--space-4) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--color-accent-600);
+  background: color-mix(in oklab, var(--color-neutral-800) 30%, transparent);
+  font-size: 13px;
+}
+
+.deck-card-detail__lines {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-3);
+}
+
+.deck-card-detail__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.deck-card-detail__label {
+  flex: 1 1 180px;
+  color: var(--color-neutral-300);
+}
+
+.deck-card-detail__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.deck-card-detail__kicker {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-neutral-400);
+}
+
+/*
+ * Section étroite (moins de 440px, le téléphone) : la crypte suit l'affichage
+ * de VDB (P5) — stepper, capacité, disciplines en colonnes, nom sur deux
+ * lignes, puis clan au-dessus de la secte et du groupe. La bibliothèque garde
+ * sa grille, en plus serré.
+ */
+@container (max-width: 439px) {
+  .deck-table {
+    --qty-col: 66px;
+    --qty-btn: 20px;
+    --qty-value: 16px;
+    --disc-size: 19px;
+  }
+
+  .deck-table__disc-grid {
+    gap: 2px;
+  }
+
+  .deck-table__labels {
+    display: none;
+  }
+
+  .deck-table__row {
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+  }
+
+  .deck-table__row--crypt,
+  .deck-table__body--editable .deck-table__row--crypt {
+    grid-template-columns: var(--qty-col) 22px auto minmax(0, 1fr) 30px;
+    grid-template-areas:
+      "qty cap disc name clan"
+      "qty cap disc name grp";
+  }
+
+  .deck-table__body:not(.deck-table__body--editable) {
+    --qty-col: 26px;
+  }
+
+  /* Plus de cinq colonnes de disciplines : elles passent sous le nom. */
+  .deck-table__body--many-disc .deck-table__row--crypt,
+  .deck-table__body--editable.deck-table__body--many-disc .deck-table__row--crypt {
+    grid-template-columns: var(--qty-col) 22px minmax(0, 1fr) 30px;
+    grid-template-areas:
+      "qty cap name clan"
+      "qty cap disc grp";
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .deck-table__body--many-disc .deck-table__row--crypt > .deck-table__disc {
+    justify-self: start;
+  }
+
+  .deck-table__row--crypt > .deck-table__qty {
+    grid-area: qty;
+  }
+
+  .deck-table__row--crypt > :nth-child(2) {
+    grid-area: cap;
+  }
+
+  .deck-table__row--crypt > .deck-table__name {
+    grid-area: name;
+  }
+
+  .deck-table__row--crypt > .deck-table__disc {
+    grid-area: disc;
+  }
+
+  .deck-table__row--crypt > .deck-table__clan {
+    grid-area: clan;
+    align-self: end;
+  }
+
+  .deck-table__row--crypt > .deck-table__grp {
+    grid-area: grp;
+    align-self: start;
+    justify-self: center;
+    font-size: 11px;
+  }
+
+  .deck-table__sect {
+    display: inline;
+  }
+
+  .deck-table__row--crypt .glyph {
+    font-size: 16px;
+  }
+
+  .deck-table__row--library .glyph {
+    font-size: 17px;
+  }
+
+  .deck-table__name-btn,
+  .deck-table__name-text {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .deck-table__capacity {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+}
+
+/* Zébrage : lignes impaires, l'index repartant à chaque section ou groupe. */
+.deck-table__row--odd {
+  background: color-mix(in oklab, var(--color-neutral-800) 45%, transparent);
+}
+
+.deck-table__labels {
+  min-height: 28px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-neutral-400);
+}
+
+.deck-table__cell {
+  min-width: 0;
+}
+
+.deck-table__end {
+  justify-self: end;
+}
+
+.deck-table__center {
+  justify-self: center;
+}
+
+.deck-table__qty {
+  color: var(--color-neutral-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-table__capacity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-neutral-800);
+  box-shadow: inset 0 0 0 1px var(--color-accent-700);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-table__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.deck-table__name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deck-table__row:hover .deck-table__name-text {
+  color: var(--color-accent-200);
+}
+
+.deck-table__pending {
+  flex: none;
+  color: var(--color-accent-300);
+}
+
+.deck-table__glyphs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.deck-table .glyph {
+  vertical-align: middle;
+}
+
+.deck-table__row--crypt .glyph {
+  font-size: 22px;
+}
+
+.deck-table__row--library .glyph {
+  font-size: 20px;
+}
+
+/* Clans un cran plus grands que les disciplines : leurs ornements fins se
+   brouillent à 22px (Banu Haqim, Giovanni, Salubri). Couleur et lissage
+   viennent de `.glyph--clans`. */
+.deck-table__row--crypt .glyph--clans {
+  font-size: 26px;
+}
+
+.deck-table__row--library .glyph--clans {
+  font-size: 24px;
+}
+
+.deck-table__grp {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-table__proxies {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.deck-table__group-head {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+/* Filet sous le titre de groupe : accent qui s'efface vers la droite. */
+.deck-table__group-head::after {
+  content: "";
+  display: block;
+  height: 1px;
+  margin: var(--space-2) 0 var(--space-1);
+  background: linear-gradient(90deg, var(--color-accent-600), var(--color-neutral-700) 40%, transparent);
+}
+
+.deck-table__group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+
+.deck-table__group-title .glyph {
+  font-size: 18px;
+}
+
+.deck-table__group-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-accent-300);
+}
+
+.deck-table__group-total {
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.deck-table__group-note {
+  color: var(--color-neutral-500);
+}
+
+/* Icônes de clan de la crypte dans une ligne de la liste des decks (P7). */
+.deck-item__clans {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+  margin-left: auto;
+}
+
+/* Au bureau, la ligne sélectionne l'aperçu au lieu d'ouvrir le deck : pas de
+   flèche, les clans en bout de ligne (handoff `DECKS.md` d22). */
+@media (min-width: 1024px) {
+  .decks-master .row__arrow {
+    display: none;
+  }
+}
+
+.deck-item__clans .glyph {
+  font-size: 18px;
+}
+
+.deck-preview__kicker {
+  margin: 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-neutral-300);
+}
+
+.deck-preview__title {
+  font-size: 26px;
+  font-weight: 500;
+}
+
+.deck-preview__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.deck-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
   font-size: 13px;
   color: var(--color-neutral-300);
+}
+
+/* Badge de légalité (« Légal », « Illégal · crypte 8/12 ») : `.tag` de Nocturne. */
+.legality-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.legality-tag--legal {
+  background: var(--color-accent-800);
+  color: var(--color-accent-100);
+}
+
+.legality-tag--illegal {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+}
+
+.legality-tag--unknown {
+  border: 1px solid var(--color-divider);
+  color: var(--color-neutral-400);
 }
 
 /* — formulaire dans une feuille (pied poussé en bas) — */
@@ -2345,32 +2889,139 @@ fieldset:disabled .chip {
     gap: 24px;
   }
 
-  .deck-builder-header__legality {
+  /* Lot Affichage des decks (D5, `DECKS.md` d23) : actions du deck à droite
+     de l'en-tête, légalité en pastille à côté de la méta, son détail (Lot 5c)
+     dans une infobulle au survol ou au focus. */
+  .deck-actions {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 10px;
+    gap: 8px;
     text-align: right;
   }
 
-  /* Détail du verdict sous les quatre chiffres (Lot 5c, étape 1) : texte
-     courant, aligné à gauche malgré l'en-tête aligné à droite. */
-  .deck-legality-details {
-    max-width: 380px;
-    margin-left: auto;
-    text-align: left;
+  .deck-builder-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
   }
 
+  .deck-builder-meta .page-meta {
+    margin: 0;
+  }
+
+  .legality-badge {
+    position: relative;
+  }
+
+  .legality-badge__tag {
+    font: inherit;
+    font-size: 12px;
+    background-clip: padding-box;
+    cursor: pointer;
+  }
+
+  .legality-badge__tag.legality-tag--legal {
+    border: 1px solid transparent;
+  }
+
+  .legality-badge__tag:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .legality-badge__tooltip {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 20;
+    width: max-content;
+    max-width: 420px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    font-size: 13px;
+    color: var(--color-neutral-200);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .legality-badge:hover .legality-badge__tooltip,
+  .legality-badge:focus-within .legality-badge__tooltip {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .legality-badge__title {
+    margin: 0 0 6px;
+    font-weight: 500;
+    color: var(--color-neutral-100);
+  }
+
+  .legality-badge__hint {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--color-neutral-400);
+  }
+
+  .legality-badge .deck-legality-details {
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .legality-badge .deck-legality-details p,
+  .legality-badge .deck-legality-details ul {
+    margin: 4px 0;
+  }
+
+  /* Corps en flex wrap : les tableaux prennent la place que le picker
+     libère quand il est replié. */
   .deck-builder-columns {
-    display: grid;
-    grid-template-columns: 7fr 5fr;
-    gap: 40px;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 16.8px 32px;
+  }
+
+  .deck-builder-main {
+    flex: 1 1 640px;
+    min-width: 0;
+  }
+
+  .deck-builder-aside {
+    flex: 0 1 300px;
+    min-width: 260px;
+    border-left: 1px solid var(--color-divider);
+    padding-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .deck-builder-aside__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .deck-builder-aside__head .kicker {
+    margin: 0;
+  }
+
+  /* Replié : un bouton vertical le long des tableaux. */
+  .deck-builder-aside__open {
+    flex: 0 0 auto;
+    writing-mode: vertical-rl;
+    padding: 16px 10px;
+    gap: 8px;
   }
 
   .deck-builder-picker {
-    border-left: 1px solid var(--color-divider);
-    padding-left: 32px;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -3611,12 +4262,38 @@ fieldset:disabled .chip {
   vertical-align: -2px;
 }
 
+/*
+ * Les glyphes d'ankha2 sont dessinés sombre sur clair : ils se lisent en encre
+ * sombre cernée d'un filet clair d'un pixel dans les huit directions (handoff
+ * `DECKS.md`, P1 du lot Affichage des decks, une seule règle pour toute
+ * l'application). Un état (case cochée) change le filet par `--glyph-line`.
+ */
 .glyph--ankha {
   font-family: "Ankha VTES";
+  color: var(--glyph-ink, var(--color-neutral-900));
+  text-shadow:
+    1px 0 0 var(--glyph-line, var(--color-neutral-100)),
+    -1px 0 0 var(--glyph-line, var(--color-neutral-100)),
+    0 1px 0 var(--glyph-line, var(--color-neutral-100)),
+    0 -1px 0 var(--glyph-line, var(--color-neutral-100)),
+    1px 1px 0 var(--glyph-line, var(--color-neutral-100)),
+    -1px -1px 0 var(--glyph-line, var(--color-neutral-100)),
+    1px -1px 0 var(--glyph-line, var(--color-neutral-100)),
+    -1px 1px 0 var(--glyph-line, var(--color-neutral-100));
 }
 
+/*
+ * Les glyphes de clan sont détaillés : en `--color-neutral-300`, moins
+ * contrastés, et lissés en gris. Le lissage sous-pixel de Chrome sous Windows
+ * frange leurs traits fins de bleu et d'orangé ; un filtre neutre le remplace
+ * par un lissage en niveaux de gris, sans créer de couche graphique comme le
+ * ferait `transform: translateZ(0)` (mesuré : aucun pixel coloré avec l'un ou
+ * l'autre, 610 sans). Choix de l'utilisateur, lot Affichage des decks.
+ */
 .glyph--clans {
   font-family: "VTES Clans";
+  color: var(--color-neutral-300);
+  filter: opacity(1);
 }
 
 .glyph--row {
@@ -4097,9 +4774,9 @@ fieldset:disabled .chip {
   background: var(--color-accent-900);
 }
 
-.discipline-cell--inferior .glyph,
-.discipline-cell--on .glyph {
-  color: var(--color-accent-200);
+.discipline-cell--inferior,
+.discipline-cell--on {
+  --glyph-line: var(--color-accent-200);
 }
 
 .discipline-cell--superior {
@@ -4108,8 +4785,8 @@ fieldset:disabled .chip {
   color: var(--color-accent-100);
 }
 
-.discipline-cell--superior .glyph {
-  color: var(--color-accent-100);
+.discipline-cell--superior {
+  --glyph-line: var(--color-accent-100);
 }
 
 .pairs {

@@ -3,7 +3,7 @@ import { CaretDownIcon, CaretUpIcon, CheckCircleIcon } from "@phosphor-icons/rea
 import { cardLabel } from "../../labels";
 import type { CardSort, CardSortKey, SearchableCard } from "../../offline/vtes";
 import { LegalityMention } from "./CardDetail";
-import { ClanGlyph, CostGlyph, DisciplineGlyphs, TypeGlyph } from "./Glyph";
+import { ClanGlyph, CostGlyph, DisciplineGlyphs, TypeGlyph } from "../../components/glyphs/Glyph";
 import type { CategoryTab } from "./searchModel";
 import { TRANCHE, useTranches } from "./useTranches";
 

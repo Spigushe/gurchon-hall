@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="nocturne/styles.css">
+<style>
+@font-face{font-family:"Ankha";src:url("https://static.krcg.org/web/ankha2.otf") format("opentype");font-display:swap}
+@font-face{font-family:"VtesClans";src:url("https://static.krcg.org/web/vtes-clans.otf") format("opentype");font-display:swap}
+</style>
+</helmet>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:var(--space-6);align-items:start;color:var(--color-text);font-family:var(--font-body)">
+  <section style="background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-sm)">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-4) var(--space-3);border-bottom:1px solid var(--color-neutral-800)">
+      <h2 style="margin:0;font-weight:500;font-size:16px">Crypte <span style="color:var(--color-accent-300)">{{ d.cryptCount }}</span></h2>
+      <div style="display:flex;gap:var(--space-4);font-size:12px;color:var(--color-neutral-300)">
+        <span>{{ d.cryptGroups }}</span><span>cap. moy. {{ d.cryptAvg }}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:{{ d.qtyCol }} 26px minmax(0,1fr) auto 30px 30px;gap:var(--space-3);padding:var(--space-2) var(--space-4);font-size:11px;color:var(--color-neutral-400);text-transform:uppercase;letter-spacing:.05em">
+      <span>Qté</span><span>Cap</span><span>Nom</span><span>Disc.</span><span>Clan</span><span style="text-align:right">G</span>
+    </div>
+    <sc-for list="{{ d.crypt }}" as="c" hint-placeholder-count="7">
+      <div style="display:grid;grid-template-columns:{{ d.qtyCol }} 26px minmax(0,1fr) auto 30px 30px;gap:var(--space-3);align-items:center;height:34px;padding:0 var(--space-4);background:{{ c.bg }}">
+        <sc-if value="{{ d.editable }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:2px">
+            <button onClick="{{ c.dec }}" aria-label="Retirer" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">−</button>
+            <span style="width:24px;text-align:center;font-variant-numeric:tabular-nums;font-size:14px">{{ c.n }}</span>
+            <button onClick="{{ c.inc }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">+</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ d.readOnly }}" hint-placeholder-val="{{ false }}">
+          <span style="font-variant-numeric:tabular-nums;font-size:14px;color:var(--color-neutral-200)">{{ c.n }}×</span>
+        </sc-if>
+        <span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;background:var(--color-neutral-800);color:var(--color-text);box-shadow:inset 0 0 0 1px var(--color-accent-700)">{{ c.cap }}</span>
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:var(--color-text);cursor:pointer" style-hover="color:var(--color-accent-200)">{{ c.name }}</span>
+        <span style="display:flex;gap:5px;align-items:center">
+          <sc-for list="{{ c.discs }}" as="x" hint-placeholder-count="3">
+            <span title="{{ x.label }}" style="font-family:Ankha;font-size:22px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ x.glyph }}</span>
+          </sc-for>
+        </span>
+        <span title="{{ c.clan }}" style="font-family:VtesClans;font-size:22px;line-height:1;color:var(--color-neutral-100);text-align:center">{{ c.clanGlyph }}</span>
+        <span style="text-align:right;font-size:12px;color:var(--color-neutral-300);font-variant-numeric:tabular-nums">G{{ c.group }}</span>
+      </div>
+    </sc-for>
+  </section>
+
+  <section style="background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-sm)">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-4) var(--space-3);border-bottom:1px solid var(--color-neutral-800)">
+      <h2 style="margin:0;font-weight:500;font-size:16px">Bibliothèque <span style="color:var(--color-accent-300)">{{ d.libCount }}</span></h2>
+      <div style="display:flex;gap:var(--space-4);font-size:12px;color:var(--color-neutral-300)">
+        <span>{{ d.libBlood }} sang</span><span>{{ d.libPool }} réserve</span>
+        <sc-if value="{{ d.showProxies }}" hint-placeholder-val="{{ true }}"><span>{{ d.proxyCount }} proxies</span></sc-if>
+      </div>
+    </div>
+    <sc-for list="{{ d.groups }}" as="g" hint-placeholder-count="3">
+      <div>
+        <div style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-4) var(--space-4) var(--space-2)">
+          <span style="font-family:Ankha;font-size:18px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100);align-self:center">{{ g.glyph }}</span>
+          <span style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-accent-300)">{{ g.type }}</span>
+          <span style="font-size:12px;color:var(--color-neutral-400);font-variant-numeric:tabular-nums">{{ g.count }}</span>
+          <span style="font-size:12px;color:var(--color-neutral-500)">{{ g.note }}</span>
+        </div>
+        <div style="height:1px;margin:0 var(--space-4) var(--space-1);background:linear-gradient(90deg, var(--color-accent-600), var(--color-neutral-700) 40%, transparent)"></div>
+        <sc-for list="{{ g.cards }}" as="c" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:{{ d.qtyCol }} minmax(0,1fr) auto 28px 28px 24px;gap:var(--space-3);align-items:center;height:32px;padding:0 var(--space-4);background:{{ c.bg }}">
+            <sc-if value="{{ d.editable }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:2px">
+                <button onClick="{{ c.dec }}" aria-label="Retirer" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">−</button>
+                <span style="width:24px;text-align:center;font-variant-numeric:tabular-nums;font-size:14px">{{ c.n }}</span>
+                <button onClick="{{ c.inc }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">+</button>
+              </div>
+            </sc-if>
+            <sc-if value="{{ d.readOnly }}" hint-placeholder-val="{{ false }}">
+              <span style="font-variant-numeric:tabular-nums;font-size:14px;color:var(--color-neutral-200)">{{ c.n }}×</span>
+            </sc-if>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;cursor:pointer" style-hover="color:var(--color-accent-200)">{{ c.name }}</span>
+            <span style="display:flex;gap:5px;align-items:center">
+              <sc-for list="{{ c.discs }}" as="x" hint-placeholder-count="0">
+                <span title="{{ x.label }}" style="font-family:Ankha;font-size:20px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ x.glyph }}</span>
+              </sc-for>
+            </span>
+            <span title="{{ c.clan }}" style="font-family:VtesClans;font-size:20px;line-height:1;color:var(--color-neutral-100);text-align:center">{{ c.clanGlyph }}</span>
+            <span title="{{ c.costLabel }}" style="justify-self:end;font-family:Ankha;font-size:20px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ c.cost }}</span>
+            <span title="Proxies" style="justify-self:end;font-size:11px;color:var(--color-neutral-500);font-variant-numeric:tabular-nums">{{ c.proxy }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+    <div style="height:var(--space-3)"></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1000,&quot;height&quot;:800},&quot;d&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;object&quot;}}"></script>
+</body>
+</html>

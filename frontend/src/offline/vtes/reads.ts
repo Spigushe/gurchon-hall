@@ -158,6 +158,17 @@ export async function readDeckCards(db: VtesOfflineDb, key: DeckKey): Promise<Lo
   );
 }
 
+/**
+ * Lignes de tous les decks vivants, par deck, en une lecture de la projection
+ * (lot Affichage des decks, P7 : icônes de clan et comptes de la liste des
+ * decks) plutôt qu'un abonnement par ligne de la liste. Ordre des lignes non
+ * garanti : la liste n'en affiche que des agrégats.
+ */
+export async function readDeckCardsByDeck(db: VtesOfflineDb): Promise<Map<DeckKey, LocalDeckCard[]>> {
+  const { deckCards } = await readProjection(db);
+  return deckCards;
+}
+
 export interface CardQuery {
   q?: string;
   category?: CardCategory;

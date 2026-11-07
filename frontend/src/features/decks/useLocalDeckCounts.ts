@@ -14,9 +14,10 @@ export interface LocalDeckCounts {
  * serveur. `null` tant que la composition ou le miroir n'ont pas répondu ; une
  * carte absente du miroir n'est comptée nulle part.
  *
- * Factorisé depuis `DeckLegalitySummary` (Lot 5c, étape 5) pour que la liste
- * « En cours » mobile de l'Atelier affiche les mêmes chiffres, sans les recalculer
- * autrement.
+ * Factorisé depuis l'ancien `DeckLegalitySummary` (Lot 5c, étape 5) pour que
+ * la liste « En cours » mobile de l'Atelier affiche les mêmes chiffres, sans les
+ * recalculer autrement. `DeckLegalitySummary` a disparu au lot Affichage des
+ * decks, remplacé au bureau par la pastille `DeckLegalityBadge`.
  */
 export function useLocalDeckCounts(lines: LocalDeckCard[] | undefined): LocalDeckCounts | null {
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);

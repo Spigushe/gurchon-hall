@@ -457,7 +457,7 @@ describe("liste des tournois", () => {
 
     fireEvent.click(within(open).getByTestId("tournament-link"));
     await screen.findByTestId("tournament-page");
-    expect(window.location.hash).toBe("#/tournois/id%3A1");
+    expect(window.location.hash).toBe("#/tournois/id:1");
   });
 
   it("au bureau : maître/détail, la sélection change le détail, N ouvre la création d'un tournoi", async () => {
@@ -526,7 +526,7 @@ describe("création et modification d'un tournoi", () => {
     fireEvent.click(screen.getByTestId("tournament-form-submit"));
 
     await screen.findByTestId("tournament-page");
-    expect(window.location.hash).toMatch(/^#\/tournois\/ref%3A/);
+    expect(window.location.hash).toMatch(/^#\/tournois\/ref:/);
     const ops = await queuedOps(app);
     expect(ops.map((op) => op.type)).toEqual(["venue.create", "tournament.create"]);
     const created = ops[1];
@@ -738,7 +738,7 @@ describe("détail d'un tournoi", () => {
     expect(screen.getByTestId("tournament-add-round")).toHaveTextContent("Ajouter la ronde 3");
     expect(screen.getByTestId("tournament-add-final")).toHaveTextContent("Saisir la finale");
     // Une ronde mène à sa partie.
-    expect(within(rounds[1]).getByTestId("tournament-round-link")).toHaveAttribute("href", "#/parties/id%3A2");
+    expect(within(rounds[1]).getByTestId("tournament-round-link")).toHaveAttribute("href", "#/parties/id:2");
     fireEvent.click(screen.getByTestId("tournament-back"));
     await screen.findByTestId("tournaments-page");
   });

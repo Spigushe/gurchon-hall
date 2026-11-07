@@ -18,7 +18,7 @@ import { useCatalog } from "../catalog/catalogContext";
 import type { EditorProps } from "./FilterEditor";
 import type { PanelProps } from "./FilterPanels";
 import type { RowStatus } from "./SearchResults";
-import { VIRTUE_CODES } from "./glyphs";
+import { VIRTUE_CODES } from "../../components/glyphs/glyphs";
 import {
   activeFilterTotal,
   criteriaOf,

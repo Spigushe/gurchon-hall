@@ -2,10 +2,7 @@ import { cardLegality, type SearchableCard } from "../../offline/vtes";
 
 /** Libellés de la fiche et des lignes de Chercher (D1c), hors composants. */
 
-const COST_LABELS: Record<string, string> = { blood: "sang", pool: "pool", conviction: "conviction" };
-
-export const costLabel = (costType: string | null, value: string | null) =>
-  costType && value ? `${value} ${COST_LABELS[costType] ?? costType}` : "aucun";
+export { costLabel } from "../../components/glyphs/glyphs";
 
 const formatDate = (iso: string) => iso.split("-").reverse().join("/");
 

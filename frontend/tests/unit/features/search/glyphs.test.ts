@@ -7,7 +7,7 @@ import {
   isSingleLevel,
   textIcon,
   typeGlyph,
-} from "../../../../src/features/search/glyphs";
+} from "../../../../src/components/glyphs/glyphs";
 import { costLabel, legalityText } from "../../../../src/features/search/searchFormat";
 import { buildSearchOptions } from "../../../../src/features/search/searchOptions";
 import { buildSearchCatalog, NON_TITLED, NOT_REQUIRED, REFLEX_TYPE, REQUIRES_TITLED } from "../../../../src/offline/vtes";

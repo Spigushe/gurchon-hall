@@ -4,10 +4,10 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7 et Chercher livrés** (vérification manuelle de la
-PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7 vérifié à la main sur
-téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur téléphone le
-2026-11-06, §12). Lot 0 : squelette
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher et Affichage des decks livrés**
+(vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
+vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
+téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -49,6 +49,13 @@ deck, à la collection ou aux deux ; la secte des vampires est dérivée du text
 l'import, l'exigence de secte et de titre des cartes de bibliothèque est lue dans
 `vteslibmeta.csv` de vtescsv, seconde source du catalogue ; champ de recherche global
 au bureau et images par impression en ligne (plan dans `docs/lot-chercher-plan.md`,
+décisions au §11). Lot Affichage des decks, front seul : la composition d'un deck
+s'affiche en deux tableaux à icônes, crypte et bibliothèque groupée par type, en
+lecture seule dans l'aperçu bureau de `#/decks` et éditables dans le deckbuilder (une
+ligne par carte, détail par impression, `+` qui prend au stock, `−` à 1 qui retire) ;
+icônes de clan et comptes sur chaque ligne de la liste, picker bureau repliable avec
+onglets Crypte / Bibliothèque, légalité du deckbuilder bureau en pastille à infobulle
+(plan dans `docs/lot-affichage-decks-plan.md`, handoff `docs/design-handoff/DECKS.md`,
 décisions au §11). Le modèle compte **25 tables** et douze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
@@ -67,12 +74,14 @@ l'API de sauvegarde de SQLite, relevé en lecture seule, comparaison ligne à li
 deux relevés : l'outil des mises en service, depuis le lot Chercher),
 `uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions|check-me>`
 (comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 983 tests sur 61 fichiers),
-`npm run test:e2e` (Playwright, 73 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 39 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 23 dans
-`desktop-real-backend`),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot-chercher-ouverture.txt`
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1030 tests sur 63 fichiers),
+`npm run test:e2e` (Playwright, 78 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 41 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 26 dans
+`desktop-real-backend` ; il reconstruit `dist/` et `dist-real/` avant de lancer
+Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
+si le code a changé depuis),
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-affichage-decks-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -1661,6 +1670,92 @@ Limites connues à la clôture du lot Chercher :
   `chercher-ajout` et `chercher-d1b` aux deux largeurs, `search-parity` étendu au texte,
   aux noms traduits, à la catégorie et aux clans.
 
+Tranchées pendant le lot Affichage des decks (P1 à P10 et A3 tranchées par
+l'utilisateur le 2026-11-06 à l'étape A0, captures validées et légalité du
+deckbuilder choisie à la clôture le 2026-11-07 ; plan, livraisons par étape et
+écarts dans `docs/lot-affichage-decks-plan.md`, qui fait foi pour le détail, handoff
+et écarts retenus dans `docs/design-handoff/DECKS.md`) :
+
+- **Front seul.** Ni route, ni champ de contrat, ni type d'opération `/sync`, ni
+  migration, ni version Dexie : tout ce que les tableaux affichent est au miroir
+  depuis le lot Chercher. Les écritures restent `saveDeckCard`, `removeDeckCard` et
+  `convertProxies`. Une seule lecture s'ajoute à la couche offline,
+  `readDeckCardsByDeck` (`useLocalDeckCardsByDeck`), pour les comptes de la liste en
+  une passe et non un abonnement par deck.
+- **Un composant, deux usages.** `DeckTables` remplace l'aperçu en colonnes de texte de
+  `#/decks` (lecture seule) et la liste plate du deckbuilder (éditable, lecture seule
+  pour un deck archivé). Le calcul est une fonction pure, `buildDeckTables`
+  (`deckTablesModel.ts`, nommé ainsi parce qu'un `deckTables.ts` à côté de
+  `DeckTables.tsx` se confond sur un disque insensible à la casse) : crypte par
+  capacité décroissante, groupes et capacité moyenne ; bibliothèque groupée par type,
+  ordre du handoff puis Reflex, Power, Conviction, une carte à plusieurs types formant
+  son propre groupe au rang du premier (P6) ; totaux de sang et de pool, un coût X
+  ajoutant « + X ». Les faits de carte se lisent par `useDeckCardFacts` (`anyOf` sur
+  `cards` puis `cardDetails`), pas dans le catalogue chargé en mémoire (A1).
+- **Une ligne par carte (P2).** Les lignes carte × langue × extension d'une même carte
+  se fusionnent ; un stepper si la carte n'a qu'une ligne, sinon une icône `ph-stack`
+  qui ouvre et referme le détail. Le nom ouvre pour toute carte un détail sous la ligne : chaque
+  impression avec son stepper, « Retirer du deck », la conversion de proxies, puis les
+  exemplaires libres d'autres langues ou extensions et « Un proxy ».
+- **Le `+` ne devine pas (P3).** Il prend au stock identique (même langue, même
+  extension) ; s'il reste la carte au stock sous une autre langue ou extension, il
+  ouvre le détail pour qu'on choisisse ; sans exemplaire, il ajoute un proxy si le deck
+  l'autorise ; sinon il est désactivé, raison en infobulle. Fonction pure
+  `plusDecision`, disponibilités par `useDeckStockAvailability`, même comptabilité que
+  `useAvailableStock`. Un refus connu d'avance n'est plus envoyé au rejeu.
+- **`−` à 1 retire la ligne (P4)**, sans confirmation ; « Retirer du deck » reste dans
+  le détail, et le bouton « Retirer » de chaque ligne disparaît.
+- **Icônes Ankha : une règle pour toute l'application (P1)**, celle du handoff (encre
+  sombre, contour clair), Chercher compris. Les tables de glyphes montent dans
+  `src/components/glyphs/` ; dans les tableaux, une icône inconnue laisse la cellule
+  vide avec le nom en infobulle (A4). « trifle » compte les masters dont le texte porte
+  le mot-clé, pas les masters sans coût (A3). Colonne et total des proxies affichés si
+  le deck les autorise ou si une ligne en porte (P8). Les glyphes de clan, trop
+  détaillés à 22px, passent partout en `--color-neutral-300` et en lissage gris
+  (`filter: opacity(1)`, contre les franges du lissage sous-pixel de Windows), et en
+  26px en crypte, 24px en bibliothèque, choix de l'utilisateur sur planche.
+- **Téléphone (P5).** Crypte d'après une capture de VDB fournie par l'utilisateur :
+  disciplines en colonnes alignées (`cryptDisciplineColumns`), sur la ligne jusqu'à
+  cinq colonnes, sous le nom au-delà ; bibliothèque avec les disciplines sous le nom
+  sous 440px de section. Validé sur captures à 390px, faute de maquette.
+- **Liste des decks (P7).** Icônes de clan de la crypte et « crypte / bibliothèque »
+  sur chaque ligne, aux deux largeurs ; au bureau, la ligne sélectionne et n'ouvre
+  plus. L'aperçu perd le résumé à quatre chiffres au profit d'un badge de légalité et
+  des en-têtes de tableau.
+- **Deckbuilder bureau (P9, d23).** Corps en flex wrap, actions du deck à droite de
+  l'en-tête, picker repliable mémorisé par appareil (`gurchon-hall:deck-picker-open`,
+  sous `try/catch`), ouvert par défaut ; onglets Crypte / Bibliothèque, Bibliothèque par
+  défaut, repris dans la feuille d'ajout mobile. La légalité devient une **pastille
+  avec infobulle**, choix de l'utilisateur à la clôture : libellé du badge de
+  l'aperçu, détail du Lot 5c (motifs, cartes bannies, alertes, avertissement de
+  version) dans une infobulle au survol ou au focus (`aria-describedby`) ; clic ou `R`
+  pour recalculer. Le résumé `DeckLegalitySummary` et le bouton « Recalculer »
+  disparaissent ; le mobile garde `DeckLegalityPanel`.
+- **`data-testid`** : disparus et justifiés, `deck-card-remove`, `deck-cards`,
+  `deck-cards-total`, `decks-detail-columns`, `decks-detail-crypt`,
+  `decks-detail-library` et les six `deck-summary*` ; `deck-card` désigne désormais la
+  ligne fusionnée et `deck-card-line` une impression du détail. Référence de clôture
+  `docs/qa-baselines/testids-affichage-decks-cloture.txt` (475 littéraux distincts,
+  464 à l'ouverture), que vise la commande de contrôle.
+
+Limites connues à la clôture du lot Affichage des decks :
+
+- **La légalité détaillée du bureau ne se lit qu'au survol ou au focus** de la
+  pastille : l'alerte « deck actif illégal » n'est plus affichée d'emblée, la pastille
+  « Illégal » à côté de « Deck actif » en tient lieu.
+- **Un `−` de trop retire la ligne** : sur une carte à une impression, `+` la rétablit
+  tant que le stock le permet ; au-delà, il faut repasser par le picker.
+- **Lecture des lignes de tous les decks** pour la liste : négligeable pour une
+  dizaine de decks, à mesurer s'il y en a des centaines (archivés compris sous
+  « Tous »).
+- **Une discipline nouvelle chez krcg** sans glyphe connu laisse une cellule vide dans
+  les tableaux ; Chercher garde son repli texte, écart antérieur au lot.
+- **Tests de référence** : `deckTablesModel.test.ts` et `legalityTagModel.test.ts`
+  (fonctions pures), `tests/unit/ui/decks.test.tsx` ; e2e `deck-tables` aux deux
+  largeurs (steppers hors ligne puis rejeu, deux impressions éditées depuis le détail,
+  picker replié après un rechargement au bureau), `printings` et l'e2e n°14 de
+  `lot5c-symetrie` mis à jour.
+
 ---
 
 ## 12. Roadmap
@@ -1817,8 +1912,23 @@ Limites connues à la clôture du lot Chercher :
    `data-testid` disparu. Migration et réimport appliqués le 2026-11-05 sur
    `backend/vtes.db`, données de l'utilisateur identiques ligne à ligne. Son ajout
    « à la collection » vise la collection unique d'aujourd'hui, qui deviendra
-   l'inventaire principal au lot Inventaires. Le **Lot 8** vient ensuite.
-10. **Lot 8 — Analyse** — *prochain lot.* Perf par deck, historique par lieu/date. Ajouté le
+   l'inventaire principal au lot Inventaires. Le lot **Affichage des decks** vient
+   ensuite, avant le Lot 8.
+10. **Lot Affichage des decks** — *livré, clos le 2026-11-07.* Front seul, sur le
+   handoff `docs/design-handoff/DECKS.md` reçu le 2026-11-06 : composition d'un deck en
+   deux tableaux à icônes (`DeckTables`), en lecture seule dans l'aperçu bureau et
+   éditables dans le deckbuilder, une ligne par carte avec un détail par impression,
+   `+` qui prend au stock identique et ne devine pas, `−` à 1 qui retire ; icônes de
+   clan et comptes sur la liste des decks aux deux largeurs ; picker bureau repliable
+   avec onglets ; légalité du deckbuilder bureau en pastille à infobulle. Aucun
+   changement de route, de contrat, de `/sync`, de modèle ni de version Dexie. Plan et
+   livraisons dans `docs/lot-affichage-decks-plan.md`, décisions et limites au §11.
+   1030 tests vitest sur 63 fichiers, lint et `tsc` propres ; 78 tests Playwright
+   (8 `chromium`, 41 `real-backend`, 3 `desktop`, 26 `desktop-real-backend`) ;
+   références CRAP vides des deux côtés ; 475 `data-testid` distincts, chaque
+   disparition justifiée. Captures à 390 et 1440px validées par l'utilisateur. Le
+   **Lot 8** vient ensuite.
+11. **Lot 8 — Analyse** — *prochain lot.* Perf par deck, historique par lieu/date. Ajouté le
    2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
    table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
    deck de sa proie et à celui de son prédateur. Proposition : deux colonnes
@@ -1834,7 +1944,7 @@ Limites connues à la clôture du lot Chercher :
    decklist jouée (sur le patron de `deleted_deck_card`) ou versionner les decks est
    à trancher à l'ouverture du lot, et le plus tôt sera le mieux : une partie saisie
    sans instantané ne se rattache plus à la bonne liste (`docs/pistes-evolution.md`).
-11. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+12. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
   (`github.com/smeea/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
@@ -1850,7 +1960,7 @@ Limites connues à la clôture du lot Chercher :
    publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
    identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
    Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
-12. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
+13. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
    Lot 9.* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
    (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
    précisée par l'utilisateur, est de **suggérer des decklists viables** à partir
@@ -1869,9 +1979,9 @@ Limites connues à la clôture du lot Chercher :
    rejoue sans perte. Ne décale pas la numérotation des Lots 10 et 11, et peut
    passer après le Lot 10 si Barrin presse. Lecture des issues, propositions P1 à
    P9 à trancher, conception et découpage dans `docs/lot-inventaires-plan.md`.
-13. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
+14. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
   le déploiement de gurchon-hall lui-même est traité au Lot 11.
-14. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
+15. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
     Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall

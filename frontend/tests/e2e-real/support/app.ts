@@ -259,18 +259,34 @@ export async function addDeckCard(page: Page, input: DeckCardInput): Promise<voi
 }
 
 /**
- * Une ligne de composition, par carte et langue. Comme `stockEntry`, deux
- * impressions de la même carte et langue (Lot 4) ne se distinguent qu'au
- * libellé de leur extension (badge `deck-card-set`), la ligne elle-même ne
- * portant pas `data-card-set-id`.
+ * Une ligne de composition, par carte et langue. Depuis le lot Affichage des
+ * decks (A8), `deck-card` est la ligne **fusionnée** d'une carte ; elle porte
+ * `data-language` tant que la carte n'a qu'une ligne langue × extension.
+ *
+ * Avec `cardSetLabel`, la cible est la ligne du détail (`deck-card-line`),
+ * distinguée par le libellé de son extension (`deck-card-set`), comme
+ * `stockEntry` : c'est la seule façon de séparer deux impressions de la même
+ * carte et langue (Lot 4). Le détail doit être ouvert (`openDeckCardDetail`).
  */
 export function deckCardLine(page: Page, cardId: number, language: string, cardSetLabel?: string): Locator {
-  const locator = page
+  if (cardSetLabel) {
+    return page
+      .getByTestId("deck-card-line")
+      .and(page.locator(`[data-card-id="${cardId}"][data-language="${language}"]`))
+      .filter({ has: page.getByTestId("deck-card-set").getByText(cardSetLabel, { exact: true }) });
+  }
+  return page
     .getByTestId("deck-card")
     .and(page.locator(`[data-card-id="${cardId}"][data-language="${language}"]`));
-  return cardSetLabel
-    ? locator.filter({ has: page.getByTestId("deck-card-set").getByText(cardSetLabel, { exact: true }) })
-    : locator;
+}
+
+/** Ouvre le détail d'une carte de la composition (P2), s'il n'est pas déjà ouvert. */
+export async function openDeckCardDetail(page: Page, cardId: number): Promise<void> {
+  const open = page
+    .locator(`[data-testid="deck-card"][data-card-id="${cardId}"]`)
+    .getByTestId("deck-card-open");
+  if ((await open.getAttribute("aria-expanded")) !== "true") await open.click();
+  await expect(open).toHaveAttribute("aria-expanded", "true");
 }
 
 /** Noms des cartes de l'échantillon figé (`backend/tests/fixtures`) utilisées par les scénarios. */

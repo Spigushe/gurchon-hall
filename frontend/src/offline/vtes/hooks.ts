@@ -27,6 +27,7 @@ import {
   readCardSets,
   readDeck,
   readDeckCards,
+  readDeckCardsByDeck,
   readDeckCountByCard,
   readDecks,
   readGame,
@@ -95,6 +96,13 @@ export function useLocalDeck(key: DeckKey): LocalDeck | null | undefined {
 export function useLocalDeckCards(key: DeckKey): LocalDeckCard[] | undefined {
   const { db } = useVtesOffline();
   const querier = useCallback(() => readDeckCards(db, key), [db, key]);
+  return useLiveQuery(querier);
+}
+
+/** Lignes de tous les decks vivants, par deck (`readDeckCardsByDeck`). */
+export function useLocalDeckCardsByDeck(): Map<DeckKey, LocalDeckCard[]> | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readDeckCardsByDeck(db), [db]);
   return useLiveQuery(querier);
 }
 

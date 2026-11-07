@@ -3,7 +3,7 @@ import { ClockIcon, ProhibitIcon } from "@phosphor-icons/react";
 import { CardImage } from "../../components/CardImage";
 import { CATEGORY_LABELS, cardLabel, cardSetLabelById } from "../../labels";
 import { useCardUsage, type CardDetailRow, type CardSetRow, type SearchableCard } from "../../offline/vtes";
-import { CardText, ClanGlyph, CostGlyph, DisciplineGlyphs, TypeGlyph } from "./Glyph";
+import { CardText, ClanGlyph, CostGlyph, DisciplineGlyphs, TypeGlyph } from "../../components/glyphs/Glyph";
 import { costLabel, legalityText } from "./searchFormat";
 import { useCardOnline } from "../catalog/useCardOnline";
 

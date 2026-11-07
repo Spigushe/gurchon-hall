@@ -74,8 +74,13 @@ describe("routes clientes", () => {
     expect(parseHash("#/tournois/n-importe-quoi")).toEqual({ name: "not-found" });
     expect(parseHash("#/tournois/id:abc")).toEqual({ name: "not-found" });
     expect(parseHash("#/carnet")).toEqual({ name: "notebook" });
-    expect(hrefFor({ name: "tournament", key: "ref:3f2a-9c" })).toBe("#/tournois/ref%3A3f2a-9c");
+    expect(hrefFor({ name: "tournament", key: "ref:3f2a-9c" })).toBe("#/tournois/ref:3f2a-9c");
     expect(hrefFor({ name: "notebook" })).toBe("#/carnet");
+    // Deux-points en clair dans l'adresse ; un ancien lien encodé s'ouvre encore.
+    expect(hrefFor({ name: "deck", key: "id:1" })).toBe("#/decks/id:1");
+    expect(hrefFor({ name: "game", key: "id:2" })).toBe("#/parties/id:2");
+    expect(parseHash("#/decks/id%3A1")).toEqual({ name: "deck", key: "id:1" });
+    expect(parseHash("#/tournois/ref%3A3f2a-9c")).toEqual({ name: "tournament", key: "ref:3f2a-9c" });
     expect(parseHash(hrefFor({ name: "tournament", key: "ref:3f2a-9c" }))).toEqual({
       name: "tournament",
       key: "ref:3f2a-9c",

@@ -2,20 +2,21 @@ import type { LocalDeck } from "../../offline/vtes";
 import type { LegalityOutcome } from "./useDeckLegality";
 
 /**
- * Détail du verdict de légalité, sous les quatre chiffres compacts de
- * `DeckLegalitySummary` (en-tête du Deckbuilder bureau, Lot 5c étape 1).
+ * Détail du verdict de légalité du deckbuilder bureau (Lot 5c étape 1), dans
+ * l'infobulle de la pastille `DeckLegalityBadge` depuis le lot Affichage des
+ * decks.
  *
  * Composant de présentation pur : il ne lit rien lui-même. Le verdict
- * (`outcome`) et l'état du réseau viennent de `DeckLegalitySummary`, qui est
+ * (`outcome`) et l'état du réseau viennent de `DeckLegalityBadge`, qui est
  * le seul à appeler `useDeckLegality` sur l'écran — une seule lecture
- * serveur, partagée avec le bouton « Recalculer » (`refreshToken`).
+ * serveur, relancée par un clic sur la pastille ou `R` (`refreshToken`).
  *
  * Il reprend ce que `DeckLegalityPanel` affiche au mobile, avec les mêmes
  * `data-testid` : motifs en clair (`legality-issues`), noms des cartes bannies
  * et pas encore légales, alerte d'un deck actif devenu illégal
  * (`legality-active-illegal`), note brouillon, avertissement de version
  * (`legality-stale`), états indisponible (`legality-unavailable`) et erreur
- * (`legality-error`). Les effectifs et les groupes restent dans le résumé.
+ * (`legality-error`). Les effectifs sont dans le titre de l'infobulle.
  */
 export function DeckLegalityDetails({
   deck,

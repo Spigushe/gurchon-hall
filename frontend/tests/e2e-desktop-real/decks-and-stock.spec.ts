@@ -35,7 +35,7 @@ test("maître/détail Decks : sélectionner une ligne met à jour l'aperçu sans
   await expect(page.getByTestId("decks-detail")).toBeVisible();
   await page.getByTestId("deck-select").filter({ hasText: "Aperçu bureau" }).click();
   await expect(page.getByTestId("decks-detail-title")).toHaveText("Aperçu bureau");
-  await expect(page.getByTestId("decks-detail-library")).toContainText(CARDS.awe);
+  await expect(page.getByTestId("deck-tables-library")).toContainText(CARDS.awe);
   // Rester sur /decks : la sélection n'ouvre pas le deckbuilder plein écran.
   await expect(page).toHaveURL(/#\/decks$/);
 

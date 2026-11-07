@@ -4,7 +4,7 @@ import { Kbd } from "../../components/Kbd";
 import { useConnectivity } from "../../offline/react";
 import { CATEGORY_LABELS } from "../../labels";
 import { CatalogPanel } from "../catalog/CatalogPanel";
-import { VIRTUE_CODES } from "./glyphs";
+import { VIRTUE_CODES } from "../../components/glyphs/glyphs";
 import { PAGE_SEARCH_ATTR } from "./globalSearch";
 import { countLabel, resetFilters, sortById, sortId, sortOptions, type CategoryTab } from "./searchModel";
 import type { SearchPageModel } from "./useSearchPage";

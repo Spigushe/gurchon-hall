@@ -75,6 +75,8 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
   const pickerColumnRef = useRef<HTMLDivElement>(null);
 
   const [chosen, setChosen] = useState<Chosen | null>(null);
+  const [category, setCategory] = useState<CardCategory>("library");
+  const categoryName = `${formId}-category`;
   const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -186,6 +188,25 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
     { enabled: isDesktop },
   );
 
+  // Onglets Crypte / Bibliothèque (P9 du lot Affichage des decks), Bibliothèque
+  // par défaut, sans « Toutes » ; mêmes onglets au bureau et dans la feuille.
+  const categoryTabs = (
+    <fieldset className="seg" aria-label="Catégorie de carte" data-testid="deck-card-form-category">
+      {(["crypt", "library"] as const).map((value) => (
+        <label key={value} className="seg__option">
+          <input
+            type="radio"
+            name={categoryName}
+            checked={category === value}
+            onChange={() => setCategory(value)}
+            data-testid={`deck-card-form-category-${value}`}
+          />
+          {CATEGORY_LABELS[value]}
+        </label>
+      ))}
+    </fieldset>
+  );
+
   const languageAndExtensionFields = chosen && (
     <>
       <LanguageChips legend="Langue" value={languageCode} onChange={setLanguageCode} options={languages} />
@@ -269,11 +290,13 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
           data-testid="deck-card-form"
           aria-label="Ajouter une carte au deck"
         >
+          {categoryTabs}
           <CardPicker
             onSelect={pick}
             selectedCardId={chosen?.cardId ?? null}
             clearOnSelect={false}
             searchInputRef={searchInputRef}
+            category={category}
           />
           <SearchForDeckLink deck={deck} desktop />
 
@@ -366,7 +389,10 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
             </button>
           </div>
         ) : (
-          <CardPicker onSelect={pick} />
+          <>
+            {categoryTabs}
+            <CardPicker onSelect={pick} category={category} />
+          </>
         )}
         {chosen && (
           <p className="hint" data-testid="deck-card-form-in-deck">

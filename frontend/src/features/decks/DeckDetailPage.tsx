@@ -1,8 +1,7 @@
-import { useId, useRef, useState, type FormEvent } from "react";
-import { ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { useCallback, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { CaretRightIcon, ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { navigate } from "../../app/routes";
-import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
 import { BackRow, Sheet, SheetHeader } from "../../components/Sheet";
@@ -22,7 +21,7 @@ import { AddDeckCardForm } from "./AddDeckCardForm";
 import { DeckComposition } from "./DeckComposition";
 import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
-import { DeckLegalitySummary } from "./DeckLegalitySummary";
+import { DeckLegalityBadge } from "./DeckLegalityBadge";
 
 /** Feuille « Modifier le deck » (handoff Nocturne) : nom, archétype, notes, autorisation de proxy. */
 function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void }) {
@@ -133,15 +132,13 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
  *
  * Bureau (≥ 1024px, Lot 5bis étape 11, `docs/design-handoff/DESKTOP.md`
  * « d01 ») : même page, même logique, deux différences de présentation
- * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 ») avec
- * le verdict compact (`DeckLegalitySummary`, factorisée pour ça) et un bouton
- * « Recalculer » (kbd `R`) à droite, et la composition rejoint le picker
- * toujours visible d'`AddDeckCardForm` dans une grille à deux colonnes
- * (`deck-builder-columns`) au lieu de la pilule flottante + feuille pleine
- * du mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
- * bureau, le résumé de l'en-tête porte aussi le détail (`detailed`, Lot 5c
- * étape 1 : motifs, cartes bannies, alertes), sur la même lecture unique du
- * verdict.
+ * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 »), et
+ * la composition rejoint le picker d'`AddDeckCardForm` (repliable depuis le
+ * lot Affichage des decks) au lieu de la pilule flottante + feuille pleine du
+ * mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
+ * bureau, la légalité est une pastille à côté de la méta (`DeckLegalityBadge`,
+ * `DECKS.md` d23), dont l'infobulle porte le détail du Lot 5c (motifs, cartes
+ * bannies, alertes) ; un clic ou `R` recalcule.
  */
 function DeckView({ deck }: { deck: LocalDeck }) {
   const { actions } = useVtesOffline();
@@ -152,147 +149,20 @@ function DeckView({ deck }: { deck: LocalDeck }) {
   const [adding, setAdding] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [legalityRefreshToken, setLegalityRefreshToken] = useState(0);
+  const [pickerOpen, setPickerOpen] = usePickerOpen();
   const archived = deck.archivedAt !== null;
 
-  // `R` recalcule le verdict de légalité compact de l'en-tête bureau (DESKTOP.md
-  // « d01 ») ; sans équivalent mobile (le bouton « recalculer » de
+  // `R` recalcule le verdict de la pastille de l'en-tête bureau (DESKTOP.md
+  // « d01 », `DECKS.md` d23) ; sans équivalent mobile (le bouton « recalculer » de
   // `DeckLegalityPanel` a déjà son propre raccourci-clic, pas de kbd dédié).
   useKeyboardShortcuts([{ keys: ["r"], onTrigger: () => setLegalityRefreshToken((token) => token + 1) }], {
     enabled: isDesktop,
   });
 
-  return (
-    <div
-      className={archived ? "page" : "page page--with-floating"}
-      data-testid="deck-page"
-      data-deck-key={deck.key}
-    >
-      {isDesktop ? (
-        <div className="deck-builder-header">
-          <div>
-            <p className="kicker">
-              <button type="button" className="btn-text" onClick={() => navigate({ name: "decks" })}>
-                ← Decks
-              </button>
-              {" · "}
-              <span data-testid="deck-status" data-status={deck.status}>
-                Deck {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-              </span>
-              {" · "}
-              <span data-testid="deck-discriminator">
-                {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
-              </span>
-            </p>
-            <h2 className="page-title" data-testid="deck-title">
-              {deck.name}
-            </h2>
-            <p className="page-meta">
-              {archived && "archivé"}
-              {deck.archetype && ` · ${deck.archetype}`}
-              {deck.proxyAllowed && (
-                <>
-                  {" · "}
-                  <span data-testid="deck-proxy-allowed">proxies autorisés</span>
-                </>
-              )}
-            </p>
-          </div>
-          <div className="deck-builder-header__legality">
-            <DeckLegalitySummary
-              deck={deck}
-              lines={lines}
-              refreshToken={legalityRefreshToken}
-              detailed
-            />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              data-testid="deck-legality-refresh"
-              aria-keyshortcuts="r"
-              onClick={() => setLegalityRefreshToken((token) => token + 1)}
-            >
-              Recalculer
-              <Kbd>R</Kbd>
-            </button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <BackRow label="Decks" onClick={() => navigate({ name: "decks" })} />
-
-          <div>
-            <p className="kicker" data-testid="deck-status" data-status={deck.status}>
-              Deck {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-            </p>
-            <h2 className="page-title" data-testid="deck-title">
-              {deck.name}
-            </h2>
-            <p className="page-meta">
-              <span data-testid="deck-discriminator">
-                {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
-              </span>
-              {archived && " · archivé"}
-              {deck.archetype && ` · ${deck.archetype}`}
-              {deck.proxyAllowed && (
-                <>
-                  {" · "}
-                  <span data-testid="deck-proxy-allowed">proxies autorisés</span>
-                </>
-              )}
-            </p>
-          </div>
-        </>
-      )}
-
-      {deck.pending && (
-        <p className="row__pending" data-testid="pending-badge">
-          <ClockCountdownIcon size={14} />
-          En attente de synchronisation
-        </p>
-      )}
-      {deck.notes && <p className="hint">{deck.notes}</p>}
-
-      {archived && (
-        <p className="hint" data-testid="deck-archived-note">
-          Ce deck est archivé : il n'est plus modifiable. Désarchivez-le pour le changer. Un deck
-          archivé garde ses exemplaires réservés dans la collection.
-        </p>
-      )}
-
-      {action.error && (
-        <p className="error-text" role="alert">
-          {action.error}
-        </p>
-      )}
-
-      {isDesktop ? (
-        <div className="deck-builder-columns" data-testid="deck-builder-columns">
-          <div>
-            <p className="kicker">Composition</p>
-            <DeckComposition deckKey={deck.key} lines={lines} locked={archived} />
-          </div>
-          {archived ? (
-            <div className="deck-builder-picker" data-testid="deck-builder-picker">
-              <p className="hint">
-                Deck archivé : composition non modifiable. Désarchivez-le pour ajouter des cartes.
-              </p>
-            </div>
-          ) : (
-            <AddDeckCardForm deck={deck} />
-          )}
-        </div>
-      ) : (
-        <>
-          <DeckLegalityPanel deck={deck} />
-
-          <div>
-            <p className="kicker">Composition</p>
-            <DeckComposition deckKey={deck.key} lines={lines} locked={archived} />
-          </div>
-          <SearchForDeckLink deck={deck} />
-        </>
-      )}
-
+  // Statut, archivage, modification : dans l'en-tête au bureau (handoff
+  // `DECKS.md` d23), sous la composition au mobile, comme avant.
+  const actionsBlock = (
+    <div className="deck-actions">
       <div className="confirm-row" role="group" aria-label="Actions sur le deck">
         <button
           type="button"
@@ -341,6 +211,132 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       {!archived && deck.status === "draft" && (
         <p className="hint">Le serveur n'accepte l'activation que d'un deck légal.</p>
       )}
+    </div>
+  );
+
+  return (
+    <div
+      className={archived ? "page" : "page page--with-floating"}
+      data-testid="deck-page"
+      data-deck-key={deck.key}
+    >
+      {isDesktop ? (
+        <div className="deck-builder-header">
+          <div>
+            <p className="kicker">
+              <button type="button" className="btn-text" onClick={() => navigate({ name: "decks" })}>
+                ← Decks
+              </button>
+              {" · "}
+              <span data-testid="deck-status" data-status={deck.status}>
+                Deck {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+              </span>
+              {" · "}
+              <span data-testid="deck-discriminator">
+                {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+              </span>
+            </p>
+            <h2 className="page-title" data-testid="deck-title">
+              {deck.name}
+            </h2>
+            <div className="deck-builder-meta">
+              <p className="page-meta">{deckMeta(deck, archived, false)}</p>
+              <DeckLegalityBadge
+                deck={deck}
+                refreshToken={legalityRefreshToken}
+                onRefresh={() => setLegalityRefreshToken((token) => token + 1)}
+              />
+            </div>
+          </div>
+          {actionsBlock}
+        </div>
+      ) : (
+        <>
+          <BackRow label="Decks" onClick={() => navigate({ name: "decks" })} />
+
+          <div>
+            <p className="kicker" data-testid="deck-status" data-status={deck.status}>
+              Deck {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+            </p>
+            <h2 className="page-title" data-testid="deck-title">
+              {deck.name}
+            </h2>
+            <p className="page-meta">{deckMeta(deck, archived, true)}</p>
+          </div>
+        </>
+      )}
+
+      {deck.pending && (
+        <p className="row__pending" data-testid="pending-badge">
+          <ClockCountdownIcon size={14} />
+          En attente de synchronisation
+        </p>
+      )}
+      {deck.notes && <p className="hint">{deck.notes}</p>}
+
+      {archived && (
+        <p className="hint" data-testid="deck-archived-note">
+          Ce deck est archivé : il n'est plus modifiable. Désarchivez-le pour le changer. Un deck
+          archivé garde ses exemplaires réservés dans la collection.
+        </p>
+      )}
+
+      {action.error && (
+        <p className="error-text" role="alert">
+          {action.error}
+        </p>
+      )}
+
+      {isDesktop ? (
+        <div className="deck-builder-columns" data-testid="deck-builder-columns">
+          <div className="deck-builder-main">
+            <p className="kicker">Composition</p>
+            <DeckComposition deck={deck} lines={lines} locked={archived} />
+          </div>
+          {!archived &&
+            (pickerOpen ? (
+              <aside className="deck-builder-aside" aria-label="Ajouter des cartes">
+                <div className="deck-builder-aside__head">
+                  <p className="kicker">Ajouter des cartes</p>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label="Replier le picker"
+                    aria-expanded="true"
+                    data-testid="deck-picker-collapse"
+                    onClick={() => setPickerOpen(false)}
+                  >
+                    <CaretRightIcon size={16} />
+                  </button>
+                </div>
+                <AddDeckCardForm deck={deck} />
+              </aside>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-secondary deck-builder-aside__open"
+                aria-expanded="false"
+                data-testid="deck-picker-expand"
+                onClick={() => setPickerOpen(true)}
+              >
+                <PlusIcon size={16} />
+                Ajouter des cartes
+              </button>
+            ))}
+        </div>
+      ) : (
+        <>
+          <DeckLegalityPanel deck={deck} />
+
+          <div>
+            <p className="kicker">Composition</p>
+            <DeckComposition deck={deck} lines={lines} locked={archived} />
+          </div>
+          <SearchForDeckLink deck={deck} />
+        </>
+      )}
+
+      {!isDesktop && actionsBlock}
 
       {archived && (
         <div>
@@ -401,6 +397,55 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       {!isDesktop && adding && <AddDeckCardForm deck={deck} onClose={() => setAdding(false)} />}
     </div>
   );
+}
+
+const PICKER_OPEN_KEY = "gurchon-hall:deck-picker-open";
+
+/**
+ * Picker du deckbuilder bureau ouvert ou replié (P9 du lot Affichage des
+ * decks), mémorisé sur l'appareil. `localStorage` peut manquer ou lever
+ * (navigation privée, stockage bloqué) : le picker reste alors ouvert par
+ * défaut, et le choix ne vaut que pour la page.
+ */
+function usePickerOpen(): [boolean, (open: boolean) => void] {
+  const [open, setOpenState] = useState(() => {
+    try {
+      return window.localStorage.getItem(PICKER_OPEN_KEY) !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const setOpen = useCallback((next: boolean) => {
+    setOpenState(next);
+    try {
+      window.localStorage.setItem(PICKER_OPEN_KEY, String(next));
+    } catch {
+      // Préférence de confort : sans stockage, elle ne survit pas au rechargement.
+    }
+  }, []);
+  return [open, setOpen];
+}
+
+/** « archivé · toolbox · proxies autorisés » : les morceaux présents, sans séparateur orphelin. */
+function deckMeta(deck: LocalDeck, archived: boolean, withDiscriminator: boolean): ReactNode {
+  const parts: ReactNode[] = [];
+  if (withDiscriminator) {
+    parts.push(
+      <span key="discriminator" data-testid="deck-discriminator">
+        {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+      </span>,
+    );
+  }
+  if (archived) parts.push("archivé");
+  if (deck.archetype) parts.push(deck.archetype);
+  if (deck.proxyAllowed) {
+    parts.push(
+      <span key="proxy" data-testid="deck-proxy-allowed">
+        proxies autorisés
+      </span>,
+    );
+  }
+  return parts.flatMap((part, index) => (index === 0 ? [part] : [" · ", part]));
 }
 
 /** Détail d'un deck, adressé par sa clé stable (`ref:<uuid>` ou `id:<n>`). */

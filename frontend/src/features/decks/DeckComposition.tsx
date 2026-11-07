@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { ClockCountdownIcon, TrashIcon } from "@phosphor-icons/react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { PlusIcon, StackIcon, TrashIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
@@ -7,12 +7,15 @@ import { cardSetLabelById, plural } from "../../labels";
 import {
   useVtesOffline,
   type DeckKey,
+  type LocalDeck,
   type LocalDeckCard,
 } from "../../offline/vtes";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
-
-const cardName = (line: Pick<LocalDeckCard, "cardName" | "cardId">) =>
-  line.cardName ?? `Carte n° ${line.cardId}`;
+import { DeckTables } from "./DeckTables";
+import { buildDeckTables, plusDecision, type DeckTableRow, type StockAvailability } from "./deckTablesModel";
+import { useDeckCardFacts } from "./useDeckCardFacts";
+import { useDeckStockAvailability } from "./useDeckStockAvailability";
+import { useLastDefined } from "./useLastDefined";
 
 const lineKey = (line: Pick<LocalDeckCard, "cardId" | "languageCode" | "cardSetId">) =>
   `${line.cardId}|${line.languageCode}|${line.cardSetId}`;
@@ -173,29 +176,69 @@ function ConvertProxiesControl({
   );
 }
 
-function CompositionRow({
-  deckKey,
-  line,
-  locked,
-  recentDelta,
-}: {
-  deckKey: DeckKey;
-  line: LocalDeckCard;
-  locked: boolean;
-  /** Exemplaires ajoutés à l'instant (bureau seulement), pour la teinte « +N à l'instant ». */
-  recentDelta?: number;
-}) {
-  const { actions } = useVtesOffline();
-  const cardSets = useCardSetOptions();
-  const action = useGuardedAction();
-  const isDesktop = useIsDesktop();
-  const who = `${cardName(line)} (${line.languageCode})`;
+/** Une action sur les lignes d'une carte : erreur gardée par carte, un envoi à la fois. */
+function useRowActions() {
+  const inFlight = useRef(new Set<number>());
+  const [pending, setPending] = useState<ReadonlySet<number>>(new Set());
+  const [errors, setErrors] = useState<ReadonlyMap<number, string>>(new Map());
 
-  // Un upsert porte l'état complet de la ligne : quantité et proxies ensemble.
-  // L'extension fait partie de l'identité de la ligne (Lot 4) : elle ne change pas ici.
+  const run = useCallback(async (cardId: number, task: () => Promise<unknown>) => {
+    if (inFlight.current.has(cardId)) return;
+    inFlight.current.add(cardId);
+    setPending(new Set(inFlight.current));
+    setErrors((current) => {
+      if (!current.has(cardId)) return current;
+      const next = new Map(current);
+      next.delete(cardId);
+      return next;
+    });
+    try {
+      await task();
+    } catch (failure) {
+      const message = failure instanceof Error ? failure.message : String(failure);
+      setErrors((current) => new Map(current).set(cardId, message));
+    } finally {
+      inFlight.current.delete(cardId);
+      setPending(new Set(inFlight.current));
+    }
+  }, []);
+
+  return { run, pending, errors };
+}
+
+type RowActions = ReturnType<typeof useRowActions>;
+
+interface EditContext {
+  deck: LocalDeck;
+  locked: boolean;
+  actions: RowActions;
+  stock: ReadonlyMap<number, StockAvailability[]>;
+  setLabel: (cardSetId: number) => string;
+  /** Ouvre le détail d'une carte (le `+` qui doit faire choisir, P3). */
+  openDetail: (cardId: number) => void;
+  /** Ouvre ou referme le détail : nom de la carte et icône des impressions. */
+  toggleDetail: (cardId: number) => void;
+  /** Identifiant du détail ouvert d'une carte, `undefined` s'il est fermé. */
+  openDetailId: (cardId: number) => string | undefined;
+}
+
+const who = (row: DeckTableRow, line: LocalDeckCard) => `${row.name} (${line.languageCode})`;
+
+/**
+ * Stepper d'une ligne (langue × extension). `−` à 1 retire la ligne (P4) ;
+ * `+` suit `plusDecision` (P3) : stock identique, sinon choix dans le détail,
+ * sinon proxy si le deck l'autorise, sinon désactivé.
+ */
+function LineStepper({ row, line, context }: { row: DeckTableRow; line: LocalDeckCard; context: EditContext }) {
+  const { actions: offline } = useVtesOffline();
+  const { deck, locked, actions, stock } = context;
+  const busy = actions.pending.has(row.cardId);
+  const label = who(row, line);
+  const decision = plusDecision(line, stock.get(row.cardId) ?? [], deck.proxyAllowed);
+
   const save = (quantity: number, proxyQuantity: number) =>
-    action.run(() =>
-      actions.saveDeckCard(deckKey, {
+    actions.run(row.cardId, () =>
+      offline.saveDeckCard(deck.key, {
         cardId: line.cardId,
         languageCode: line.languageCode,
         cardSetId: line.cardSetId,
@@ -204,102 +247,231 @@ function CompositionRow({
       }),
     );
 
-  const showRecent = isDesktop && Boolean(recentDelta);
+  const minus = () =>
+    line.quantity <= 1
+      ? actions.run(row.cardId, () => offline.removeDeckCard(deck.key, line.cardId, line.languageCode, line.cardSetId))
+      : save(line.quantity - 1, line.proxyQuantity);
+
+  const plus = () => {
+    if (decision.kind === "real") void save(line.quantity + 1, line.proxyQuantity);
+    else if (decision.kind === "proxy") void save(line.quantity + 1, line.proxyQuantity + 1);
+    else if (decision.kind === "choose") context.openDetail(row.cardId);
+  };
+
+  const plusTitle =
+    decision.kind === "disabled"
+      ? decision.reason
+      : decision.kind === "choose"
+        ? "Plus d'exemplaire dans cette langue et cette extension : choisissez dans le détail."
+        : decision.kind === "proxy"
+          ? "Ajoute un proxy : plus d'exemplaire disponible au stock."
+          : undefined;
 
   return (
-    <li
-      className={showRecent ? "row row--recent" : "row"}
-      data-testid="deck-card"
-      data-card-id={line.cardId}
-      data-language={line.languageCode}
-      data-quantity={line.quantity}
-      data-proxy-quantity={line.proxyQuantity}
-      data-pending={line.pending}
-    >
-      <div className="row--interactive">
-        <div>
-          <p className="row__name">{cardName(line)}</p>
-          <p className="row__meta">
-            {line.languageCode} · <span data-testid="deck-card-set">{cardSetLabelById(line.cardSetId, cardSets.byId)}</span>
-            {line.proxyQuantity > 0 && ` · ${plural(line.proxyQuantity, "proxy", "proxies")}`}
-            {showRecent && ` · +${recentDelta} à l'instant`}
-          </p>
-          {line.pending && (
-            <p className="row__pending" data-testid="pending-badge">
-              <ClockCountdownIcon size={14} />
-              En attente de synchronisation
-            </p>
-          )}
-        </div>
-        <div className="stepper stepper--row" role="group" aria-label={`Quantité de ${who}`}>
-          <button
-            type="button"
-            className="stepper__btn"
-            aria-label={`Retirer un exemplaire de ${who}`}
-            disabled={locked || action.pending || line.quantity <= 1}
-            onClick={() => void save(line.quantity - 1, line.proxyQuantity)}
-          >
-            −
-          </button>
-          <span className="stepper__value" data-testid="deck-card-quantity">
-            {line.quantity}
-          </span>
-          <button
-            type="button"
-            className="stepper__btn stepper__btn--accent"
-            aria-label={`Ajouter un exemplaire de ${who}`}
-            disabled={locked || action.pending}
-            onClick={() => void save(line.quantity + 1, line.proxyQuantity)}
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      {!locked && line.proxyQuantity > 0 && <ConvertProxiesControl deckKey={deckKey} line={line} who={who} />}
-
-      <div className="confirm-row">
-        <button
-          type="button"
-          className="btn-danger-text"
-          disabled={locked || action.pending}
-          aria-label={`Retirer ${who} du deck`}
-          data-testid="deck-card-remove"
-          onClick={() =>
-            void action.run(() =>
-              actions.removeDeckCard(deckKey, line.cardId, line.languageCode, line.cardSetId),
-            )
-          }
-        >
-          <TrashIcon size={16} />
-          Retirer
-        </button>
-      </div>
-      {action.error && (
-        <p className="error-text row__error" role="alert">
-          {action.error}
-        </p>
-      )}
-    </li>
+    <span className="qty-stepper" role="group" aria-label={`Quantité de ${label}`}>
+      <button
+        type="button"
+        className="qty-stepper__btn"
+        aria-label={line.quantity <= 1 ? `Retirer ${label} du deck` : `Retirer un exemplaire de ${label}`}
+        disabled={locked || busy}
+        onClick={() => void minus()}
+      >
+        −
+      </button>
+      <span className="qty-stepper__value" data-testid="deck-card-quantity">
+        {line.quantity}
+      </span>
+      <button
+        type="button"
+        className="qty-stepper__btn"
+        aria-label={`Ajouter un exemplaire de ${label}`}
+        title={plusTitle}
+        disabled={locked || busy || decision.kind === "disabled"}
+        data-plus={decision.kind}
+        onClick={plus}
+      >
+        +
+      </button>
+    </span>
   );
 }
 
-/** Composition d'un deck (lecture locale) ; les modifications passent par la file. */
+/** Cellule de quantité d'une carte : stepper si une seule ligne, sinon l'icône de P2. */
+function RowQuantity({ row, context }: { row: DeckTableRow; context: EditContext }) {
+  if (row.lines.length === 1) return <LineStepper row={row} line={row.lines[0]} context={context} />;
+  const hint = `${row.lines.length} impressions : modifiez les quantités dans le détail`;
+  return (
+    <span className="qty-stepper qty-stepper--merged">
+      <button
+        type="button"
+        className="qty-stepper__btn qty-stepper__btn--icon"
+        aria-label={`${row.name} : ${hint}`}
+        title={hint}
+        aria-expanded={context.openDetailId(row.cardId) !== undefined}
+        aria-controls={context.openDetailId(row.cardId)}
+        data-testid="deck-card-merged"
+        onClick={() => context.toggleDetail(row.cardId)}
+      >
+        <StackIcon size={14} />
+      </button>
+      <span className="qty-stepper__value" data-testid="deck-card-quantity">
+        {row.quantity}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * Détail d'une carte, sous sa ligne (P2) : chaque ligne langue × extension,
+ * son stepper quand la carte en a plusieurs, la conversion de proxies, le
+ * retrait ; puis les exemplaires libres d'autres langues ou extensions (P3)
+ * et l'ajout d'un proxy.
+ */
+function CardLinesDetail({ row, context, id }: { row: DeckTableRow; context: EditContext; id: string }) {
+  const { actions: offline } = useVtesOffline();
+  const { deck, locked, actions, stock, setLabel } = context;
+  const busy = actions.pending.has(row.cardId);
+  const options = (stock.get(row.cardId) ?? []).filter((entry) => entry.available > 0);
+
+  const addFrom = (entry: StockAvailability) => {
+    const existing = row.lines.find(
+      (line) => line.languageCode === entry.languageCode && line.cardSetId === entry.cardSetId,
+    );
+    return actions.run(row.cardId, () =>
+      offline.saveDeckCard(deck.key, {
+        cardId: row.cardId,
+        languageCode: entry.languageCode,
+        cardSetId: entry.cardSetId,
+        quantity: (existing?.quantity ?? 0) + 1,
+        proxyQuantity: existing?.proxyQuantity ?? 0,
+      }),
+    );
+  };
+
+  const addProxy = () => {
+    const line = row.lines[0];
+    return actions.run(row.cardId, () =>
+      offline.saveDeckCard(deck.key, {
+        cardId: line.cardId,
+        languageCode: line.languageCode,
+        cardSetId: line.cardSetId,
+        quantity: line.quantity + 1,
+        proxyQuantity: line.proxyQuantity + 1,
+      }),
+    );
+  };
+
+  return (
+    <div className="deck-card-detail" id={id} data-testid="deck-card-detail">
+      <ul className="deck-card-detail__lines">
+        {row.lines.map((line) => (
+          <li
+            key={`${line.languageCode}|${line.cardSetId}`}
+            className="deck-card-detail__line"
+            data-testid="deck-card-line"
+            data-card-id={line.cardId}
+            data-language={line.languageCode}
+            data-card-set-id={line.cardSetId}
+            data-quantity={line.quantity}
+            data-proxy-quantity={line.proxyQuantity}
+            data-pending={line.pending}
+          >
+            <span className="deck-card-detail__label">
+              {row.lines.length === 1 && `${line.quantity} × `}
+              {line.languageCode} · <span data-testid="deck-card-set">{setLabel(line.cardSetId)}</span>
+              {line.proxyQuantity > 0 && ` · ${plural(line.proxyQuantity, "proxy", "proxies")}`}
+              {line.pending && " · en attente de synchronisation"}
+            </span>
+            {row.lines.length > 1 && <LineStepper row={row} line={line} context={context} />}
+            {!locked && (
+              <button
+                type="button"
+                className="btn-danger-text"
+                disabled={busy}
+                aria-label={`Retirer toute la ligne ${who(row, line)} du deck`}
+                data-testid="deck-card-detail-remove"
+                onClick={() =>
+                  void actions.run(row.cardId, () =>
+                    offline.removeDeckCard(deck.key, line.cardId, line.languageCode, line.cardSetId),
+                  )
+                }
+              >
+                <TrashIcon size={16} />
+                Retirer du deck
+              </button>
+            )}
+            {!locked && line.proxyQuantity > 0 && (
+              <ConvertProxiesControl deckKey={deck.key} line={line} who={who(row, line)} />
+            )}
+          </li>
+        ))}
+      </ul>
+      {!locked && (options.length > 0 || deck.proxyAllowed) && (
+        <div className="deck-card-detail__add">
+          {options.length > 0 && <p className="deck-card-detail__kicker">Ajouter un exemplaire du stock</p>}
+          {options.map((entry) => (
+            <button
+              key={`${entry.languageCode}|${entry.cardSetId}`}
+              type="button"
+              className="chip-action"
+              disabled={busy}
+              data-testid="deck-card-stock-option"
+              data-language={entry.languageCode}
+              data-card-set-id={entry.cardSetId}
+              onClick={() => void addFrom(entry)}
+            >
+              <PlusIcon size={14} />
+              {entry.languageCode} · {setLabel(entry.cardSetId)} · {plural(entry.available, "disponible")}
+            </button>
+          ))}
+          {deck.proxyAllowed && (
+            <button
+              type="button"
+              className="chip-action"
+              disabled={busy}
+              data-testid="deck-card-add-proxy"
+              onClick={() => void addProxy()}
+            >
+              <PlusIcon size={14} />
+              Un proxy
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Composition éditable du deckbuilder (lot Affichage des decks, D4) : les
+ * tableaux de `DeckTables`, avec un stepper par carte et un détail au clic sur
+ * le nom. Lecture locale ; les modifications passent par la file.
+ */
 export function DeckComposition({
-  deckKey,
+  deck,
   lines,
   locked,
 }: {
-  deckKey: DeckKey;
+  deck: LocalDeck;
   lines: LocalDeckCard[] | undefined;
   /** Deck archivé : le serveur refuse toute modification. */
   locked: boolean;
 }) {
-  // Appelé avant tout retour anticipé (règle des hooks) : sans effet visible
-  // tant que `lines` est `undefined` ou vide (la map reste vide).
+  // Appelés avant tout retour anticipé (règle des hooks).
   const recent = useRecentIncreases(lines);
+  const isDesktop = useIsDesktop();
+  const cardSets = useCardSetOptions();
+  const actions = useRowActions();
+  const detailPrefix = useId();
+  const [openCards, setOpenCards] = useState<ReadonlySet<number>>(new Set());
+  const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
+  const facts = useLastDefined(useDeckCardFacts(cardIds));
+  const stock = useLastDefined(useDeckStockAvailability(cardIds));
+  const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
 
-  if (lines === undefined) return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+  if (lines === undefined || tables === null || stock === undefined) {
+    return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+  }
   if (lines.length === 0) {
     return (
       <p className="empty-state__body" data-testid="deck-cards-empty">
@@ -307,23 +479,64 @@ export function DeckComposition({
       </p>
     );
   }
-  const total = lines.reduce((sum, line) => sum + line.quantity, 0);
+
+  const toggle = (cardId: number) =>
+    setOpenCards((current) => {
+      const next = new Set(current);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
+  const detailId = (row: DeckTableRow) => `${detailPrefix}-${row.cardId}`;
+  const context: EditContext = {
+    deck,
+    locked,
+    actions,
+    stock,
+    setLabel: (cardSetId) => cardSetLabelById(cardSetId, cardSets.byId),
+    openDetail: (cardId) => setOpenCards((current) => new Set(current).add(cardId)),
+    toggleDetail: toggle,
+    openDetailId: (cardId) => (openCards.has(cardId) ? `${detailPrefix}-${cardId}` : undefined),
+  };
+  const recentOf = (row: DeckTableRow) =>
+    row.lines.reduce((sum, line) => sum + (recent.get(lineKey(line)) ?? 0), 0);
+  const showProxies = deck.proxyAllowed || lines.some((line) => line.proxyQuantity > 0);
+
   return (
-    <>
-      <p className="hint" data-testid="deck-cards-total">
-        {plural(lines.length, "ligne")}, {plural(total, "carte")} au total.
-      </p>
-      <ul className="list" data-testid="deck-cards">
-        {lines.map((line) => (
-          <CompositionRow
-            key={lineKey(line)}
-            deckKey={deckKey}
-            line={line}
-            locked={locked}
-            recentDelta={recent.get(lineKey(line))}
-          />
-        ))}
-      </ul>
-    </>
+    <DeckTables
+      tables={tables}
+      editable={!locked}
+      showProxies={showProxies}
+      renderQuantity={locked ? undefined : (row) => <RowQuantity row={row} context={context} />}
+      renderName={(row) => {
+        const delta = isDesktop ? recentOf(row) : 0;
+        return (
+          <>
+            <button
+              type="button"
+              className="deck-table__name-btn"
+              aria-expanded={openCards.has(row.cardId)}
+              aria-controls={openCards.has(row.cardId) ? detailId(row) : undefined}
+              data-testid="deck-card-open"
+              onClick={() => toggle(row.cardId)}
+            >
+              {row.name}
+            </button>
+            {delta > 0 && <span className="deck-table__recent">+{delta} à l'instant</span>}
+          </>
+        );
+      }}
+      rowClassName={(row) => (isDesktop && recentOf(row) > 0 ? "deck-table__row--recent" : undefined)}
+      renderDetail={(row) => (
+        <>
+          {actions.errors.has(row.cardId) && (
+            <p className="error-text deck-table__error" role="alert">
+              {actions.errors.get(row.cardId)}
+            </p>
+          )}
+          {openCards.has(row.cardId) && <CardLinesDetail row={row} context={context} id={detailId(row)} />}
+        </>
+      )}
+    />
   );
 }

@@ -461,13 +461,6 @@ function App() {
         </main>
 
         <TabBar route={route} />
-
-        <footer className="shell-footer">
-          <p className="shell-note">
-            Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour
-            l'expérience hors-ligne (PWA).
-          </p>
-        </footer>
       </div>
     </CatalogProvider>
   );

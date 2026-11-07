@@ -37,6 +37,14 @@ async function withDeck(
   return { ...app, key };
 }
 
+/**
+ * Le `+` de la ligne d'une carte, recherché à chaque appel : les tableaux se
+ * remontent quand une lecture locale se relance, une référence gardée serait
+ * détachée du DOM.
+ */
+const plusOf = (name: RegExp) =>
+  within(screen.getByTestId("deck-card")).getByRole("button", { name });
+
 /** Ouvre la feuille « Ajouter » depuis le détail d'un deck déjà affiché. */
 async function openAddCardSheet() {
   fireEvent.click(await screen.findByTestId("deck-card-add"));
@@ -97,7 +105,7 @@ describe("decks : liste et création", () => {
     expect(server.state.requests).toEqual([]);
     // Le hash, jamais un chemin : rien ne ressemble à une ressource de l'API.
     expect(window.location.pathname).toBe("/");
-    expect(window.location.hash).toMatch(/^#\/decks\/ref%3A/);
+    expect(window.location.hash).toMatch(/^#\/decks\/ref:/);
   });
 
   it("autorise les proxies à la création, et peut désactiver l'autorisation à l'édition (Lot 4)", async () => {
@@ -289,7 +297,7 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
     expect(window.location.hash).toBe("#/decks");
   });
 
-  it("garde des comptes crypte/bibliothèque locaux hors ligne, verdict et groupes indisponibles", async () => {
+  it("hors ligne : badge « Légalité hors ligne », tableaux et comptes de la liste lus localement", async () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
     const { key } = await app.runtime.actions.createDeck({ name: "Tremere", proxyAllowed: true });
     await act(async () => {
@@ -317,22 +325,18 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
 
     act(() => setOnline(false));
 
-    await waitFor(() =>
-      expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent(/indisponible/i),
-    );
-    // Les comptes locaux (composition + miroir catalogue) se lisent par une
-    // lecture IndexedDB asynchrone, distincte du verdict : attendre qu'ils
-    // reflètent les deux lignes avant de les vérifier.
-    await waitFor(() => expect(screen.getByTestId("deck-summary-crypt")).toHaveTextContent("1"));
-    expect(screen.getByTestId("deck-summary-library")).toHaveTextContent("2");
-    expect(screen.getByTestId("deck-summary-groups")).toHaveTextContent("indisponible");
-    expect(screen.getByTestId("deck-summary-banned")).toHaveTextContent("indisponible");
+    await waitFor(() => expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Légalité hors ligne"));
+    // Composition et miroir du catalogue se lisent par des lectures IndexedDB
+    // asynchrones, distinctes du verdict : attendre qu'elles reflètent les deux lignes.
+    await waitFor(() => expect(screen.getByTestId("deck-tables-crypt-total")).toHaveTextContent("1"));
+    expect(screen.getByTestId("deck-tables-library-total")).toHaveTextContent("2");
+    expect(screen.getByTestId("deck-item-counts")).toHaveTextContent("1 / 2");
 
-    expect(within(screen.getByTestId("decks-detail-crypt")).getByText(/Theo Bell/)).toBeInTheDocument();
-    expect(within(screen.getByTestId("decks-detail-library")).getByText(/Élan vital/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("deck-tables-crypt")).getByText(/Theo Bell/)).toBeInTheDocument();
+    expect(within(screen.getByTestId("deck-tables-library")).getByText(/Élan vital/)).toBeInTheDocument();
   });
 
-  it("fusionne dans le résumé les lignes d'une même carte tenues séparément (langue et extension différentes)", async () => {
+  it("fusionne dans l'aperçu les lignes d'une même carte tenues séparément (langue et extension différentes)", async () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
     const { key } = await app.runtime.actions.createDeck({ name: "Ventrue", proxyAllowed: true });
     await act(async () => {
@@ -358,13 +362,17 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
 
     act(() => setOnline(false));
 
-    const library = await screen.findByTestId("decks-detail-library");
-    await waitFor(() => expect(within(library).getByText("3× Élan vital")).toBeInTheDocument());
-    // Une seule entrée, pas une par triplet carte × langue × extension.
+    const library = await screen.findByTestId("deck-tables-library");
+    // Une seule ligne, pas une par triplet carte × langue × extension.
+    await waitFor(() => expect(within(library).getAllByTestId("deck-card")).toHaveLength(1));
+    const row = within(library).getByTestId("deck-card");
+    await waitFor(() => expect(row).toHaveAttribute("data-quantity", "3"));
+    expect(row).toHaveAttribute("data-lines", "2");
+    expect(row).toHaveTextContent("3×");
     expect(within(library).getAllByText(/Élan vital/)).toHaveLength(1);
   });
 
-  it("affiche le verdict du serveur (crypte, bibliothèque, groupes, bannies) une fois le deck synchronisé", async () => {
+  it("badge de légalité : le premier motif du verdict du serveur, une fois le deck synchronisé", async () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
     app.ui.legality = { status: 200, body: LEGALITY };
     await app.runtime.actions.createDeck({ name: "Nosferatu" });
@@ -373,13 +381,8 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
       await app.runtime.refresh();
     });
 
-    await waitFor(() =>
-      expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent("Deck illégal"),
-    );
-    expect(screen.getByTestId("deck-summary-crypt")).toHaveTextContent("11");
-    expect(screen.getByTestId("deck-summary-library")).toHaveTextContent("60");
-    expect(screen.getByTestId("deck-summary-groups")).toHaveTextContent("G2");
-    expect(screen.getByTestId("deck-summary-banned")).toHaveTextContent("0");
+    await waitFor(() => expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Illégal · crypte 11/12"));
+    expect(screen.getByTestId("deck-legality-tag")).toHaveAttribute("data-legal", "false");
   });
 
   it("aucune régression mobile : liste plein écran, sans panneau de droite ni bouton d'en-tête (Lot 5)", async () => {
@@ -525,7 +528,10 @@ describe("decks : composition", () => {
     fireEvent.click(within(form).getByTestId("deck-card-form-submit"));
 
     const line = await screen.findByTestId("deck-card");
-    await waitFor(() => expect(within(line).getByTestId("deck-card-set")).toHaveTextContent("TEST"));
+    // Langue et extension se lisent dans le détail de la carte (P2).
+    fireEvent.click(within(line).getByTestId("deck-card-open"));
+    const detailLine = await screen.findByTestId("deck-card-line");
+    await waitFor(() => expect(within(detailLine).getByTestId("deck-card-set")).toHaveTextContent("TEST"));
     const last = (await runtime.outbox.list()).at(-1)!.operation;
     expect(last).toMatchObject({
       type: "deck_card.upsert",
@@ -609,7 +615,7 @@ describe("decks : composition", () => {
     expect(within(form).queryByLabelText("Dont déjà possédées")).not.toBeInTheDocument();
   });
 
-  it("modifie la quantité d'une ligne sans perdre ses proxies, et retire la ligne", async () => {
+  it("modifie la quantité d'une ligne sans perdre ses proxies, et le − à 1 retire la ligne (P4)", async () => {
     const { runtime } = await withDeck();
     const key = screen.getByTestId("deck-page").getAttribute("data-deck-key") as DeckKey;
     await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 4 });
@@ -620,9 +626,12 @@ describe("decks : composition", () => {
       quantity: 2,
       proxyQuantity: 1,
     });
-    const line = await screen.findByTestId("deck-card");
+    await screen.findByTestId("deck-card");
+    const plus = () => plusOf(/Ajouter un exemplaire de Élan vital/);
+    // Le stock disponible se relit après l'apparition de la ligne (lecture asynchrone).
+    await waitFor(() => expect(plus()).toHaveAttribute("data-plus", "real"));
 
-    fireEvent.click(within(line).getByRole("button", { name: /Ajouter un exemplaire de Élan vital/ }));
+    fireEvent.click(plus());
     await waitFor(() => expect(screen.getByTestId("deck-card-quantity")).toHaveTextContent("3"));
     const ops = await runtime.outbox.list();
     expect(ops[ops.length - 1].operation).toMatchObject({
@@ -630,10 +639,80 @@ describe("decks : composition", () => {
       data: { quantity: 3, proxy_quantity: 1 },
     });
 
-    fireEvent.click(within(screen.getByTestId("deck-card")).getByTestId("deck-card-remove"));
+    // Le − retire d'abord les exemplaires réels, puis la ligne quand il n'en reste qu'un.
+    fireEvent.click(within(screen.getByTestId("deck-card")).getByRole("button", { name: /Retirer un exemplaire de Élan vital/ }));
+    await waitFor(() => expect(screen.getByTestId("deck-card-quantity")).toHaveTextContent("2"));
+    fireEvent.click(within(screen.getByTestId("deck-card")).getByRole("button", { name: /Retirer un exemplaire de Élan vital/ }));
+    await waitFor(() => expect(screen.getByTestId("deck-card-quantity")).toHaveTextContent("1"));
+    fireEvent.click(within(screen.getByTestId("deck-card")).getByRole("button", { name: "Retirer Élan vital (FR) du deck" }));
     await waitFor(() => expect(screen.getByTestId("deck-cards-empty")).toBeInTheDocument());
     const after = await runtime.outbox.list();
     expect(after[after.length - 1].operation.type).toBe("deck_card.delete");
+  });
+
+  it("le + prend au stock identique, sinon fait choisir une autre impression dans le détail (P3)", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", false);
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 2 });
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: 9, quantity: 1 });
+    await screen.findByTestId("deck-card");
+    const plus = () => plusOf(/Ajouter un exemplaire de Élan vital/);
+
+    // Le seul exemplaire FR est déjà pris : il en reste en EN, l'utilisateur choisit.
+    await waitFor(() => expect(plus()).toHaveAttribute("data-plus", "choose"));
+    const before = (await runtime.outbox.list()).length;
+    fireEvent.click(plus());
+    const option = await screen.findByTestId("deck-card-stock-option");
+    expect(option).toHaveAttribute("data-language", "EN");
+    expect((await runtime.outbox.list()).length).toBe(before); // rien d'envoyé sans choix
+
+    fireEvent.click(option);
+    await waitFor(async () =>
+      expect((await runtime.outbox.list()).at(-1)!.operation).toMatchObject({
+        type: "deck_card.upsert",
+        data: { card_id: 1, language_code: "EN", card_set_id: 9, quantity: 1, proxy_quantity: 0 },
+      }),
+    );
+    // Deux impressions : la ligne fusionnée n'a plus de stepper, mais l'icône de P2.
+    await waitFor(() => expect(screen.getByTestId("deck-card")).toHaveAttribute("data-lines", "2"));
+    expect(within(screen.getByTestId("deck-card")).getByTestId("deck-card-merged")).toHaveAccessibleName(
+      /2 impressions : modifiez les quantités dans le détail/,
+    );
+    expect(screen.getAllByTestId("deck-card-line")).toHaveLength(2);
+
+    // L'icône des impressions ouvre et referme le détail, comme le nom.
+    const merged = within(screen.getByTestId("deck-card")).getByTestId("deck-card-merged");
+    expect(merged).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(merged);
+    expect(screen.queryByTestId("deck-card-detail")).not.toBeInTheDocument();
+    expect(merged).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(merged);
+    expect(screen.getAllByTestId("deck-card-line")).toHaveLength(2);
+  });
+
+  it("le + ajoute un proxy sans stock si le deck l'autorise, et se désactive sinon (P3)", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", true);
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: 9, quantity: 1, proxyQuantity: 1 });
+    await screen.findByTestId("deck-card");
+    const plus = () => plusOf(/Ajouter un exemplaire de Élan vital/);
+    await waitFor(() => expect(plus()).toHaveAttribute("data-plus", "proxy"));
+    fireEvent.click(plus());
+    await waitFor(() => expect(screen.getByTestId("deck-card")).toHaveAttribute("data-proxy-quantity", "2"));
+    expect((await runtime.outbox.list()).at(-1)!.operation).toMatchObject({
+      type: "deck_card.upsert",
+      data: { quantity: 2, proxy_quantity: 2 },
+    });
+  });
+
+  it("le + est désactivé sans stock dans un deck qui refuse les proxies (P3)", async () => {
+    const { runtime, key } = await withDeck({}, "Malkavien", false);
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveDeckCard(key, { cardId: 1, languageCode: "FR", cardSetId: 9, quantity: 1 });
+    await screen.findByTestId("deck-card");
+    const plus = () => plusOf(/Ajouter un exemplaire de Élan vital/);
+    await waitFor(() => expect(plus()).toHaveAttribute("data-plus", "disabled"));
+    expect(plus()).toBeDisabled();
+    expect(plus()).toHaveAttribute("title", expect.stringMatching(/n'autorise pas les proxies/));
   });
 
   it("clampe le nombre de copies à 1 au minimum (saisie directe, pas seulement le bouton −)", async () => {
@@ -678,7 +757,8 @@ describe("decks : composition", () => {
       proxyQuantity: 3,
     });
     const line = await screen.findByTestId("deck-card");
-    const convert = within(line).getByTestId("deck-card-convert");
+    fireEvent.click(within(line).getByTestId("deck-card-open"));
+    const convert = await screen.findByTestId("deck-card-convert");
     const minus = within(convert).getByRole("button", { name: /Retirer un proxy à acquérir/ });
     const plus = within(convert).getByRole("button", { name: /Ajouter un proxy à acquérir/ });
 
@@ -713,7 +793,9 @@ describe("decks : cycle de vie", () => {
 
     fireEvent.click(screen.getByTestId("deck-archive"));
     expect(await screen.findByTestId("deck-archived-note")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ajouter un exemplaire de Élan vital/ })).toBeDisabled();
+    // Deck archivé : plus de stepper, la quantité se lit seulement.
+    expect(screen.queryByRole("button", { name: /Ajouter un exemplaire de Élan vital/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId("deck-card")).toHaveTextContent("1×");
     expect(screen.getByTestId("deck-status-toggle")).toBeDisabled();
     expect(screen.getByTestId("deck-edit")).toBeDisabled();
     expect(screen.queryByTestId("deck-card-form")).not.toBeInTheDocument();
@@ -835,9 +917,10 @@ describe("decks : légalité", () => {
   });
 });
 
-describe("decks : légalité détaillée au bureau (Lot 5c, étape 1)", () => {
-  // jsdom vaut 1024 par défaut : bureau. Le détail vit sous `DeckLegalitySummary`,
-  // dans l'en-tête du Deckbuilder, sur la lecture unique du verdict.
+describe("decks : légalité détaillée au bureau (Lot 5c, étape 1 ; pastille au lot Affichage des decks)", () => {
+  // jsdom vaut 1024 par défaut : bureau. Le détail vit dans l'infobulle de la
+  // pastille `DeckLegalityBadge`, à côté de la méta, sur la lecture unique du
+  // verdict ; il est dans le DOM même masqué, relié par `aria-describedby`.
   const requestsForLegality = (app: App) =>
     app.ui.requests.filter((request) => request.path.endsWith("/legalite"));
 
@@ -860,12 +943,20 @@ describe("decks : légalité détaillée au bureau (Lot 5c, étape 1)", () => {
     // Brouillon illégal : note, mais pas d'alerte.
     expect(screen.getByTestId("legality-draft-note")).toBeInTheDocument();
     expect(screen.queryByTestId("legality-active-illegal")).not.toBeInTheDocument();
-    // Le résumé compact reste en place, et le mobile n'est pas rendu en double.
-    expect(screen.getByTestId("deck-summary-verdict")).toHaveTextContent("Deck illégal");
+    // La pastille porte le premier motif, l'infobulle le verdict chiffré et le
+    // détail ; le mobile n'est pas rendu en double.
+    expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Illégal · crypte 11/12");
+    const pastille = screen.getByTestId("deck-legality-refresh");
+    expect(pastille).toHaveAttribute("data-legal", "false");
+    const tooltip = screen.getByTestId("deck-legality-tooltip");
+    expect(tooltip).toHaveAttribute("role", "tooltip");
+    expect(pastille).toHaveAttribute("aria-describedby", tooltip.id);
+    expect(tooltip).toHaveTextContent("Deck illégal · crypte 11, bibliothèque");
+    expect(tooltip).toContainElement(issues);
     expect(screen.queryByTestId("legality-panel")).not.toBeInTheDocument();
 
-    // « Recalculer » relance l'unique lecture : une requête de plus, pas deux
-    // (le détail ne rappelle pas `useDeckLegality`).
+    // Un clic sur la pastille relance l'unique lecture : une requête de plus,
+    // pas deux (l'infobulle ne rappelle pas `useDeckLegality`).
     const before = requestsForLegality(app).length;
     fireEvent.click(screen.getByTestId("deck-legality-refresh"));
     await waitFor(() => expect(requestsForLegality(app)).toHaveLength(before + 1));
@@ -1010,6 +1101,69 @@ describe("decks : picker, symétrie mobile / bureau (Lot 5c, étape 4)", () => {
     await screen.findByTestId("deck-card-form-selected");
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByTestId("deck-card-form-selected")).not.toBeInTheDocument());
+  });
+});
+
+describe("decks : picker repliable et onglets (lot Affichage des decks, D5)", () => {
+  const PICKER_OPEN_KEY = "gurchon-hall:deck-picker-open";
+  beforeEach(() => window.localStorage.removeItem(PICKER_OPEN_KEY));
+  afterEach(() => window.localStorage.removeItem(PICKER_OPEN_KEY));
+
+  it("bureau : le picker, ouvert par défaut, se replie et le reste après un retour sur le deck (P9)", async () => {
+    const { key } = await withDeck();
+    expect(await screen.findByTestId("deck-card-form")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("deck-picker-collapse"));
+    expect(screen.queryByTestId("deck-card-form")).not.toBeInTheDocument();
+    expect(screen.getByTestId("deck-picker-expand")).toHaveAttribute("aria-expanded", "false");
+    expect(window.localStorage.getItem(PICKER_OPEN_KEY)).toBe("false");
+
+    // La page se remonte : le choix vient de l'appareil, pas de l'état du composant.
+    act(() => {
+      window.location.hash = hrefFor({ name: "decks" });
+    });
+    await screen.findByTestId("decks-page");
+    openDeck(key);
+    await screen.findByTestId("deck-page");
+    expect(screen.getByTestId("deck-picker-expand")).toBeInTheDocument();
+    expect(screen.queryByTestId("deck-card-form")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("deck-picker-expand"));
+    expect(await screen.findByTestId("deck-card-form")).toBeInTheDocument();
+    expect(window.localStorage.getItem(PICKER_OPEN_KEY)).toBe("true");
+  });
+
+  it("bureau : un deck archivé n'a ni picker ni bouton pour le rouvrir", async () => {
+    const { runtime, key } = await withDeck();
+    await act(() => runtime.actions.archiveDeck(key, true));
+    await screen.findByTestId("deck-archived-note");
+    expect(screen.queryByTestId("deck-card-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deck-picker-expand")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("deck-picker-collapse")).not.toBeInTheDocument();
+  });
+
+  it("bureau : onglets Crypte / Bibliothèque, Bibliothèque par défaut, qui filtrent la recherche (P9)", async () => {
+    await withDeck();
+    const form = await screen.findByTestId("deck-card-form");
+    expect(within(form).getByTestId("deck-card-form-category-library")).toBeChecked();
+
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "theo" } });
+    expect(await within(form).findByTestId("card-picker-no-result")).toBeInTheDocument();
+
+    fireEvent.click(within(form).getByTestId("deck-card-form-category-crypt"));
+    expect(await within(form).findByTestId("card-picker-option")).toHaveTextContent("Theo Bell");
+  });
+
+  it("mobile : la feuille d'ajout a les mêmes onglets (P9)", async () => {
+    setViewportWidth(390);
+    await withDeck();
+    const form = await openAddCardSheet();
+    expect(within(form).getByTestId("deck-card-form-category-library")).toBeChecked();
+    fireEvent.click(within(form).getByTestId("deck-card-form-category-crypt"));
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "elan" } });
+    expect(await within(form).findByTestId("card-picker-no-result")).toBeInTheDocument();
+    fireEvent.change(within(form).getByLabelText("Rechercher une carte"), { target: { value: "theo" } });
+    expect(await within(form).findByTestId("card-picker-option")).toHaveTextContent("Theo Bell");
   });
 });
 

@@ -1,5 +1,5 @@
 import { NON_TITLED, NOT_REQUIRED, REFLEX_TYPE, REQUIRES_NON_TITLED, REQUIRES_TITLED, REQUIRES_TITLED_SPECIFIC, type SearchCatalog } from "../../offline/vtes";
-import { VIRTUE_CODES } from "./glyphs";
+import { VIRTUE_CODES } from "../../components/glyphs/glyphs";
 
 /**
  * Valeurs proposées par les filtres de Chercher (D1c), lues dans le catalogue

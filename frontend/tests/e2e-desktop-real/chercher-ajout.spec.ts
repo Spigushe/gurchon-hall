@@ -146,7 +146,7 @@ test("deckbuilder : `/` reste au picker, image de l'impression choisie, lien ver
 
   await picker.getByTestId("search-from-deck").click();
   await expect(page.getByTestId("search-page")).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`#/chercher\\?deck=id%3A${deck.id}$`));
+  await expect(page).toHaveURL(new RegExp(`#/chercher\\?deck=id:${deck.id}$`));
   await expect(page.getByTestId("search-deck-banner")).toContainText("Deck à compléter");
   await expect(searchRows(page)).toHaveCount(9);
   await expect(searchRows(page).filter({ hasText: CARDS.awe })).toHaveCount(0);

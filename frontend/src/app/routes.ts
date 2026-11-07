@@ -53,6 +53,16 @@ function actionOf<T>(hash: string, table: Record<string, T>): T | null {
   return value !== null && Object.hasOwn(table, value) ? table[value] : null;
 }
 
+/**
+ * Clé de ressource dans l'adresse : `#/decks/id:1` plutôt que `#/decks/id%3A1`.
+ * Les deux-points sont permis tels quels dans un fragment ; tout autre caractère
+ * réservé reste encodé. La lecture décode toujours, si bien qu'un ancien lien en
+ * `%3A` s'ouvre encore.
+ */
+function keySegment(key: string): string {
+  return encodeURIComponent(key).replace(/%3A/gi, ":");
+}
+
 function decodeKey(raw: string): string | null {
   try {
     return decodeURIComponent(raw);
@@ -123,15 +133,15 @@ export function hrefFor(route: Route): string {
     case "decks":
       return route.intent ? "#/decks?action=nouveau" : "#/decks";
     case "deck":
-      return `#/decks/${encodeURIComponent(route.key)}`;
+      return `#/decks/${keySegment(route.key)}`;
     case "games":
       return route.intent ? "#/parties?action=nouvelle" : "#/parties";
     case "game":
-      return `#/parties/${encodeURIComponent(route.key)}`;
+      return `#/parties/${keySegment(route.key)}`;
     case "tournaments":
       return "#/tournois";
     case "tournament":
-      return `#/tournois/${encodeURIComponent(route.key)}`;
+      return `#/tournois/${keySegment(route.key)}`;
     case "notebook":
       return "#/carnet";
     case "sync":
@@ -140,7 +150,8 @@ export function hrefFor(route: Route): string {
       const params = new URLSearchParams();
       if (route.q) params.set("q", route.q);
       if (route.deck) params.set("deck", route.deck);
-      const query = params.toString();
+      // Mêmes deux-points lisibles dans `deck=id:4` (et dans le texte cherché).
+      const query = params.toString().replace(/%3A/gi, ":");
       return query ? `#/chercher?${query}` : "#/chercher";
     }
     case "not-found":

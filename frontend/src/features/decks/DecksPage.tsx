@@ -11,17 +11,22 @@ import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { isInteractiveTarget, useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { DECK_STATUS_LABELS, plural } from "../../labels";
+import { GlyphIcon } from "../../components/glyphs/Glyph";
+import { clanGlyph } from "../../components/glyphs/glyphs";
 import {
   useLocalDeckCards,
+  useLocalDeckCardsByDeck,
   useLocalDecks,
   useVtesOffline,
   type DeckKey,
   type DeckListState,
   type LocalDeck,
-  type LocalDeckCard,
 } from "../../offline/vtes";
-import { DeckLegalitySummary } from "./DeckLegalitySummary";
-import { useCardCategoriesById } from "./useCardCategories";
+import { DeckLegalityTag } from "./DeckLegalityTag";
+import { DeckTables } from "./DeckTables";
+import { buildDeckTables, deckListSummary, type DeckListSummary } from "./deckTablesModel";
+import { useDeckCardFacts } from "./useDeckCardFacts";
+import { useLastDefined } from "./useLastDefined";
 
 const STATES: Array<{ value: DeckListState; label: string }> = [
   { value: "active", label: "En cours" },
@@ -179,11 +184,14 @@ function DeckItem({
   isDesktop,
   selected,
   onSelect,
+  summary,
 }: {
   deck: LocalDeck;
   isDesktop: boolean;
   selected: boolean;
   onSelect: () => void;
+  /** Comptes et clans (P7) ; `undefined` tant que les lignes ne sont pas lues. */
+  summary: DeckListSummary | undefined;
 }) {
   const content = (
     <>
@@ -203,6 +211,11 @@ function DeckItem({
               <span data-testid="deck-proxy-allowed-badge">proxies autorisés</span>
             </>
           )}
+          {summary && (
+            <span data-testid="deck-item-counts" title="Crypte / bibliothèque">
+              {` · ${summary.crypt} / ${summary.library}`}
+            </span>
+          )}
         </span>
         {deck.pending && (
           <span className="row__pending" data-testid="pending-badge">
@@ -211,6 +224,14 @@ function DeckItem({
           </span>
         )}
       </span>
+      {summary && summary.clans.length > 0 && (
+        <span className="deck-item__clans" data-testid="deck-item-clans">
+          {summary.clans.map((clan) => {
+            const glyph = clanGlyph(clan);
+            return glyph ? <GlyphIcon key={clan} glyph={glyph} label={clan} /> : null;
+          })}
+        </span>
+      )}
       <ArrowUpRightIcon size={18} className="row__arrow" />
     </>
   );
@@ -243,19 +264,17 @@ function DeckItem({
 }
 
 /**
- * Composition du deck prévisualisé, réduite à deux colonnes Crypte /
- * Bibliothèque (handoff DESKTOP.md « d04 », « crypte et bibliothèque par type
- * en deux colonnes »). Écart assumé du plan (`docs/lot5bis-plan-design.md`,
- * « Ce que ce lot ne touche pas ») : le miroir local d'une ligne de deck ne
- * porte pas le type de bibliothèque (Master, Action…), seulement la
- * catégorie retrouvée dans le miroir catalogue (`useCardCategoriesById`) —
- * donc deux colonnes par catégorie, sans regroupement par sous-type.
+ * Composition du deck prévisualisé, en tableaux crypte / bibliothèque en
+ * lecture seule (lot Affichage des decks, handoff `DECKS.md` d22). Remplace
+ * les deux colonnes de texte du Lot 5bis.
  */
-function DeckCompositionColumns({ lines }: { lines: LocalDeckCard[] | undefined }) {
+function DeckPreviewTables({ deck }: { deck: LocalDeck }) {
+  const lines = useLocalDeckCards(deck.key);
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
-  const categories = useCardCategoriesById(cardIds);
+  const facts = useLastDefined(useDeckCardFacts(cardIds));
+  const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
 
-  if (lines === undefined || categories === undefined) {
+  if (lines === undefined || tables === null) {
     return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
   }
   if (lines.length === 0) {
@@ -265,107 +284,67 @@ function DeckCompositionColumns({ lines }: { lines: LocalDeckCard[] | undefined 
       </p>
     );
   }
-
-  const crypt: LocalDeckCard[] = [];
-  const library: LocalDeckCard[] = [];
-  for (const line of lines) {
-    (categories.get(line.cardId) === "crypt" ? crypt : library).push(line);
-  }
-
-  const column = (title: string, cards: LocalDeckCard[], testId: string) => {
-    // Une même carte peut apparaître en plusieurs lignes (langue et/ou
-    // extension différentes, cf. LocalDeckCard) : ce panneau de résumé en
-    // lecture seule fusionne les lignes par carte plutôt que d'afficher une
-    // entrée par triplet carte × langue × extension. L'ordre d'apparition du
-    // tableau reçu (déjà trié par `readDeckCards`) est conservé.
-    const grouped = new Map<number, { cardId: number; cardName: string | null; quantity: number }>();
-    for (const line of cards) {
-      const existing = grouped.get(line.cardId);
-      if (existing) {
-        existing.quantity += line.quantity;
-      } else {
-        grouped.set(line.cardId, {
-          cardId: line.cardId,
-          cardName: line.cardName,
-          quantity: line.quantity,
-        });
-      }
-    }
-    const aggregated = Array.from(grouped.values());
-
-    return (
-      <div>
-        <p className="kicker">{title}</p>
-        {aggregated.length === 0 ? (
-          <p className="hint">Aucune.</p>
-        ) : (
-          <ul className="deck-columns__list" data-testid={testId}>
-            {aggregated.map((entry) => (
-              <li key={entry.cardId}>
-                {entry.quantity}× {entry.cardName ?? `Carte n° ${entry.cardId}`}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="deck-columns" data-testid="decks-detail-columns">
-      {column("Crypte", crypt, "decks-detail-crypt")}
-      {column("Bibliothèque", library, "decks-detail-library")}
-    </div>
-  );
+  const showProxies = deck.proxyAllowed || lines.some((line) => line.proxyQuantity > 0);
+  return <DeckTables tables={tables} showProxies={showProxies} />;
 }
 
 /**
- * Panneau de droite du maître/détail bureau (DESKTOP.md « d04 ») : titre
- * 30px (`.page-title`, déjà cette taille par défaut), verdict + quatre
- * chiffres (`DeckLegalitySummary`, factorisé pour l'étape 11), composition en
- * deux colonnes, puis l'action qui ouvre réellement le deck (le deckbuilder
- * existant, `DeckDetailPage`, plein écran).
+ * Panneau de droite du maître/détail bureau (handoff `DECKS.md` d22) : kicker
+ * « Aperçu », titre, méta et badge de légalité, l'action qui ouvre le
+ * deckbuilder, puis les tableaux en lecture seule.
  */
 function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
-  const lines = useLocalDeckCards(deck.key);
-
   return (
     <>
       <div>
-        <h2 className="page-title" data-testid="decks-detail-title">
+        <p className="deck-preview__kicker">Aperçu</p>
+        <h2 className="page-title deck-preview__title" data-testid="decks-detail-title">
           {deck.name}
         </h2>
-        <p className="page-meta">
-          <span data-testid="decks-detail-discriminator">
-            {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
-          </span>
-          {" · "}
-          {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-          {deck.archivedAt && " · archivé"}
-          {deck.archetype && ` · ${deck.archetype}`}
-        </p>
+        <div className="deck-preview__line">
+          <p className="deck-preview__meta">
+            <span>
+              <span data-testid="decks-detail-discriminator">
+                {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
+              </span>
+              {" · "}
+              {DECK_STATUS_LABELS[deck.status].toLowerCase()}
+              {deck.archivedAt && " · archivé"}
+              {deck.archetype && ` · ${deck.archetype}`}
+              {deck.proxyAllowed && " · proxies autorisés"}
+            </span>
+            <DeckLegalityTag deck={deck} />
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="decks-detail-open"
+            aria-keyshortcuts="Enter"
+            onClick={() => navigate({ name: "deck", key: deck.key })}
+          >
+            Ouvrir le deckbuilder
+            <Kbd>↵</Kbd>
+          </button>
+        </div>
       </div>
 
-      <DeckLegalitySummary deck={deck} lines={lines} />
-
-      <div>
-        <p className="kicker">Composition</p>
-        <DeckCompositionColumns lines={lines} />
-      </div>
-
-      <button
-        type="button"
-        className="btn btn-primary"
-        data-testid="decks-detail-open"
-        aria-keyshortcuts="Enter"
-        onClick={() => navigate({ name: "deck", key: deck.key })}
-      >
-        Ouvrir le deckbuilder
-        <Kbd>↵</Kbd>
-      </button>
+      <DeckPreviewTables key={deck.key} deck={deck} />
     </>
   );
 }
+
+/** Comptes et clans de chaque deck (P7), en deux lectures pour toute la liste. */
+function useDeckListSummaries(): Map<DeckKey, DeckListSummary> | undefined {
+  const byDeck = useLocalDeckCardsByDeck();
+  const cardIds = useMemo(() => [...(byDeck?.values() ?? [])].flat().map((line) => line.cardId), [byDeck]);
+  const facts = useDeckCardFacts(cardIds);
+  return useMemo(() => {
+    if (byDeck === undefined || facts === undefined) return undefined;
+    return new Map([...byDeck].map(([key, lines]) => [key, deckListSummary(lines, facts)]));
+  }, [byDeck, facts]);
+}
+
+const EMPTY_SUMMARY: DeckListSummary = { crypt: 0, library: 0, clans: [] };
 
 /**
  * Liste des decks (lecture locale) et création. Mobile (< 1024px) : liste
@@ -389,6 +368,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   const [selectedKey, setSelectedKey] = useState<DeckKey | null>(null);
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ state, q: deferred || undefined });
+  const summaries = useDeckListSummaries();
   const isDesktop = useIsDesktop();
 
   // Intention portée par l'adresse (`#/decks?action=nouveau`, raccourci de
@@ -538,6 +518,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
                   isDesktop={isDesktop}
                   selected={selectedDeck?.key === deck.key}
                   onSelect={() => setSelectedKey(deck.key)}
+                  summary={summaries ? (summaries.get(deck.key) ?? EMPTY_SUMMARY) : undefined}
                 />
               ))}
             </ul>

@@ -66,7 +66,7 @@ describe("route Chercher", () => {
 
   it("reconstruit l'adresse avec q et deck", () => {
     expect(hrefFor({ name: "search" })).toBe("#/chercher");
-    expect(hrefFor({ name: "search", q: "a b", deck: "id:4" as never })).toBe("#/chercher?q=a+b&deck=id%3A4");
+    expect(hrefFor({ name: "search", q: "a b", deck: "id:4" as never })).toBe("#/chercher?q=a+b&deck=id:4");
   });
 });
 
@@ -111,7 +111,7 @@ describe("page Chercher, mobile", () => {
     const app = await renderSeeded("#/chercher?deck=id:4");
     expect(await screen.findByTestId("search-deck-banner")).toHaveTextContent("Brujah Rush");
     fireEvent.change(screen.getByTestId("search-input"), { target: { value: "theo" } });
-    await waitFor(() => expect(window.location.hash).toBe("#/chercher?q=theo&deck=id%3A4"));
+    await waitFor(() => expect(window.location.hash).toBe("#/chercher?q=theo&deck=id:4"));
     // Theo Bell est dans le deck : « pas dans ce deck » l'écarte.
     expect(await screen.findByTestId("search-no-result")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("search-deck-clear"));
@@ -553,7 +553,7 @@ describe("champ global, `/`, images et lien depuis un deck (D3), bureau", () => 
     await flushEffects();
     fireEvent.keyDown(document.body, { key: "/" });
     expect(document.activeElement).toBe(within(picker).getByLabelText("Rechercher une carte"));
-    expect(within(picker).getByTestId("search-from-deck")).toHaveAttribute("href", "#/chercher?deck=id%3A4");
+    expect(within(picker).getByTestId("search-from-deck")).toHaveAttribute("href", "#/chercher?deck=id:4");
   });
 
   it("en ligne, la fiche lit ambiance et artiste à la demande ; hors ligne, l'image dit qu'elle manque", async () => {
@@ -575,7 +575,7 @@ describe("champ global, `/`, images et lien depuis un deck (D3), bureau", () => 
 describe("images et lien depuis un deck (D3), mobile", () => {
   it("le détail d'un deck propose Chercher pour ce deck, sauf archivé", async () => {
     const app = await renderSeeded("#/decks/id:4");
-    expect(await screen.findByTestId("search-from-deck")).toHaveAttribute("href", "#/chercher?deck=id%3A4");
+    expect(await screen.findByTestId("search-from-deck")).toHaveAttribute("href", "#/chercher?deck=id:4");
     app.unmount();
     const server = seededServer();
     server.state.decks[0].archived_at = "2026-10-01T10:00:00Z";

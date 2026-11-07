@@ -23,7 +23,7 @@ import {
   RemoveButton,
   type CellLevel,
 } from "./FilterControls";
-import { ClanGlyph, DisciplineGlyph, TypeGlyph } from "./Glyph";
+import { ClanGlyph, DisciplineGlyph, TypeGlyph } from "../../components/glyphs/Glyph";
 import {
   DECK_FILTER_LABELS,
   GENERIC_MODE_HELP,

@@ -48,11 +48,14 @@ export function CardPicker({
   selectedCardId = null,
   clearOnSelect = true,
   searchInputRef,
+  category,
 }: {
   onSelect: (card: CardRow) => void;
   selectedCardId?: number | null;
   clearOnSelect?: boolean;
   searchInputRef?: RefObject<HTMLInputElement | null>;
+  /** Limite la recherche à une catégorie (onglets du picker de deck, lot Affichage des decks). */
+  category?: CardRow["category"];
 }) {
   const inputId = useId();
   const catalog = useCatalog();
@@ -60,7 +63,7 @@ export function CardPicker({
   const [term, setTerm] = useState("");
   const deferred = useDeferredValue(term.trim());
   const searching = deferred.length >= MIN_TERM;
-  const results = useLocalCardSearch({ q: searching ? deferred : "", limit: 20 });
+  const results = useLocalCardSearch({ q: searching ? deferred : "", category, limit: 20 });
   const ownedByCard = useMemo(() => {
     const totals = new Map<number, number>();
     for (const entry of stock ?? []) {

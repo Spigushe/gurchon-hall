@@ -1,6 +1,6 @@
 import { useId, type ReactNode } from "react";
 import { PlusIcon, TrashIcon, XIcon } from "@phosphor-icons/react";
-import { DisciplineGlyph } from "./Glyph";
+import { DisciplineGlyph } from "../../components/glyphs/Glyph";
 import { MODE_LABELS, nextMode, numberLineLabel, type AnyMode } from "./searchModel";
 import type { Comparison, DisciplineChoice, NumberLine } from "../../offline/vtes";
 import type { DisciplineOption } from "./searchOptions";

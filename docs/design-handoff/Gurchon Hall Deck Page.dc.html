@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="nocturne/styles.css">
+<style>
+@font-face{font-family:"Ankha";src:url("https://static.krcg.org/web/ankha2.otf") format("opentype");font-display:swap}
+@font-face{font-family:"VtesClans";src:url("https://static.krcg.org/web/vtes-clans.otf") format("opentype");font-display:swap}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+a{color:var(--color-accent-300)}a:hover{color:var(--color-accent-200)}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;gap:var(--space-6);padding:var(--space-6) var(--space-8);box-sizing:border-box;background:radial-gradient(120% 60% at 0% 0%, var(--color-neutral-900), var(--color-bg))">
+
+  <header style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--space-6)">
+    <div style="display:flex;flex-direction:column;gap:var(--space-2);min-width:0">
+      <div style="font-size:12px;color:var(--color-neutral-300);letter-spacing:.06em;text-transform:uppercase">Mes decks · spigushe</div>
+      <h1 style="margin:0;font-family:var(--font-heading);font-weight:500;font-size:26px;line-height:1.2">Guns and shit (Mostly guns)</h1>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;font-size:13px;color:var(--color-neutral-300)">
+        <span>par Édouard Menneson</span>
+        <span class="tag tag-neutral">Brujah</span>
+        <span class="tag tag-neutral">Anarch</span>
+        <span class="tag tag-outline">+ tag</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+      <button class="btn btn-primary">Exporter</button>
+      <button class="btn btn-secondary">Cloner</button>
+      <button class="btn btn-secondary">PDF proxy</button>
+      <button class="btn btn-ghost">Plus…</button>
+    </div>
+  </header>
+
+  <div style="display:flex;gap:var(--space-6);align-items:flex-start;flex-wrap:wrap">
+
+    <main style="flex:1 1 640px;min-width:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:var(--space-6);align-items:start">
+
+      <section style="background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-4) var(--space-3);border-bottom:1px solid var(--color-neutral-800)">
+          <h2 style="margin:0;font-weight:500;font-size:16px">Crypte <span style="color:var(--color-accent-300)">{{ cryptCount }}</span></h2>
+          <div style="display:flex;gap:var(--space-4);font-size:12px;color:var(--color-neutral-300)">
+            <span>{{ cryptGroups }}</span><span>cap. moy. {{ cryptAvg }}</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:78px 26px minmax(0,1fr) auto 30px 30px;gap:var(--space-3);padding:var(--space-2) var(--space-4);font-size:11px;color:var(--color-neutral-400);text-transform:uppercase;letter-spacing:.05em">
+          <span>Qté</span><span>Cap</span><span>Nom</span><span>Disc.</span><span>Clan</span><span style="text-align:right">G</span>
+        </div>
+        <sc-for list="{{ crypt }}" as="c" hint-placeholder-count="7">
+          <div style="display:grid;grid-template-columns:78px 26px minmax(0,1fr) auto 30px 30px;gap:var(--space-3);align-items:center;height:34px;padding:0 var(--space-4);background:{{ c.bg }}">
+            <div style="display:flex;align-items:center;gap:2px">
+              <button onClick="{{ c.dec }}" aria-label="Retirer" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">−</button>
+              <span style="width:24px;text-align:center;font-variant-numeric:tabular-nums;font-size:14px">{{ c.n }}</span>
+              <button onClick="{{ c.inc }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">+</button>
+            </div>
+            <span style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:600;background:var(--color-neutral-800);color:var(--color-text);box-shadow:inset 0 0 0 1px var(--color-accent-700)">{{ c.cap }}</span>
+            <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;color:var(--color-text);cursor:pointer" style-hover="color:var(--color-accent-200)">{{ c.name }}</span>
+            <span style="display:flex;gap:5px;align-items:center">
+              <sc-for list="{{ c.discs }}" as="d" hint-placeholder-count="3">
+                <span title="{{ d.label }}" style="font-family:Ankha;font-size:22px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ d.glyph }}</span>
+              </sc-for>
+            </span>
+            <span title="{{ c.clan }}" style="font-family:VtesClans;font-size:22px;line-height:1;color:var(--color-neutral-100);text-align:center">{{ c.clanGlyph }}</span>
+            <span style="text-align:right;font-size:12px;color:var(--color-neutral-300);font-variant-numeric:tabular-nums">G{{ c.group }}</span>
+          </div>
+        </sc-for>
+      </section>
+
+      <section style="background:var(--color-surface);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-sm)">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-4) var(--space-3);border-bottom:1px solid var(--color-neutral-800)">
+          <h2 style="margin:0;font-weight:500;font-size:16px">Bibliothèque <span style="color:var(--color-accent-300)">{{ libCount }}</span></h2>
+          <div style="display:flex;gap:var(--space-4);font-size:12px;color:var(--color-neutral-300)">
+            <span>{{ libBlood }} sang</span><span>{{ libPool }} réserve</span>
+            <sc-if value="{{ showProxies }}" hint-placeholder-val="{{ true }}"><span>{{ proxyCount }} proxies</span></sc-if>
+          </div>
+        </div>
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+          <div>
+            <div style="display:flex;align-items:baseline;gap:var(--space-2);padding:var(--space-4) var(--space-4) var(--space-2)">
+              <span style="font-family:Ankha;font-size:18px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100);align-self:center">{{ g.glyph }}</span>
+              <span style="font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--color-accent-300)">{{ g.type }}</span>
+              <span style="font-size:12px;color:var(--color-neutral-400);font-variant-numeric:tabular-nums">{{ g.count }}</span>
+              <span style="font-size:12px;color:var(--color-neutral-500)">{{ g.note }}</span>
+            </div>
+            <div style="height:1px;margin:0 var(--space-4) var(--space-1);background:linear-gradient(90deg, var(--color-accent-600), var(--color-neutral-700) 40%, transparent)"></div>
+            <sc-for list="{{ g.cards }}" as="c" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:78px minmax(0,1fr) auto 28px 28px 24px;gap:var(--space-3);align-items:center;height:32px;padding:0 var(--space-4);background:{{ c.bg }}">
+                <div style="display:flex;align-items:center;gap:2px">
+                  <button onClick="{{ c.dec }}" aria-label="Retirer" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">−</button>
+                  <span style="width:24px;text-align:center;font-variant-numeric:tabular-nums;font-size:14px">{{ c.n }}</span>
+                  <button onClick="{{ c.inc }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-neutral-700);background:transparent;color:var(--color-neutral-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;line-height:1;padding:0" style-hover="border-color:var(--color-accent);color:var(--color-accent-200)">+</button>
+                </div>
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;cursor:pointer" style-hover="color:var(--color-accent-200)">{{ c.name }}</span>
+                <span style="display:flex;gap:5px;align-items:center">
+                  <sc-for list="{{ c.discs }}" as="d" hint-placeholder-count="0">
+                    <span title="{{ d.label }}" style="font-family:Ankha;font-size:20px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ d.glyph }}</span>
+                  </sc-for>
+                </span>
+                <span title="{{ c.clan }}" style="font-family:VtesClans;font-size:20px;line-height:1;color:var(--color-neutral-100);text-align:center">{{ c.clanGlyph }}</span>
+                <span title="{{ c.costLabel }}" style="justify-self:end;font-family:Ankha;font-size:20px;line-height:1;color:var(--color-neutral-900);text-shadow:1px 0 0 var(--color-neutral-100),-1px 0 0 var(--color-neutral-100),0 1px 0 var(--color-neutral-100),0 -1px 0 var(--color-neutral-100),1px 1px 0 var(--color-neutral-100),-1px -1px 0 var(--color-neutral-100),1px -1px 0 var(--color-neutral-100),-1px 1px 0 var(--color-neutral-100)">{{ c.cost }}</span>
+                <span title="Proxies" style="justify-self:end;font-size:11px;color:var(--color-neutral-500);font-variant-numeric:tabular-nums">{{ c.proxy }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div style="height:var(--space-3)"></div>
+      </section>
+    </main>
+
+    <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ true }}">
+      <aside style="flex:0 1 300px;min-width:260px;background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <h2 style="margin:0;font-weight:500;font-size:16px">Ajouter des cartes</h2>
+          <button class="btn btn-ghost btn-icon" onClick="{{ togglePicker }}" aria-label="Replier">›</button>
+        </div>
+        <div class="seg">
+          <label class="seg-opt"><input type="radio" name="picker-tab" checked="{{ isCryptTab }}" onChange="{{ tabCrypt }}">Crypte</label>
+          <label class="seg-opt"><input type="radio" name="picker-tab" checked="{{ isLibTab }}" onChange="{{ tabLib }}">Bibliothèque</label>
+        </div>
+        <input class="input" placeholder="Nom, discipline, texte…" value="{{ query }}" onChange="{{ onQuery }}">
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ results }}" as="r" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);height:32px;padding:0 var(--space-2);border-radius:var(--radius-sm)" style-hover="background:var(--color-neutral-800)">
+              <span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+              <button onClick="{{ r.add }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-accent-700);background:transparent;color:var(--color-accent-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;padding:0;flex:none" style-hover="border-color:var(--color-accent)">+</button>
+            </div>
+          </sc-for>
+        </div>
+      </aside>
+    </sc-if>
+    <sc-if value="{{ pickerClosed }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ togglePicker }}" class="btn btn-secondary" style="writing-mode:vertical-rl;padding:var(--space-4) var(--space-2)">+ Ajouter des cartes</button>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showProxies&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pickerOpenDefault&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const DISC = {abo:'w',ani:'i',aus:'a',cel:'c',chi:'k',dai:'y',dem:'e',dom:'d',for:'f',mel:'m',myt:'x',nec:'n',obe:'b',obf:'o',obt:'$',pot:'p',pre:'r',pro:'j',qui:'q',san:'g',ser:'s',spi:'z',tha:'t',thn:'h',val:'l',vic:'v',vis:'u'};
+const CRYPT = [
+ {id:1,name:'Saku Pihlajamäki',cap:8,d:['CEL','POT','PRE','for','obf'],clan:'Brujah',group:6,n:2},
+ {id:2,name:'Aline Gädeke',cap:7,d:['CEL','POT','pre'],clan:'Brujah',group:6,n:2},
+ {id:3,name:'Valeriya Zinovieva',cap:7,d:['CEL','POT','pre','obf'],clan:'Brujah',group:6,n:2},
+ {id:4,name:'Atiena',cap:6,d:['CEL','POT','pre','for'],clan:'Brujah',group:6,n:2},
+ {id:5,name:'Leumeah',cap:6,d:['CEL','POT','pre','for'],clan:'Brujah',group:6,n:2},
+ {id:6,name:'Anita Wainwright',cap:3,d:['cel','pot'],clan:'Brujah',group:6,n:1},
+ {id:7,name:'Laura Goldman',cap:3,d:['cel','pot'],clan:'Brujah',group:5,n:1}];
+const LIB = [
+ {id:101,type:'Master',name:'Anarch Free Press, The',cost:1,ct:'pool',n:1},
+ {id:102,type:'Master',name:'Carfax Abbey',cost:2,ct:'pool',n:1},
+ {id:103,type:'Master',name:'Club Illusion',cost:1,ct:'pool',n:1},
+ {id:104,type:'Master',name:'Direct Intervention',cost:1,ct:'pool',n:1,p:1},
+ {id:105,type:'Master',name:'Fame',n:1},
+ {id:106,type:'Master',name:'Garibaldi-Meucci Museum',n:1},
+ {id:107,type:'Master',name:'New Carthage',cost:3,ct:'pool',clan:'Brujah',n:1},
+ {id:108,type:'Master',name:'Villein',n:7,p:3},
+ {id:201,type:'Action',name:'Line Brawl',d:['cel','pot','pre'],n:5},
+ {id:202,type:'Action',name:'Open War',clan:'Brujah',n:1},
+ {id:301,type:'Equipment',name:'.44 Magnum',cost:2,ct:'pool',n:4},
+ {id:302,type:'Equipment',name:'Flak Jacket',cost:2,ct:'pool',n:2},
+ {id:303,type:'Equipment',name:'Sniper Rifle',cost:2,ct:'pool',n:2,p:2},
+ {id:401,type:'Combat',name:'Hidden Strength',d:['pot'],n:8},
+ {id:402,type:'Combat',name:'Pursuit',d:['cel'],n:6},
+ {id:403,type:'Combat',name:'Torn Signpost',d:['pot'],cost:1,ct:'blood',n:4,p:2},
+ {id:501,type:'Reaction',name:'On the Qui Vive',n:4},
+ {id:601,type:'Action Modifier',name:'Freak Drive',d:['cel'],n:6}];
+const POOL_C = [{id:8,name:'Theo Bell',cap:7,d:['CEL','DOM','POT','pre'],clan:'Brujah',group:2},{id:9,name:'Smudge the Ignored',cap:9,d:['CEL','POT','PRE','ani','obf'],clan:'Brujah',group:2},{id:10,name:'Jake Washington',cap:6,d:['CEL','POT','pre'],clan:'Brujah',group:4}];
+const POOL_L = [{id:701,type:'Combat',name:'Immortal Grapple',d:['pot']},{id:702,type:'Combat',name:'Taste of Vitae'},{id:703,type:'Master',name:'Blood Doll',n:0},{id:704,type:'Equipment',name:'Uzi',cost:3,ct:'pool'}];
+const TYPE_ORDER = ['Master','Action','Action Modifier','Political Action','Ally','Equipment','Retainer','Combat','Reaction','Event'];
+Object.assign(DISC, {tem:'?', obt:'$', str:'à', mal:'â'});
+const SUP = {tem:'!', obt:'£', str:'á', mal:'ã'};
+const CLAN = {'Brujah':'o','Banu Haqim':'n','Gangrel':'p','Lasombra':'w','Malkavian':'q','Ministry':'r','Nosferatu':'s','Toreador':'t','Tremere':'u','Ventrue':'v','Tzimisce':'k','Ravnos':'b','Salubri':'c','Giovanni':'O','Caitiff':'I','Brujah antitribu':'H','True Brujah':'j','Baali':'E','Gargoyle':'N','Kiasyd':'S','Samedi':'e','Pander':'a','Abomination':'A','Akunanse':'C','Guruhi':'P','Ishtarri':'R','Osebo':'Z','Nagaraja':'W'};
+const TYPE_G = {'Master':'','Action':'0','Action Modifier':'1','Political Action':'2','Ally':'3','Combat':'4','Equipment':'5','Reflex':'6','Reaction':'7','Retainer':'8','Event':'['};
+const BLOOD_G = {1:"'",2:';',3:'.',4:','}, POOL_G = {1:'"',2:':',3:'/',4:'\\',5:']',6:'`'};
+const glyph = d => SUP[d.toLowerCase()] && d === d.toUpperCase() ? {glyph: SUP[d.toLowerCase()], label: d} : {glyph: d === d.toUpperCase() ? DISC[d.toLowerCase()].toUpperCase() : DISC[d], label: d};
+
+class Component extends DCLogic {
+  state = { crypt: CRYPT, lib: LIB, pickerOpen: this.props.pickerOpenDefault ?? true, tab: 'crypt', query: '' };
+  setN(list, id, delta) {
+    this.setState(s => ({ [list]: s[list].map(c => c.id === id ? {...c, n: c.n + delta} : c).filter(c => c.n > 0) }));
+  }
+  add(list, card) {
+    this.setState(s => s[list].some(c => c.id === card.id)
+      ? { [list]: s[list].map(c => c.id === card.id ? {...c, n: c.n + 1} : c) }
+      : { [list]: [...s[list], {...card, n: 1}] });
+  }
+  renderVals() {
+    const { crypt, lib, pickerOpen, tab, query } = this.state;
+    const showProxies = this.props.showProxies ?? true;
+    const zebra = i => i % 2 ? 'color-mix(in oklab, var(--color-neutral-800) 45%, transparent)' : 'transparent';
+    const cryptSorted = [...crypt].sort((a, b) => b.cap - a.cap);
+    const cc = crypt.reduce((s, c) => s + c.n, 0);
+    const avg = cc ? (crypt.reduce((s, c) => s + c.cap * c.n, 0) / cc).toFixed(1) : '0';
+    const gs = [...new Set(crypt.map(c => c.group))].sort();
+    let blood = 0, pool = 0, prox = 0;
+    lib.forEach(c => { if (c.ct === 'blood') blood += (c.cost||0)*c.n; if (c.ct === 'pool') pool += (c.cost||0)*c.n; prox += c.p||0; });
+    const groups = TYPE_ORDER.map(t => lib.filter(c => c.type === t)).filter(a => a.length).map(cards => {
+      const t = cards[0].type, count = cards.reduce((s, c) => s + c.n, 0);
+      const trifle = t === 'Master' ? cards.filter(c => !c.cost).reduce((s, c) => s + c.n, 0) : 0;
+      return { type: t, glyph: TYPE_G[t] || '', count, note: trifle ? `· ${trifle} trifle` : '',
+        cards: cards.map((c, i) => ({ name: c.name, n: c.n, bg: zebra(i),
+          discs: (c.d||[]).map(glyph), clan: c.clan || '', clanGlyph: c.clan ? CLAN[c.clan] || '' : '',
+          cost: c.cost ? (c.ct === 'blood' ? BLOOD_G : POOL_G)[c.cost] || '' : '', costLabel: c.cost ? `${c.cost} ${c.ct === 'blood' ? 'sang' : 'réserve'}` : '',
+          costColor: c.ct === 'blood' ? 'oklch(0.68 0.15 25)' : 'var(--color-neutral-200)',
+          proxy: showProxies && c.p ? `P${c.p}` : '',
+          inc: () => this.setN('lib', c.id, 1), dec: () => this.setN('lib', c.id, -1) })) };
+    });
+    const pool_ = tab === 'crypt' ? POOL_C : POOL_L;
+    const q = query.toLowerCase();
+    return {
+      crypt: cryptSorted.map((c, i) => ({ ...c, bg: zebra(i), clanGlyph: CLAN[c.clan] || '', discs: c.d.map(d => ({...glyph(d), color: d === d.toUpperCase() ? 'var(--color-text)' : 'var(--color-neutral-200)'})),
+        inc: () => this.setN('crypt', c.id, 1), dec: () => this.setN('crypt', c.id, -1) })),
+      cryptCount: cc, cryptAvg: avg, cryptGroups: gs.length ? `G${gs.join('–')}` : '',
+      libCount: lib.reduce((s, c) => s + c.n, 0), libBlood: blood, libPool: pool, proxyCount: prox, showProxies,
+      groups, pickerOpen, pickerClosed: !pickerOpen,
+      togglePicker: () => this.setState(s => ({ pickerOpen: !s.pickerOpen })),
+      isCryptTab: tab === 'crypt', isLibTab: tab === 'lib',
+      tabCrypt: () => this.setState({ tab: 'crypt' }), tabLib: () => this.setState({ tab: 'lib' }),
+      query, onQuery: e => this.setState({ query: e.target.value }),
+      results: pool_.filter(c => c.name.toLowerCase().includes(q)).map(c => ({ name: c.name, add: () => this.add(tab === 'crypt' ? 'crypt' : 'lib', c) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

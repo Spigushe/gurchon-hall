@@ -1,6 +1,7 @@
 /**
  * Icônes de krcg (lot Chercher, handoff `docs/design-handoff/CHERCHER.md`,
- * « Icônes (KRCG) ») : une icône est une lettre d'une des deux polices
+ * « Icônes (KRCG) »), partagées depuis le lot Affichage des decks par Chercher
+ * et les tableaux de deck (`docs/design-handoff/DECKS.md`) : une icône est une lettre d'une des deux polices
  * auto-hébergées (`src/assets/fonts/`), « Ankha VTES » (`ankha2.otf`) pour les
  * disciplines, types, coûts et vertus, « VTES Clans » (`vtes-clans.otf`) pour
  * les clans. Table reprise de `krcg-blogger.js` et relue sur les polices le
@@ -113,6 +114,12 @@ export function costGlyph(costType: string | null, value: string | null): Glyph 
   const char = table?.[value.toUpperCase()];
   return char === undefined ? null : ankha(char);
 }
+
+const COST_LABELS: Record<string, string> = { blood: "sang", pool: "pool", conviction: "conviction" };
+
+/** « 2 pool », « X sang » : le coût en clair, nom accessible d'un glyphe de coût. */
+export const costLabel = (costType: string | null, value: string | null) =>
+  costType && value ? `${value} ${COST_LABELS[costType] ?? costType}` : "aucun";
 
 export const MERGED_GLYPH = ankha("µ");
 export const ADVANCED_GLYPH = ankha("|");

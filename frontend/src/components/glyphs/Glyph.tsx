@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { CardDisciplineDetail } from "../../offline/vtes";
-import { costLabel } from "./searchFormat";
-import { clanGlyph, costGlyph, disciplineGlyph, disciplineLabel, textIcon, typeGlyph, type Glyph } from "./glyphs";
+import { clanGlyph, costGlyph, costLabel, disciplineGlyph, disciplineLabel, textIcon, typeGlyph, type Glyph } from "./glyphs";
 
 /**
  * Une icône de krcg : une lettre d'une police d'icônes, avec un nom

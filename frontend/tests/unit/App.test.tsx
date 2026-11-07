@@ -13,14 +13,10 @@ describe("<App /> : coquille", () => {
     expect(ui.requests).toEqual([]);
   });
 
-  it("garde le texte de la coquille et un seul indicateur role=status (contrat des tests e2e)", async () => {
+  it("garde un seul indicateur role=status (contrat des tests e2e), sans mention de l'app shell", async () => {
     await renderApp({ online: false });
 
-    expect(
-      screen.getByText(
-        "Cette page s'affiche sans connexion réseau : elle constitue la base de l'app shell pour l'expérience hors-ligne (PWA).",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/app shell/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 

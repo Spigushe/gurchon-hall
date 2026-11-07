@@ -120,7 +120,7 @@ test("Chercher depuis un deck (P12) : bandeau, « pas dans ce deck », et pas de
   await page.getByTestId("search-from-deck").click();
 
   await expect(page.getByTestId("search-page")).toBeVisible();
-  await expect(page).toHaveURL(new RegExp(`#/chercher\\?deck=id%3A${deck.id}$`));
+  await expect(page).toHaveURL(new RegExp(`#/chercher\\?deck=id:${deck.id}$`));
   await expect(page.getByTestId("search-deck-banner")).toContainText("Deck à compléter");
   // Awe est déjà dans le deck : « pas dans ce deck » l'écarte, les neuf autres restent.
   await expect(searchRows(page)).toHaveCount(9);

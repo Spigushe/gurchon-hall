@@ -11,6 +11,7 @@ import {
   expectPending,
   expectSynced,
   goToDecks,
+  openDeckCardDetail,
   goToStock,
   openApp,
   readOutbox,
@@ -107,12 +108,20 @@ test("deux impressions de la même carte et langue, saisies hors ligne puis rejo
     cardSetId: secondSetId,
     quantity: 2,
   });
+  await page.keyboard.press("Escape"); // ferme la feuille « Ajouter », restée ouverte après l'envoi
+  // Une seule ligne fusionnée pour la carte (P2 du lot Affichage des decks) :
+  // les deux impressions se lisent dans son détail.
+  const merged = page.locator(`[data-testid="deck-card"][data-card-id="${awe.id}"]`);
+  await expect(merged).toHaveCount(1);
+  await expect(merged).toHaveAttribute("data-quantity", "4");
+  await expect(merged).toHaveAttribute("data-lines", "2");
+  await openDeckCardDetail(page, awe.id);
   await expect(deckCardLine(page, awe.id, "EN", firstLabel)).toHaveAttribute("data-quantity", "2");
   await expect(deckCardLine(page, awe.id, "EN", firstLabel)).toHaveAttribute("data-proxy-quantity", "1");
   await expect(deckCardLine(page, awe.id, "EN", secondLabel)).toHaveAttribute("data-quantity", "2");
   await expect(deckCardLine(page, awe.id, "EN", secondLabel)).toHaveAttribute("data-proxy-quantity", "0");
   await expect(
-    page.getByTestId("deck-card").and(page.locator(`[data-card-id="${awe.id}"][data-language="EN"]`)),
+    page.getByTestId("deck-card-line").and(page.locator(`[data-card-id="${awe.id}"][data-language="EN"]`)),
   ).toHaveCount(2);
 
   // Cinq opérations en file : deux entrées de stock, une création de deck (avec
@@ -128,6 +137,7 @@ test("deux impressions de la même carte et langue, saisies hors ligne puis rejo
   await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
   await expectPending(page, 5);
   await expect(page.getByTestId("deck-page")).toHaveAttribute("data-deck-key", deckKey);
+  await openDeckCardDetail(page, awe.id);
   await expect(deckCardLine(page, awe.id, "EN", firstLabel)).toHaveAttribute("data-proxy-quantity", "1");
   await expect(deckCardLine(page, awe.id, "EN", secondLabel)).toHaveAttribute("data-proxy-quantity", "0");
   expect((await readOutbox(page)).map((row) => row.operationId)).toEqual(queued);

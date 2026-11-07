@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="nocturne/styles.css">
+<style>
+@font-face{font-family:"Ankha";src:url("https://static.krcg.org/web/ankha2.otf") format("opentype");font-display:swap}
+@font-face{font-family:"VtesClans";src:url("https://static.krcg.org/web/vtes-clans.otf") format("opentype");font-display:swap}
+body{margin:0;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body)}
+a{color:var(--color-accent-300)}a:hover{color:var(--color-accent-200)}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;gap:var(--space-6);padding:var(--space-6) var(--space-8);box-sizing:border-box;background:radial-gradient(120% 60% at 0% 0%, var(--color-neutral-900), var(--color-bg))">
+
+  <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Liste des decks" style="display:flex;gap:var(--space-8);align-items:flex-start;flex-wrap:wrap">
+
+      <div style="flex:0 1 360px;min-width:min(100%,300px);display:flex;flex-direction:column;gap:var(--space-4)">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-3)">
+          <div>
+            <h1 style="margin:0;font-weight:500;font-size:26px">Decks</h1>
+            <div style="font-size:13px;color:var(--color-neutral-300)">{{ listMeta }}</div>
+          </div>
+          <button class="btn btn-primary">Nouveau</button>
+        </div>
+        <input class="input" type="search" placeholder="Filtrer par nom" value="{{ term }}" onChange="{{ onTerm }}">
+        <div class="seg">
+          <label class="seg-opt"><input type="radio" name="deck-filter" checked="{{ fActive }}" onChange="{{ setActive }}">En cours</label>
+          <label class="seg-opt"><input type="radio" name="deck-filter" checked="{{ fArchived }}" onChange="{{ setArchived }}">Archivés</label>
+          <label class="seg-opt"><input type="radio" name="deck-filter" checked="{{ fAll }}" onChange="{{ setAll }}">Tous</label>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-for list="{{ deckRows }}" as="r" hint-placeholder-count="3">
+            <button onClick="{{ r.open }}" style="display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:var(--space-3);align-items:center;text-align:left;width:100%;padding:var(--space-3) var(--space-3) var(--space-3) 0;border:0;border-radius:var(--radius-sm);background:{{ r.bg }};color:inherit;font:inherit;cursor:pointer" style-hover="background:var(--color-neutral-800)">
+              <span style="align-self:stretch;border-radius:2px;background:{{ r.mark }}"></span>
+              <span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span style="font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+                <span style="font-size:12px;color:var(--color-neutral-300)">{{ r.meta }}</span>
+              </span>
+              <span style="display:flex;gap:var(--space-1);align-items:center">
+                <sc-for list="{{ r.clans }}" as="k" hint-placeholder-count="1">
+                  <span title="{{ k.name }}" style="font-family:VtesClans;font-size:18px;line-height:1;color:var(--color-neutral-200)">{{ k.glyph }}</span>
+                </sc-for>
+              </span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ showPreview }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:var(--space-6)">
+          <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--space-4)">
+            <div style="display:flex;flex-direction:column;gap:var(--space-2);min-width:0">
+              <div style="font-size:12px;color:var(--color-neutral-300);letter-spacing:.06em;text-transform:uppercase">Aperçu</div>
+              <h2 style="margin:0;font-weight:500;font-size:26px;line-height:1.2">{{ sel.name }}</h2>
+              <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;font-size:13px;color:var(--color-neutral-300)">
+                <span>{{ sel.meta }}</span>
+                <span class="{{ sel.legalClass }}">{{ sel.legal }}</span>
+              </div>
+            </div>
+            <button class="btn btn-primary" onClick="{{ openSelected }}">Ouvrir le deckbuilder ↵</button>
+          </div>
+          <dc-import name="DeckTables" d="{{ selTables }}" hint-size="100%,600px"></dc-import>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDeck }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Deck" style="display:flex;flex-direction:column;gap:var(--space-6)">
+      <header style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--space-6)">
+        <div style="display:flex;flex-direction:column;gap:var(--space-2);min-width:0">
+          <div style="display:flex;gap:var(--space-2);font-size:12px;color:var(--color-neutral-300);letter-spacing:.06em;text-transform:uppercase">
+            <a href="#/decks" style="text-decoration:none">← Decks</a><span>·</span><span>{{ cur.kicker }}</span>
+          </div>
+          <h1 style="margin:0;font-weight:500;font-size:26px;line-height:1.2">{{ cur.name }}</h1>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;font-size:13px;color:var(--color-neutral-300)">
+            <span>{{ cur.meta }}</span>
+            <span class="{{ cur.legalClass }}">{{ cur.legal }}</span>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+          <button class="btn btn-secondary">Modifier</button>
+          <button class="btn btn-secondary">{{ cur.statusAction }}</button>
+          <button class="btn btn-secondary">Archiver</button>
+        </div>
+      </header>
+
+      <div style="display:flex;gap:var(--space-6);align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1 1 640px;min-width:0">
+          <dc-import name="DeckTables" d="{{ curTables }}" hint-size="100%,700px"></dc-import>
+        </div>
+        <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ true }}">
+          <aside style="flex:0 1 300px;min-width:260px;background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <h2 style="margin:0;font-weight:500;font-size:16px">Ajouter des cartes</h2>
+              <button class="btn btn-ghost btn-icon" onClick="{{ togglePicker }}" aria-label="Replier">›</button>
+            </div>
+            <div class="seg">
+              <label class="seg-opt"><input type="radio" name="picker-tab" checked="{{ isCryptTab }}" onChange="{{ tabCrypt }}">Crypte</label>
+          <label class="seg-opt"><input type="radio" name="picker-tab" checked="{{ isLibTab }}" onChange="{{ tabLib }}">Bibliothèque</label>
+            </div>
+            <input class="input" placeholder="Nom, discipline, texte…" value="{{ query }}" onChange="{{ onQuery }}">
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ results }}" as="r" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);height:32px;padding:0 var(--space-2);border-radius:var(--radius-sm)" style-hover="background:var(--color-neutral-800)">
+                  <span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+                  <button onClick="{{ r.add }}" aria-label="Ajouter" style="width:22px;height:22px;border:1px solid var(--color-accent-700);background:transparent;color:var(--color-accent-200);border-radius:var(--radius-sm);cursor:pointer;font:inherit;padding:0;flex:none" style-hover="border-color:var(--color-accent)">+</button>
+                </div>
+              </sc-for>
+            </div>
+          </aside>
+        </sc-if>
+        <sc-if value="{{ pickerClosed }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ togglePicker }}" class="btn btn-secondary" style="writing-mode:vertical-rl;padding:var(--space-4) var(--space-2)">+ Ajouter des cartes</button>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showProxies&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pickerOpenDefault&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;auto&quot;,&quot;desktop&quot;,&quot;mobile&quot;],&quot;default&quot;:&quot;auto&quot;,&quot;tsType&quot;:&quot;'auto'|'desktop'|'mobile'&quot;}}">
+const DISC = {abo:'w',ani:'i',aus:'a',cel:'c',chi:'k',dai:'y',dem:'e',dom:'d',for:'f',mel:'m',myt:'x',nec:'n',obe:'b',obf:'o',pot:'p',pre:'r',pro:'j',qui:'q',san:'g',ser:'s',spi:'z',tha:'t',thn:'h',val:'l',vic:'v',vis:'u',tem:'?',obt:'$',str:'à',mal:'â'};
+const SUP = {tem:'!', obt:'£', str:'á', mal:'ã'};
+const CLAN = {'Brujah':'o','Banu Haqim':'n','Gangrel':'p','Lasombra':'w','Malkavian':'q','Ministry':'r','Nosferatu':'s','Toreador':'t','Tremere':'u','Ventrue':'v','Tzimisce':'k','Ravnos':'b','Salubri':'c','Giovanni':'O','Caitiff':'I'};
+const TYPE_G = {'Action':'0','Action Modifier':'1','Political Action':'2','Ally':'3','Combat':'4','Equipment':'5','Reflex':'6','Reaction':'7','Retainer':'8','Event':'['};
+const BLOOD_G = {1:"'",2:';',3:'.',4:','}, POOL_G = {1:'"',2:':',3:'/',4:'\\',5:']',6:'`'};
+const TYPE_ORDER = ['Master','Action','Action Modifier','Political Action','Ally','Equipment','Retainer','Combat','Reaction','Event'];
+const STATUS = {active:'actif', draft:'brouillon'};
+const glyph = d => {
+  const lo = d.toLowerCase(), sup = d === d.toUpperCase();
+  return { glyph: sup ? (SUP[lo] || DISC[lo].toUpperCase()) : DISC[lo], label: d };
+};
+const C = (id,name,cap,d,clan,group,n) => ({id,name,cap,d,clan,group,n});
+const L = (id,type,name,n,o={}) => ({id,type,name,n,...o});
+const DECKS = [
+ { key:'ref:7f3c2a91-5b1e-4d0c-9a8f-2e61b0c4d7a3', disc:'0001', name:'Guns and shit (Mostly guns)', status:'active', archived:false, archetype:'combat', proxyAllowed:true,
+   crypt:[C(1,'Saku Pihlajamäki',8,['CEL','POT','PRE','for','obf'],'Brujah',6,2),C(2,'Aline Gädeke',7,['CEL','POT','pre'],'Brujah',6,2),C(3,'Valeriya Zinovieva',7,['CEL','POT','pre','obf'],'Brujah',6,2),C(4,'Atiena',6,['CEL','POT','pre','for'],'Brujah',6,2),C(5,'Leumeah',6,['CEL','POT','pre','for'],'Brujah',6,2),C(6,'Anita Wainwright',3,['cel','pot'],'Brujah',6,1),C(7,'Laura Goldman',3,['cel','pot'],'Brujah',5,1)],
+   lib:[L(101,'Master','Anarch Free Press, The',1,{cost:1,ct:'pool'}),L(102,'Master','Carfax Abbey',1,{cost:2,ct:'pool'}),L(103,'Master','Club Illusion',1,{cost:1,ct:'pool'}),L(104,'Master','Direct Intervention',1,{cost:1,ct:'pool',p:1}),L(105,'Master','Fame',1),L(106,'Master','Garibaldi-Meucci Museum',1),L(107,'Master','New Carthage',1,{cost:3,ct:'pool',clan:'Brujah'}),L(108,'Master','Villein',7,{p:3}),L(201,'Action','Line Brawl',5,{d:['cel','pot','pre']}),L(202,'Action','Open War',1,{clan:'Brujah'}),L(301,'Equipment','.44 Magnum',4,{cost:2,ct:'pool'}),L(302,'Equipment','Flak Jacket',2,{cost:2,ct:'pool'}),L(303,'Equipment','Sniper Rifle',2,{cost:2,ct:'pool',p:2}),L(601,'Action Modifier','Freak Drive',6,{d:['cel']}),L(401,'Combat','Hidden Strength',8,{d:['pot']}),L(402,'Combat','Pursuit',6,{d:['cel']}),L(403,'Combat','Torn Signpost',4,{d:['pot'],cost:1,ct:'blood',p:2}),L(501,'Reaction','On the Qui Vive',4)] },
+ { key:'ref:a21e8f04-3c7d-4b92-8e15-6d0f9a3b5c18', disc:'0002', name:'Tremere stealth bleed', status:'draft', archived:false, archetype:'bleed', proxyAllowed:false,
+   crypt:[C(11,'Aidan Lyle',9,['AUS','DOM','THA','for'],'Tremere',4,2),C(12,'Muhsin Samir',7,['AUS','DOM','THA'],'Tremere',4,2),C(13,'Dimple',4,['dom','tha'],'Tremere',4,2),C(14,'Muriel Barlow',4,['aus','tha'],'Tremere',5,2)],
+   lib:[L(111,'Master','Vast Wealth',2,{cost:1,ct:'pool'}),L(112,'Master','Chantry',3,{cost:2,ct:'pool',clan:'Tremere'}),L(211,'Action','Govern the Unaligned',8,{d:['dom']}),L(212,'Action','Conditioning',6,{d:['dom']}),L(611,'Action Modifier','Shroud of Absence',6,{d:['tha'],cost:1,ct:'blood'}),L(511,'Reaction','Telepathic Misdirection',8,{d:['aus']}),L(512,'Reaction','Eagle\u2019s Sight',6,{d:['aus']})] },
+ { key:'ref:5d90c3b7-e1a4-4f6c-b2d8-0a7e1f93c64b', disc:'0003', name:'Toreador vote', status:'active', archived:true, archetype:'vote', proxyAllowed:false,
+   crypt:[C(21,'Anson',8,['AUS','CEL','DOM','PRE'],'Toreador',2,3),C(22,'Rachel Brandywine',6,['AUS','CEL','PRE'],'Toreador',2,3),C(23,'Lucian',8,['AUS','CEL','PRE','dom'],'Toreador',2,3),C(24,'Gem Ghastly',3,['aus','pre'],'Toreador',2,3)],
+   lib:[L(121,'Master','Elysium: The Arboretum',2,{cost:1,ct:'pool'}),L(122,'Master','Blood Doll',4),L(221,'Political Action','Kine Resources Contested',10),L(222,'Political Action','Parity Shift',6),L(223,'Political Action','Ancilla Empowerment',4),L(621,'Action Modifier','Voter Captivation',10,{d:['pre']}),L(622,'Action Modifier','Bewitching Oration',8,{d:['pre']}),L(521,'Reaction','Majesty',10,{d:['pre']}),L(522,'Reaction','Second Tradition',6,{d:['aus']}),L(523,'Reaction','Wake with Evening\u2019s Freshness',10)] }];
+const POOL_C = [C(8,'Theo Bell',7,['CEL','DOM','POT','pre'],'Brujah',2),C(9,'Smudge the Ignored',9,['CEL','POT','PRE','ani','obf'],'Brujah',2),C(10,'Jake Washington',6,['CEL','POT','pre'],'Brujah',4)];
+const POOL_L = [L(701,'Combat','Immortal Grapple',0,{d:['pot']}),L(702,'Combat','Taste of Vitae',0),L(703,'Master','Blood Doll',0),L(704,'Equipment','Uzi',0,{cost:3,ct:'pool'})];
+const sum = a => a.reduce((s, c) => s + c.n, 0);
+const legality = dk => {
+  const cc = sum(dk.crypt), lc = sum(dk.lib), issues = [];
+  if (cc < 12) issues.push(`crypte ${cc}/12`);
+  if (lc < 60) issues.push(`bibliothèque ${lc}/60`);
+  if (lc > 90) issues.push(`bibliothèque ${lc}/90`);
+  return issues.length ? { legal: 'Illégal · ' + issues.join(', '), legalClass: 'tag tag-outline' } : { legal: 'Légal', legalClass: 'tag tag-accent' };
+};
+const parse = h => { const m = /^#\/decks\/(.+)$/.exec(h || ''); return m ? { name: 'deck', key: decodeURIComponent(m[1]) } : { name: 'decks' }; };
+
+class Component extends DCLogic {
+  state = { decks: DECKS, route: parse(window.location.hash), selectedKey: null, filter: 'active', term: '', desktop: true,
+    pickerOpen: this.props.pickerOpenDefault ?? true, tab: 'crypt', query: '' };
+  componentDidMount() {
+    this.onHash = () => this.setState({ route: parse(window.location.hash) });
+    window.addEventListener('hashchange', this.onHash);
+    this.mq = window.matchMedia('(min-width: 1024px)');
+    this.onMq = () => this.setState({ desktop: this.props.layout === 'desktop' ? true : this.props.layout === 'mobile' ? false : this.mq.matches });
+    this.mq.addEventListener('change', this.onMq); this.onMq();
+    if (!window.location.hash) window.location.hash = '#/decks';
+  }
+  componentDidUpdate(p) { if (p.layout !== this.props.layout) this.onMq(); }
+  componentWillUnmount() { window.removeEventListener('hashchange', this.onHash); this.mq.removeEventListener('change', this.onMq); }
+  go(route) { window.location.hash = route.name === 'deck' ? `#/decks/${encodeURIComponent(route.key)}` : '#/decks'; this.setState({ route }); }
+  edit(key, list, fn) { this.setState(s => ({ decks: s.decks.map(dk => dk.key === key ? { ...dk, [list]: fn(dk[list]) } : dk) })); }
+  setN(key, list, id, delta) { this.edit(key, list, a => a.map(c => c.id === id ? { ...c, n: c.n + delta } : c).filter(c => c.n > 0)); }
+  add(key, list, card) { this.edit(key, list, a => a.some(c => c.id === card.id) ? a.map(c => c.id === card.id ? { ...c, n: c.n + 1 } : c) : [...a, { ...card, n: 1 }]); }
+  tables(dk, editable) {
+    const showProxies = this.props.showProxies ?? true;
+    const zebra = i => i % 2 ? 'color-mix(in oklab, var(--color-neutral-800) 45%, transparent)' : 'transparent';
+    const cc = sum(dk.crypt), gs = [...new Set(dk.crypt.map(c => c.group))].sort();
+    let blood = 0, pool = 0, prox = 0;
+    dk.lib.forEach(c => { if (c.ct === 'blood') blood += (c.cost||0)*c.n; if (c.ct === 'pool') pool += (c.cost||0)*c.n; prox += c.p||0; });
+    const groups = TYPE_ORDER.map(t => dk.lib.filter(c => c.type === t)).filter(a => a.length).map(cards => {
+      const t = cards[0].type, trifle = t === 'Master' ? sum(cards.filter(c => !c.cost)) : 0;
+      return { type: t, glyph: TYPE_G[t] || '', count: sum(cards), note: trifle ? `· ${trifle} trifle` : '',
+        cards: cards.map((c, i) => ({ name: c.name, n: c.n, bg: zebra(i), discs: (c.d||[]).map(glyph),
+          clan: c.clan || '', clanGlyph: c.clan ? CLAN[c.clan] || '' : '',
+          cost: c.cost ? (c.ct === 'blood' ? BLOOD_G : POOL_G)[c.cost] || '' : '', costLabel: c.cost ? `${c.cost} ${c.ct === 'blood' ? 'sang' : 'réserve'}` : '',
+          proxy: showProxies && c.p ? `P${c.p}` : '',
+          inc: () => this.setN(dk.key, 'lib', c.id, 1), dec: () => this.setN(dk.key, 'lib', c.id, -1) })) };
+    });
+    return { editable, readOnly: !editable, qtyCol: editable ? '78px' : '26px', showProxies,
+      crypt: [...dk.crypt].sort((a, b) => b.cap - a.cap).map((c, i) => ({ ...c, bg: zebra(i), clanGlyph: CLAN[c.clan] || '', discs: c.d.map(glyph),
+        inc: () => this.setN(dk.key, 'crypt', c.id, 1), dec: () => this.setN(dk.key, 'crypt', c.id, -1) })),
+      cryptCount: cc, cryptAvg: cc ? (dk.crypt.reduce((s, c) => s + c.cap * c.n, 0) / cc).toFixed(1) : '0', cryptGroups: gs.length ? `G${gs.join('–')}` : '',
+      libCount: sum(dk.lib), libBlood: blood, libPool: pool, proxyCount: prox, groups };
+  }
+  meta(dk) { return [`#${dk.disc}`, STATUS[dk.status], dk.archived && 'archivé', dk.archetype, dk.proxyAllowed && 'proxies autorisés'].filter(Boolean).join(' · '); }
+  renderVals() {
+    const { decks, route, selectedKey, filter, term, desktop, pickerOpen, tab, query } = this.state;
+    const t = term.trim().toLowerCase();
+    const visible = decks.filter(dk => (filter === 'all' || (filter === 'archived') === dk.archived) && dk.name.toLowerCase().includes(t));
+    const sel = visible.find(dk => dk.key === selectedKey) || visible[0] || null;
+    const cur = route.name === 'deck' ? decks.find(dk => dk.key === route.key) : null;
+    const pool_ = tab === 'crypt' ? POOL_C : POOL_L, q = query.toLowerCase();
+    return {
+      hash: route.name === 'deck' ? `#/decks/${route.key}` : '#/decks',
+      isList: !cur, isDeck: !!cur, showPreview: desktop && !!sel,
+      listMeta: `${visible.length} deck${visible.length > 1 ? 's' : ''} · lecture locale`,
+      term, onTerm: e => this.setState({ term: e.target.value }),
+      fActive: filter === 'active', fArchived: filter === 'archived', fAll: filter === 'all',
+      setActive: () => this.setState({ filter: 'active' }), setArchived: () => this.setState({ filter: 'archived' }), setAll: () => this.setState({ filter: 'all' }),
+      deckRows: visible.map(dk => {
+        const on = desktop && sel && sel.key === dk.key;
+        return { name: dk.name, meta: `${this.meta(dk)} · ${sum(dk.crypt)} / ${sum(dk.lib)}`,
+          bg: on ? 'var(--color-neutral-800)' : 'transparent', mark: on ? 'var(--color-accent)' : 'transparent',
+          clans: [...new Set(dk.crypt.map(c => c.clan))].map(n => ({ name: n, glyph: CLAN[n] || '' })),
+          open: () => desktop ? this.setState({ selectedKey: dk.key }) : this.go({ name: 'deck', key: dk.key }) };
+      }),
+      sel: sel ? { name: sel.name, meta: this.meta(sel), ...legality(sel) } : {},
+      selTables: sel ? this.tables(sel, false) : null,
+      openSelected: () => sel && this.go({ name: 'deck', key: sel.key }),
+      cur: cur ? { name: cur.name, kicker: `Deck ${STATUS[cur.status]} · #${cur.disc}`, meta: [cur.archived && 'archivé', cur.archetype, cur.proxyAllowed && 'proxies autorisés'].filter(Boolean).join(' · '),
+        statusAction: cur.status === 'draft' ? 'Passer en actif' : 'Repasser en brouillon', ...legality(cur) } : {},
+      curTables: cur ? this.tables(cur, !cur.archived) : null,
+      pickerOpen: !!cur && !cur.archived && pickerOpen, pickerClosed: !!cur && !cur.archived && !pickerOpen,
+      togglePicker: () => this.setState(s => ({ pickerOpen: !s.pickerOpen })),
+      isCryptTab: tab === 'crypt', isLibTab: tab === 'lib',
+      tabCrypt: () => this.setState({ tab: 'crypt' }), tabLib: () => this.setState({ tab: 'lib' }),
+      query, onQuery: e => this.setState({ query: e.target.value }),
+      results: pool_.filter(c => c.name.toLowerCase().includes(q)).map(c => ({ name: c.name, add: () => cur && this.add(cur.key, tab === 'crypt' ? 'crypt' : 'lib', c) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

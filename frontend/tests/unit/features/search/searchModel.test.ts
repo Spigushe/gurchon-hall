@@ -27,7 +27,7 @@ import {
   type SearchState,
   type SummaryContext,
 } from "../../../../src/features/search/searchModel";
-import { VIRTUE_CODES } from "../../../../src/features/search/glyphs";
+import { VIRTUE_CODES } from "../../../../src/components/glyphs/glyphs";
 import { NON_TITLED, NOT_REQUIRED, REQUIRES_TITLED, type DeckKey } from "../../../../src/offline/vtes";
 
 const DECK = "id:4" as DeckKey;

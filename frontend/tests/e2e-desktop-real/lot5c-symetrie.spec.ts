@@ -26,7 +26,7 @@ async function openDeckbuilder(page: import("@playwright/test").Page, deckName: 
   await expect(page.getByTestId("deck-builder-columns")).toBeVisible();
 }
 
-test("n°14 : l'en-tête du Deckbuilder détaille la légalité (motifs, carte bannie, note de brouillon)", async ({
+test("n°14 : la pastille de légalité du Deckbuilder détaille le verdict au survol (motifs, carte bannie, note de brouillon)", async ({
   page,
   api,
 }) => {
@@ -45,7 +45,13 @@ test("n°14 : l'en-tête du Deckbuilder détaille la légalité (motifs, carte b
   await expectSynced(page);
   await openDeckbuilder(page, "Légalité bureau");
 
+  // Lot Affichage des decks : le détail du Lot 5c passe dans l'infobulle de la
+  // pastille, masquée jusqu'au survol.
+  const tag = page.getByTestId("deck-legality-tag");
+  await expect(tag).toContainText("Illégal · crypte 1/12");
   const details = page.getByTestId("legality-details");
+  await expect(details).toBeHidden();
+  await tag.hover();
   await expect(details).toBeVisible();
   const issues = details.getByTestId("legality-issues");
   await expect(issues).toContainText("Crypt trop petite");
