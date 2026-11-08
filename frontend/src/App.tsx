@@ -431,7 +431,13 @@ function App() {
             même raison : un seul endroit à rendre aux deux largeurs plutôt qu'une
             copie dans `TopBar`. */}
         <div className="shell-bar">
-          <h1 className="shell-bar__brand">Gurchon Hall</h1>
+          {/* Le titre reste un `<h1>` (les e2e le cherchent par son rôle) ; le lien
+              à l'intérieur ramène à l'Atelier, comme `.topbar__brand` au bureau. */}
+          <h1 className="shell-bar__brand">
+            <Link to={{ name: "home" }} className="shell-bar__brand-link" data-testid="shell-brand-home">
+              Gurchon Hall
+            </Link>
+          </h1>
           <AccountMenu />
           <p className="shell-bar__status" role="status" data-online={online}>
             {!online && <WifiSlashIcon size={14} weight="fill" />}
