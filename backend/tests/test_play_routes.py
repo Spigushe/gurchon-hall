@@ -114,6 +114,8 @@ def test_create_an_amicable_game_with_only_my_line(me_api):
     assert game["tournament_id"] is None and game["tournament_name"] is None
     assert game["me"] == {
         "deck_id": None,
+        "deck_version_id": None,
+        "deck_version_number": None,
         "seat": 3,
         "victory_points": 2.5,
         "game_win": True,  # 2,5 VP à cinq : GW certain, posé par le serveur

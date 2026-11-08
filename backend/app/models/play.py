@@ -381,11 +381,14 @@ class Participation(Base):
         foreign_keys="Participation.deck_id",
     )
     # Lecture seule : `deck_version_id` est posé par le service de gel, et la
-    # version ne s'écrit jamais à travers la ligne qui la joue.
+    # version ne s'écrit jamais à travers la ligne qui la joue. `lazy="joined"`
+    # : `ParticipationSummary.deck_version_number` la lit pour chaque partie
+    # d'une liste.
     deck_version: Mapped[DeckVersion | None] = relationship(
         primaryjoin="Participation.deck_version_id == DeckVersion.id",
         foreign_keys="Participation.deck_version_id",
         viewonly=True,
+        lazy="joined",
     )
     opponent_clan: Mapped[Clan | None] = relationship()
 
@@ -395,6 +398,11 @@ class Participation(Base):
         `ParticipationRead`. Une ligne sans joueur (P6) n'est jamais la
         mienne."""
         return self.player is not None and self.player.is_me
+
+    @property
+    def deck_version_number(self) -> int | None:
+        """Numéro de la version jouée (« v3 »), lu pour `ParticipationRead`."""
+        return self.deck_version.number if self.deck_version is not None else None
 
 
 class TournamentDeckVersion(Base):
@@ -444,9 +452,15 @@ class TournamentDeckVersion(Base):
         primaryjoin="TournamentDeckVersion.deck_version_id == DeckVersion.id",
         foreign_keys="TournamentDeckVersion.deck_version_id",
         viewonly=True,
+        lazy="joined",
     )
     frozen_by_game: Mapped[Game] = relationship(
         primaryjoin="TournamentDeckVersion.frozen_by_game_id == Game.id",
         foreign_keys="TournamentDeckVersion.frozen_by_game_id",
         viewonly=True,
     )
+
+    @property
+    def deck_version_number(self) -> int:
+        """Numéro de la version du tournoi, lu pour `TournamentDeckVersionRead`."""
+        return self.deck_version.number

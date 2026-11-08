@@ -206,7 +206,9 @@ def test_every_write_schema_is_covered_by_this_module():
         (DeckCardCreate, {"card_id", "language_code", "card_set_id", "quantity"}),
         (BundleDeposit, {"language_code"}),
         (PlayerCreate, {"name"}),
-        (ParticipationCreate, {"player"}),
+        # Aucun champ obligatoire depuis le Lot 8 : une ligne peut ne désigner
+        # aucun joueur (P6) ; « un siège ou un deck » est une règle du service.
+        (ParticipationCreate, set()),
         (GameCreate, {"played_at", "player_count", "participations"}),
         (GameTableReplace, {"participations"}),
         (TournamentCreate, {"name", "start_date"}),
@@ -218,7 +220,15 @@ def test_required_fields_are_exactly_those_expected(schema, required):
     assert actual == required
 
 
-@pytest.mark.parametrize("schema", list(MINIMAL_CREATE), ids=lambda s: s.__name__)
+@pytest.mark.parametrize(
+    "schema",
+    [
+        schema
+        for schema in MINIMAL_CREATE
+        if any(f.is_required() for f in schema.model_fields.values())
+    ],
+    ids=lambda s: s.__name__,
+)
 def test_empty_payload_reports_every_required_field(schema):
     with pytest.raises(ValidationError) as excinfo:
         schema.model_validate({})
@@ -245,9 +255,7 @@ def test_empty_payload_reports_every_required_field(schema):
         (DeckCardCreate, "language_code", 8),
         (BundleDeposit, "language_code", 8),
         (DeckCreate, "name", 120),
-        (DeckCreate, "archetype", 120),
         (DeckUpdate, "name", 120),
-        (DeckUpdate, "archetype", 120),
         (PlayerCreate, "name", 80),
         (PlayerUpdate, "name", 80),
         (TournamentCreate, "name", 120),
@@ -434,13 +442,16 @@ def test_every_language_code_field_of_the_contract_is_covered():
 def test_optional_free_text_keeps_its_spaces():
     """Les champs libres facultatifs ne sont pas touchés.
 
-    `archetype`, `notes`, `city` sont effaçables par `null` ; leur contenu est
-    de la prose, pas un identifiant d'affichage. Les rogner serait une autre
-    décision, à prendre pour de meilleures raisons que la symétrie.
+    `notes`, `city` et, depuis le Lot 8, le nom de deck adverse sont effaçables
+    par `null` ; leur contenu est de la prose, pas un identifiant d'affichage.
+    Les rogner serait une autre décision, à prendre pour de meilleures raisons
+    que la symétrie. `archetype` n'en est plus : c'est un des six codes.
     """
-    deck = DeckCreate.model_validate({"name": "D", "archetype": "  Vote  "})
-    assert deck.archetype == "  Vote  "
+    deck = DeckCreate.model_validate({"name": "D", "notes": "  Vote  "})
+    assert deck.notes == "  Vote  "
     assert VenueCreate.model_validate({"name": "V", "city": " Lyon "}).city == " Lyon "
+    line = ParticipationCreate.model_validate({"opponent_deck_name": " Banu bleed "})
+    assert line.opponent_deck_name == " Banu bleed "
 
 
 UPDATE_TO_MODEL = {
@@ -1088,7 +1099,7 @@ SCHEMA_TO_MODEL = [
     # champ porte le nom de la relation, pas celui de la colonne.
     (ParticipationCreate, Participation, {"player", "deck"}),
     (GameCreate, Game, {"participations", "venue", "tournament"}),
-    (GameUpdate, Game, {"venue", "tournament"}),
+    (GameUpdate, Game, {"venue", "tournament", "refreeze_decklists"}),
     (TournamentCreate, Tournament, {"venue"}),
     (TournamentUpdate, Tournament, {"venue"}),
 ]
@@ -1115,7 +1126,6 @@ def test_string_limits_do_not_exceed_the_database_column_lengths():
         (CardCopyCreate, "language_code", CardCopy, "language_code"),
         (DeckCardCreate, "language_code", DeckCard, "language_code"),
         (DeckCreate, "name", Deck, "name"),
-        (DeckCreate, "archetype", Deck, "archetype"),
         (PlayerCreate, "name", Player, "name"),
         (TournamentCreate, "name", Tournament, "name"),
     ]

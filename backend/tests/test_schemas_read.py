@@ -514,6 +514,8 @@ def test_game_read_carries_my_line_and_the_tournament_name(db, world):
     )
     assert set(read.model_dump(mode="json")["me"]) == {
         "deck_id",
+        "deck_version_id",
+        "deck_version_number",
         "seat",
         "victory_points",
         "game_win",
@@ -739,7 +741,11 @@ READ_PAIRS = [
         Tournament, TournamentRead, {"user_id"}, {"my_summary"}, id="Tournament"
     ),
     pytest.param(
-        Participation, ParticipationRead, {"user_id"}, {"is_me"}, id="Participation"
+        Participation,
+        ParticipationRead,
+        {"user_id"},
+        {"is_me", "deck_version_number"},
+        id="Participation",
     ),
     pytest.param(Language, LanguageRead, set(), set(), id="Language"),
     pytest.param(Clan, ClanRead, set(), set(), id="Clan"),

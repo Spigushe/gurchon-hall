@@ -5552,6 +5552,19 @@
         "title": "CostType",
         "description": "Nature du coût d'une carte de library.\n\nkrcg n'expose qu'un coût par carte (`{\"type\": ..., \"value\": ...}`) : une\ncarte ne coûte jamais à la fois du sang et du pool."
       },
+      "DeckArchetype": {
+        "type": "string",
+        "enum": [
+          "bleed",
+          "vote",
+          "wall",
+          "toolbox",
+          "rush",
+          "combo"
+        ],
+        "title": "DeckArchetype",
+        "description": "Archétype d'un deck, le mien comme celui d'un adversaire (Lot 8, P5).\n\nListe fermée, choisie par l'utilisateur pour toute l'application : un axe\nd'analyse qui ne se fragmente pas (« Ministry », « ministry bleed » et\n« Ministère » ne font plus trois groupes). Un deck à cheval sur deux\narchétypes se range sous un seul ; le nom de deck adverse, libre, garde la\nnuance. Les libellés affichés sont ceux des joueurs, en anglais (Bleed,\nVote…), et ne vivent que côté client.\n\nRemplace le texte libre de `deck.archetype` (Lot 1) : la révision R13\nconvertit une valeur égale à un code une fois repliée et refuse de monter\nsur toute autre."
+      },
       "DeckCardCreate": {
         "properties": {
           "quantity": {
@@ -5802,14 +5815,13 @@
           "archetype": {
             "anyOf": [
               {
-                "type": "string",
-                "maxLength": 120
+                "$ref": "#/components/schemas/DeckArchetype"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Archetype"
+            "description": "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
           },
           "notes": {
             "anyOf": [
@@ -5946,13 +5958,13 @@
           "archetype": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/DeckArchetype"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Archetype"
+            "description": "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
           },
           "notes": {
             "anyOf": [
@@ -6176,13 +6188,13 @@
           "archetype": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/DeckArchetype"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Archetype"
+            "description": "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
           },
           "notes": {
             "anyOf": [
@@ -6325,14 +6337,13 @@
           "archetype": {
             "anyOf": [
               {
-                "type": "string",
-                "maxLength": 120
+                "$ref": "#/components/schemas/DeckArchetype"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Archetype"
+            "description": "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
           },
           "notes": {
             "anyOf": [
@@ -6971,12 +6982,18 @@
               }
             ],
             "title": "Notes"
+          },
+          "refreeze_decklists": {
+            "type": "boolean",
+            "title": "Refreeze Decklists",
+            "description": "Fige à nouveau les decks de la table sur leur liste actuelle (« Figer sur la liste actuelle »). Dans un tournoi, s'applique à toutes les parties du tournoi jouées avec ces decks. Faux par défaut : une modification qui ne change pas le deck d'une ligne garde sa version.",
+            "default": false
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "GameUpdate",
-        "description": "Modification d'une partie, hors table (`PUT …/participations` pour elle).\n\n`played_at`, `round_type` et `player_count` sont facultatifs mais non\nnullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être\nremis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au\nservice."
+        "description": "Modification d'une partie, hors table (`PUT …/participations` pour elle).\n\n`played_at`, `round_type` et `player_count` sont facultatifs mais non\nnullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être\nremis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au\nservice.\n\n`refreeze_decklists` (Lot 8, P3) fige à nouveau les decks de la table sur\nleur liste actuelle : pour une amicale, cette partie seulement ; pour une\npartie de tournoi, toutes les parties du tournoi jouées avec chacun de ces\ndecks, la version d'un deck dans un tournoi étant unique."
       },
       "GameUpdateOperation": {
         "properties": {
@@ -7177,7 +7194,15 @@
       "ParticipationCreate": {
         "properties": {
           "player": {
-            "$ref": "#/components/schemas/ParticipantRef"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ParticipantRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Joueur de la ligne ; à omettre pour un adversaire non nommé."
           },
           "deck": {
             "anyOf": [
@@ -7227,6 +7252,44 @@
             ],
             "title": "Game Win"
           },
+          "opponent_deck_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Deck Name",
+            "description": "Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks."
+          },
+          "opponent_deck_archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse."
+          },
+          "opponent_clan_id": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Clan Id",
+            "description": "Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse."
+          },
           "notes": {
             "anyOf": [
               {
@@ -7241,11 +7304,8 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "required": [
-          "player"
-        ],
         "title": "ParticipationCreate",
-        "description": "Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.\n\n`player` désigne le joueur : `{\"me\": true}`, un adversaire par `player_id`,\nou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est\nmon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).\n`victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;\nlaissé vide, le GW est posé par le serveur quand il est certain (A4). Table\n(exactement une ligne « Moi », joueurs et sièges distincts), bornes\nrelatives à la table et GW : contrôles du service, après résolution des\njoueurs (`vtes_rules.table_issues`)."
+        "description": "Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.\n\n`player` désigne le joueur : `{\"me\": true}`, un adversaire par `player_id`,\nou, par `/sync`, un adversaire créé hors ligne par `client_ref`. Omis, la\nligne est celle d'un adversaire non nommé (Lot 8, P6), qui doit alors\nporter un siège ou un deck. `deck` est mon deck sur ma ligne, un deck prêté\nsur celle d'un adversaire (P4). `victory_points` et `game_win` ne sont\nacceptés que sur ma ligne (A13) ; laissé vide, le GW est posé par le\nserveur quand il est certain (A4). Les trois champs `opponent_*` ne sont\nacceptés que sur une ligne d'adversaire sans deck prêté (P5). Table\n(exactement une ligne « Moi », joueurs et sièges distincts), bornes\nrelatives à la table, GW et champs adverses : contrôles du service, après\nrésolution des joueurs (`vtes_rules.table_issues`).\n\nPas de version de deck : le serveur la fige lui-même (Lot 8, P3)."
       },
       "ParticipationRead": {
         "properties": {
@@ -7258,8 +7318,16 @@
             "title": "Game Id"
           },
           "player_id": {
-            "type": "integer",
-            "title": "Player Id"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id",
+            "description": "Joueur de la ligne ; nul pour un adversaire non nommé."
           },
           "is_me": {
             "type": "boolean",
@@ -7276,6 +7344,30 @@
               }
             ],
             "title": "Deck Id"
+          },
+          "deck_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Id",
+            "description": "Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée."
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number",
+            "description": "Numéro de cette version dans son deck (« v3 »)."
           },
           "seat": {
             "anyOf": [
@@ -7313,6 +7405,41 @@
             "title": "Game Win",
             "description": "Mon Game Win ; toujours nul sur une ligne d'adversaire."
           },
+          "opponent_deck_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Deck Name",
+            "description": "Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks."
+          },
+          "opponent_deck_archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse."
+          },
+          "opponent_clan_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Clan Id",
+            "description": "Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse."
+          },
           "notes": {
             "anyOf": [
               {
@@ -7332,13 +7459,18 @@
           "player_id",
           "is_me",
           "deck_id",
+          "deck_version_id",
+          "deck_version_number",
           "seat",
           "victory_points",
           "game_win",
+          "opponent_deck_name",
+          "opponent_deck_archetype",
+          "opponent_clan_id",
           "notes"
         ],
         "title": "ParticipationRead",
-        "description": "La place d'un joueur sur une partie.\n\nSeule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance\ndes joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes\ndecks, prêté pour la partie (P4)."
+        "description": "La place d'un joueur sur une partie.\n\nSeule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance\ndes joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes\ndecks, prêté pour la partie (P4), ou la description du deck adverse (Lot 8,\nP5), et peut ne désigner aucun joueur (P6)."
       },
       "ParticipationSummary": {
         "properties": {
@@ -7352,6 +7484,30 @@
               }
             ],
             "title": "Deck Id"
+          },
+          "deck_version_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Id",
+            "description": "Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée."
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number",
+            "description": "Numéro de cette version dans son deck (« v3 »)."
           },
           "seat": {
             "anyOf": [
@@ -7390,6 +7546,8 @@
         "type": "object",
         "required": [
           "deck_id",
+          "deck_version_id",
+          "deck_version_number",
           "seat",
           "victory_points",
           "game_win"
@@ -8325,6 +8483,37 @@
         "title": "TournamentCreateOperation",
         "description": "Crée un tournoi saisi hors ligne ; son lieu se désigne par référence."
       },
+      "TournamentDeckVersionRead": {
+        "properties": {
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "deck_version_id": {
+            "type": "integer",
+            "title": "Deck Version Id"
+          },
+          "deck_version_number": {
+            "type": "integer",
+            "title": "Deck Version Number",
+            "description": "Numéro de cette version dans son deck (« v3 »)."
+          },
+          "frozen_by_game_id": {
+            "type": "integer",
+            "title": "Frozen By Game Id",
+            "description": "Partie qui a figé la liste (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde."
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "deck_version_id",
+          "deck_version_number",
+          "frozen_by_game_id"
+        ],
+        "title": "TournamentDeckVersionRead",
+        "description": "La version d'un deck dans un tournoi, et la partie qui l'a figée (A9).\n\nDans un tournoi, un deck n'a qu'une version : la liste figée à la première\npartie où il a été joué, ou au dernier « Figer sur la liste actuelle »."
+      },
       "TournamentDeleteOperation": {
         "properties": {
           "operation_id": {
@@ -8499,6 +8688,15 @@
             ],
             "title": "Admissible Final Decks",
             "description": "Decks que ma finale peut jouer, en multi-deck selon la règle annoncée ; nul quand rien n'est contrôlable (mono-deck, règle inconnue, aucune préliminaire jouée avec un deck)."
+          },
+          "deck_versions": {
+            "items": {
+              "$ref": "#/components/schemas/TournamentDeckVersionRead"
+            },
+            "type": "array",
+            "title": "Deck Versions",
+            "description": "Une ligne par deck joué dans le tournoi, prêts compris, avec sa version et la partie qui l'a figée.",
+            "default": []
           }
         },
         "type": "object",
@@ -8520,10 +8718,11 @@
           "created_at",
           "updated_at",
           "games",
-          "admissible_final_decks"
+          "admissible_final_decks",
+          "deck_versions"
         ],
         "title": "TournamentDetailRead",
-        "description": "Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et\nles decks admis en finale."
+        "description": "Un tournoi, mes parties dans l'ordre des rondes (finale en dernier), les\ndecks admis en finale et la version de chaque deck joué."
       },
       "TournamentFormat": {
         "type": "string",

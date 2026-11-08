@@ -229,6 +229,28 @@ def _existing_lines(game: Game) -> list[Line]:
     ]
 
 
+_NOT_YET = "pas encore enregistré par le serveur (Lot 8, étape B1)."
+
+
+def _refuse_what_b1_brings(row: ParticipationCreate, where: tuple) -> None:
+    """Garde provisoire, posée par l'étape A2 du Lot 8 et retirée par B1.
+
+    Le contrat accepte depuis A2 une ligne sans joueur (P6) et la description
+    d'un deck adverse (P5), que le service ne sait pas encore enregistrer :
+    plutôt qu'un 500 ou des champs perdus sans prévenir, un 422 qui le dit.
+    """
+    if row.player is None:
+        raise InvalidRequestError(
+            f"Adversaire non nommé : {_NOT_YET}", loc=(*where, "player")
+        )
+    opponent = ("opponent_deck_name", "opponent_deck_archetype", "opponent_clan_id")
+    sent = [name for name in opponent if getattr(row, name) is not None]
+    if sent:
+        raise InvalidRequestError(
+            f"Deck adverse : {_NOT_YET}", loc=(*where, sent[0])
+        )
+
+
 def _resolve_table(
     db: Session,
     user_id: int,
@@ -246,6 +268,7 @@ def _resolve_table(
     lines: list[Line] = []
     for index, row in enumerate(table):
         where = ("body", "participations", index)
+        _refuse_what_b1_brings(row, where)
         player = refs.resolve_player(
             db,
             user_id,
@@ -518,6 +541,12 @@ def update_game(
     sièges de la table existante, et le tournoi se contrôle comme si la partie
     avait déjà sa nouvelle forme.
     """
+    if payload is not None and payload.refreeze_decklists:
+        # Garde provisoire de l'étape A2 du Lot 8, retirée par B1 (le gel).
+        raise InvalidRequestError(
+            f"« Figer sur la liste actuelle » : {_NOT_YET}",
+            loc=("body", "refreeze_decklists"),
+        )
     game = _load(db, user_id, game_id)
     fields = set() if payload is None else payload.model_fields_set
     changes = {name: getattr(payload, name) for name in fields}

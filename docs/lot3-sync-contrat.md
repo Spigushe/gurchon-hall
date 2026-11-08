@@ -677,3 +677,83 @@ physiquement, mais aucune opération, référence ni colonne du journal ne la
 désigne par son identifiant. Tests de non-régression dans
 `backend/tests/test_sync_lot7.py` (section « Identifiants jamais
 réattribués ») et `backend/tests/test_migrations.py` (section R11).
+
+## Lot 8 : versions jouées, deck adverse, archétype fermé
+
+Le Lot 8 (`docs/lot8-plan-analyse.md`, A4 et A5) n'ajoute **aucun type
+d'opération** : `/sync` en garde vingt. Les charges utiles de partie gagnent des
+champs, tous facultatifs, et celles de deck ferment leur archétype. Rédigé à
+l'étape A2 ; les classements de refus marqués « B1 » s'appliqueront avec le
+service.
+
+**Champs nouveaux**, repris tels quels des routes en ligne :
+
+| Charge utile | Champ | Rôle |
+| --- | --- | --- |
+| ligne de table (`ParticipationCreate`), dans `game.create` et dans `table` de `game.update` | `player` devient facultatif | omis, la ligne est un adversaire non nommé (P6) |
+| idem | `opponent_deck_name` (120 caractères), `opponent_deck_archetype` (les six codes), `opponent_clan_id` | deck d'un adversaire (P5) |
+| `data` de `game.update` (`GameUpdate`) | `refreeze_decklists`, faux par défaut | « Figer sur la liste actuelle » (P3) |
+
+**Aucune version n'est envoyée par le client.** La version d'un deck se fige
+côté serveur, quand il applique l'écriture d'une partie : création, remplacement
+de la table, modification qui change le deck d'une ligne, ou drapeau
+`refreeze_decklists`. Une ligne qui porte `deck_version_id` est refusée par le
+schéma (`extra="forbid"`), donc par un 422 du lot entier. L'ordre de la file
+fait l'ordre du gel : une partie saisie hors ligne au club, puis le deck
+retouché dans le train, arrivent dans cet ordre, et la partie prend la liste
+d'avant la retouche. Limite acceptée : sur deux appareils, c'est l'ordre
+d'arrivée au serveur qui décide, et le drapeau de regel est le remède. Dans un
+tournoi, un deck n'a qu'une version, figée à sa première partie arrivée ; le
+regel d'une partie de tournoi refige toutes les parties du tournoi jouées avec
+ce deck (P3, A9).
+
+**Empreinte et rejeu.** L'empreinte suit `exclude_unset` (section « Clés
+d'idempotence ») : une opération de partie écrite avant le lot, sans les champs
+nouveaux, garde son empreinte et se rejoue telle quelle, en `replayed`. Un rejeu
+rend le verdict mémorisé et **ne refige rien**, même si la liste du deck a
+changé depuis : la version reste celle de la première application.
+
+**Rupture voulue : l'archétype des decks.** `deck.create` et `deck.update`
+n'acceptent plus qu'un des six codes, `bleed`, `vote`, `wall`, `toolbox`,
+`rush`, `combo`, ou `null`. Une opération en file avec un archétype en texte
+libre (« Vote », « stealth bleed ») fait refuser **le lot entier** en 422, comme
+toute borne de schéma, et la bissection du client l'isole. Pas de période de
+transition : aucune file n'existe hors des postes de recette, dont la base est
+écrasée (F0). Pour une base en service, comme celle de Barrin, la marche à
+suivre reste celle de `frontend/src/offline/README.md` : tolérer d'abord
+l'ancienne forme, le temps de vider les files.
+
+**Classement des refus (B1).** Mêmes codes qu'en ligne, un refus n'interrompant
+jamais le lot :
+
+- `invalid` : une ligne sans joueur qui ne porte ni siège ni deck ; un champ
+  adverse sur ma ligne, ou sur une ligne qui joue un de mes decks prêtés ;
+- `not_found` : un `opponent_clan_id` qui ne désigne aucun clan du catalogue ;
+- les règles de table du Lot 7 restent, la règle « exactement une ligne du
+  Moi » se lisant sur les lignes qui ont un joueur.
+
+**Garde provisoire, de A2 à B1.** Le contrat accepte les champs nouveaux dès
+A2, mais le service ne sait les enregistrer qu'à B1. D'ici là, une ligne sans
+joueur, un champ adverse ou `refreeze_decklists: true` sont refusés en
+`invalid` (« … pas encore enregistré par le serveur (Lot 8, étape B1). »),
+verdict d'une seule opération et non 422 du lot, plutôt qu'un 500 ou des champs
+perdus sans prévenir.
+
+**Lectures.** `ParticipationRead` et `ParticipationSummary` rendent
+`deck_version_id` et `deck_version_number` ; `ParticipationRead`, les trois
+champs adverses et un `player_id` nul pour un adversaire non nommé ;
+`TournamentDetailRead.deck_versions`, la version de chaque deck joué dans le
+tournoi et la partie qui l'a figée. La liste d'une version se lit par
+`GET /decks/{id}/versions`, route ajoutée à B1, hors `/sync` comme toute
+lecture.
+
+**Ce que le client doit faire.**
+
+- N'envoyer que les six codes d'archétype, jamais le libellé affiché.
+- Ne jamais envoyer de version ; afficher « liste figée à la synchronisation »
+  pour une partie encore en file, puis relire la version rendue.
+- N'envoyer `refreeze_decklists: true` que sur une action explicite, après une
+  confirmation qui dit, pour une partie de tournoi, que tout le tournoi est
+  refigé pour ce deck.
+- Ne pas mettre de champ adverse sur ma ligne ni sur une ligne qui joue un de
+  mes decks.

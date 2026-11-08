@@ -1292,6 +1292,23 @@ export interface components {
          */
         CostType: "pool" | "blood" | "conviction";
         /**
+         * DeckArchetype
+         * @description Archétype d'un deck, le mien comme celui d'un adversaire (Lot 8, P5).
+         *
+         *     Liste fermée, choisie par l'utilisateur pour toute l'application : un axe
+         *     d'analyse qui ne se fragmente pas (« Ministry », « ministry bleed » et
+         *     « Ministère » ne font plus trois groupes). Un deck à cheval sur deux
+         *     archétypes se range sous un seul ; le nom de deck adverse, libre, garde la
+         *     nuance. Les libellés affichés sont ceux des joueurs, en anglais (Bleed,
+         *     Vote…), et ne vivent que côté client.
+         *
+         *     Remplace le texte libre de `deck.archetype` (Lot 1) : la révision R13
+         *     convertit une valeur égale à un code une fois repliée et refuse de monter
+         *     sur toute autre.
+         * @enum {string}
+         */
+        DeckArchetype: "bleed" | "vote" | "wall" | "toolbox" | "rush" | "combo";
+        /**
          * DeckCardCreate
          * @description Ajout d'une carte à un deck.
          *
@@ -1468,8 +1485,8 @@ export interface components {
             created_on?: string | null;
             /** @default draft */
             status?: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype?: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype?: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -1556,8 +1573,8 @@ export interface components {
             /** Created On */
             created_on: string | null;
             status: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes: string | null;
             /**
@@ -1681,8 +1698,8 @@ export interface components {
             /** Created On */
             created_on: string | null;
             status: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes: string | null;
             /**
@@ -1756,8 +1773,8 @@ export interface components {
             /** Created On */
             created_on?: string | null;
             status?: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype?: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype?: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -2063,6 +2080,11 @@ export interface components {
          *     nullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être
          *     remis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au
          *     service.
+         *
+         *     `refreeze_decklists` (Lot 8, P3) fige à nouveau les decks de la table sur
+         *     leur liste actuelle : pour une amicale, cette partie seulement ; pour une
+         *     partie de tournoi, toutes les parties du tournoi jouées avec chacun de ces
+         *     decks, la version d'un deck dans un tournoi étant unique.
          */
         GameUpdate: {
             /**
@@ -2079,6 +2101,12 @@ export interface components {
             player_count?: number;
             /** Notes */
             notes?: string | null;
+            /**
+             * Refreeze Decklists
+             * @description Fige à nouveau les decks de la table sur leur liste actuelle (« Figer sur la liste actuelle »). Dans un tournoi, s'applique à toutes les parties du tournoi jouées avec ces decks. Faux par défaut : une modification qui ne change pas le deck d'une ligne garde sa version.
+             * @default false
+             */
+            refreeze_decklists?: boolean;
         };
         /**
          * GameUpdateOperation
@@ -2207,16 +2235,22 @@ export interface components {
          * @description Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.
          *
          *     `player` désigne le joueur : `{"me": true}`, un adversaire par `player_id`,
-         *     ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est
-         *     mon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).
-         *     `victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;
-         *     laissé vide, le GW est posé par le serveur quand il est certain (A4). Table
+         *     ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. Omis, la
+         *     ligne est celle d'un adversaire non nommé (Lot 8, P6), qui doit alors
+         *     porter un siège ou un deck. `deck` est mon deck sur ma ligne, un deck prêté
+         *     sur celle d'un adversaire (P4). `victory_points` et `game_win` ne sont
+         *     acceptés que sur ma ligne (A13) ; laissé vide, le GW est posé par le
+         *     serveur quand il est certain (A4). Les trois champs `opponent_*` ne sont
+         *     acceptés que sur une ligne d'adversaire sans deck prêté (P5). Table
          *     (exactement une ligne « Moi », joueurs et sièges distincts), bornes
-         *     relatives à la table et GW : contrôles du service, après résolution des
-         *     joueurs (`vtes_rules.table_issues`).
+         *     relatives à la table, GW et champs adverses : contrôles du service, après
+         *     résolution des joueurs (`vtes_rules.table_issues`).
+         *
+         *     Pas de version de deck : le serveur la fige lui-même (Lot 8, P3).
          */
         ParticipationCreate: {
-            player: components["schemas"]["ParticipantRef"];
+            /** @description Joueur de la ligne ; à omettre pour un adversaire non nommé. */
+            player?: components["schemas"]["ParticipantRef"] | null;
             deck?: components["schemas"]["DeckRef"] | null;
             /** Seat */
             seat?: number | null;
@@ -2224,6 +2258,18 @@ export interface components {
             victory_points?: number | null;
             /** Game Win */
             game_win?: boolean | null;
+            /**
+             * Opponent Deck Name
+             * @description Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks.
+             */
+            opponent_deck_name?: string | null;
+            /** @description Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse. */
+            opponent_deck_archetype?: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Opponent Clan Id
+             * @description Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse.
+             */
+            opponent_clan_id?: number | null;
             /** Notes */
             notes?: string | null;
         };
@@ -2233,15 +2279,19 @@ export interface components {
          *
          *     Seule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance
          *     des joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes
-         *     decks, prêté pour la partie (P4).
+         *     decks, prêté pour la partie (P4), ou la description du deck adverse (Lot 8,
+         *     P5), et peut ne désigner aucun joueur (P6).
          */
         ParticipationRead: {
             /** Id */
             id: number;
             /** Game Id */
             game_id: number;
-            /** Player Id */
-            player_id: number;
+            /**
+             * Player Id
+             * @description Joueur de la ligne ; nul pour un adversaire non nommé.
+             */
+            player_id: number | null;
             /**
              * Is Me
              * @description Vrai pour ma ligne, la seule à porter VP et GW.
@@ -2249,6 +2299,16 @@ export interface components {
             is_me: boolean;
             /** Deck Id */
             deck_id: number | null;
+            /**
+             * Deck Version Id
+             * @description Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée.
+             */
+            deck_version_id: number | null;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number | null;
             /**
              * Seat
              * @description Siège à la table, 1 = premier joueur.
@@ -2264,6 +2324,18 @@ export interface components {
              * @description Mon Game Win ; toujours nul sur une ligne d'adversaire.
              */
             game_win: boolean | null;
+            /**
+             * Opponent Deck Name
+             * @description Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks.
+             */
+            opponent_deck_name: string | null;
+            /** @description Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse. */
+            opponent_deck_archetype: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Opponent Clan Id
+             * @description Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse.
+             */
+            opponent_clan_id: number | null;
             /** Notes */
             notes: string | null;
         };
@@ -2274,6 +2346,16 @@ export interface components {
         ParticipationSummary: {
             /** Deck Id */
             deck_id: number | null;
+            /**
+             * Deck Version Id
+             * @description Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée.
+             */
+            deck_version_id: number | null;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number | null;
             /** Seat */
             seat: number | null;
             /** Victory Points */
@@ -2779,6 +2861,29 @@ export interface components {
             data: components["schemas"]["TournamentCreate"];
         };
         /**
+         * TournamentDeckVersionRead
+         * @description La version d'un deck dans un tournoi, et la partie qui l'a figée (A9).
+         *
+         *     Dans un tournoi, un deck n'a qu'une version : la liste figée à la première
+         *     partie où il a été joué, ou au dernier « Figer sur la liste actuelle ».
+         */
+        TournamentDeckVersionRead: {
+            /** Deck Id */
+            deck_id: number;
+            /** Deck Version Id */
+            deck_version_id: number;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number;
+            /**
+             * Frozen By Game Id
+             * @description Partie qui a figé la liste (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde.
+             */
+            frozen_by_game_id: number;
+        };
+        /**
          * TournamentDeleteOperation
          * @description Supprime un tournoi ; refusée (`conflict`) s'il contient des parties.
          */
@@ -2804,8 +2909,8 @@ export interface components {
         };
         /**
          * TournamentDetailRead
-         * @description Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et
-         *     les decks admis en finale.
+         * @description Un tournoi, mes parties dans l'ordre des rondes (finale en dernier), les
+         *     decks admis en finale et la version de chaque deck joué.
          */
         TournamentDetailRead: {
             /** Id */
@@ -2860,6 +2965,12 @@ export interface components {
              * @description Decks que ma finale peut jouer, en multi-deck selon la règle annoncée ; nul quand rien n'est contrôlable (mono-deck, règle inconnue, aucune préliminaire jouée avec un deck).
              */
             admissible_final_decks: number[] | null;
+            /**
+             * Deck Versions
+             * @description Une ligne par deck joué dans le tournoi, prêts compris, avec sa version et la partie qui l'a figée.
+             * @default []
+             */
+            deck_versions: components["schemas"]["TournamentDeckVersionRead"][];
         };
         /**
          * TournamentFormat

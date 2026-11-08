@@ -1,8 +1,9 @@
 # Lot 8 — Analyse : plan d'implémentation
 
-Statut : **A0 close le 2026-11-08 ; A1 livrée le 2026-11-08** (modèles et
-R13, `ac6cda5ad252`, cf. « Livré à A1 » sous le découpage ; A9 tranchée le même
-jour : table dédiée). Rédigé sur la branche
+Statut : **A0 close le 2026-11-08 ; A1 et A2 livrées le 2026-11-08** (modèles
+et R13, `ac6cda5ad252`, puis schémas et contrat, cf. « Livré à A1 » et « Livré
+à A2 » sous le découpage ; A9 tranchée le même jour : table dédiée ; front en
+échec de typage jusqu'à C1, par décision). Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -652,7 +653,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | P1 à P12 tranchées dans ce fichier ; brief Claude Design écrit — **fait le 2026-11-08** | rien |
 | A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures — **fait le 2026-11-08** (cf. « Livré à A1 ») | A0 |
-| A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync | A1 |
+| A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync — **fait le 2026-11-08** (cf. « Livré à A2 ») | A1 |
 | B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` | A2 |
 | B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
 | F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
@@ -730,6 +731,51 @@ types générés dès A2, comme C1a au Lot 7.
   `test_schemas_write::test_string_limits_do_not_exceed_the_database_column_lengths`
   (`max_length=120` contre une colonne d'enum) et
   `test_schemas_read::test_read_schema_exposes_every_column_of_its_model[Participation]`.
+  Tous verts depuis A2.
+
+### Livré à A2 (2026-11-08)
+
+- **Schémas** (`app/schemas/collection.py`, `app/schemas/play.py`) :
+  `archetype` passe à `DeckArchetype` dans `DeckCreate`, `DeckUpdate` et
+  `DeckRead`, sans repli de casse ni rognage (le client envoie le code) ;
+  `ParticipationCreate.player` devient facultatif et la ligne gagne les trois
+  champs adverses (nom de 120 caractères, non rogné comme `notes`) ;
+  `ParticipationRead` et `ParticipationSummary` rendent `deck_version_id` et
+  `deck_version_number`, `ParticipationRead` aussi les champs adverses et un
+  `player_id` nullable ; `GameUpdate.refreeze_decklists` ;
+  `TournamentDeckVersionRead` et `TournamentDetailRead.deck_versions` (A9) ;
+  `DeckVersionRead` et `DeckVersionCardRead`, écrits mais hors du contrat
+  jusqu'à leur route, comme les schémas de partie au Lot 7.
+- **Modèles** : propriétés `deck_version_number` sur `Participation` et
+  `TournamentDeckVersion`, version chargée en jointure (une liste de parties
+  ne fait pas une requête par ligne).
+- **Contrat** : toujours 49 opérations sur 29 chemins ; deux schémas neufs
+  (`DeckArchetype`, `TournamentDeckVersionRead`) ; client TS régénéré.
+  Aucun type `/sync` nouveau ; l'empreinte d'une opération écrite avant le lot
+  ne change pas (`exclude_unset`). Section « Lot 8 » écrite dans
+  `docs/lot3-sync-contrat.md`.
+- **Garde provisoire** dans `app/services/games.py`
+  (`_refuse_what_b1_brings`, et le drapeau dans `update_game`) : une ligne
+  sans joueur, un champ adverse ou `refreeze_decklists: true` sont refusés en
+  422 (verdict `invalid` par `/sync`) jusqu'à ce que B1 sache les
+  enregistrer. **À retirer à B1.**
+- **Front rouge jusqu'à C1**, décision de l'utilisateur du 2026-11-08 : A2 ne
+  touche aucun fichier du front hors `src/api-client/schema.d.ts`.
+  `npx tsc --noEmit -p tsconfig.app.json` signale 10 erreurs, donc le build et
+  `preview` échouent ; `vite` en développement tourne. Les erreurs, toutes
+  pour C1 (et D1/D2 pour les écrans) : l'archétype en texte libre de
+  `offline/vtes/operations.ts` (deux, qui remontent dans `DecksPage.tsx` et
+  `DeckDetailPage.tsx`), le joueur facultatif d'une ligne dans
+  `features/sync/playCorrection.ts` (cinq) et `offline/vtes/overlayPlay.ts`
+  (deux), et `player_id` nullable dans `offline/vtes/refresh.ts` (une), qui
+  remonte jusqu'à `LocalTableLine.playerKey` et aux écrans de partie.
+- **Tests** : `backend/tests/test_lot8_contract.py` (46 : archétype fermé en
+  ligne et par `/sync`, lot refusé en 422 pour un archétype libre en file,
+  bornes des champs adverses, aucune version écrite par le client, empreinte
+  inchangée, lectures de la version et du deck adverse, gardes provisoires,
+  refus d'une seule opération par `/sync`) ; attentes alignées dans
+  `test_api_decks`, `test_deck_state_matrix`, `test_sync_service`,
+  `test_schemas_write`, `test_schemas_read` et `test_play_routes`.
 
 ### Tests attendus (E)
 
