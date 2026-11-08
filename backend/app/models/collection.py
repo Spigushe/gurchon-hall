@@ -27,6 +27,11 @@ Trois idées, dans l'ordre où elles s'empilent :
    `card_set` là où une ligne vivante pointe `card_printing`, parce qu'une
    decklist figée ne doit même pas retenir l'impression tampon de l'import
    (décision D2c).
+5. `DeckVersion` et `DeckVersionCard` (Lot 8) — la liste d'un deck **telle
+   qu'elle a été jouée**, coupée par le serveur quand une partie désigne le
+   deck, en carte × quantité totale. Une participation pointe sa version, si
+   bien qu'un deck retouché après un tournoi ne réécrit plus l'historique de
+   ce tournoi.
 
 **Propriétaire (Lot 6).** `card_copy`, `deck` et `deck_card` portent un
 `user_id` : une collection et des decks appartiennent à un compte. La clé de
@@ -56,13 +61,14 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     false,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.account import UserAccount
-from app.models.base import Base, TimestampMixin
+from app.models.base import NEVER_REUSE_IDS, Base, TimestampMixin, utcnow
 from app.models.catalog import Card, CardPrinting
-from app.models.enums import DeckStatus, enum_column
+from app.models.enums import DeckArchetype, DeckStatus, enum_column
 from app.models.reference import CardSet, Language
 from app.models.types import UtcDateTime
 
@@ -210,7 +216,11 @@ class Deck(Base, TimestampMixin):
         enum_column(DeckStatus, "deck_status"),
         default=DeckStatus.DRAFT,
     )
-    archetype: Mapped[str | None] = mapped_column(String(120))
+    # Un des six archétypes fermés (Lot 8, P5), ou rien. Texte libre jusqu'à
+    # R13, qui a converti les valeurs égales à un code une fois repliées.
+    archetype: Mapped[DeckArchetype | None] = mapped_column(
+        enum_column(DeckArchetype, "deck_archetype")
+    )
     notes: Mapped[str | None] = mapped_column(Text())
     # Autorisation de jouer des proxies dans ce deck, choisie selon le tournoi
     # visé (certains les refusent, d'autres les acceptent). Le nombre de
@@ -231,6 +241,19 @@ class Deck(Base, TimestampMixin):
     frozen_cards: Mapped[list[DeletedDeckCard]] = relationship(
         back_populates="deck",
         cascade="all, delete-orphan",
+    )
+    # Pas de cascade : une version est désignée par les participations qui
+    # l'ont jouée, et un deck ne se supprime que logiquement. Jointure sur le
+    # compte, qui n'est pas « étrangère » ici (même patron que `play.py`) : le
+    # service pose `user_id` sur la version.
+    versions: Mapped[list[DeckVersion]] = relationship(
+        back_populates="deck",
+        order_by="DeckVersion.number",
+        primaryjoin=(
+            "and_(Deck.id == DeckVersion.deck_id, Deck.user_id == DeckVersion.user_id)"
+        ),
+        foreign_keys="DeckVersion.deck_id",
+        passive_deletes="all",
     )
 
 
@@ -391,3 +414,81 @@ class DeletedDeckCard(Base):
     deck: Mapped[Deck] = relationship(back_populates="frozen_cards")
     card: Mapped[Card] = relationship()
     language: Mapped[Language] = relationship()
+
+
+class DeckVersion(Base):
+    """Une liste figée d'un deck, coupée au moment où il est joué (Lot 8, P1).
+
+    Quand une partie désigne un deck, le serveur compare la liste courante à la
+    dernière version du deck : identique, il la réutilise ; différente, il crée
+    la suivante (`number` 1, 2, 3…). La participation pointe la version. Un deck
+    jamais joué n'a aucune version, et une modification qui ne passe pas par
+    une partie n'en crée pas.
+
+    Deux versions se distinguent par la liste **carte × quantité totale**, sans
+    langue, extension ni proxy (P2) : convertir un proxy ou changer
+    d'impression ne change pas le deck joué. D'où `deck_version_card`, qui ne
+    garde que ces deux colonnes.
+
+    Clé composite (`deck_id`, `user_id`) vers `deck` : la version appartient au
+    compte de son deck. L'unicité (`id`, `deck_id`, `user_id`) sert de cible aux
+    clés composites de `participation` et de `tournament_deck_version`, qui
+    garantissent ainsi qu'une ligne ne pointe que la version **de son deck**.
+    Identifiant jamais réattribué (`AUTOINCREMENT`), comme les tables du Lot 7
+    depuis R11 : un client le garde dans son miroir.
+    """
+
+    __tablename__ = "deck_version"
+    __table_args__ = (
+        ForeignKeyConstraint(["deck_id", "user_id"], ["deck.id", "deck.user_id"]),
+        UniqueConstraint("deck_id", "number"),
+        UniqueConstraint("id", "deck_id", "user_id"),
+        CheckConstraint("number >= 1", name="number_positive"),
+        NEVER_REUSE_IDS,
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # Pas de clé étrangère simple vers `user_account` : la composite vers
+    # `deck` l'implique, comme pour `deck_card`.
+    user_id: Mapped[int] = mapped_column()
+    deck_id: Mapped[int] = mapped_column()
+    number: Mapped[int] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(
+        UtcDateTime(),
+        default=utcnow,
+        server_default=func.now(),
+    )
+
+    deck: Mapped[Deck] = relationship(
+        back_populates="versions",
+        primaryjoin=(
+            "and_(DeckVersion.deck_id == Deck.id, DeckVersion.user_id == Deck.user_id)"
+        ),
+        foreign_keys="DeckVersion.deck_id",
+    )
+    cards: Mapped[list[DeckVersionCard]] = relationship(
+        back_populates="version",
+        cascade="all, delete-orphan",
+        order_by="DeckVersionCard.card_id",
+    )
+
+
+class DeckVersionCard(Base):
+    """Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).
+
+    Clé étrangère vers `card` seulement, comme `deleted_deck_card` vers
+    `card_set` : une liste figée ne réserve rien, ni exemplaire, ni impression.
+    """
+
+    __tablename__ = "deck_version_card"
+    __table_args__ = (CheckConstraint("quantity >= 1", name="quantity_positive"),)
+
+    deck_version_id: Mapped[int] = mapped_column(
+        ForeignKey("deck_version.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    card_id: Mapped[int] = mapped_column(ForeignKey("card.id"), primary_key=True)
+    quantity: Mapped[int] = mapped_column()
+
+    version: Mapped[DeckVersion] = relationship(back_populates="cards")
+    card: Mapped[Card] = relationship()

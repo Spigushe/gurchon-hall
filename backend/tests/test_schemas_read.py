@@ -350,7 +350,7 @@ def test_deck_read_maps_columns_and_timestamps(db, world):
     assert len(read.discriminator) == 4 and read.discriminator.isdigit()
     assert read.status is DeckStatus.ACTIVE
     assert read.created_on == date(2026, 1, 15)
-    assert read.archetype == "Vote"
+    assert read.archetype == "vote"
     assert read.notes is None
     assert read.proxy_allowed is False
     assert isinstance(read.created_at, datetime)

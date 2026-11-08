@@ -1,6 +1,8 @@
 # Lot 8 — Analyse : plan d'implémentation
 
-Statut : **A0 close le 2026-11-08, aucun code.** Rédigé sur la branche
+Statut : **A0 close le 2026-11-08 ; A1 livrée le 2026-11-08** (modèles et
+R13, `ac6cda5ad252`, cf. « Livré à A1 » sous le découpage ; A9 tranchée le même
+jour : table dédiée). Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -613,6 +615,14 @@ Exposée au contrat dans `TournamentDetailRead` : une ligne par deck joué, avec
 version, numéro et partie qui l'a figée. Le miroir la range dans la ligne du
 tournoi, comme `admissibleFinalDecks`.
 
+**Tranché le 2026-11-08** (ouverture de A1) : table dédiée, la recommandation.
+Clé primaire (`tournament_id`, `deck_id`) plutôt qu'une unicité à côté d'un
+identifiant : rien ne désigne une ligne autrement que par ce couple.
+`frozen_by_game_id` est non nul et sa clé étrangère ne cascade pas : la base
+refuse de supprimer la partie qui a figé tant que la ligne la désigne, et
+c'est le service (B1) qui la fait passer à la partie suivante ou la retire,
+dans la même transaction.
+
 ## Écrans (frontend-react)
 
 Sur le handoff de D0, en mobile puis en bureau :
@@ -641,7 +651,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | P1 à P12 tranchées dans ce fichier ; brief Claude Design écrit — **fait le 2026-11-08** | rien |
-| A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures | A0 |
+| A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures — **fait le 2026-11-08** (cf. « Livré à A1 ») | A0 |
 | A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync | A1 |
 | B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` | A2 |
 | B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
@@ -682,6 +692,44 @@ par l'utilisateur le 2026-11-08). Procédure :
 
 D0 avance en parallèle de A1 à C1. C1 peut commencer ce qui ne dépend pas des
 types générés dès A2, comme C1a au Lot 7.
+
+### Livré à A1 (2026-11-08)
+
+- `DeckArchetype` (`app/models/enums.py`) ; `deck.archetype` passe à cet enum,
+  CHECK `ck_deck_deck_archetype`.
+- `DeckVersion` et `DeckVersionCard` dans `app/models/collection.py`, avec la
+  relation `Deck.versions` (sans cascade) ; `deck_version` en `AUTOINCREMENT`,
+  `created_at` seul (une version ne se modifie pas).
+- `Participation` : `player_id` nullable, `deck_version_id` et sa clé
+  composite, CHECK `ck_participation_version_requires_deck`, les trois champs
+  adverses (CHECK `ck_participation_deck_archetype`, clé vers `clan`) ;
+  `is_me` rend faux pour une ligne sans joueur, et `Game.me` passe par lui.
+- `TournamentDeckVersion` dans `app/models/play.py` (A9, tranchée ci-dessus),
+  index sur `frozen_by_game_id`.
+- R13, `ac6cda5ad252` : 28 tables, treize révisions. Trois écarts à A8, à
+  connaître :
+  - **la descente ne se rend pas hors ligne**, comme celle de R10 : sa garde
+    lit la base, et une descente rendue sans garde perdrait les versions sans
+    prévenir ;
+  - une valeur d'archétype **vide ou faite d'espaces devient NULL** au lieu de
+    bloquer la montée : elle ne disait rien, la conversion ne devine pas ;
+  - le script hors ligne de la montée appelle `fold_text` : il se joue sur une
+    connexion ouverte par l'application, pas dans le client `sqlite3` nu.
+- Tests : section « Lot 8 » de `backend/tests/test_migrations.py` (27 tests :
+  conversion et conservation des lignes sur une base peuplée par les fixtures,
+  montée refusée sur un archétype non convertible, treize refus de contrainte
+  à la tête, lignes sans joueur, cascade des cartes d'une version, descente au
+  caractère près et ses quatre refus, aller-retour, rendu hors ligne) ;
+  comptes de tables portés à 28.
+- **Laissé à A2** : les schémas `DeckCreate`, `DeckUpdate` et `DeckRead`
+  acceptent encore un archétype libre, que la base refuse désormais, et
+  `ParticipationRead` n'expose pas les colonnes nouvelles. Cinq tests
+  échouent jusqu'à A2, et seulement eux (2511 verts et 2 `xfail` sinon) :
+  `test_api_decks::test_create_deck_defaults_to_draft` et deux tests de
+  `test_sync_service` (« Bleed », « Vote » envoyés tels quels),
+  `test_schemas_write::test_string_limits_do_not_exceed_the_database_column_lengths`
+  (`max_length=120` contre une colonne d'enum) et
+  `test_schemas_read::test_read_schema_exposes_every_column_of_its_model[Participation]`.
 
 ### Tests attendus (E)
 

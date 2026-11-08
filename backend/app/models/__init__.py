@@ -24,10 +24,18 @@ from app.models.catalog import (
     CardTranslation,
     CardTypeLink,
 )
-from app.models.collection import CardCopy, Deck, DeckCard, DeletedDeckCard
+from app.models.collection import (
+    CardCopy,
+    Deck,
+    DeckCard,
+    DeckVersion,
+    DeckVersionCard,
+    DeletedDeckCard,
+)
 from app.models.enums import (
     CardCategory,
     CostType,
+    DeckArchetype,
     DeckPolicy,
     DeckStatus,
     DisciplineRequirement,
@@ -42,7 +50,13 @@ from app.models.enums import (
     TournamentFormat,
     UserRole,
 )
-from app.models.play import Game, Participation, Player, Tournament
+from app.models.play import (
+    Game,
+    Participation,
+    Player,
+    Tournament,
+    TournamentDeckVersion,
+)
 from app.models.reference import (
     Bundle,
     CardSet,
@@ -72,9 +86,12 @@ __all__ = [
     "Clan",
     "CostType",
     "Deck",
+    "DeckArchetype",
     "DeckCard",
     "DeckPolicy",
     "DeckStatus",
+    "DeckVersion",
+    "DeckVersionCard",
     "DeletedDeckCard",
     "Discipline",
     "DisciplineRequirement",
@@ -95,6 +112,7 @@ __all__ = [
     "TimestampMixin",
     "TournamentFormat",
     "Tournament",
+    "TournamentDeckVersion",
     "UserAccount",
     "UserRole",
     "Venue",
