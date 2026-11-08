@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  @font-face{font-family:"Ankha";src:url("https://static.krcg.org/web/ankha2.otf") format("opentype");font-display:swap}
+  @font-face{font-family:"VtesClans";src:url("https://static.krcg.org/web/vtes-clans.otf") format("opentype");font-display:swap}
+  body { margin: 0; background: #0d0e16; }
+  a { color: var(--color-accent-300); text-decoration: none; }
+  a:hover { color: var(--color-accent-200); }
+  i[class^="ph"] { display: block; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .scroll > * { flex-shrink: 0; }
+</style>
+</helmet>
+
+<section style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:56px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:760px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · Lot 8 · bureau 1440 · direction 3a</div>
+    <h2 style="font-size:30px;margin:0">Analyse — vue bureau</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:66ch;text-wrap:pretty">Onglet « Bilan » à côté de Parties et Tournois. Filtres en barre et axes en grille (<a href="#1c">1c</a>) ; un clic sur une ligne ouvre ses parties dans le panneau de droite (patron d10) ; les en-têtes trient. LOT8.md et le prototype mobile font foi pour la copie.</p>
+  </div>
+
+  <div id="lot8-bilan-bureau" style="display:flex;flex-direction:column;gap:56px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">3a · Lot 8</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Bilan — d25</span>
+    </div>
+
+    <!-- 1c -->
+    <div id="1c" style="display:flex;flex-direction:column;gap:12px">
+      <span style="display:flex;align-items:center;gap:10px;font-size:13px;color:var(--color-neutral-400)"><span style="font-family:var(--font-heading);font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1c</span>d25 · Bilan — filtres en barre, axes en grille, détail à droite (interactif)<span style="font-size:11px;padding:3px 10px;border-radius:calc(var(--radius-md) * .75);background:var(--color-accent-800);color:var(--color-accent-100)">Retenue</span></span>
+      <div id="shot-d25-bilan-grille" data-screen-label="3a-25 Bilan grille" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:40px;padding:28px 0 0;min-height:0">
+          <div class="scroll" style="display:flex;flex-direction:column;gap:18px;min-width:0;min-height:0;overflow-y:auto;scrollbar-width:none;padding-bottom:28px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Parties</h3>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Bilan · calculé sur cet appareil</span>
+              </div>
+              <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)"><i class="ph ph-address-book" style="font-size:15px"></i>Carnet</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--color-divider)">
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Parties · 14</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Tournois · 2</span>
+              <span style="font-size:13px;font-family:var(--font-heading);padding:10px 0;box-shadow:inset 0 -2px 0 var(--color-accent)">Bilan</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;font-size:13px">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="color:var(--color-neutral-500)">Période</span>
+                <sc-for list="{{ periodChips }}" as="o" hint-placeholder-count="3">
+                  <span onClick="{{ o.pick }}" style="height:32px;padding:0 10px;box-sizing:border-box;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid {{ o.border }};color:{{ o.color }};background:{{ o.bg }};cursor:pointer">{{ o.label }}</span>
+                </sc-for>
+                <span style="color:var(--color-neutral-500);font-variant-numeric:tabular-nums;margin-left:4px">{{ rangeLine }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="color:var(--color-neutral-500)">Type</span>
+                <sc-for list="{{ typeChips }}" as="o" hint-placeholder-count="3">
+                  <span onClick="{{ o.pick }}" style="height:32px;padding:0 10px;box-sizing:border-box;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid {{ o.border }};color:{{ o.color }};background:{{ o.bg }};cursor:pointer">{{ o.label }}</span>
+                </sc-for>
+              </div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="color:var(--color-neutral-500)">Deck</span>
+                <sc-for list="{{ deckChips }}" as="o" hint-placeholder-count="3">
+                  <span onClick="{{ o.pick }}" style="height:32px;padding:0 10px;box-sizing:border-box;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid {{ o.border }};color:{{ o.color }};background:{{ o.bg }};cursor:pointer"><sc-if value="{{ o.hasGlyph }}" hint-placeholder-val="{{ false }}"><span style="font-family:VtesClans;font-size:15px;line-height:1">{{ o.glyph }}</span></sc-if>{{ o.label }}</span>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ hasGames }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 18px;padding:14px 0 14px 16px;border-left:2px solid var(--color-accent)">
+                <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">{{ sum.gwOf }}</span>
+                <span style="font-size:15px;color:var(--color-neutral-300)">{{ sum.vpLabel }} au total, {{ sum.avgLabel }} VP par partie</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">{{ sum.toursLabel }} · {{ sum.finalsLabel }}</span>
+                <span style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:11px;color:var(--color-neutral-500)"><span style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:3px;border-radius:2px;background:var(--color-accent)"></span>GW sur parties</span><span style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:3px;border-radius:2px;background:var(--color-neutral-400)"></span>VP moyen, sur 5</span></span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ noMatch }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:16px;padding:20px 0;border-top:1px solid var(--color-divider)">
+                <span style="font-family:var(--font-heading);font-size:18px">Aucune partie ne correspond à ces filtres.</span>
+                <span onClick="{{ clearFilters }}" style="font-size:13px;color:var(--color-accent-300);cursor:pointer">Effacer les filtres</span>
+              </div>
+            </sc-if>
+            <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 28px;align-items:start">
+              <sc-for list="{{ axesC }}" as="a" hint-placeholder-count="5">
+                <div style="display:flex;flex-direction:column;gap:6px;grid-column:{{ a.span }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:30px">
+                    <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">{{ a.title }}</span>
+                    <sc-if value="{{ a.isPos }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:16px;font-size:12px">
+                        <sc-for list="{{ posOpts }}" as="o" hint-placeholder-count="2">
+                          <span onClick="{{ o.pick }}" style="padding:4px 0;cursor:pointer;font-family:{{ o.font }};color:{{ o.color }};box-shadow:inset 0 -2px 0 {{ o.line }}">{{ o.label }}</span>
+                        </sc-for>
+                        <span style="width:1px;height:14px;background:var(--color-divider)"></span>
+                        <sc-for list="{{ byOpts }}" as="o" hint-placeholder-count="2">
+                          <span onClick="{{ o.pick }}" style="padding:4px 0;cursor:pointer;font-family:{{ o.font }};color:{{ o.color }};box-shadow:inset 0 -2px 0 {{ o.line }}">{{ o.label }}</span>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 44px 54px 64px;gap:8px;align-items:center;height:30px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)">
+                    <sc-for list="{{ a.heads }}" as="h" hint-placeholder-count="5">
+                      <span onClick="{{ h.pick }}" style="display:flex;align-items:center;gap:4px;justify-content:{{ h.justify }};cursor:pointer;color:{{ h.color }}">{{ h.label }}<i class="ph ph-{{ h.caret }}" style="font-size:11px;color:var(--color-accent)"></i></span>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ a.empty }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--color-neutral-400);padding:10px 0">{{ a.emptyText }}</span></sc-if>
+                  <sc-for list="{{ a.rows }}" as="r" hint-placeholder-count="3">
+                    <div style="display:flex;flex-direction:column">
+                      <div onClick="{{ r.select }}" style="display:grid;grid-template-columns:minmax(0,1fr) 44px 44px 54px 64px;gap:8px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider);margin:0 -10px;padding:0 10px;border-radius:var(--radius-sm);background:{{ r.bg }};box-shadow:{{ r.mark }};cursor:pointer;font-size:14px" style-hover="background:var(--color-neutral-800)">
+                        <span style="display:flex;align-items:center;gap:8px;min-width:0">
+                          <sc-if value="{{ r.expandable }}" hint-placeholder-val="{{ false }}"><i onClick="{{ r.toggle }}" class="ph ph-{{ r.caret }}" style="font-size:13px;color:var(--color-neutral-400)"></i></sc-if>
+                          <sc-if value="{{ r.hasGlyph }}" hint-placeholder-val="{{ false }}"><span title="{{ r.clan }}" style="font-family:VtesClans;font-size:18px;line-height:1;color:var(--color-neutral-200)">{{ r.glyph }}</span></sc-if>
+                          <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ r.labelColor }}">{{ r.label }}</span>
+                          <sc-if value="{{ r.hasArch }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px;padding:2px 8px;border-radius:calc(var(--radius-md) * .75);background:var(--color-neutral-800);color:var(--color-neutral-100)">{{ r.arch }}</span></sc-if>
+                        </span>
+                        <span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">{{ r.n }}</span>
+                        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span style="font-variant-numeric:tabular-nums">{{ r.gw }}</span><span style="width:100%;height:2px;border-radius:2px;background:var(--color-neutral-800);overflow:hidden"><span style="display:block;height:100%;width:{{ r.gwBar }};background:var(--color-accent)"></span></span></span>
+                        <span style="text-align:right;font-variant-numeric:tabular-nums;color:var(--color-neutral-300)">{{ r.vpNum }}</span>
+                        <span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span style="font-family:var(--font-heading);font-variant-numeric:tabular-nums">{{ r.avgLabel }}</span><span style="width:100%;height:2px;border-radius:2px;background:var(--color-neutral-800);overflow:hidden"><span style="display:block;height:100%;width:{{ r.vpBar }};background:var(--color-neutral-400)"></span></span></span>
+                      </div>
+                      <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+                        <sc-for list="{{ r.versions }}" as="v" hint-placeholder-count="2">
+                          <div style="display:grid;grid-template-columns:minmax(0,1fr) 44px 44px 54px 64px;gap:8px;align-items:center;height:34px;border-bottom:1px dashed var(--color-divider);font-size:13px;color:var(--color-neutral-300)">
+                            <span style="display:flex;align-items:center;gap:8px;padding-left:30px;min-width:0"><span style="font-family:var(--font-heading);color:var(--color-text)">{{ v.label }}</span><span style="font-size:12px;color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ v.note }}</span><sc-if value="{{ v.hasList }}" hint-placeholder-val="{{ true }}"><span style="font-size:12px;color:var(--color-accent-300);white-space:nowrap">liste</span></sc-if><sc-if value="{{ v.pending }}" hint-placeholder-val="{{ false }}"><i class="ph ph-clock-countdown" style="font-size:13px;color:var(--color-accent-300)"></i></sc-if></span>
+                            <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.n }}</span>
+                            <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.gw }}</span>
+                            <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.vpNum }}</span>
+                            <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.avgLabel }}</span>
+                          </div>
+                        </sc-for>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ a.hasNote }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--color-neutral-500);padding-top:4px">{{ a.note }}</span></sc-if>
+                  <sc-if value="{{ a.isPos }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-direction:column;margin-top:10px">
+                      <div onClick="{{ toggleFar }}" style="display:flex;align-items:center;gap:8px;height:34px;font-size:13px;color:var(--color-neutral-400);cursor:pointer;border-top:1px solid var(--color-divider)"><i class="ph ph-{{ farCaret }}" style="font-size:12px"></i>Plus loin à la table<span style="font-size:12px;color:var(--color-neutral-500)">grande proie, grand prédateur</span></div>
+                      <sc-if value="{{ far }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:flex;flex-direction:column;padding-left:14px;border-left:2px solid var(--color-divider)">
+                          <div style="display:flex;gap:16px;font-size:12px;padding:4px 0 6px">
+                            <sc-for list="{{ farOpts }}" as="o" hint-placeholder-count="2">
+                              <span onClick="{{ o.pick }}" style="padding:4px 0;cursor:pointer;color:{{ o.color }};box-shadow:inset 0 -2px 0 {{ o.line }}">{{ o.label }}</span>
+                            </sc-for>
+                          </div>
+                          <sc-if value="{{ farEmpty }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:var(--color-neutral-400);padding:6px 0">Aucune partie à quatre joueurs ou plus avec votre siège.</span></sc-if>
+                          <sc-for list="{{ farRows }}" as="r" hint-placeholder-count="3">
+                            <div style="display:grid;grid-template-columns:minmax(0,1fr) 52px 52px 60px 62px;gap:10px;align-items:center;height:32px;border-bottom:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">
+                              <span style="display:flex;align-items:center;gap:7px;min-width:0"><sc-if value="{{ r.hasGlyph }}" hint-placeholder-val="{{ false }}"><span style="font-family:VtesClans;font-size:15px;line-height:1">{{ r.glyph }}</span></sc-if><span style="color:{{ r.labelColor }}">{{ r.label }}</span></span>
+                              <span style="text-align:right;font-variant-numeric:tabular-nums">{{ r.n }}</span><span style="text-align:right;font-variant-numeric:tabular-nums">{{ r.gw }}</span><span style="text-align:right;font-variant-numeric:tabular-nums">{{ r.vpNum }}</span><span style="text-align:right;font-variant-numeric:tabular-nums">{{ r.avgLabel }}</span>
+                            </div>
+                          </sc-for>
+                          <span style="font-size:12px;color:var(--color-neutral-500);padding-top:6px">{{ farNote }}</span>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div class="scroll" style="display:flex;flex-direction:column;gap:20px;border-left:1px solid var(--color-divider);padding:0 0 28px 36px;min-height:0;overflow-y:auto;scrollbar-width:none">
+            <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">{{ sel.axisTitle }}</span>
+                <span style="font-family:var(--font-heading);font-size:26px;letter-spacing:-.02em;display:flex;align-items:center;gap:10px"><sc-if value="{{ sel.hasGlyph }}" hint-placeholder-val="{{ false }}"><span style="font-family:VtesClans;font-size:22px;line-height:1;color:var(--color-neutral-200)">{{ sel.glyph }}</span></sc-if>{{ sel.label }}</span>
+                <span style="font-size:15px;color:var(--color-neutral-200)">{{ sel.gwOf }}</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">{{ sel.vpLabel }} au total, {{ sel.avgLabel }} VP par partie</span>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Parties</span>
+                <sc-for list="{{ sel.games }}" as="g" hint-placeholder-count="5">
+                  <div style="display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:46px;border-top:1px solid var(--color-divider);font-size:13px">
+                    <span style="font-variant-numeric:tabular-nums;color:var(--color-neutral-400)">{{ g.date }}</span>
+                    <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.deck }} <span style="color:var(--color-neutral-500)">· {{ g.version }}</span></span><span style="font-size:12px;color:var(--color-neutral-500);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.ctx }} · {{ g.venue }}</span></span>
+                    <span style="font-family:var(--font-heading);font-variant-numeric:tabular-nums;white-space:nowrap">{{ g.result }}<sc-if value="{{ g.gw }}" hint-placeholder-val="{{ false }}"><span style="color:var(--color-accent-200)"> · GW</span></sc-if></span>
+                  </div>
+                </sc-for>
+              </div>
+              <span style="font-size:13px;color:var(--color-accent-300);display:flex;align-items:center;gap:6px">Ouvrir ces parties dans la liste<i class="ph ph-arrow-right" style="font-size:13px"></i></span>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="lot8-bureau-ecrans" style="display:flex;flex-direction:column;gap:56px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">3a · Lot 8</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Écrans existants enrichis — d27 à d34</span>
+    </div>
+
+    <!-- d27 Saisie -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d27 · Nouvelle partie — le deck des adversaires (interactif : dépliez, choisissez clan et archétype, changez de siège)</span>
+      <div id="shot-d27-saisie-adversaires" data-screen-label="3a-27 Saisie adversaires" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:28px 0;opacity:.35">
+          <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Parties</h3>
+          <div style="display:flex;flex-direction:column;font-size:14px;width:700px">
+            <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">24/10 16:35 · Banu Princes · Open de Lyon · ronde 2</div>
+            <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">24/10 14:10 · Toreador Mass Vote · Open de Lyon · ronde 1</div>
+            <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">15/10 20:45 · Banu Princes · Amicale</div>
+          </div>
+        </div>
+        <aside style="position:absolute;top:56px;right:0;bottom:0;width:460px;box-sizing:border-box;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:16px;padding:28px 32px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Open de Lyon · ronde 3</span>
+              <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Nouvelle partie</span>
+            </div>
+            <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-500)"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span><i class="ph ph-x" style="font-size:18px;color:var(--color-neutral-400)"></i></span>
+          </div>
+          <div style="display:flex;gap:28px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Joueurs</span>
+              <div style="display:flex;gap:6px">
+                <span style="font-size:13px;height:34px;min-width:34px;box-sizing:border-box;padding:0 12px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-300)">4</span>
+                <span style="font-size:13px;height:34px;min-width:34px;box-sizing:border-box;padding:0 12px;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid var(--color-accent);color:var(--color-accent-200);background:var(--color-accent-900)">5</span>
+                <span style="font-size:13px;height:34px;box-sizing:border-box;padding:0 10px;display:flex;align-items:center;gap:6px;border-radius:var(--radius-md);border:1px solid var(--color-divider);color:var(--color-neutral-400)">Autre<i class="ph ph-caret-down" style="font-size:12px"></i></span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:12px;color:var(--color-neutral-400)">Mon siège</span>
+              <div style="display:flex;gap:6px">
+                <sc-for list="{{ mySeats }}" as="s" hint-placeholder-count="5">
+                  <span onClick="{{ s.pick }}" style="width:34px;height:34px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px solid {{ s.border }};color:{{ s.color }};background:{{ s.bg }};font-size:13px;cursor:pointer">{{ s.n }}</span>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div class="scroll" style="flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--color-divider);padding-top:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">
+              <span style="display:flex;flex-direction:column;gap:3px">Adversaires<span style="font-size:12px;color:var(--color-neutral-500)">Facultatif · noms, sièges et decks, aucun score</span></span>
+              <span style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--color-accent-300)">Replier<i class="ph ph-caret-up" style="font-size:13px"></i></span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px;padding:6px 0 8px"><i class="ph ph-arrows-clockwise" style="font-size:13px;color:var(--color-neutral-500)"></i>{{ seatHint }}</span>
+            <sc-for list="{{ oppRows }}" as="o" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;border-top:1px solid var(--color-divider)">
+                <div style="display:grid;grid-template-columns:34px minmax(0,1fr) auto 28px;gap:12px;align-items:center;min-height:46px">
+                  <span style="width:34px;height:34px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:var(--radius-md);border:1px {{ o.seatBorder }} var(--color-divider);font-family:var(--font-heading);font-size:13px;color:var(--color-neutral-300)">{{ o.seatLabel }}</span>
+                  <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:14px;color:{{ o.nameColor }}">{{ o.name }}</span><sc-if value="{{ o.isLent }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px"><i class="ph ph-hand-arrow-up" style="font-size:12px"></i><span>Joue mon {{ o.lent }} · deck déjà connu</span></span></sc-if></span>
+                  <span style="font-size:12px;color:{{ o.posColor }}">{{ o.pos }}</span>
+                  <i class="ph ph-x" style="font-size:14px;color:var(--color-neutral-500)"></i>
+                </div>
+                <sc-if value="{{ o.hasDeck }}" hint-placeholder-val="{{ true }}">
+                  <div style="margin-left:46px;display:flex;flex-direction:column;padding-bottom:8px">
+                    <div onClick="{{ o.toggle }}" style="display:flex;align-items:center;justify-content:space-between;gap:10px;height:32px;cursor:pointer;font-size:13px">
+                      <span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="color:var(--color-neutral-400)">Son deck</span><sc-if value="{{ o.hasSummaryGlyph }}" hint-placeholder-val="{{ false }}"><span style="font-family:VtesClans;font-size:16px;line-height:1;color:var(--color-neutral-200)">{{ o.clanGlyph }}</span></sc-if><span style="color:{{ o.summaryColor }}">{{ o.summary }}</span></span>
+                      <i class="ph ph-{{ o.caret }}" style="font-size:13px;color:var(--color-neutral-400)"></i>
+                    </div>
+                    <sc-if value="{{ o.open }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0 6px">
+                        <div style="display:grid;grid-template-columns:150px minmax(0,1fr);gap:10px">
+                          <div style="display:flex;flex-direction:column;gap:6px;position:relative">
+                            <span style="font-size:12px;color:var(--color-neutral-400)">Clan principal</span>
+                            <div onClick="{{ o.pickClan }}" style="height:36px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;border-radius:var(--radius-md);border:1px solid {{ o.clanLine }};background:var(--color-bg);font-size:13px;cursor:pointer">
+                              <span style="display:flex;align-items:center;gap:8px;min-width:0"><sc-if value="{{ o.hasClan }}" hint-placeholder-val="{{ true }}"><span style="font-family:VtesClans;font-size:17px;line-height:1;color:var(--color-neutral-200)">{{ o.clanGlyph }}</span></sc-if><span style="color:{{ o.clanColor }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ o.clanLabel }}</span></span>
+                              <i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i>
+                            </div>
+                            <sc-if value="{{ o.menuOpen }}" hint-placeholder-val="{{ false }}">
+                              <div class="scroll" style="position:absolute;top:64px;left:0;width:220px;max-height:240px;overflow-y:auto;scrollbar-width:none;z-index:5;background:var(--color-surface);border:1px solid var(--color-divider);border-radius:var(--radius-md);box-shadow:var(--shadow-lg);padding:4px;display:flex;flex-direction:column">
+                                <sc-for list="{{ o.clanMenu }}" as="c" hint-placeholder-count="6">
+                                  <div onClick="{{ c.pick }}" style="display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;color:{{ c.color }};background:{{ c.bg }}" style-hover="background:var(--color-neutral-800)"><span style="width:20px;font-family:VtesClans;font-size:16px;line-height:1;text-align:center;color:var(--color-neutral-200)">{{ c.glyph }}</span>{{ c.name }}</div>
+                                </sc-for>
+                              </div>
+                            </sc-if>
+                          </div>
+                          <div style="display:flex;flex-direction:column;gap:6px">
+                            <span style="font-size:12px;color:var(--color-neutral-400)">Nom du deck (facultatif)</span>
+                            <div style="height:36px;box-sizing:border-box;display:flex;align-items:center;padding:0 10px;border-radius:var(--radius-md);border:1px solid var(--color-divider);background:var(--color-bg);font-size:13px;color:var(--color-neutral-500)">ex. Ministry stealth bleed</div>
+                          </div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:6px">
+                          <span style="font-size:12px;color:var(--color-neutral-400)">Archétype</span>
+                          <div style="display:flex;flex-wrap:wrap;gap:6px">
+                            <sc-for list="{{ o.archs }}" as="c" hint-placeholder-count="6">
+                              <span onClick="{{ c.pick }}" style="font-size:13px;height:32px;padding:0 10px;box-sizing:border-box;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid {{ c.border }};color:{{ c.color }};background:{{ c.bg }};cursor:pointer">{{ c.label }}</span>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ o.alert }}" hint-placeholder-val="{{ false }}"><span role="alert" style="font-size:12px;color:var(--color-accent-200);margin:0 0 8px 46px">Une ligne sans nom doit porter un siège ou un deck pour être enregistrée.</span></sc-if>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:20px;border-top:1px solid var(--color-divider);padding-top:10px;font-size:13px;color:var(--color-accent-300)">
+              <span style="display:flex;align-items:center;gap:6px"><i class="ph ph-user-plus" style="font-size:15px;color:var(--color-accent)"></i>Ajouter du carnet</span>
+              <span onClick="{{ addUnnamed }}" style="display:flex;align-items:center;gap:6px;cursor:pointer"><i class="ph ph-plus" style="font-size:15px;color:var(--color-accent)"></i>Ajouter un siège sans nom</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;justify-content:flex-end;gap:10px">
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Annuler</span>
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Enregistrer la partie<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500);text-align:right">Enregistrée sur cet appareil, envoyée au prochain réseau</span>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- d28 Détail partie -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d28 · Parties — détail : version jouée, figer, decks et positions de la table</span>
+      <div id="shot-d28-detail-partie" data-screen-label="3a-28 Détail partie" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:40px;padding:28px 0;min-height:0">
+          <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Parties</h3>
+                <span style="font-size:13px;color:var(--color-neutral-400)">14 parties · 2 tournois · lecture locale</span>
+              </div>
+              <div style="display:flex;gap:10px">
+                <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)"><i class="ph ph-address-book" style="font-size:15px"></i>Carnet</span>
+                <span style="display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:15px"></i>Nouvelle partie<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--color-divider)">
+              <span style="font-size:13px;font-family:var(--font-heading);padding:10px 0;box-shadow:inset 0 -2px 0 var(--color-accent)">Parties · 14</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Tournois · 2</span>
+              <span style="font-size:13px;color:var(--color-neutral-500);padding:10px 0">Bilan</span>
+            </div>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <div style="display:grid;grid-template-columns:108px minmax(0,1.3fr) minmax(0,1.3fr) minmax(0,.9fr) 78px;gap:14px;align-items:center;height:34px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)">
+                <span style="display:flex;align-items:center;gap:6px;color:var(--color-text)">Date<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-accent)"></i></span><span>Mon deck</span><span>Tournoi · ronde</span><span>Lieu</span><span style="text-align:right">Résultat</span>
+              </div>
+              <sc-for list="{{ gameRows }}" as="g" hint-placeholder-count="12">
+                <div style="display:grid;grid-template-columns:108px minmax(0,1.3fr) minmax(0,1.3fr) minmax(0,.9fr) 78px;gap:14px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider);margin:0 -10px;padding:0 10px;border-radius:var(--radius-sm);background:{{ g.bg }};box-shadow:{{ g.mark }}">
+                  <span style="display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums;color:{{ g.dim }}">{{ g.date }} {{ g.time }}<sc-if value="{{ g.pending }}" hint-placeholder-val="{{ false }}"><i class="ph ph-clock-countdown" style="font-size:13px;color:var(--color-accent-300)"></i></sc-if></span>
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ g.strong }}">{{ g.deck }} <span style="color:var(--color-neutral-500);font-size:12px">{{ g.version }}</span></span>
+                  <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ g.dim }}">{{ g.ctx }}</span>
+                  <span style="color:{{ g.dim }}">{{ g.venue }}</span>
+                  <span style="text-align:right;font-family:var(--font-heading);font-variant-numeric:tabular-nums;color:{{ g.strong }}">{{ g.result }}<sc-if value="{{ g.gw }}" hint-placeholder-val="{{ false }}"><span style="color:var(--color-accent-200)"> · GW</span></sc-if></span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:22px;border-left:1px solid var(--color-divider);padding-left:36px;min-height:0">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Open de Lyon · ronde 2</span>
+              <span style="font-family:var(--font-heading);font-size:30px;letter-spacing:-.02em">3 VP <span style="color:var(--color-accent-200)">· Game Win</span></span>
+              <span style="font-size:13px;color:var(--color-neutral-400)">Samedi 24/10/2026, 16:35</span>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+              <span style="height:34px;padding:0 12px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)">Modifier<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">E</span></span>
+              <span style="height:34px;padding:0 12px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">Modifier la table<span style="font-size:11px;color:var(--color-neutral-500);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">T</span></span>
+              <span style="height:34px;padding:0 12px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)"><i class="ph ph-push-pin" style="font-size:14px"></i>Figer sur la liste actuelle</span>
+              <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--color-accent-300)"><i class="ph ph-trash" style="font-size:15px"></i>Supprimer</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:1px solid var(--color-divider)"><span style="font-size:13px;color:var(--color-neutral-400)">Mon deck</span><span style="display:flex;flex-direction:column;align-items:flex-end;gap:3px"><span style="font-family:var(--font-heading);font-size:15px">Banu Princes<span style="color:var(--color-neutral-500)">#1234</span> · v2</span><span style="font-size:12px;color:var(--color-neutral-500)">liste du tournoi, figée à cette ronde · <span style="color:var(--color-accent-300)">Voir la liste</span></span></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px;border-bottom:1px solid var(--color-divider)"><span style="font-size:13px;color:var(--color-neutral-400)">Tournoi</span><span style="font-family:var(--font-heading);font-size:15px">Open de Lyon · ronde 2</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:10px;border-bottom:1px solid var(--color-divider)"><span style="font-size:13px;color:var(--color-neutral-400)">Lieu</span><span style="font-family:var(--font-heading);font-size:15px">Le Bar à Dés</span></div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;color:var(--color-neutral-400)">Joueurs</span><span style="font-family:var(--font-heading);font-size:15px">5</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Table par siège</span>
+              <div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:48px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-500)">1</span><span style="display:flex;flex-direction:column;gap:2px"><span>Léa</span><span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px"><span style="font-family:VtesClans;font-size:14px;line-height:1;color:var(--color-neutral-200)">o</span>Brujah · Rush</span></span><span style="font-size:13px;font-family:var(--font-heading);color:var(--color-accent-300)">prédateur</span></div>
+              <div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:48px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-accent-300)">2</span><span style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading)">Moi</span><span style="font-size:12px;color:var(--color-neutral-500)">Banu Princes · v2</span></span><span></span></div>
+              <div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:48px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-500)">3</span><span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="color:var(--color-neutral-300)">Joueur non nommé</span><span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px"><span style="font-family:VtesClans;font-size:14px;line-height:1;color:var(--color-neutral-200)">r</span>Ministry · Bleed · Ministry stealth bleed</span></span><span style="font-size:13px;font-family:var(--font-heading);color:var(--color-accent-300)">proie</span></div>
+              <div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:48px;border-top:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-500)">4</span><span style="display:flex;flex-direction:column;gap:2px"><span style="color:var(--color-neutral-300)">Joueur non nommé</span><span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px"><span style="font-family:VtesClans;font-size:14px;line-height:1;color:var(--color-neutral-200)">p</span>Gangrel · Rush</span></span><span style="font-size:12px;color:var(--color-neutral-500)">grande proie</span></div>
+              <div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:48px;border-top:1px solid var(--color-divider);border-bottom:1px solid var(--color-divider);font-size:14px"><span style="font-family:var(--font-heading);color:var(--color-neutral-500)">5</span><span style="display:flex;flex-direction:column;gap:2px"><span>Mikael</span><span style="font-size:12px;color:var(--color-neutral-400);display:flex;align-items:center;gap:6px"><span style="font-family:VtesClans;font-size:14px;line-height:1;color:var(--color-neutral-200)">k</span>Tzimisce · Toolbox</span></span><span style="font-size:12px;color:var(--color-neutral-500)">grand prédateur</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- d29 Dialogue figer -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d29 · Figer sur la liste actuelle — confirmation d'une amicale (le texte de tournoi est en 1b-51)</span>
+      <div id="shot-d29-figer" data-screen-label="3a-29 Figer" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding:28px 0;opacity:.3">
+          <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Parties</h3>
+          <div style="display:flex;flex-direction:column;font-size:14px;width:700px">
+            <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">05/11 20:30 · Banu Princes v2 · Amicale · Le Donjon</div>
+            <div style="height:42px;display:flex;align-items:center;border-bottom:1px solid var(--color-divider)">29/10 20:30 · Toreador Mass Vote v1 · Amicale · Le Donjon</div>
+          </div>
+        </div>
+        <div style="position:absolute;inset:56px 0 0 0;background:color-mix(in srgb, var(--color-bg) 55%, transparent);display:flex;align-items:center;justify-content:center">
+          <div style="width:500px;box-sizing:border-box;background:var(--color-surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:28px 32px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Amicale du 5 novembre · Banu Princes v2</span>
+              <span style="font-family:var(--font-heading);font-size:22px;letter-spacing:-.02em">Figer sur la liste actuelle ?</span>
+            </div>
+            <p style="margin:0;font-size:14px;color:var(--color-neutral-200);text-wrap:pretty">La partie sera rattachée à la liste actuelle de Banu Princes. Utile si vous avez saisi la partie après avoir modifié le deck.</p>
+            <p style="margin:0;font-size:13px;color:var(--color-neutral-400);border-left:2px solid var(--color-divider);padding-left:14px;text-wrap:pretty">La liste actuelle diffère de la v2 : elle deviendra la v3.</p>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:4px">
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Garder la v2<span style="margin-left:8px;font-size:11px;color:var(--color-neutral-500);border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span></span>
+              <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Figer la partie<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">↵</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- d30 Version -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d30 · Liste d'une version — lecture seule, changements depuis la précédente (versions cliquables)</span>
+      <div id="shot-d30-version" data-screen-label="3a-30 Version" style="width:1440px;height:1180px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px;padding:28px 0">
+          <div style="display:flex;gap:8px;font-size:12px;color:var(--color-neutral-300);letter-spacing:.06em;text-transform:uppercase"><span style="color:var(--color-accent-300)">← Partie du 24/10, ronde 2</span><span>·</span><span>Version jouée · lecture seule</span></div>
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px">
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <h1 style="margin:0;font-weight:500;font-size:26px;line-height:1.2;display:flex;align-items:center;gap:10px"><span style="font-family:VtesClans;font-size:22px;line-height:1;color:var(--color-neutral-200);font-weight:400">n</span>Banu Princes · {{ verLabel }}</h1>
+              <span style="font-size:13px;color:var(--color-neutral-300)">{{ verMeta }}</span>
+            </div>
+            <div style="display:flex;gap:22px;font-size:13px;border-bottom:1px solid var(--color-divider)">
+              <sc-for list="{{ verTabs }}" as="t" hint-placeholder-count="2">
+                <span onClick="{{ t.pick }}" style="padding:8px 0;cursor:pointer;font-family:{{ t.font }};color:{{ t.color }};box-shadow:inset 0 -2px 0 {{ t.line }}">{{ t.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ hasDiff }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:10px;background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);padding:16px 18px">
+              <span style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--color-neutral-300)">Changements depuis v1</span>
+              <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px">
+                <sc-for list="{{ diffGroups }}" as="g" hint-placeholder-count="3">
+                  <div style="display:flex;flex-direction:column">
+                    <span style="font-size:12px;color:var(--color-accent-300);padding-bottom:4px">{{ g.title }}</span>
+                    <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+                      <div style="display:flex;justify-content:space-between;height:30px;align-items:center;border-top:1px solid var(--color-neutral-800);font-size:14px"><span>{{ it.name }}</span><span style="font-variant-numeric:tabular-nums;color:{{ g.color }}">{{ it.q }}</span></div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+          <dc-import name="DeckTables" d="{{ verTables }}" hint-size="100%,700px"></dc-import>
+        </div>
+      </div>
+    </div>
+
+    <!-- d31 Decks résultats -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d31 · Decks — aperçu avec l'encart « Résultats » sous les tableaux</span>
+      <div id="shot-d31-decks-resultats" data-screen-label="3a-31 Decks résultats" style="width:1440px;height:1040px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="decks" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;display:flex;gap:var(--space-8);align-items:flex-start;padding:var(--space-6) var(--space-8);background:radial-gradient(120% 60% at 0% 0%, var(--color-neutral-900), var(--color-bg))">
+          <div style="flex:0 1 360px;display:flex;flex-direction:column;gap:var(--space-4)">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-3)">
+              <div>
+                <h1 style="margin:0;font-weight:500;font-size:26px">Decks</h1>
+                <div style="font-size:13px;color:var(--color-neutral-300)">3 decks · 2 actifs</div>
+              </div>
+              <button class="btn btn-primary">Nouveau</button>
+            </div>
+            <input class="input" type="search" placeholder="Filtrer par nom">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <sc-for list="{{ deckList }}" as="r" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:3px minmax(0,1fr) auto;gap:var(--space-3);align-items:center;padding:var(--space-3) var(--space-3) var(--space-3) 0;border-radius:var(--radius-sm);background:{{ r.bg }}">
+                  <span style="align-self:stretch;border-radius:2px;background:{{ r.mark }}"></span>
+                  <span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:15px">{{ r.name }}</span><span style="font-size:12px;color:var(--color-neutral-300)">{{ r.meta }}</span></span>
+                  <span title="{{ r.clan }}" style="font-family:VtesClans;font-size:18px;line-height:1;color:var(--color-neutral-200)">{{ r.glyph }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:var(--space-6)">
+            <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--space-4)">
+              <div style="display:flex;flex-direction:column;gap:var(--space-2);min-width:0">
+                <div style="font-size:12px;color:var(--color-neutral-300);letter-spacing:.06em;text-transform:uppercase">Aperçu</div>
+                <h2 style="margin:0;font-weight:500;font-size:26px;line-height:1.2">Banu Princes</h2>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);align-items:center;font-size:13px;color:var(--color-neutral-300)"><span>#1234 · actif · Toolbox · 12 / 48</span><span class="tag tag-accent">Légal</span></div>
+              </div>
+              <button class="btn btn-primary">Ouvrir le deckbuilder ↵</button>
+            </div>
+            <dc-import name="DeckTables" d="{{ banuTables }}" hint-size="100%,600px"></dc-import>
+            <section style="background:var(--color-surface);border-radius:var(--radius-md);box-shadow:var(--shadow-sm);overflow:hidden">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-4) var(--space-3);border-bottom:1px solid var(--color-neutral-800)">
+                <h2 style="margin:0;font-weight:500;font-size:16px">Résultats <span style="color:var(--color-accent-300)">{{ banu.n }}</span></h2>
+                <div style="display:flex;gap:var(--space-4);font-size:12px;color:var(--color-neutral-300);align-items:baseline"><span>{{ banu.gwOf }}</span><span>{{ banu.avgLabel }} VP par partie</span><span style="color:var(--color-accent-300)">Voir dans le bilan →</span></div>
+              </div>
+              <div style="display:grid;grid-template-columns:60px minmax(0,1fr) 70px 70px 80px 90px 90px;gap:var(--space-3);padding:var(--space-2) var(--space-4);font-size:11px;color:var(--color-neutral-400);text-transform:uppercase;letter-spacing:.05em">
+                <span>Version</span><span>Depuis</span><span style="text-align:right">Parties</span><span style="text-align:right">GW</span><span style="text-align:right">VP</span><span style="text-align:right">VP moyen</span><span></span>
+              </div>
+              <sc-for list="{{ banu.versions }}" as="v" hint-placeholder-count="2">
+                <div style="display:grid;grid-template-columns:60px minmax(0,1fr) 70px 70px 80px 90px 90px;gap:var(--space-3);align-items:center;height:34px;padding:0 var(--space-4);font-size:14px;background:{{ v.bg }}">
+                  <span style="font-family:var(--font-heading)">{{ v.label }}</span>
+                  <span style="font-size:13px;color:var(--color-neutral-300)">{{ v.note }}</span>
+                  <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.n }}</span>
+                  <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.gw }}</span>
+                  <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.vpNum }}</span>
+                  <span style="text-align:right;font-variant-numeric:tabular-nums">{{ v.avgLabel }}</span>
+                  <span style="text-align:right;font-size:12px;color:var(--color-accent-300)">Voir la liste</span>
+                </div>
+              </sc-for>
+              <div style="height:var(--space-3)"></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- d32 Tournoi -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d32 · Tournois — détail : version de chaque deck et légalité à la date du tournoi</span>
+      <div id="shot-d32-detail-tournoi" data-screen-label="3a-32 Détail tournoi" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:380px minmax(0,1fr);gap:48px;padding:28px 0;min-height:0">
+          <div style="display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <h3 style="font-size:30px;margin:0;letter-spacing:-.02em">Parties</h3>
+                <span style="font-size:13px;color:var(--color-neutral-400)">2 tournois · lecture locale</span>
+              </div>
+              <span style="display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:15px"></i>Nouveau tournoi<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+            </div>
+            <div style="display:flex;gap:22px;font-size:13px;border-bottom:1px solid var(--color-divider)">
+              <span style="color:var(--color-neutral-500);padding:8px 0">Parties · 14</span>
+              <span style="font-family:var(--font-heading);padding:8px 0;box-shadow:inset 0 -2px 0 var(--color-accent)">Tournois · 2</span>
+              <span style="color:var(--color-neutral-500);padding:8px 0">Bilan</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md);background:var(--color-accent-900);box-shadow:inset 2px 0 0 var(--color-accent)">
+                <span style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:16px;color:var(--color-accent-100)">Open de Lyon<span style="font-variant-numeric:tabular-nums;font-size:14px">5e <span style="font-size:12px;color:var(--color-accent-300)">/ 27</span></span></span>
+                <span style="font-size:12px;color:var(--color-accent-300)">24 oct. · Le Bar à Dés · multi-deck</span>
+                <span style="font-size:12px;color:var(--color-accent-200)">2 GW · 7,5 VP · finaliste</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;padding:12px 14px;border-radius:var(--radius-md)">
+                <span style="display:flex;justify-content:space-between;font-family:var(--font-heading);font-size:16px">Coupe du Rhône<span style="font-variant-numeric:tabular-nums;font-size:14px">9e <span style="font-size:12px;color:var(--color-neutral-500)">/ 22</span></span></span>
+                <span style="font-size:12px;color:var(--color-neutral-500)">19 sept. · Le Donjon · mono-deck</span>
+                <span style="font-size:12px;color:var(--color-neutral-400)">2 GW · 6,5 VP</span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:24px;border-left:1px solid var(--color-divider);padding-left:48px;min-height:0">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px">
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Tournoi standard · multi-deck · construit</span>
+                <span style="font-family:var(--font-heading);font-size:30px;letter-spacing:-.02em">Open de Lyon</span>
+                <span style="font-size:13px;color:var(--color-neutral-400)">Samedi 24 octobre · Le Bar à Dés · 27 joueurs</span>
+              </div>
+              <span style="display:flex;align-items:center;height:36px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:13px;color:var(--color-neutral-300)">Modifier</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:24px">
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px">2</span><span style="font-size:12px;color:var(--color-neutral-500)">GW en préliminaires</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px;font-variant-numeric:tabular-nums">7,5</span><span style="font-size:12px;color:var(--color-neutral-500)">VP en préliminaires</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px">2</span><span style="font-size:12px;color:var(--color-neutral-500)">VP en finale</span></div>
+              <div style="display:flex;flex-direction:column;gap:2px"><span style="font-family:var(--font-heading);font-size:26px;color:var(--color-neutral-600)">—</span><span style="font-size:12px;color:var(--color-neutral-500)">GW en finale</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Decks joués</span>
+              <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) auto 90px;gap:16px;align-items:center;height:34px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)"><span>Deck · version</span><span>Liste figée</span><span>Légalité</span><span></span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) auto 90px;gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span style="display:flex;align-items:center;gap:8px"><span style="font-family:VtesClans;font-size:17px;line-height:1;color:var(--color-neutral-200)">t</span>Toreador Mass Vote · v1</span><span style="color:var(--color-neutral-400)">figée à la ronde 1 · ronde 1</span><span class="tag tag-accent">Légal le 24 octobre</span><span style="text-align:right;font-size:13px;color:var(--color-accent-300)">Voir la liste</span></div>
+              <div style="display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.4fr) auto 90px;gap:16px;align-items:center;height:42px;border-bottom:1px solid var(--color-divider)"><span style="display:flex;align-items:center;gap:8px"><span style="font-family:VtesClans;font-size:17px;line-height:1;color:var(--color-neutral-200)">n</span>Banu Princes · v2</span><span style="color:var(--color-neutral-400)">figée à la ronde 2 · rondes 2 et 3, finale</span><span class="tag tag-accent">Légal le 24 octobre</span><span style="text-align:right;font-size:13px;color:var(--color-accent-300)">Voir la liste</span></div>
+            </div>
+            <div style="display:flex;flex-direction:column;font-size:14px">
+              <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);padding-bottom:8px">Mes rondes</span>
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px minmax(0,1fr) 90px;gap:16px;align-items:center;height:34px;font-size:12px;color:var(--color-neutral-500);border-bottom:1px solid var(--color-divider)"><span>Ronde</span><span>Mon deck</span><span>Heure</span><span>Table</span><span style="text-align:right">Résultat</span></div>
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px minmax(0,1fr) 90px;gap:16px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Ronde 1</span><span>Toreador Mass Vote <span style="font-size:12px;color:var(--color-neutral-500)">v1</span></span><span style="color:var(--color-neutral-400);font-variant-numeric:tabular-nums">14:10</span><span style="color:var(--color-neutral-500)">5 joueurs</span><span style="text-align:right;font-family:var(--font-heading);color:var(--color-neutral-300)">1,5 VP</span></div>
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px minmax(0,1fr) 90px;gap:16px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Ronde 2</span><span>Banu Princes <span style="font-size:12px;color:var(--color-neutral-500)">v2</span></span><span style="color:var(--color-neutral-400);font-variant-numeric:tabular-nums">16:35</span><span style="color:var(--color-neutral-500)">5 joueurs · Léa, Mikael…</span><span style="text-align:right;font-family:var(--font-heading)">3 VP <span style="color:var(--color-accent-200)">· GW</span></span></div>
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px minmax(0,1fr) 90px;gap:16px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider)"><span>Ronde 3</span><span>Banu Princes <span style="font-size:12px;color:var(--color-neutral-500)">v2</span></span><span style="color:var(--color-neutral-400);font-variant-numeric:tabular-nums">21:42</span><span style="color:var(--color-neutral-500)">5 joueurs</span><span style="text-align:right;font-family:var(--font-heading)">3 VP <span style="color:var(--color-accent-200)">· GW</span></span></div>
+              <div style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px minmax(0,1fr) 90px;gap:16px;align-items:center;height:40px;border-bottom:1px solid var(--color-divider);margin-top:14px;border-top:1px solid var(--color-divider)"><span style="font-family:var(--font-heading)">Finale</span><span>Banu Princes <span style="font-size:12px;color:var(--color-neutral-500)">v2</span></span><span style="color:var(--color-neutral-400);font-variant-numeric:tabular-nums">23:58</span><span style="color:var(--color-neutral-500)">5 joueurs</span><span style="text-align:right;font-family:var(--font-heading);color:var(--color-neutral-300)">2 VP</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- d33 Nouveau deck -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d33 · Nouveau deck — panneau latéral, archétype en six puces (interactif)</span>
+      <div id="shot-d33-nouveau-deck" data-screen-label="3a-33 Nouveau deck" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <dc-import name="TopBar" active="decks" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;padding:var(--space-6) var(--space-8);display:flex;flex-direction:column;gap:var(--space-4);opacity:.35">
+          <h1 style="margin:0;font-weight:500;font-size:26px">Decks</h1>
+          <div style="width:360px;display:flex;flex-direction:column;gap:2px;font-size:15px"><div style="padding:12px 0">Banu Princes</div><div style="padding:12px 0">Toreador Mass Vote</div></div>
+        </div>
+        <aside style="position:absolute;top:56px;right:0;bottom:0;width:460px;box-sizing:border-box;background:var(--color-surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:20px;padding:28px 32px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Nouveau deck</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--color-neutral-500)"><span style="border:1px solid var(--color-divider);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">Échap</span><i class="ph ph-x" style="font-size:18px;color:var(--color-neutral-400)"></i></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Nom du deck</span>
+            <div style="height:40px;box-sizing:border-box;display:flex;align-items:center;gap:2px;padding:0 12px;border-radius:var(--radius-md);border:1px solid var(--color-accent);background:var(--color-bg);font-size:14px">Ventrue Grinder<span style="width:1px;height:18px;background:var(--color-accent)"></span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <span style="font-size:12px;color:var(--color-neutral-400)">Archétype (facultatif)</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ deckArchs }}" as="c" hint-placeholder-count="6">
+                <span onClick="{{ c.pick }}" style="font-size:13px;height:34px;padding:0 12px;box-sizing:border-box;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid {{ c.border }};color:{{ c.color }};background:{{ c.bg }};cursor:pointer">{{ c.label }}</span>
+              </sc-for>
+            </div>
+            <span style="font-size:12px;color:var(--color-neutral-500)">Un seul ; un second clic le retire.</span>
+          </div>
+          <p style="margin:0;font-size:13px;color:var(--color-neutral-400);border-left:2px solid var(--color-divider);padding-left:14px">Le deck est créé en brouillon. Le serveur lui attribuera son numéro (« #0001 ») à la synchronisation.</p>
+          <div style="margin-top:auto;display:flex;justify-content:flex-end;gap:10px">
+            <span style="height:38px;padding:0 16px;display:flex;align-items:center;border-radius:var(--radius-md);border:1px solid var(--color-divider);font-size:14px;color:var(--color-neutral-300)">Annuler</span>
+            <span style="height:38px;padding:0 16px;display:flex;align-items:center;gap:8px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:14px;color:var(--color-accent)">Créer le deck<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">⌘↵</span></span>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- d34 États -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <span style="font-size:13px;color:var(--color-neutral-400)">d34 · États — bilan vide, chargement, version indisponible hors ligne</span>
+      <div id="shot-d34-etats" data-screen-label="3a-34 États" style="width:1440px;height:900px;background:var(--color-bg);border-radius:12px;box-shadow:var(--shadow-md);overflow:hidden;display:flex;flex-direction:column">
+        <dc-import name="TopBar" active="parties" hint-size="100%,56px"></dc-import>
+        <div style="flex:1;width:1200px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:48px;padding:28px 0">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Bilan sans aucune partie</span>
+            <span style="font-family:var(--font-heading);font-size:24px;letter-spacing:-.02em">Rien à analyser pour l'instant</span>
+            <span style="font-size:14px;color:var(--color-neutral-400);text-wrap:pretty">Le bilan se remplit dès votre première partie : votre deck et vos VP suffisent.</span>
+            <span style="align-self:flex-start;display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;border-radius:var(--radius-md);border:1px solid var(--color-accent);font-size:13px;color:var(--color-accent)"><i class="ph ph-plus" style="font-size:15px"></i>Nouvelle partie<span style="font-size:11px;border:1px solid var(--color-accent-700);border-radius:var(--radius-sm);padding:0 5px;line-height:17px">N</span></span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Chargement</span>
+            <span style="height:24px;width:70%;border-radius:var(--radius-sm);background:var(--color-neutral-800)"></span>
+            <span style="height:14px;width:50%;border-radius:var(--radius-sm);background:var(--color-neutral-800)"></span>
+            <div style="display:flex;flex-direction:column;margin-top:10px">
+              <span style="height:34px;border-bottom:1px solid var(--color-divider)"></span>
+              <span style="height:40px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center"><span style="height:12px;width:60%;border-radius:var(--radius-sm);background:var(--color-neutral-800)"></span></span>
+              <span style="height:40px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center"><span style="height:12px;width:45%;border-radius:var(--radius-sm);background:var(--color-neutral-800)"></span></span>
+              <span style="height:40px;border-bottom:1px solid var(--color-divider);display:flex;align-items:center"><span style="height:12px;width:52%;border-radius:var(--radius-sm);background:var(--color-neutral-800)"></span></span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">Liste d'une version · hors ligne</span>
+            <div style="display:flex;flex-direction:column;gap:4px;border-left:2px solid var(--color-accent);padding-left:16px">
+              <span style="font-family:var(--font-heading);font-size:17px;color:var(--color-accent-200)">Liste indisponible hors ligne</span>
+              <span style="font-size:13px;color:var(--color-neutral-400);text-wrap:pretty">La v1 de Banu Princes n'a jamais été ouverte sur cet appareil. Elle s'affichera au retour du réseau.</span>
+            </div>
+            <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500);margin-top:10px">Légalité · hors ligne</span>
+            <span style="align-self:flex-start" class="tag tag-neutral">Légalité hors ligne</span>
+            <span style="font-size:12px;color:var(--color-neutral-500)">Les autres états du bilan (filtres sans partie, position sans siège, plus loin sans table de quatre) reprennent la copie mobile 1b-57.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const ACC = { border: 'var(--color-accent)', color: 'var(--color-accent-200)', bg: 'var(--color-accent-900)' };
+const OFF = { border: 'var(--color-divider)', color: 'var(--color-neutral-300)', bg: 'transparent' };
+const SEG_ON = { font: 'var(--font-heading)', color: 'var(--color-accent)', shadow: 'inset 0 0 0 1px var(--color-accent)' };
+const SEG_OFF = { font: 'var(--font-body)', color: 'var(--color-neutral-400)', shadow: 'none' };
+const TAB_ON = { font: 'var(--font-heading)', color: 'var(--color-text)', line: 'var(--color-accent)' };
+const TAB_OFF = { font: 'var(--font-body)', color: 'var(--color-neutral-500)', line: 'transparent' };
+const COLS = [['label', 'Groupe', 'flex-start'], ['n', 'Parties', 'flex-end'], ['gw', 'GW', 'flex-end'], ['vp', 'VP total', 'flex-end'], ['avg', 'VP moyen', 'flex-end']];
+
+class Component extends DCLogic {
+  state = {
+    m: null, period: '12m', types: [], deck: 'all', openDecks: { banu: true }, pos: 'prey', by: 'arch', far: false, farPos: 'gprey',
+    sortC: {}, sortD: {}, selC: { axis: 'deck', key: 'banu' }, selD: { axis: 'deck', key: 'banu' }, axisD: 'deck',
+    mySeat: 2, menuFor: null, deckArch: 'Toolbox', ver: 2,
+    opp: { lea: { open: false, clan: 'Brujah', arch: 'Rush' }, mik: { open: true, clan: 'Tremere', arch: 'Wall' }, unn: { open: false, clan: null, arch: null } },
+  };
+  componentDidMount() { import(new URL('lot8-data.js', document.baseURI).href).then(m => this.setState({ m })); }
+  setOpp(k, patch) { this.setState(s => ({ opp: { ...s.opp, [k]: { ...s.opp[k], ...patch } } })); }
+  sortRows(rows, srt) {
+    if (!srt || !srt.key) return rows;
+    const known = rows.filter(r => !r.unknown), unk = rows.filter(r => r.unknown);
+    const v = r => srt.key === 'label' ? r.label : srt.key === 'n' ? r.n : srt.key === 'gw' ? r.gw : srt.key === 'vp' ? r.vp : r.avg;
+    known.sort((a, b) => { const x = v(a), y = v(b); const c = typeof x === 'string' ? x.localeCompare(y, 'fr') : x - y; return srt.dir === 'asc' ? c : -c; });
+    return [...known, ...unk];
+  }
+  heads(which, axisKey) {
+    const srt = this.state[which][axisKey] || {};
+    return COLS.map(([k, label, justify]) => ({ label, justify, color: srt.key === k ? 'var(--color-text)' : 'var(--color-neutral-500)', caret: srt.key === k ? (srt.dir === 'asc' ? 'caret-up' : 'caret-down') : '',
+      pick: () => this.setState(s => { const cur = s[which][axisKey] || {}; const dir = cur.key === k ? (cur.dir === 'desc' ? 'asc' : 'desc') : (k === 'label' ? 'asc' : 'desc'); return { [which]: { ...s[which], [axisKey]: { key: k, dir } } }; }) }));
+  }
+  buildAxes(m, list, which, selKey) {
+    const S = this.state;
+    const ax = m.axes(list);
+    const pos = m.groupPos(list, S.pos, S.by);
+    const sel = S[selKey];
+    const posTitle = `Face à ${S.pos === 'prey' ? 'ma proie' : 'mon prédateur'} · par ${S.by === 'arch' ? 'archétype' : 'clan'}`;
+    const decorate = (axisKey, axisTitle) => r => {
+      const on = sel.axis === axisKey && sel.key === r.key;
+      return { ...r, vpNum: m.num(r.vp), hasGlyph: !!r.glyph, hasArch: !!r.arch, hasSub: !!r.sub, labelColor: r.unknown ? 'var(--color-neutral-400)' : (on ? 'var(--color-accent-100)' : 'var(--color-text)'),
+        bg: on ? 'var(--color-accent-900)' : 'transparent', mark: on ? 'inset 2px 0 0 var(--color-accent)' : 'none',
+        expandable: false, open: false, versions: [], toggle: () => {},
+        select: () => this.setState({ [selKey]: { axis: axisKey, key: r.key } }) };
+    };
+    const posNote = pos.noSeat ? (pos.noSeat > 1 ? `${pos.noSeat} parties sans siège ne sont pas comptées ici.` : '1 partie sans siège n\u2019est pas comptée ici.') : '';
+    const axes = [
+      { key: 'deck', title: 'Par deck', sub: 'Dépliez un deck pour voir ses versions', rows: ax.deckRows.map(r => ({ ...decorate('deck')(r), expandable: true, open: !!S.openDecks[r.key], caret: S.openDecks[r.key] ? 'caret-down' : 'caret-right',
+        toggle: e => { e && e.stopPropagation && e.stopPropagation(); this.setState(s => ({ openDecks: { ...s.openDecks, [r.key]: !s.openDecks[r.key] } })); },
+        versions: r.versions.map(v => ({ ...v, vpNum: m.num(v.vp), hasList: !v.pending })) })) },
+      { key: 'venue', title: 'Par lieu', rows: ax.venueRows.map(decorate('venue')) },
+      { key: 'month', title: 'Par mois', sub: 'Le plus récent en haut', rows: ax.monthRows.map(decorate('month')) },
+      { key: 'pos', title: posTitle, isPos: true, rows: pos.rows.map(decorate('pos')), note: posNote, empty: list.length > 0 && pos.rows.length === 0, emptyText: 'Aucune de ces parties ne porte votre siège : notez-le à la saisie pour savoir qui était votre proie.' },
+      { key: 'opp', title: 'Par adversaire nommé', sub: 'Mes résultats aux tables où il était', rows: ax.oppRows.map(decorate('opp')) },
+    ];
+    return axes.map(a => ({ isPos: false, empty: false, emptyText: '', note: '', sub: '', ...a, rows: this.sortRows(a.rows, S[which][a.key]), heads: this.heads(which, a.key), hasSub: !!a.sub, hasNote: !!a.note && !a.empty, span: (a.key === 'pos' || a.key === 'deck') ? '1 / -1' : 'auto' }));
+  }
+  selPanel(m, axes, sel) {
+    const titles = { deck: 'Par deck', venue: 'Par lieu', month: 'Par mois', pos: this.state.pos === 'prey' ? 'Face à ma proie' : 'Face à mon prédateur', opp: 'Adversaire nommé' };
+    let a = axes.find(x => x.key === sel.axis), r = a && a.rows.find(x => x.key === sel.key);
+    if (!r) { a = axes.find(x => x.rows.length); r = a && a.rows[0]; }
+    if (!r) return null;
+    return { ...r, axisTitle: titles[a.key], games: [...r.games].sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time)).map(m.gameLabel) };
+  }
+  renderVals() {
+    const S = this.state, m = S.m;
+    if (!m) return { axesC: [], axesD: [], sum: {}, sel: { games: [] }, selD: { games: [] }, hasGames: true, oppRows: [], mySeats: [], gameRows: [], deckList: [], banu: { versions: [] }, verTabs: [], diffGroups: [], deckArchs: [], periodChips: [], typeChips: [], deckChips: [], axisNav: [] };
+    const list = m.filterGames({ types: S.types, deck: S.deck });
+    const noMatch = list.length === 0;
+    const axesC = this.buildAxes(m, list, 'sortC', 'selC');
+    const axesD = this.buildAxes(m, list, 'sortD', 'selD');
+    const far = m.groupPos(list, S.farPos, S.by);
+    const farParts = [];
+    if (far.noGrand) farParts.push(far.noGrand > 1 ? `${far.noGrand} parties à trois joueurs ou moins : pas de grande position.` : '1 partie à trois joueurs : les parties à trois joueurs ou moins n\u2019ont pas de grande position.');
+    if (far.noSeat) farParts.push(far.noSeat > 1 ? `${far.noSeat} parties sans siège ne sont pas comptées.` : '1 partie sans siège n\u2019est pas comptée.');
+    const sel = noMatch ? null : this.selPanel(m, axesC, S.selC);
+    const selD = noMatch ? null : this.selPanel(m, axesD, S.selD);
+    const counts = { deck: n => m.plural(n, 'deck', 'decks'), venue: n => m.plural(n, 'lieu', 'lieux'), month: n => m.plural(n, 'mois', 'mois'), pos: n => m.plural(n, 'groupe', 'groupes'), opp: n => m.plural(n, 'adversaire', 'adversaires') };
+    const navLabels = { deck: 'Par deck', venue: 'Par lieu', month: 'Par mois', pos: 'Proie et prédateur', opp: 'Adversaires nommés' };
+
+    // saisie
+    const players = 5, my = S.mySeat;
+    const rel = seat => seat == null ? null : (seat - my + players) % players;
+    const POS = { 1: 'proie', 4: 'prédateur', 2: 'grande proie', 3: 'grand prédateur' };
+    const defs = [{ k: 'lea', seat: 1, name: 'Léa' }, { k: 'mik', seat: 3, name: 'Mikael' }, { k: 'marc', seat: 4, name: 'Marc', lent: 'Nosferatu Rush' }, { k: 'unn', seat: null, name: 'Joueur non nommé', unnamed: true }];
+    const oppRows = defs.map(dd => {
+      const st = S.opp[dd.k] || {};
+      const r = rel(dd.seat), strong = r === 1 || r === 4;
+      const parts = [st.clan, st.arch].filter(Boolean);
+      return {
+        seatLabel: dd.seat ?? '—', seatBorder: dd.seat == null ? 'dashed' : 'solid', name: dd.name, nameColor: dd.unnamed ? 'var(--color-neutral-300)' : 'var(--color-text)',
+        pos: r ? POS[r] : '', posColor: strong ? 'var(--color-accent-300)' : 'var(--color-neutral-500)',
+        isLent: !!dd.lent, lent: dd.lent, hasDeck: !dd.lent,
+        open: !!st.open, caret: st.open ? 'caret-up' : 'caret-down', toggle: () => this.setOpp(dd.k, { open: !st.open }),
+        hasSummaryGlyph: !st.open && !!st.clan, clanGlyph: st.clan ? m.CLAN[st.clan] : '',
+        summary: st.open ? '' : (parts.length ? parts.join(' · ') : 'Facultatif'), summaryColor: parts.length ? 'var(--color-neutral-200)' : 'var(--color-neutral-500)',
+        hasClan: !!st.clan, clanLabel: st.clan || 'Choisir', clanColor: st.clan ? 'var(--color-text)' : 'var(--color-neutral-500)',
+        clanLine: S.menuFor === dd.k ? 'var(--color-accent)' : 'var(--color-divider)',
+        pickClan: () => this.setState({ menuFor: S.menuFor === dd.k ? null : dd.k }), menuOpen: S.menuFor === dd.k,
+        clanMenu: m.CLANS.map(c => ({ ...c, color: st.clan === c.name ? 'var(--color-accent-200)' : 'var(--color-text)', bg: st.clan === c.name ? 'var(--color-accent-900)' : 'transparent', pick: () => { this.setOpp(dd.k, { clan: c.name }); this.setState({ menuFor: null }); } })),
+        archs: m.ARCH.map(a => ({ label: a, ...(st.arch === a ? ACC : OFF), pick: () => this.setOpp(dd.k, { arch: st.arch === a ? null : a }) })),
+        alert: !!dd.unnamed && !st.clan && !st.arch,
+      };
+    });
+
+    const gameRows = [...m.GAMES].sort((x, y) => (y.date + y.time).localeCompare(x.date + x.time)).slice(0, 13).map(g => {
+      const l = m.gameLabel(g), on = g.id === 9;
+      return { ...l, version: g.v ? `v${g.v}` : '', bg: on ? 'var(--color-accent-900)' : 'transparent', mark: on ? 'inset 2px 0 0 var(--color-accent)' : 'none', dim: on ? 'var(--color-accent-300)' : 'var(--color-neutral-400)', strong: on ? 'var(--color-accent-100)' : 'var(--color-text)' };
+    });
+    const banuRow = m.axes(m.GAMES).deckRows.find(r => r.key === 'banu');
+    const zebra = i => i % 2 ? 'color-mix(in oklab, var(--color-neutral-800) 45%, transparent)' : 'transparent';
+    const dff = m.diff('banu-1', 'banu-2');
+    const verRow = banuRow.versions.find(v => v.label === `v${S.ver}`);
+
+    return {
+      hasGames: !noMatch, noMatch, sum: m.summary(list), clearFilters: () => this.setState({ period: '12m', types: [], deck: 'all' }),
+      periodChips: m.PERIODS.map(([k, l]) => ({ label: l, ...(S.period === k ? ACC : OFF), pick: () => this.setState({ period: k }) })),
+      rangeLine: `du ${m.PERIOD_RANGE[S.period][0]} au ${m.PERIOD_RANGE[S.period][1]}`, rangeFrom: m.PERIOD_RANGE[S.period][0], rangeTo: m.PERIOD_RANGE[S.period][1],
+      typeChips: m.TYPES.map(([k, l]) => ({ label: l, ...(S.types.includes(k) ? ACC : OFF), pick: () => this.setState(s => ({ types: s.types.includes(k) ? s.types.filter(x => x !== k) : [...s.types, k] })) })),
+      deckChips: [{ k: 'all', label: 'Tous' }, ...Object.values(m.DECKS).map(dk => ({ k: dk.key, label: dk.name, glyph: m.CLAN[dk.clan] }))].map(o => ({ ...o, hasGlyph: !!o.glyph, ...(S.deck === o.k ? ACC : OFF), pick: () => this.setState({ deck: o.k }) })),
+      axesC: noMatch ? [] : axesC, axesD: noMatch ? [] : axesD.filter(a => a.key === S.axisD),
+      axisNav: axesD.map(a => ({ label: navLabels[a.key], count: noMatch ? '—' : counts[a.key](a.rows.length), bg: S.axisD === a.key ? 'var(--color-accent-900)' : 'transparent', mark: S.axisD === a.key ? 'inset 2px 0 0 var(--color-accent)' : 'none', font: S.axisD === a.key ? 'var(--font-heading)' : 'var(--font-body)', color: S.axisD === a.key ? 'var(--color-accent-100)' : 'var(--color-neutral-300)', pick: () => this.setState({ axisD: a.key }) })),
+      posOpts: [['prey', 'Ma proie'], ['pred', 'Mon prédateur']].map(([k, l]) => ({ label: l, ...(S.pos === k ? TAB_ON : TAB_OFF), pick: () => this.setState({ pos: k }) })),
+      posSeg: [['prey', 'Ma proie'], ['pred', 'Mon prédateur']].map(([k, l]) => ({ label: l, ...(S.pos === k ? SEG_ON : SEG_OFF), pick: () => this.setState({ pos: k }) })),
+      byOpts: [['arch', 'Archétype'], ['clan', 'Clan']].map(([k, l]) => ({ label: l, ...(S.by === k ? TAB_ON : TAB_OFF), pick: () => this.setState({ by: k }) })),
+      far: S.far, farCaret: S.far ? 'caret-down' : 'caret-right', toggleFar: () => this.setState({ far: !S.far }),
+      farOpts: [['gprey', 'Grande proie'], ['gpred', 'Grand prédateur']].map(([k, l]) => ({ label: l, color: S.farPos === k ? 'var(--color-neutral-200)' : 'var(--color-neutral-500)', line: S.farPos === k ? 'var(--color-neutral-400)' : 'transparent', pick: () => this.setState({ farPos: k }) })),
+      farRows: far.rows.map(r => ({ ...r, vpNum: m.num(r.vp), hasGlyph: !!r.glyph, labelColor: r.unknown ? 'var(--color-neutral-500)' : 'var(--color-neutral-300)' })), farEmpty: far.rows.length === 0, farNote: farParts.join(' '),
+      hasSel: !!sel, sel: sel ? { ...sel, hasGlyph: !!sel.glyph } : { games: [] },
+      hasSelD: !!selD, selD: selD ? { ...selD, hasGlyph: !!selD.glyph } : { games: [] },
+      mySeats: [1, 2, 3, 4, 5].map(n => ({ n, ...(n === my ? ACC : OFF), pick: () => this.setState({ mySeat: n }) })),
+      seatHint: `Votre proie : siège ${my % 5 + 1} · Votre prédateur : siège ${(my + 3) % 5 + 1}`,
+      oppRows, addUnnamed: () => this.setOpp('unn', { open: true }),
+      gameRows,
+      verTabs: [1, 2].map(v => ({ label: `v${v} · ${m.plural(banuRow.versions.find(x => x.label === `v${v}`).n, 'partie', 'parties')}`, ...(S.ver === v ? TAB_ON : TAB_OFF), pick: () => this.setState({ ver: v }) })),
+      verLabel: `v${S.ver}`, verMeta: S.ver === 2 ? `Première partie le 15 octobre · ${verRow.gwOf} · liste figée à l'Open de Lyon, ronde 2` : `Première partie le 19 septembre · ${verRow.gwOf} · Coupe du Rhône`,
+      hasDiff: S.ver === 2, verTables: m.tables(`banu-${S.ver}`),
+      diffGroups: [{ title: 'Entrées', items: dff.inn, color: 'var(--color-accent-200)' }, { title: 'Sorties', items: dff.out, color: 'var(--color-neutral-400)' }, { title: 'Quantités modifiées', items: dff.chg, color: 'var(--color-neutral-200)' }],
+      deckList: [{ name: 'Banu Princes', meta: '#1234 · actif · Toolbox · 12 / 48', clan: 'Banu Haqim', on: true }, { name: 'Toreador Mass Vote', meta: '#1187 · actif · Vote · 12 / 80', clan: 'Toreador' }, { name: 'Ventrue Grinder', meta: 'brouillon · 0 / 0 · pas encore joué', clan: 'Ventrue' }]
+        .map(d => ({ ...d, glyph: m.CLAN[d.clan], bg: d.on ? 'var(--color-neutral-800)' : 'transparent', mark: d.on ? 'var(--color-accent)' : 'transparent' })),
+      banuTables: m.tables('banu-2'),
+      banu: { ...banuRow, versions: [...banuRow.versions].reverse().map((v, i) => ({ ...v, vpNum: m.num(v.vp), bg: zebra(i) })) },
+      deckArchs: m.ARCH.map(a => ({ label: a, ...(S.deckArch === a ? ACC : OFF), pick: () => this.setState({ deckArch: S.deckArch === a ? null : a }) })),
+    };
+  }
+}
+</script>
+</body>
+</html>

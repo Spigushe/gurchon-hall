@@ -7,8 +7,9 @@ tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranch�
 version par deck et par tournoi (P3, qui rend P12 sans objet), une liste
 fermée de six archétypes pour toute l'application (P5), jamais de pourcentage
 et l'étude de la grande proie et du grand prédateur (P8). Brief Claude Design
-écrit (`docs/design-handoff/lot8-brief-claude-design.md`), handoff attendu
-(D0). Les décisions A1 à A8 sont des propositions de conception pour
+écrit (`docs/design-handoff/lot8-brief-claude-design.md`), handoff reçu et
+versé le 2026-11-08 (`docs/design-handoff/LOT8.md`, D0) ; il ajoute une
+proposition de modèle, A9. Les décisions A1 à A8 sont des propositions de conception pour
 l'architecte-contrat, qui les reprendra ou les amendera dans ce fichier. La
 forme suit `docs/lot7-plan-parties.md`.
 
@@ -354,6 +355,56 @@ l'utilisateur le transmet à Claude Design et verse le handoff reçu dans
 `docs/design-handoff/` (étape D0). Le brief suit les recommandations de P5 à
 P8 ; une décision qui s'en écarte se reporte dans le brief avant envoi.
 
+#### Handoff reçu (2026-11-08)
+
+Archive « Implémentation mobile et desktop.zip » versée dans
+`docs/design-handoff/` : `LOT8.md` (fait foi pour la forme et la copie),
+`LOT8-README.md` (résumé du designer, avec l'état d'interface attendu),
+`Gurchon Hall Bilan.dc.html`, `Gurchon Hall Bilan Bureau.dc.html`,
+`lot8-data.js` (données et calculs de référence du prototype), captures
+`1b-46` à `1b-58` (dont `1b-46b`) et `d25`, `d27` à `d34`. Il n'y a ni `1b-45`
+ni `d26` : la numérotation saute la variante écartée. `TabBar`, `TopBar`,
+`DeckTables`, `support.js` et `nocturne/styles.css` de l'archive sont ceux du
+dépôt, aux fins de ligne près : non recopiés.
+
+Variantes retenues par le designer : au mobile, un axe à la fois sous des
+onglets soulignés (Deck, Lieu, Mois, Position, Adversaires) ; au bureau, une
+barre de filtres en ligne et les axes en grille, une ligne ouvrant à droite le
+panneau des parties du groupe (patron d10). Les règles de A0 sont tenues :
+aucun pourcentage écrit, positions éloignées repliées et atténuées, version par
+tournoi, six puces d'archétype, clan principal en deux gestes.
+
+Points relevés, à trancher ou à appliquer :
+
+1. **« Figée à la ronde 2 »** (1b-50, 1b-54, d32). L'écran nomme la partie qui
+   a figé la liste d'un deck dans un tournoi. Ce n'est pas déductible : la
+   première figée n'est pas forcément la ronde au plus petit numéro (P3), et
+   après un regel, c'est la partie d'où il est parti. **Seul point du handoff
+   qui touche au modèle** ; proposition A9 ci-dessous.
+2. **« Elle deviendra la v3 »** (1b-51, d29). La confirmation annonce si la
+   liste actuelle diffère de la version. Calculable sur l'appareil, en
+   comparant les lignes du deck au miroir et la version, selon la règle de P2
+   (carte × quantité totale). Le serveur reste juge ; la phrase est une
+   annonce, et une table de cas commune aux deux comparaisons évite qu'elles
+   divergent.
+3. **« Première partie le 15 octobre · 5 parties »** (1b-52), colonne
+   « Depuis » (d31) : déduits des parties du miroir, sans champ de contrat.
+4. **« Ouvrir ces parties dans la liste »** (panneau de d25) : la liste des
+   parties ne filtre que par type, deck et lieu (Lot 7). Proposition pour D2 :
+   le lien n'apparaît que pour les axes Deck et Lieu ; ailleurs, chaque partie
+   du panneau ouvre son détail, ce qui suffit.
+5. **Barres** : la barre GW montre la part des parties gagnées, sans chiffre
+   écrit ; le brief l'autorisait. À confirmer par l'utilisateur, au vu de
+   « jamais de pourcentage ».
+6. **Glyphes** : le designer signalait Banu Haqim (`n`) et un `o` en carré vide
+   dans ses prototypes. Les codes sont ceux de
+   `frontend/src/components/glyphs/glyphs.ts` (`"banu haqim": "n"`,
+   `brujah: "o"`, `obf` en Ankha) : le défaut vient de la police chargée par le
+   prototype, rien à corriger dans l'application.
+7. **Fichiers proposés** par le designer (`StatsPage.tsx`,
+   `DeckVersionPage.tsx`) : indicatifs. Le modèle d'analyse reste dans
+   `features/analysis/` (A7) ; le nom des pages se fixe à D2.
+
 ### P11. La légalité d'un deck à la date d'un tournoi
 
 Piste du §11 (limite n°6 du Lot 2), rangée au Lot 8 par `pistes-evolution.md`.
@@ -537,7 +588,30 @@ tables, decks prêtés, archétypes convertibles et non convertibles), et
 vérifient que les participations ressortent identiques, colonnes nouvelles à
 nul.
 
-Le modèle passe à 27 tables et treize révisions.
+Le modèle passe à 27 tables et treize révisions (28 avec A9).
+
+### A9. Version d'un deck dans un tournoi (ajoutée après le handoff)
+
+Le handoff affiche la partie où la liste d'un tournoi a été figée (« Handoff
+reçu », point 1). Deux voies :
+
+- **une table `tournament_deck_version`** (recommandé) : `user_id`,
+  `tournament_id`, `deck_id`, `deck_version_id`, `frozen_by_game_id`, unique
+  sur (`tournament_id`, `deck_id`), clés composites vers `tournament`,
+  `deck_version` et `game`. Elle dit quelle partie a figé la liste, et la
+  règle « une version par deck et par tournoi » de P3 tient en base au lieu de
+  reposer sur une recherche du service. Le gel d'une partie de tournoi lit
+  d'abord cette ligne ; le regel la réécrit, puis réaligne les participations.
+  `frozen_by_game_id` doit être revu quand la partie qui a figé est
+  supprimée : la ligne passe à la partie suivante du tournoi avec ce deck, ou
+  disparaît s'il n'y en a plus ;
+- **changer la copie** pour « liste du tournoi », sans nommer de ronde, et
+  garder la recherche de A3. Moins de modèle, mais une information que
+  l'utilisateur a validée dans le handoff disparaît.
+
+Exposée au contrat dans `TournamentDetailRead` : une ligne par deck joué, avec
+version, numéro et partie qui l'a figée. Le miroir la range dans la ligne du
+tournoi, comme `admissibleFinalDecks`.
 
 ## Écrans (frontend-react)
 
@@ -573,7 +647,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
 | F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
 | C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche | B2 |
-| D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` | A0 |
+| D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
 | D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) | C1, D0 |
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) | D1 |
 | B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne | B1 |

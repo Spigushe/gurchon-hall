@@ -1928,9 +1928,8 @@ Limites connues à la clôture du lot Affichage des decks :
    références CRAP vides des deux côtés ; 475 `data-testid` distincts, chaque
    disparition justifiée. Captures à 390 et 1440px validées par l'utilisateur. Le
    **Lot 8** vient ensuite.
-11. **Lot 8 — Analyse** — *prochain lot, A0 close le 2026-11-08, handoff Claude Design
-   attendu* (plan `docs/lot8-plan-analyse.md`, brief
-   `docs/design-handoff/lot8-brief-claude-design.md`) : versions de deck figées au jeu, une
+11. **Lot 8 — Analyse** — *prochain lot, A0 close et handoff Claude Design reçu le
+   2026-11-08* (plan `docs/lot8-plan-analyse.md`, handoff `docs/design-handoff/LOT8.md`) : versions de deck figées au jeu, une
    par deck et par tournoi ; six archétypes fermés pour toute l'application ; clan principal
    et archétype du deck adverse ; positions à la table jusqu'aux grandes proie et prédateur ;
    jamais de pourcentage ; légalité à la date d'un tournoi ; base de développement écrasée
