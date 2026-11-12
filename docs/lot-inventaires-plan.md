@@ -394,7 +394,7 @@ sont des gestes en ligne, comme la lecture de la légalité (§11 Lot 3). Un
 import est une écriture, mais il part d'un fichier que l'utilisateur a sous la
 main au moment où il l'importe, et en faire une opération de file obligerait
 à mettre tout le fichier dans le journal. Le bouton est grisé hors connexion,
-comme celui de la synchronisation Archon prévue au Lot 9. C'est un écart
+comme celui de la synchronisation Archon prévue après la v1. C'est un écart
 assumé à la règle « toute écriture fonctionne hors ligne » (§10), à consigner
 au §11 à la clôture.
 

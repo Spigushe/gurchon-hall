@@ -1958,13 +1958,9 @@ Limites connues à la clôture du lot Affichage des decks :
    d'une carte externe avec le catalogue (identifiant VEKN, ou nom, groupe et
    *advanced*) est à écrire en fonction réutilisable : le lot Inventaires s'en
    servira pour importer l'export de collection de VDB.
-   Ajouté le 2026-11-02, faisabilité à évaluer à l'ouverture du lot :
-   **synchroniser un tournoi depuis Archon** (archon.vekn.net). Le numéro VEKN
-   du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un tournoi reçoit
-   son lien Archon, et un bouton, grisé hors connexion, lance l'import. L'API
-   publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
-   identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
-   Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
+   La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02,
+   en est sortie le 2026-11-12 : elle attend la mise en production de la v1
+   (après le Lot 11, ci-dessous).
 13. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
    Lot 9.* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
    (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
@@ -1991,6 +1987,16 @@ Limites connues à la clôture du lot Affichage des decks :
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
     Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
+16. **Synchronisation Archon** — *renvoyée le 2026-11-12 après la mise en
+    production de la v1*, qui suit le Lot 11 ; souhait du 2026-11-02, d'abord
+    rangé au Lot 9. **Synchroniser un tournoi depuis Archon** (archon.vekn.net) :
+    le numéro VEKN du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un
+    tournoi reçoit son lien Archon, et un bouton, grisé hors connexion, lance
+    l'import. L'API publique d'Archon est en lecture seule et ne publie aucun nom,
+    seulement des identifiants. Elle exige un client OAuth2, donc le rôle DEV
+    accordé par un IC. Faisabilité à évaluer à l'ouverture ; l'import d'un deck
+    joué réutilisera l'appariement des cartes du Lot 9. Relevé de l'API, limites
+    et points à trancher dans `docs/brief-archon.md`.
 
 Hors feuille de route, une réserve d'idées non décidées (instantané de decklist,
 légalité à la date d'un tournoi, liste des manques, checklist d'assemblage, garde

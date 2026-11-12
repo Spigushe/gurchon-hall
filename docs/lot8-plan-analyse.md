@@ -35,7 +35,7 @@ légalité d'un deck à la date d'un tournoi (P11).
 
 Ce que le lot ne fait pas : suivre les résultats des adversaires (décision 3
 maintenue), calculer des points de tournoi (P7 du Lot 7), importer un tournoi
-d'Archon (Lot 9), suggérer des decks (lot Inventaires), ni produire des
+d'Archon (après la mise en production de la v1), suggérer des decks (lot Inventaires), ni produire des
 statistiques de composition d'un deck (disciplines, coûts), qui restent une
 piste.
 
