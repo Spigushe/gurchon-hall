@@ -396,6 +396,19 @@ class DeckLegality(ReadModel):
     issues: list[str] = []
 
 
+class DeckVersionLegality(DeckLegality):
+    """Verdict de légalité d'une version jouée, à une date choisie (Lot 8, P11).
+
+    Mêmes règles et mêmes champs que `DeckLegality`, évaluées sur la liste figée
+    et non sur la composition vivante : « la liste jouée était-elle légale le jour
+    du tournoi ? ». Une version ne retient ni langue ni proxy, les proxies
+    comptant de toute façon dans les effectifs.
+    """
+
+    deck_version_id: int
+    number: int = Field(description="Numéro de la version évaluée (« v3 »).")
+
+
 class DeckVersionCardRead(ReadModel):
     """Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).
 

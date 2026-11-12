@@ -6600,17 +6600,25 @@ fieldset:disabled .chip {
 .tournament-decks__item {
   display: flex;
   align-items: baseline;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 10px 0;
   border-top: 1px solid var(--color-divider);
 }
 
 .tournament-decks__main {
   display: flex;
+  flex: 1 1 12rem;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+/* Pastille de légalité à la date du tournoi (P11) : élément à part. */
+.tournament-decks__legality {
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .tournament-decks__name {

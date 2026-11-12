@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { hrefFor } from "../../../src/app/routes";
 import { createFakeServer, type FakeParticipation, type FakeServer } from "../offline/fakeServer";
 import { crypt, mirrorRows } from "../offline/fixtures/syntheticCatalog";
-import { renderApp } from "./harness";
+import { renderApp, setOnline } from "./harness";
 
 /**
  * Lot 8, étape D2 : bilan (1b-46 à 1b-58, d25), liste d'une version (1b-52,
@@ -346,7 +346,70 @@ describe("résultats d'un deck et decks d'un tournoi", () => {
     expect(within(rows[1]).getByTestId("tournament-deck-frozen")).toHaveTextContent("figée à la ronde 1 · ronde 1");
     expect(screen.getAllByTestId("tournament-round")[1]).toHaveTextContent("Banu Princes · v2");
   });
+
+  it("chaque version porte sa légalité à la date du tournoi, lue en ligne (P11)", async () => {
+    setViewportWidth(1440);
+    const app = await openPlayed("#/parties");
+    app.ui.versionLegality.set("1/2", versionLegality({ deck_id: 1, number: 2 }));
+    app.ui.versionLegality.set(
+      "2/1",
+      versionLegality({
+        deck_id: 2,
+        number: 1,
+        is_legal: false,
+        library_count: 58,
+        issues: ["Library trop petite : 58 carte(s), 60 minimum."],
+      }),
+    );
+    await go({ name: "tournament", key: "id:1" });
+    const decks = await screen.findByTestId("tournament-decks");
+    const tags = () => within(decks).getAllByTestId("tournament-deck-legality");
+    // L'année ne s'affiche que hors de l'année en cours : le test reste vrai l'an prochain.
+    await waitFor(() => expect(tags()[0]).toHaveTextContent(/^Légal le 24 octobre( 2026)?$/));
+    expect(tags()[0]).toHaveAttribute("data-legal", "true");
+    await waitFor(() => expect(tags()[1]).toHaveTextContent(/^Illégal le 24 octobre( 2026)? · bibliothèque 58\/60$/));
+    expect(tags()[1]).toHaveAttribute("data-legal", "false");
+    expect(tags()[1]).toHaveAttribute("title", "Library trop petite : 58 carte(s), 60 minimum.");
+    const reads = app.ui.requests.filter((request) => request.path.includes("/versions/"));
+    expect([...new Set(reads.map((request) => `${request.path}${request.search}`))].sort()).toEqual([
+      "/decks/1/versions/2/legalite?on=2026-10-24",
+      "/decks/2/versions/1/legalite?on=2026-10-24",
+    ]);
+  });
+
+  it("hors ligne, la pastille dit « Légalité hors ligne » sans rien lire", async () => {
+    setViewportWidth(390);
+    const app = await openPlayed("#/parties");
+    setOnline(false);
+    await go({ name: "tournament", key: "id:1" });
+    const decks = await screen.findByTestId("tournament-decks");
+    await waitFor(() => expect(within(decks).getAllByTestId("tournament-deck-legality")).toHaveLength(2));
+    for (const tag of within(decks).getAllByTestId("tournament-deck-legality")) {
+      expect(tag).toHaveTextContent("Légalité hors ligne");
+    }
+    expect(app.ui.requests.some((request) => request.path.includes("/versions/"))).toBe(false);
+  });
 });
+
+function versionLegality(fields: Record<string, unknown>) {
+  return {
+    deck_id: 1,
+    deck_version_id: 10,
+    number: 1,
+    evaluated_on: "2026-10-24",
+    crypt_count: 12,
+    library_count: 60,
+    crypt_minimum: 12,
+    library_minimum: 60,
+    library_maximum: 90,
+    crypt_groups: ["G2"],
+    banned_cards: [],
+    not_yet_legal_cards: [],
+    is_legal: true,
+    issues: [],
+    ...fields,
+  };
+}
 
 describe("archétype en six puces", () => {
   it("une seule puce, un second toucher la retire, et l'archétype part dans deck.create", async () => {

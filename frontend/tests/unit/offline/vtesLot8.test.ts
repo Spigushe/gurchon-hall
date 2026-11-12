@@ -240,7 +240,7 @@ describe("miroir des parties : versions et deck adverse (A4, A6)", () => {
       [],
     );
     expect(result.tournaments[0].deckVersions).toEqual([
-      { deckKey: "id:4", deckVersionId: 12, deckVersionNumber: 2, frozenByGameKey: "id:7" },
+      { deckKey: "id:4", deckId: 4, deckVersionId: 12, deckVersionNumber: 2, frozenByGameKey: "id:7" },
     ]);
   });
 

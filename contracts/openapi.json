@@ -1918,6 +1918,106 @@
         }
       }
     },
+    "/decks/{deck_id}/versions/{number}/legalite": {
+      "get": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Légalité d'une version jouée à une date",
+        "description": "Les cinq règles de la légalité d'un deck, évaluées sur la liste figée de la version `number` (Lot 8, P11), à la date `on` (celle du tournoi, en général ; le jour UTC si elle manque). Lisible pour un deck supprimé, comme ses versions ; 404 pour un numéro que le deck n'a pas.",
+        "operationId": "getDeckVersionLegality",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Deck Id"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number"
+            }
+          },
+          {
+            "name": "on",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Date d'évaluation, `AAAA-MM-JJ` ; le jour UTC par défaut.",
+              "title": "On"
+            },
+            "description": "Date d'évaluation, `AAAA-MM-JJ` ; le jour UTC par défaut."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckVersionLegality"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/decks/{deck_id}/cartes": {
       "post": {
         "tags": [
@@ -6502,6 +6602,107 @@
         ],
         "title": "DeckVersionCardRead",
         "description": "Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).\n\nNi langue, ni extension, ni proxy : deux versions ne se distinguent que par\ncarte × quantité, et c'est tout ce qu'une liste de tournoi demande. Le\nclient lit le reste de la carte dans son miroir du catalogue."
+      },
+      "DeckVersionLegality": {
+        "properties": {
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "evaluated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Evaluated On",
+            "description": "Date à laquelle le verdict a été rendu (bans, légalité)."
+          },
+          "crypt_count": {
+            "type": "integer",
+            "title": "Crypt Count"
+          },
+          "library_count": {
+            "type": "integer",
+            "title": "Library Count"
+          },
+          "crypt_minimum": {
+            "type": "integer",
+            "title": "Crypt Minimum"
+          },
+          "library_minimum": {
+            "type": "integer",
+            "title": "Library Minimum"
+          },
+          "library_maximum": {
+            "type": "integer",
+            "title": "Library Maximum"
+          },
+          "crypt_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Crypt Groups",
+            "description": "Groupes présents dans la crypt, au format des cartes (« G2 »), sans doublon, triés par numéro, « Any » exclu.",
+            "default": []
+          },
+          "banned_cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": "array",
+            "title": "Banned Cards",
+            "description": "Cartes du deck bannies à la date d'évaluation. Des cartes entières et non des noms : « Theo Bell » ne désigne rien sans son groupe.",
+            "default": []
+          },
+          "not_yet_legal_cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSummary"
+            },
+            "type": "array",
+            "title": "Not Yet Legal Cards",
+            "description": "Cartes dont la date d'entrée en légalité est postérieure à la date d'évaluation : imprimées, mais pas encore jouables.",
+            "default": []
+          },
+          "is_legal": {
+            "type": "boolean",
+            "title": "Is Legal"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues",
+            "default": []
+          },
+          "deck_version_id": {
+            "type": "integer",
+            "title": "Deck Version Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number",
+            "description": "Numéro de la version évaluée (« v3 »)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "evaluated_on",
+          "crypt_count",
+          "library_count",
+          "crypt_minimum",
+          "library_minimum",
+          "library_maximum",
+          "crypt_groups",
+          "banned_cards",
+          "not_yet_legal_cards",
+          "is_legal",
+          "issues",
+          "deck_version_id",
+          "number"
+        ],
+        "title": "DeckVersionLegality",
+        "description": "Verdict de légalité d'une version jouée, à une date choisie (Lot 8, P11).\n\nMêmes règles et mêmes champs que `DeckLegality`, évaluées sur la liste figée\net non sur la composition vivante : « la liste jouée était-elle légale le jour\ndu tournoi ? ». Une version ne retient ni langue ni proxy, les proxies\ncomptant de toute façon dans les effectifs."
       },
       "DeckVersionRead": {
         "properties": {

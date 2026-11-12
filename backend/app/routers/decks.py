@@ -5,7 +5,10 @@ decks du compte. Un deck d'un autre compte, vivant ou supprimé, rend 404 sur
 toutes les routes, `/legalite` comprise, avec le message d'un deck inexistant.
 """
 
-from fastapi import APIRouter, Response
+from datetime import date
+from typing import Annotated
+
+from fastapi import APIRouter, Query, Response
 
 from app.models import DeckStatus
 from app.routers.common import (
@@ -27,6 +30,7 @@ from app.schemas.collection import (
     DeckListState,
     DeckRead,
     DeckUpdate,
+    DeckVersionLegality,
     DeckVersionRead,
 )
 from app.services import decks
@@ -175,6 +179,32 @@ def get_deck_legality(deck_id: PathId, db: DbSession, user: CurrentUser):
 )
 def list_deck_versions(deck_id: PathId, db: DbSession, user: CurrentUser):
     return decks.list_deck_versions(db, user.id, deck_id)
+
+
+@router.get(
+    "/{deck_id}/versions/{number}/legalite",
+    response_model=DeckVersionLegality,
+    operation_id="getDeckVersionLegality",
+    summary="Légalité d'une version jouée à une date",
+    description=(
+        "Les cinq règles de la légalité d'un deck, évaluées sur la liste figée de "
+        "la version `number` (Lot 8, P11), à la date `on` (celle du tournoi, en "
+        "général ; le jour UTC si elle manque). Lisible pour un deck supprimé, "
+        "comme ses versions ; 404 pour un numéro que le deck n'a pas."
+    ),
+    responses={**NOT_FOUND},
+)
+def get_deck_version_legality(
+    deck_id: PathId,
+    number: PathId,
+    db: DbSession,
+    user: CurrentUser,
+    on: Annotated[
+        date | None,
+        Query(description="Date d'évaluation, `AAAA-MM-JJ` ; le jour UTC par défaut."),
+    ] = None,
+):
+    return decks.get_version_legality(db, user.id, deck_id, number, on)
 
 
 @router.post(

@@ -38,16 +38,22 @@ export const flushEffects = () => act(async () => {});
 export interface UiServer {
   /** Réponses pour les lectures sans miroir local (légalité, produits). */
   legality: { status: number; body: unknown };
+  /**
+   * Légalité d'une version à une date (Lot 8, B3), par « deckId/numéro » ; une
+   * version absente répond 404. La date reçue se lit dans `requests[].search`.
+   */
+  versionLegality: Map<string, unknown>;
   bundles: unknown[];
   /** Fiches servies par `GET /cartes/{id}` (lot Chercher, D3 : lecture à la demande). */
   cards: Map<number, unknown>;
-  requests: Array<{ method: string; path: string }>;
+  requests: Array<{ method: string; path: string; search: string }>;
   client: ReturnType<typeof createClient<paths>>;
 }
 
 function createUiServer(): UiServer {
   const ui: UiServer = {
     legality: { status: 200, body: null },
+    versionLegality: new Map(),
     bundles: [],
     cards: new Map(),
     requests: [],
@@ -57,12 +63,17 @@ function createUiServer(): UiServer {
     baseUrl: "http://ui.test",
     fetch: async (request: Request) => {
       const url = new URL(request.url);
-      ui.requests.push({ method: request.method, path: url.pathname });
+      ui.requests.push({ method: request.method, path: url.pathname, search: url.search });
       const json = (body: unknown, status = 200) =>
         new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
       if (/^\/decks\/\d+\/legalite$/.test(url.pathname)) {
         if (ui.legality.status === 0) throw new TypeError("Failed to fetch");
         return json(ui.legality.body, ui.legality.status);
+      }
+      const version = /^\/decks\/(\d+)\/versions\/(\d+)\/legalite$/.exec(url.pathname);
+      if (version) {
+        const body = ui.versionLegality.get(`${version[1]}/${version[2]}`);
+        return body === undefined ? json({ detail: "Version introuvable." }, 404) : json(body);
       }
       if (url.pathname === "/bundles") return json(ui.bundles);
       const card = /^\/cartes\/(\d+)$/.exec(url.pathname);

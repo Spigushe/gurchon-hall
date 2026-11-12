@@ -94,6 +94,8 @@ export interface LocalTournamentSummary {
 /** Version d'un deck dans un tournoi, et la partie qui l'a figée (Lot 8, A9). */
 export interface LocalTournamentDeckVersion {
   deckKey: DeckKey;
+  /** Identifiant serveur du deck, pour les lectures en ligne de la version (légalité, P11). */
+  deckId: number;
   deckVersionId: number;
   deckVersionNumber: number;
   /** Partie à laquelle la liste est rattachée, par sa clé de surcouche. */
@@ -380,6 +382,7 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     // La partie qui a figé est résolue à la fin (`finish`), une fois les parties semées.
     deckVersions: (row.deckVersions ?? []).map((version) => ({
       deckKey: deckKeyOfId(version.deckId) as DeckKey,
+      deckId: version.deckId,
       deckVersionId: version.deckVersionId,
       deckVersionNumber: version.deckVersionNumber,
       frozenByGameKey: `id:${version.frozenByGameId}` as ResourceKey,

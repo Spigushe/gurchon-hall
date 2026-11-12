@@ -232,7 +232,7 @@ describe("version jouée d'une partie", () => {
     const r1 = round(1, 1);
     const r2 = round(2, 2);
     const frozen = tournament({
-      deckVersions: [{ deckKey: BANU, deckVersionId: 10, deckVersionNumber: 2, frozenByGameKey: r2.key }],
+      deckVersions: [{ deckKey: BANU, deckId: 1, deckVersionId: 10, deckVersionNumber: 2, frozenByGameKey: r2.key }],
     });
     expect(versionNote(r2, [frozen], [r1, r2])).toEqual({
       text: "liste du tournoi, figée à cette ronde",

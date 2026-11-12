@@ -1,12 +1,34 @@
 import { Link } from "../../app/Link";
+import { useConnectivity } from "../../offline/react";
 import { findByKey, type DeckKey, type LocalGame, type LocalTournament } from "../../offline/vtes";
-import { frozenAtLabel, roundsPlayedLabel } from "./tournamentDecksModel";
+import { frozenAtLabel, roundsPlayedLabel, versionLegalityTag } from "./tournamentDecksModel";
+import { useVersionLegality } from "./useVersionLegality";
+
+/**
+ * Pastille « Légal le 24 octobre » (P11) : élément à part, qu'on retire sans
+ * toucher au reste du bloc. Lue en ligne, à la date de début du tournoi.
+ */
+function VersionLegalityTag({ deckId, number, on }: { deckId: number; number: number; on: string }) {
+  const online = useConnectivity();
+  const outcome = useVersionLegality(deckId, number, on, online);
+  const { kind, label, detail } = versionLegalityTag(on, online, outcome);
+  return (
+    <span
+      className={`legality-tag legality-tag--${kind} tournament-decks__legality`}
+      data-testid="tournament-deck-legality"
+      data-legal={kind === "unknown" ? undefined : kind === "legal"}
+      title={detail ?? undefined}
+    >
+      {label}
+    </span>
+  );
+}
 
 /**
  * « Decks joués » du détail d'un tournoi (Lot 8, écran 6 ; 1b-54, d32) : la
  * version de chaque deck dans le tournoi (A9), la partie qui l'a figée, les
- * rondes jouées avec, et le lien vers sa liste. La légalité à la date du
- * tournoi (P11) viendra se poser à côté, en élément à part, avec B3.
+ * rondes jouées avec, la légalité de la liste à la date du tournoi (P11) et le
+ * lien vers sa liste.
  */
 export function TournamentDecks({
   tournament,
@@ -41,6 +63,7 @@ export function TournamentDecks({
                   </span>
                 )}
               </span>
+              <VersionLegalityTag deckId={entry.deckId} number={entry.deckVersionNumber} on={tournament.startDate} />
               <Link
                 to={{ name: "deckVersion", key: entry.deckKey, number: entry.deckVersionNumber }}
                 className="bilan-version__link"

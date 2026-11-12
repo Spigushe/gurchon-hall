@@ -374,6 +374,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/decks/{deck_id}/versions/{number}/legalite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Légalité d'une version jouée à une date
+         * @description Les cinq règles de la légalité d'un deck, évaluées sur la liste figée de la version `number` (Lot 8, P11), à la date `on` (celle du tournoi, en général ; le jour UTC si elle manque). Lisible pour un deck supprimé, comme ses versions ; 404 pour un numéro que le deck n'a pas.
+         */
+        get: operations["getDeckVersionLegality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/decks/{deck_id}/cartes": {
         parameters: {
             query?: never;
@@ -1851,6 +1871,67 @@ export interface components {
             card_id: number;
             /** Quantity */
             quantity: number;
+        };
+        /**
+         * DeckVersionLegality
+         * @description Verdict de légalité d'une version jouée, à une date choisie (Lot 8, P11).
+         *
+         *     Mêmes règles et mêmes champs que `DeckLegality`, évaluées sur la liste figée
+         *     et non sur la composition vivante : « la liste jouée était-elle légale le jour
+         *     du tournoi ? ». Une version ne retient ni langue ni proxy, les proxies
+         *     comptant de toute façon dans les effectifs.
+         */
+        DeckVersionLegality: {
+            /** Deck Id */
+            deck_id: number;
+            /**
+             * Evaluated On
+             * Format: date
+             * @description Date à laquelle le verdict a été rendu (bans, légalité).
+             */
+            evaluated_on: string;
+            /** Crypt Count */
+            crypt_count: number;
+            /** Library Count */
+            library_count: number;
+            /** Crypt Minimum */
+            crypt_minimum: number;
+            /** Library Minimum */
+            library_minimum: number;
+            /** Library Maximum */
+            library_maximum: number;
+            /**
+             * Crypt Groups
+             * @description Groupes présents dans la crypt, au format des cartes (« G2 »), sans doublon, triés par numéro, « Any » exclu.
+             * @default []
+             */
+            crypt_groups: string[];
+            /**
+             * Banned Cards
+             * @description Cartes du deck bannies à la date d'évaluation. Des cartes entières et non des noms : « Theo Bell » ne désigne rien sans son groupe.
+             * @default []
+             */
+            banned_cards: components["schemas"]["CardSummary"][];
+            /**
+             * Not Yet Legal Cards
+             * @description Cartes dont la date d'entrée en légalité est postérieure à la date d'évaluation : imprimées, mais pas encore jouables.
+             * @default []
+             */
+            not_yet_legal_cards: components["schemas"]["CardSummary"][];
+            /** Is Legal */
+            is_legal: boolean;
+            /**
+             * Issues
+             * @default []
+             */
+            issues: string[];
+            /** Deck Version Id */
+            deck_version_id: number;
+            /**
+             * Number
+             * @description Numéro de la version évaluée (« v3 »).
+             */
+            number: number;
         };
         /**
          * DeckVersionRead
@@ -4659,6 +4740,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckVersionRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDeckVersionLegality: {
+        parameters: {
+            query?: {
+                /** @description Date d'évaluation, `AAAA-MM-JJ` ; le jour UTC par défaut. */
+                on?: string | null;
+            };
+            header?: never;
+            path: {
+                deck_id: number;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckVersionLegality"];
                 };
             };
             /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */

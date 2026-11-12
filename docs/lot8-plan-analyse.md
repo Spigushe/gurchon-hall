@@ -737,7 +737,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
 | D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) — **fait le 2026-11-12** (cf. « Livré à D1 ») | C1, D0 |
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) — **fait le 2026-11-12** (cf. « Livré à D2 ») | D1 |
-| B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne | B1 |
+| B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne — **fait le 2026-11-12**, avec sa pastille (cf. « Livré à B3 ») | B1 |
 | E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs | D2 (et B3) |
 | F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone | E |
 
@@ -1180,7 +1180,8 @@ bureau. Aucun changement de contrat, de `/sync`, de modèle ni de version Dexie.
   (clan principal de mes decks, clan d'un deck prêté).
 - **Écarts au handoff** :
   - pas de pastille « Légal le 24 octobre » : elle attend la route de B3 et se
-    posera à côté de la ligne du tournoi, sans rien toucher d'autre ;
+    posera à côté de la ligne du tournoi, sans rien toucher d'autre (posée
+    à B3) ;
   - pas de lien « Ouvrir ces parties dans la liste » (point 4 du handoff) : la
     liste des parties ne lit aucun filtre dans l'adresse ; chaque partie du
     panneau ouvre son détail ;
@@ -1201,6 +1202,53 @@ bureau. Aucun changement de contrat, de `/sync`, de modèle ni de version Dexie.
   fichiers ; `npm run lint`, `tsc` et `vite build` propres ; CRAP front sans
   régression, aucune fonction au-dessus de 30 ; aucun `data-testid` disparu.
   Playwright non relancé (étape E).
+
+### Livré à B3 (2026-11-12)
+
+P11, back et pastille ensemble : la route n'a qu'un usage, et le bloc
+« Decks joués » l'attendait (écart de D2).
+
+- **Route** `GET /decks/{id}/versions/{number}/legalite?on=AAAA-MM-JJ`
+  (`getDeckVersionLegality`), sous session : les cinq règles du §5 sur la
+  liste figée de la version, à la date `on`, le jour UTC si elle manque.
+  Lisible pour un deck supprimé, comme ses versions ; 404 « Version 2 du deck
+  12 introuvable. » pour un numéro que le deck n'a pas (donc pour un deck
+  jamais joué), 404 du deck pour un autre compte, 422 pour un numéro ou une
+  date mal formés. Une version vide est jugée comme un deck vide : illégale.
+- **Schéma** `DeckVersionLegality` : `DeckLegality` plus `deck_version_id` et
+  `number`. Contrat à **51 opérations sur 31 chemins**, le compte du critère
+  de fin de lot ; client TS régénéré. Aucun type `/sync`, aucune migration.
+- **Service** (`app/services/decks.py`) : le calcul de `get_legality` sort dans
+  `_legality_fields`, qui prend des couples (carte, quantité) et sert aux deux
+  routes ; `get_version_legality` lit la version et ses cartes en une requête.
+  `get_legality` ne change pas de comportement.
+- **Pastille** (`TournamentDecks.tsx`, `VersionLegalityTag`) : élément à part
+  dans chaque ligne de « Decks joués », lu en ligne à la date de début du
+  tournoi par `useVersionLegality`. « Légal le 24 octobre », « Illégal le
+  24 octobre · bibliothèque 58/60 » (premier motif, par `illegalReason` de
+  l'aperçu des decks) avec tous les motifs en infobulle, « Légalité hors
+  ligne » (1b-58), « Légalité… », « Légalité indisponible ». L'année s'ajoute
+  hors de l'année en cours. Classes `legality-tag` de l'aperçu bureau.
+  Modèle pur dans `tournamentDecksModel.ts` (`versionLegalityTag`,
+  `legalityDayLabel`).
+- **Surcouche** : `LocalTournamentDeckVersion` gagne `deckId`, l'identifiant
+  serveur du deck, la clé pouvant être une `ref:` pour un deck créé hors
+  ligne. Aucune version Dexie : le champ vient de la ligne déjà en miroir.
+- **Écart au handoff** : au bureau, « Decks joués » reste la liste de D2 et
+  non le tableau à quatre colonnes de d32 ; la pastille se place entre la
+  ligne du deck et « Voir la liste ».
+- **Tests** : `backend/tests/test_lot8_version_legality.py` (19 : liste figée
+  et non vivante, une version par liste, bannissement et entrée en légalité
+  jour inclus, jour UTC par défaut, deck supprimé, version vide, 404, 422) ;
+  la route dans la matrice d'autorisation (401, 404 d'un autre compte) et dans
+  les tests du contrat. Côté client, `tournamentDecksModel.test.ts` et deux
+  cas dans `tests/unit/ui/bilan.test.tsx` (pastilles au bureau avec la date
+  envoyée, aucune lecture hors ligne) ; le harnais UI sert la route.
+- **Vérifications** : 2666 tests backend verts sous couverture (2 `xfail`
+  connus), `ruff check` propre ; vitest sous couverture, 1144 tests verts
+  sur 72 fichiers ; `npm run lint` et `tsc` propres ; CRAP sans régression
+  des deux côtés ; aucun `data-testid` disparu. Playwright non relancé
+  (étape E).
 
 ### Tests attendus (E)
 
