@@ -107,7 +107,10 @@ function GameItem({ game, lookups }: { game: LocalGame; lookups: Lookups }) {
     <li className="row" data-testid="game-item" data-game-key={game.key} data-pending={game.pending}>
       <Link to={{ name: "game", key: game.key }} className="row__link" data-testid="game-link">
         <span>
-          <span className="row__name">{lookups.deckName(game)}</span>
+          <span className="row__name">
+            {lookups.deckName(game)}
+            <VersionMark game={game} />
+          </span>
           <span className="row__meta">{meta}</span>
           {game.pending && (
             <span className="row__pending" data-testid="pending-badge">
@@ -278,7 +281,10 @@ function GamesTable({
                   <ClockCountdownIcon size={13} className="games-table__pending" data-testid="pending-badge" aria-label="En attente de synchronisation" />
                 )}
               </span>
-              <span className="games-table__cell games-table__cell--strong">{lookups.deckName(game)}</span>
+              <span className="games-table__cell games-table__cell--strong">
+                {lookups.deckName(game)}
+                <VersionMark game={game} />
+              </span>
               <span className={game.tournamentName ? "games-table__cell" : "games-table__cell games-table__cell--muted"}>
                 {lookups.tournamentText(game)}
               </span>
@@ -608,4 +614,10 @@ function GameFilters({
       </label>
     </div>
   );
+}
+
+/** « v2 » à côté du nom du deck (d28) : la version jouée, quand la liste est figée (Lot 8). */
+function VersionMark({ game }: { game: LocalGame }) {
+  const number = game.me.deckVersionNumber;
+  return number === null ? null : <span className="version-mark"> v{number}</span>;
 }

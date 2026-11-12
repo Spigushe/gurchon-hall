@@ -5,8 +5,8 @@ le 2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
 gel des versions, deck adverse et route des versions, puis tests `/sync`, cf.
 « Livré à A1 », « Livré à A2 », « Livré à B1 » et « Livré à B2 » sous le
 découpage ; A9 tranchée le 2026-11-08 : table dédiée ; front en échec de
-typage jusqu'à C1, par décision). Prochaine étape : F0 (base écrasée), puis
-C1. Rédigé sur la branche
+typage jusqu'à C1, par décision ; F0, C1 et D1 faits le 2026-11-12, cf. leurs
+« Livré à »). Prochaine étape : D2. Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -735,7 +735,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) — **fait le 2026-11-12** par l'utilisateur (cf. « Livré à F0 ») | B2 |
 | C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche — **fait le 2026-11-12** (cf. « Livré à C1 ») | B2 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
-| D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) | C1, D0 |
+| D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) — **fait le 2026-11-12** (cf. « Livré à D1 ») | C1, D0 |
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) | D1 |
 | B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne | B1 |
 | E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs | D2 (et B3) |
@@ -1065,6 +1065,76 @@ facultatif.
   l'action « Figer sur la liste actuelle » (`updateGame(game,
   { refreezeDecklists: true })`, qui passe déjà par la file), l'affichage des
   versions, et les puces d'archétype.
+
+### Livré à D1 (2026-11-12)
+
+Écrans 1 et 2 du handoff (1b-48 à 1b-51, d27 à d29), en mobile et en bureau.
+
+- **Positions à la table** (`features/analysis/analysisModel.ts`, posé ici
+  pour que D2 y ajoute les agrégats de A7) : `seatPositions` (P7, P8),
+  `positionsOfSeat`, `positionLabel`, `preyPredatorHint`. À deux joueurs, le
+  seul adversaire est « proie et prédateur » ; à quatre, le siège d'en face est
+  « grande proie et grand prédateur » ; à six, il n'a pas de position.
+- **Saisie** (`GameForm.tsx`, bloc des adversaires sorti dans
+  `OpponentsSection.tsx`) :
+  - aide « Votre proie : siège 3 · Votre prédateur : siège 1 » dès que mon
+    siège est saisi, et la position après le nom de chaque adversaire ;
+  - sous-bloc « Son deck », replié, qui résume « [glyphe] Clan · Archétype ·
+    nom » ou « Facultatif ». Déplié : clan principal (feuille 1b-49 au mobile,
+    avec les trois clans récents en tête et « Pas de clan principal » ; liste
+    déroulante au bureau), six puces d'archétype (un second toucher décoche),
+    nom de deck (120 caractères, envoyé rogné) ;
+  - un deck prêté retire le sous-bloc et efface le deck adverse saisi (le
+    serveur le refuserait) ; « · deck déjà connu » s'affiche à côté du choix ;
+  - « Ajouter un siège sans nom » crée une ligne « Joueur non nommé » (siège en
+    pointillés). Tant qu'elle n'a ni siège, ni deck prêté, ni deck adverse,
+    l'alerte du handoff bloque l'envoi (`formErrors`, identifiant `unnamed`) ;
+  - fonctions pures dans `gameFormModel.ts` : `isEmptyUnnamed`,
+    `hasOpponentDeck`, `opponentDeckSummary`, `recentClanIds`.
+- **Détail** (`GameDetail.tsx`) :
+  - « Mon deck » : « Banu Princes#1234 · v2 », puis « liste du tournoi, figée
+    à cette ronde » ou « … figée à la ronde 2 » (d'après
+    `TournamentRow.deckVersions`), « liste figée à la synchronisation » pour
+    une partie en file, « liste non figée » pour une partie d'avant le gel ;
+  - table par siège : deck adverse avec le glyphe de son clan, « Banu Princes ·
+    v2 » sur ma ligne, position à droite (proie et prédateur en accent, les
+    positions éloignées atténuées) ;
+  - bouton « Figer sur la liste actuelle », absent pour une partie en file ou
+    sans deck à la table. La confirmation (`FreezeDialog.tsx`) est une feuille
+    basse au mobile et un dialogue de 500 px au bureau (Échap garde, Entrée
+    fige). Elle nomme les parties rattachées et leurs rondes, la partie du
+    tournoi qui ne change pas, et annonce pour chaque deck « elle deviendra la
+    v3 », « la partie passera à la v3 » (liste égale à une version plus
+    récente), « rien ne change », ou que le serveur tranchera (version jamais
+    lue, deck supprimé). Elle envoie `updateGame(…, { refreezeDecklists: true })` ;
+  - fonctions pures dans `freezeModel.ts` : comparaison carte × quantité (P2),
+    `freezeOutcome`, `freezeScope`, textes, `versionNote`.
+- **Liste des parties** : « v2 » après le nom du deck, au mobile et dans le
+  tableau bureau (d28).
+- **Écarts au handoff** :
+  - le lien « Voir la liste v2 » n'est pas posé : la page d'une version
+    (écran 3) arrive à D2, qui l'ajoutera au détail ;
+  - « Les 3 parties **du tournoi « Open de Lyon »** » au lieu de « de l'Open
+    de Lyon » : l'élision ne se devine pas d'un nom saisi (« du Championnat de
+    France ») ;
+  - « Joueur non nommé », le libellé du handoff, remplace « Adversaire sans
+    nom » posé à C1 (`opponentName`) ; le siège vide du détail garde « non
+    nommé » ;
+  - quand la table joue plusieurs de mes decks (prêts), la citation donne une
+    phrase par deck, nommé (précision 6 de B1).
+- **Laissé à E** : la table de cas commune au client et au serveur pour la
+  comparaison de deux listes (point 2 du handoff) ; `freezeOutcome` a la
+  sienne côté client seulement.
+- **Tests** : `tests/unit/features/analysis/seatPositions.test.ts` (table de
+  cas des sièges, de deux à six joueurs), `features/games/freezeModel.test.ts`,
+  `features/games/opponentDeck.test.ts`, et `tests/unit/ui/gamesLot8.test.tsx`
+  (8 : saisie complète au mobile avec la feuille des clans, ligne sans nom et
+  deck prêté au bureau, report du deck adverse à la modification, détail avec
+  version et positions, partie en file, regel en tournoi et en amicale).
+- **Vérifications** : vitest sous couverture, 1100 tests verts sur 68
+  fichiers ; `npm run lint` et `tsc` propres ; CRAP front sans régression
+  (`GameDetail` à 25) ; aucun `data-testid` disparu ; e2e `games-saisie` et
+  `club-sans-reseau` verts aux deux largeurs contre le vrai back.
 
 ### Tests attendus (E)
 

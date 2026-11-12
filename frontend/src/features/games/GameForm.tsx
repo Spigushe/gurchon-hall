@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
-import { CaretDownIcon, CaretUpIcon, HandArrowUpIcon, LockSimpleIcon, UserPlusIcon, XIcon } from "@phosphor-icons/react";
+import { LockSimpleIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
 import { Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
@@ -14,10 +14,12 @@ import {
   nextRoundNumber,
   useLocalDecks,
   useLocalGames,
+  useLocalClans,
   useLocalPlayers,
   useLocalTournaments,
   useLocalVenues,
   useVtesOffline,
+  type ClanOption,
   type DeckKey,
   type GamePatch,
   type GameRoundType,
@@ -30,6 +32,7 @@ import {
   type ResourceKey,
 } from "../../offline/vtes";
 import { ChoicePanel } from "./ChoicePanel";
+import { ClanPanel, OpponentsSection } from "./OpponentsSection";
 import {
   formatLocalDate,
   formatVp,
@@ -37,6 +40,7 @@ import {
   opponentName,
   roundLabel,
   toLocalInput,
+  UNNAMED_OPPONENT,
   vpLabel,
   whenLabel,
 } from "./gameFormat";
@@ -49,6 +53,8 @@ import {
   formErrors,
   gameWinAdvice,
   participationsOf,
+  recentClanIds,
+  type FormErrorId,
   type GameDraft,
   type OpponentDraft,
 } from "./gameFormModel";
@@ -65,9 +71,15 @@ interface PlayData {
   tournaments: LocalTournament[];
   players: LocalPlayer[];
   decks: LocalDeck[];
+  /** Clans du catalogue, pour le clan principal d'un adversaire (Lot 8, P5). */
+  clans: ClanOption[];
 }
 
-type View = "form" | "venue" | "tournament" | "round" | "count" | "deck";
+type View = "form" | "venue" | "tournament" | "round" | "count" | "deck" | "clan";
+
+/** Clé locale d'une ligne sans nom (`OpponentDraft.uid`). */
+let unnamedSequence = 0;
+const nextUnnamedUid = () => `sans-nom-${(unnamedSequence += 1)}`;
 
 type Patch = (changes: Partial<GameDraft> | ((current: GameDraft) => Partial<GameDraft>)) => void;
 
@@ -235,6 +247,7 @@ function initialDraft(data: PlayData, game: LocalGame | undefined, initial: Game
         .map((line) => ({
           playerKey: line.playerKey,
           name: opponentName(data.players, line.playerKey),
+          ...(line.playerKey === null ? { uid: nextUnnamedUid() } : {}),
           seat: line.seat,
           deckKey: line.deckKey,
           notes: line.notes,
@@ -323,10 +336,11 @@ export function GameForm({
   const tournaments = useLocalTournaments();
   const players = useLocalPlayers();
   const decks = useLocalDecks({ state: "all" });
+  const clans = useLocalClans();
   const loadingId = useId();
   const loadingRef = useRef<HTMLHeadingElement>(null);
 
-  if (!games || !venues || !tournaments || !players || !decks) {
+  if (!games || !venues || !tournaments || !players || !decks || !clans) {
     return (
       <Sheet titleId={loadingId} titleRef={loadingRef} onClose={onClose} data-testid="game-form-sheet">
         <SheetHeader
@@ -341,7 +355,7 @@ export function GameForm({
   }
   return (
     <GameFormBody
-      data={{ games, venues, tournaments, players, decks }}
+      data={{ games, venues, tournaments, players, decks, clans }}
       game={game}
       initial={initial}
       adversariesOpen={adversariesOpen}
@@ -380,6 +394,9 @@ function GameFormBody({
   const [venueTerm, setVenueTerm] = useState("");
   const [opponentTerm, setOpponentTerm] = useState("");
   const [invalid, setInvalid] = useState<string | null>(null);
+  /** Ligne dont on choisit le clan principal (vue « clan », mobile). */
+  const [clanTarget, setClanTarget] = useState<number | null>(null);
+  const clanTargetRef = useRef<number | null>(null);
 
   const patch = (changes: Partial<GameDraft> | ((current: GameDraft) => Partial<GameDraft>)) =>
     setDraft((current) => applyDraftChanges(current, typeof changes === "function" ? changes(current) : changes));
@@ -392,7 +409,8 @@ function GameFormBody({
   useEffect(() => {
     if (view !== "form") titleRef.current?.focus();
     else if (previousView.current !== "form") {
-      document.querySelector<HTMLElement>(`[data-return-focus="${previousView.current}"]`)?.focus();
+      const target = previousView.current === "clan" ? `clan-${clanTargetRef.current}` : previousView.current;
+      document.querySelector<HTMLElement>(`[data-return-focus="${target}"]`)?.focus();
     }
     previousView.current = view;
   }, [view]);
@@ -418,7 +436,7 @@ function GameFormBody({
   const advice = gameWinAdvice(draft.playerCount, draft.vp ?? 0, draft.gameWin === true, lockAttempt);
   // Les erreurs vérifiables sur place bloquent l'envoi (décision de l'utilisateur, 2026-11-02).
   const errors = tableKnown ? formErrors(draft) : [];
-  const errorOf = (id: "gw" | "vp" | "table") => errors.find((error) => error.id === id)?.message ?? null;
+  const errorOf = (id: FormErrorId) => errors.find((error) => error.id === id)?.message ?? null;
   const monoDeck = monoDeckKey ? deckOf(monoDeckKey) : undefined;
   const monoWarning = monoDeckWarning(monoDeckKey, draft.deckKey, monoDeck);
 
@@ -498,6 +516,20 @@ function GameFormBody({
         : { opponents: [...current.opponents, opponent] },
     );
     setOpponentTerm("");
+  };
+
+  const addUnnamed = () =>
+    patch((current) => ({
+      opponents: [
+        ...current.opponents,
+        { playerKey: null, uid: nextUnnamedUid(), name: UNNAMED_OPPONENT, seat: null, deckKey: null, notes: null },
+      ],
+    }));
+
+  const chooseClanFor = (index: number) => {
+    clanTargetRef.current = index;
+    setClanTarget(index);
+    setView("clan");
   };
 
   const updateOpponent = (index: number, changes: Partial<OpponentDraft>) =>
@@ -636,6 +668,11 @@ function GameFormBody({
         onChooseTournament={chooseTournament}
         onChooseRound={chooseRound}
         onChoosePlayerCount={choosePlayerCount}
+        clanTarget={clanTarget}
+        onChooseClan={(clanId) => {
+          if (clanTarget !== null) updateOpponent(clanTarget, { opponentClanId: clanId });
+          setView("form");
+        }}
         patch={patch}
         setView={setView}
       />
@@ -729,7 +766,8 @@ function GameFormBody({
             <OpponentsSection
               sectionRef={opponentsRef}
               formId={formId}
-              data={data}
+              players={data.players}
+              clans={data.clans}
               draft={draft}
               decksSorted={decksSorted}
               open={opponentsOpen}
@@ -737,6 +775,7 @@ function GameFormBody({
               term={opponentTerm}
               setTerm={setOpponentTerm}
               onAdd={addOpponent}
+              onAddUnnamed={addUnnamed}
               onUpdate={updateOpponent}
               onRemove={(index) =>
                 patch((current) => ({
@@ -744,7 +783,9 @@ function GameFormBody({
                 }))
               }
               onCreate={createOpponent}
+              onChooseClan={chooseClanFor}
               seatTaken={seatTaken}
+              unnamedError={errorOf("unnamed")}
               setupError={setup.error}
             />
           </>
@@ -803,6 +844,8 @@ function GameChoiceSheet({
   onChooseTournament,
   onChooseRound,
   onChoosePlayerCount,
+  clanTarget,
+  onChooseClan,
   patch,
   setView,
 }: {
@@ -824,9 +867,12 @@ function GameChoiceSheet({
   onChooseTournament: (value: string) => void;
   onChooseRound: (value: string) => void;
   onChoosePlayerCount: (count: number) => void;
+  clanTarget: number | null;
+  onChooseClan: (clanId: number | null) => void;
   patch: Patch;
   setView: (view: View) => void;
 }) {
+  const clanLine = clanTarget === null ? undefined : draft.opponents[clanTarget];
   return (
     <Sheet titleId={titleId} titleRef={titleRef} onClose={onClose} data-testid="game-form-sheet">
       {view === "venue" && (
@@ -902,6 +948,18 @@ function GameChoiceSheet({
           note="En tournoi, une table compte quatre ou cinq joueurs ; l'outil accepte de deux à six."
         />
       )}
+      {view === "clan" && clanLine && (
+        <ClanPanel
+          kicker={[clanLine.seat !== null ? `Siège ${clanLine.seat}` : null, clanLine.name].filter(Boolean).join(" · ")}
+          titleId={titleId}
+          titleRef={titleRef}
+          onClose={onClose}
+          clans={data.clans}
+          recent={recentClanIds(data.games)}
+          selected={clanLine.opponentClanId ?? null}
+          onSelect={onChooseClan}
+        />
+      )}
       {view === "deck" && (
         <ChoicePanel
           kicker={title}
@@ -925,199 +983,6 @@ function GameChoiceSheet({
         />
       )}
     </Sheet>
-  );
-}
-
-/** Les adversaires nommés : sièges, decks prêtés, recherche dans le carnet et ajout. */
-function OpponentsSection({
-  sectionRef,
-  formId,
-  data,
-  draft,
-  decksSorted,
-  open,
-  onToggle,
-  term,
-  setTerm,
-  onAdd,
-  onUpdate,
-  onRemove,
-  onCreate,
-  seatTaken,
-  setupError,
-}: {
-  sectionRef: RefObject<HTMLDivElement | null>;
-  formId: string;
-  data: PlayData;
-  draft: GameDraft;
-  decksSorted: LocalDeck[];
-  open: boolean;
-  onToggle: () => void;
-  term: string;
-  setTerm: (term: string) => void;
-  onAdd: (opponent: OpponentDraft) => void;
-  onUpdate: (index: number, changes: Partial<OpponentDraft>) => void;
-  onRemove: (index: number) => void;
-  onCreate: () => Promise<void>;
-  seatTaken: (seat: number, except: "me" | number) => boolean;
-  setupError: string | null;
-}) {
-  const suggestions = data.players.filter(
-    (player) =>
-      !player.isMe &&
-      term.trim() !== "" &&
-      foldText(player.name).includes(foldText(term.trim())) &&
-      !draft.opponents.some((line) => canonical(data.players, line.playerKey) === player.key),
-  );
-  const typedName = term.trim();
-  const isMyName = data.players.some((player) => player.isMe && foldText(player.name) === foldText(typedName));
-  const canCreateOpponent =
-    typedName !== "" && !isMyName && !data.players.some((player) => !player.isMe && foldText(player.name) === foldText(typedName));
-  const tableFull = draft.opponents.length + 1 >= draft.playerCount;
-
-  return (
-    <div ref={sectionRef}>
-      <button
-        type="button"
-        className="toggle-row"
-        aria-expanded={open}
-        onClick={onToggle}
-        data-testid="game-form-opponents-toggle"
-      >
-        <span>
-          <span className="toggle-row__label">Adversaires</span>
-          <span className="row__meta">
-            Facultatif ·{" "}
-            {draft.opponents.length === 0
-              ? "aucun nommé"
-              : draft.opponents.map((opponent) => opponent.name).join(", ")}
-          </span>
-        </span>
-        {open ? <CaretUpIcon size={18} /> : <CaretDownIcon size={18} />}
-      </button>
-      {open && (
-        <div className="opponents" data-testid="game-form-opponents">
-          {draft.opponents.map((opponent, index) => (
-            <div className="opponent-row" key={opponent.playerKey ?? `sans-nom-${index}`} data-testid="game-form-opponent">
-              <select
-                className="seat-select"
-                aria-label={`Siège de ${opponent.name}`}
-                value={opponent.seat ?? ""}
-                onChange={(event) =>
-                  onUpdate(index, { seat: event.target.value === "" ? null : Number(event.target.value) })
-                }
-              >
-                <option value="">–</option>
-                {Array.from({ length: draft.playerCount }, (_, position) => position + 1)
-                  .filter((seat) => seat === opponent.seat || !seatTaken(seat, index))
-                  .map((seat) => (
-                    <option key={seat} value={seat}>
-                      {seat}
-                    </option>
-                  ))}
-              </select>
-              <div className="opponent-row__body">
-                <span className="opponent-row__name">{opponent.name}</span>
-                <label className="opponent-row__lend">
-                  <HandArrowUpIcon size={14} aria-hidden="true" />
-                  <select
-                    aria-label={`Deck prêté à ${opponent.name}`}
-                    value={opponent.deckKey ?? ""}
-                    onChange={(event) =>
-                      onUpdate(index, {
-                        deckKey: event.target.value === "" ? null : (event.target.value as DeckKey),
-                      })
-                    }
-                  >
-                    <option value="">Prêter un de mes decks</option>
-                    {decksSorted.map((deck) => (
-                      <option key={deck.key} value={deck.key}>
-                        Joue mon {deck.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <button
-                type="button"
-                className="icon-btn"
-                aria-label={`Retirer ${opponent.name} de la table`}
-                onClick={() => onRemove(index)}
-              >
-                <XIcon size={18} />
-              </button>
-            </div>
-          ))}
-          <div className="field">
-            <label htmlFor={`${formId}-opponent`} className="sr-only">
-              Ajouter un adversaire
-            </label>
-            <div className="opponent-add">
-              <UserPlusIcon size={18} aria-hidden="true" />
-              <input
-                id={`${formId}-opponent`}
-                className="underline-field"
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    if (canCreateOpponent && !tableFull) void onCreate();
-                  }
-                }}
-                placeholder="Ajouter un adversaire"
-                autoComplete="off"
-                disabled={tableFull}
-                data-testid="game-form-opponent-input"
-              />
-            </div>
-            {tableFull && <p className="hint">La table est complète.</p>}
-            {isMyName && <p className="hint">C'est vous : votre ligne est déjà à la table.</p>}
-            {!tableFull && (suggestions.length > 0 || canCreateOpponent) && (
-              <ul className="list" data-testid="game-form-opponent-suggestions">
-                {suggestions.map((player) => (
-                  <li key={player.key}>
-                    <button
-                      type="button"
-                      className="choice-row"
-                      onClick={() =>
-                        onAdd({
-                          playerKey: player.key,
-                          name: player.name,
-                          seat: null,
-                          deckKey: null,
-                          notes: null,
-                        })
-                      }
-                    >
-                      <span className="choice-row__label">{player.name}</span>
-                    </button>
-                  </li>
-                ))}
-                {canCreateOpponent && (
-                  <li>
-                    <button
-                      type="button"
-                      className="choice-row choice-row--create"
-                      onClick={() => void onCreate()}
-                      data-testid="game-form-opponent-create"
-                    >
-                      <span className="choice-row__label">Ajouter « {typedName} » au carnet</span>
-                    </button>
-                  </li>
-                )}
-              </ul>
-            )}
-            <p className="hint">Jamais de score d'adversaire : seuls vos VP comptent.</p>
-            {setupError && (
-              <p className="error-text" role="alert" data-testid="game-form-setup-error">
-                {setupError}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -1146,7 +1011,7 @@ function MyLineFields({
   monoDeckKey: DeckKey | null;
   monoDeck: LocalDeck | undefined;
   seatTaken: (seat: number, except: "me" | number) => boolean;
-  errorOf: (id: "gw" | "vp" | "table") => string | null;
+  errorOf: (id: FormErrorId) => string | null;
   advice: ReturnType<typeof gameWinAdvice>;
   setLockAttempt: (attempt: boolean) => void;
   setView: (view: View) => void;
