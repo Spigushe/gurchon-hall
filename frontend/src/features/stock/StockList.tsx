@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, PlusIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { CardImage } from "../../components/CardImage";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
@@ -14,6 +14,55 @@ import {
 } from "./stockSort";
 import { useCardSetOptions } from "./useCardSetOptions";
 import { useCardsById } from "./useCardsById";
+
+/**
+ * Une entrée se retire de la liste, sans passer par la feuille ni confirmer,
+ * quand elle ne porte plus rien : aucun exemplaire et aucun deck qui joue la
+ * carte. Seules ses notes disparaissent avec elle. Tant que les comptes de
+ * decks ne sont pas lus (`undefined`), on ne propose rien.
+ */
+function isQuickRemovable(
+  entry: LocalStockEntry,
+  deckCounts: Map<number, number> | undefined,
+): boolean {
+  return deckCounts !== undefined && entry.quantityOwned === 0 && (deckCounts.get(entry.cardId) ?? 0) === 0;
+}
+
+/** Corbeille d'une entrée vide (`isQuickRemovable`) : écrit `stock.delete` dans la file. */
+function QuickRemoveButton({
+  entry,
+  who,
+  className,
+}: {
+  entry: LocalStockEntry;
+  who: string;
+  className: string;
+}) {
+  const { actions } = useVtesOffline();
+  const action = useGuardedAction();
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        aria-label={`Supprimer ${who} de la collection`}
+        title="Aucun exemplaire, dans aucun deck : supprimer l'entrée"
+        data-testid="stock-entry-quick-delete"
+        disabled={action.pending}
+        onClick={() =>
+          void action.run(() => actions.removeStock(entry.cardId, entry.languageCode, entry.cardSetId))
+        }
+      >
+        <TrashIcon size={16} aria-hidden="true" />
+      </button>
+      {action.error && (
+        <span className="error-text" role="alert">
+          {action.error}
+        </span>
+      )}
+    </>
+  );
+}
 
 /**
  * Une ligne de la collection : toucher le titre ouvre la feuille de modification
@@ -34,11 +83,14 @@ function StockRow({
   entry,
   card,
   deckCount,
+  removable,
   onEdit,
 }: {
   entry: LocalStockEntry;
   card: CardRow | undefined;
   deckCount: number;
+  /** Aucun exemplaire et aucun deck : la corbeille remplace le « − » (`isQuickRemovable`). */
+  removable: boolean;
   onEdit: (entry: LocalStockEntry) => void;
 }) {
   const { actions } = useVtesOffline();
@@ -114,15 +166,20 @@ function StockRow({
       </button>
 
       <div className="stepper stepper--row" role="group" aria-label={`Exemplaires de ${who}`}>
-        <button
-          type="button"
-          className="stepper__btn"
-          aria-label={`Retirer un exemplaire de ${who}`}
-          disabled={action.pending || entry.quantityOwned <= 0}
-          onClick={() => void setQuantity(entry.quantityOwned - 1)}
-        >
-          −
-        </button>
+        {/* À 0 exemplaire et hors de tout deck, le « − » (inutile à 0) cède la place à la corbeille. */}
+        {removable ? (
+          <QuickRemoveButton entry={entry} who={who} className="stepper__btn stepper__btn--danger" />
+        ) : (
+          <button
+            type="button"
+            className="stepper__btn"
+            aria-label={`Retirer un exemplaire de ${who}`}
+            disabled={action.pending || entry.quantityOwned <= 0}
+            onClick={() => void setQuantity(entry.quantityOwned - 1)}
+          >
+            −
+          </button>
+        )}
         <span className="stepper__value" data-testid="stock-entry-quantity">
           {entry.quantityOwned}
         </span>
@@ -288,6 +345,9 @@ function StockTable({
               </div>
             );
           })}
+          <div className="stock-table__cell stock-table__cell--head" role="columnheader">
+            <span className="sr-only">Actions</span>
+          </div>
         </div>
       </div>
       <div role="rowgroup">
@@ -425,6 +485,11 @@ function StockTable({
                   </span>
                 )}
               </div>
+              <div className="stock-table__cell stock-table__cell--actions" role="cell">
+                {isQuickRemovable(entry, deckCounts) && (
+                  <QuickRemoveButton entry={entry} who={who} className="stock-table__remove" />
+                )}
+              </div>
             </div>
           );
         })}
@@ -520,6 +585,7 @@ export function StockList({
           entry={entry}
           card={cardsById?.get(entry.cardId)}
           deckCount={deckCounts?.get(entry.cardId) ?? 0}
+          removable={isQuickRemovable(entry, deckCounts)}
           onEdit={onEdit}
         />
       ))}

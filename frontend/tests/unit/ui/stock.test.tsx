@@ -176,6 +176,30 @@ describe("collection : saisie hors ligne", () => {
     });
   });
 
+  it("mobile : à 0 exemplaire hors de tout deck, la corbeille remplace le « − » et supprime l'entrée", async () => {
+    setViewportWidth(390);
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    const entry = await screen.findByTestId("stock-entry");
+    expect(within(entry).queryByTestId("stock-entry-quick-delete")).not.toBeInTheDocument();
+
+    fireEvent.click(within(entry).getByRole("button", { name: "Retirer un exemplaire de Élan vital (FR)" }));
+    const trash = await within(entry).findByRole("button", {
+      name: "Supprimer Élan vital (FR) de la collection",
+    });
+    expect(
+      within(entry).queryByRole("button", { name: "Retirer un exemplaire de Élan vital (FR)" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(trash);
+    await waitFor(() => expect(screen.getByTestId("stock-empty")).toBeInTheDocument());
+    expect((await runtime.outbox.list()).map((op) => op.type)).toEqual([
+      "stock.upsert",
+      "stock.upsert",
+      "stock.delete",
+    ]);
+  });
+
   it("propose l'extension quand la carte a plusieurs impressions, présélectionnée sur la dernière version", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
     // Une seconde impression, plus récente, pour « Élan vital » (une seule dans le serveur factice).
@@ -691,6 +715,45 @@ describe("collection : vue tableau bureau (Lot 5bis, étape 8)", () => {
       expect(within(forCard("1")).getByTestId("stock-entry-decks")).toHaveTextContent("1"),
     );
     expect(within(forCard("3")).getByTestId("stock-entry-decks")).toHaveTextContent("0");
+  });
+
+  it("corbeille sur une entrée à 0 exemplaire hors de tout deck, sans confirmation ; aucune ailleurs", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 0 }); // vide
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 }); // possédée
+    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 0 }); // jouée en proxy
+    const { key } = await runtime.actions.createDeck({ name: "Malkavien", proxyAllowed: true });
+    await runtime.actions.saveDeckCard(key, {
+      cardId: 3,
+      languageCode: "EN",
+      cardSetId: 9,
+      quantity: 1,
+      proxyQuantity: 1,
+    });
+
+    await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(3));
+    const row = (id: string, lang: string) =>
+      screen
+        .getAllByTestId("stock-entry")
+        .find((r) => r.getAttribute("data-card-id") === id && r.getAttribute("data-language") === lang)!;
+    await waitFor(() =>
+      expect(within(row("3", "EN")).getByTestId("stock-entry-decks")).toHaveTextContent("1"),
+    );
+    expect(within(row("1", "EN")).queryByTestId("stock-entry-quick-delete")).not.toBeInTheDocument();
+    expect(within(row("3", "EN")).queryByTestId("stock-entry-quick-delete")).not.toBeInTheDocument();
+
+    const before = (await runtime.outbox.list()).length;
+    fireEvent.click(within(row("1", "FR")).getByRole("button", { name: "Supprimer Élan vital (FR) de la collection" }));
+
+    await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(2));
+    const queued = await runtime.outbox.list();
+    expect(queued).toHaveLength(before + 1);
+    expect(queued.at(-1)!.operation).toMatchObject({
+      type: "stock.delete",
+      card_id: 1,
+      language_code: "FR",
+      card_set_id: 9,
+    });
   });
 
   it("clan et capacité affichés pour une carte de crypte, tirets pour une carte de bibliothèque", async () => {

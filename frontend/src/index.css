@@ -991,6 +991,10 @@ main:focus {
   background: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
 
+.stepper__btn--danger {
+  color: var(--color-accent-300);
+}
+
 .stepper__btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -2765,7 +2769,7 @@ fieldset:disabled .chip {
 
   .stock-table__row {
     display: grid;
-    grid-template-columns: 2.1fr 110px 1.3fr 96px 72px 64px 64px 1.5fr;
+    grid-template-columns: 2.1fr 110px 1.3fr 96px 72px 64px 64px 1.5fr 32px;
     gap: 16px;
     align-items: center;
     border-bottom: 1px solid var(--color-divider);
@@ -2866,6 +2870,31 @@ fieldset:disabled .chip {
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+
+  /* Corbeille d'une entrée vide : aucun exemplaire, dans aucun deck. */
+  .stock-table__cell--actions {
+    display: flex;
+    justify-content: center;
+  }
+
+  .stock-table__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-neutral-500);
+    cursor: pointer;
+  }
+
+  .stock-table__remove:hover:not(:disabled),
+  .stock-table__remove:focus-visible {
+    color: var(--color-accent-300);
+    background: color-mix(in srgb, var(--color-text) 7%, transparent);
   }
 
   .stock-table__ext {
