@@ -683,8 +683,8 @@ réattribués ») et `backend/tests/test_migrations.py` (section R11).
 Le Lot 8 (`docs/lot8-plan-analyse.md`, A4 et A5) n'ajoute **aucun type
 d'opération** : `/sync` en garde vingt. Les charges utiles de partie gagnent des
 champs, tous facultatifs, et celles de deck ferment leur archétype. Rédigé à
-l'étape A2 ; les classements de refus marqués « B1 » s'appliqueront avec le
-service.
+l'étape A2, appliqué par le service à B1 ; les tests de la file sont dans
+`backend/tests/test_sync_lot8.py` (B2).
 
 **Champs nouveaux**, repris tels quels des routes en ligne :
 

@@ -1,11 +1,12 @@
 # Lot 8 — Analyse : plan d'implémentation
 
-Statut : **A0 close le 2026-11-08 ; A1 et A2 livrées le 2026-11-08, B1 le
-2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
-gel des versions, deck adverse et route des versions, cf. « Livré à A1 »,
-« Livré à A2 » et « Livré à B1 » sous le découpage ; A9 tranchée le
-2026-11-08 : table dédiée ; front en échec de typage jusqu'à C1, par
-décision). Prochaine étape : B2 (`/sync`). Rédigé sur la branche
+Statut : **A0 close le 2026-11-08 ; A1 et A2 livrées le 2026-11-08, B1 et B2
+le 2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
+gel des versions, deck adverse et route des versions, puis tests `/sync`, cf.
+« Livré à A1 », « Livré à A2 », « Livré à B1 » et « Livré à B2 » sous le
+découpage ; A9 tranchée le 2026-11-08 : table dédiée ; front en échec de
+typage jusqu'à C1, par décision). Prochaine étape : F0 (base écrasée), puis
+C1. Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -730,7 +731,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures — **fait le 2026-11-08** (cf. « Livré à A1 ») | A0 |
 | A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync — **fait le 2026-11-08** (cf. « Livré à A2 ») | A1 |
 | B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` — **fait le 2026-11-12** (cf. « Livré à B1 ») | A2 |
-| B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
+| B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` — **fait le 2026-11-12** (cf. « Livré à B2 ») | B1 |
 | F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
 | C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche | B2 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
@@ -939,6 +940,42 @@ d'une table, passage de la ligne du tournoi à la partie suivante.
   - le cas « ligne sans version, qui se fige » (point 1 des précisions) ne
     se produit qu'après R13 sur une base peuplée. Il n'a pas de test de
     service, puisque la base de développement sera écrasée (P4).
+
+### Livré à B2 (2026-11-12)
+
+- **Aucun code de service ni de schéma** : B1 avait déjà fait passer
+  `game.create`, `game.update` et `game.delete` par les services modifiés,
+  et A2 avait fermé l'archétype de `deck.create` et `deck.update`. B2 se
+  réduit aux tests `/sync` que B1 lui laissait.
+- **Tests** : `backend/tests/test_sync_lot8.py` (29), tous par la file :
+  - l'ordre de la file fait l'ordre du gel, dans un même lot (partie, puis
+    deck retouché) et d'un lot à l'autre ;
+  - un rejeu de `game.create` ou d'un regel ne refige rien, même si le deck
+    a changé depuis, et ne crée aucune version ;
+  - une opération de partie écrite avant le lot (sans aucun champ nouveau)
+    s'applique, fige à la création, garde sa version sur une modification de
+    notes, et se rejoue en `replayed` ;
+  - drapeau omis, à `false` ou `data` absent : pas de regel ;
+  - drapeau par `game.update` : liste courante figée, `updated_at` touché ;
+    en tournoi, toutes les rondes réalignées et la ligne du tournoi rattachée
+    à la partie du regel ;
+  - **remplacement de table et drapeau dans la même opération** : le deck
+    gardé est refigé, le deck nouveau se fige à sa liste courante ; sans le
+    drapeau, le remplacement garde la version ;
+  - un regel refusé (table fautive) n'écrit aucune version ;
+  - deck adverse et ligne sans joueur enregistrés par la file, et réécrits
+    par un remplacement de table ;
+  - cinq refus rendus en verdict d'une seule opération, le lot continuant :
+    champ adverse sur ma ligne ou sur un deck prêté, notes seules et VP sur
+    une ligne sans joueur (`invalid`), clan inconnu (`not_found`) ;
+  - une ligne qui porte `deck_version_id` fait refuser le lot entier en 422 ;
+  - les six archétypes et `null` par `deck.create` et `deck.update` ; un
+    archétype libre dans `deck.update` (casse, espaces, chaîne vide) fait
+    refuser le lot en 422 sans rien journaliser.
+- **Vérification** : la suppression du drapeau dans `update_game`, essayée
+  le temps d'un passage, fait tomber les quatre tests qui le visent. `ruff
+  check` propre. Le contrat ne bouge pas (50 opérations sur 30 chemins), ni
+  le score CRAP, aucune fonction de `app/` n'ayant changé.
 
 ### Tests attendus (E)
 
