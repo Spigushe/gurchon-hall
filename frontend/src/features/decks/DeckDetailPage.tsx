@@ -20,10 +20,11 @@ import {
   type LocalDeck,
 } from "../../offline/vtes";
 import { AddDeckCardForm } from "./AddDeckCardForm";
-import { ArchetypeSelect } from "./ArchetypeSelect";
+import { ArchetypeChips } from "./ArchetypeChips";
 import { DeckComposition } from "./DeckComposition";
 import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
+import { DeckResults } from "./DeckResults";
 import { DeckLegalityBadge } from "./DeckLegalityBadge";
 
 /** Feuille « Modifier le deck » (handoff Nocturne) : nom, archétype, notes, autorisation de proxy. */
@@ -75,10 +76,7 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
             autoComplete="off"
           />
         </div>
-        <div className="field">
-          <label htmlFor={`${formId}-archetype`}>Archétype</label>
-          <ArchetypeSelect id={`${formId}-archetype`} value={archetype} onChange={setArchetype} />
-        </div>
+        <ArchetypeChips legend="Archétype" value={archetype} onChange={setArchetype} testIdPrefix="deck-edit-archetype" />
         <div className="field">
           <label htmlFor={`${formId}-notes`}>Notes</label>
           <input
@@ -324,6 +322,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       ) : (
         <>
           <DeckLegalityPanel deck={deck} />
+          <DeckResults deckKey={deck.key} dense={false} />
 
           <div>
             <p className="kicker">Composition</p>

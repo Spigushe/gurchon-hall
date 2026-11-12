@@ -3308,7 +3308,7 @@ fieldset:disabled .chip {
 /* Sélecteur « Parties | Tournois » : segmenté au mobile, onglets soulignés au bureau. */
 .play-switch {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -5846,4 +5846,870 @@ fieldset:disabled .chip {
 .opponent-row__known {
   flex: none;
   color: var(--color-neutral-500);
+}
+
+/*
+ * — Lot 8, D2 : bilan, liste d'une version, résultats d'un deck, decks d'un tournoi —
+ * (docs/design-handoff/LOT8.md). Aucun token nouveau. Les barres se dessinent
+ * en flex-grow à partir des comptes : aucune part sur cent n'est calculée (P8).
+ */
+
+.facts__link,
+.bilan-version__link {
+  font-size: 12px;
+  color: var(--color-accent-300);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.facts__link:hover,
+.bilan-version__link:hover {
+  text-decoration: underline;
+}
+
+.bilan-main {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.bilan-filterline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bilan-filterline__summary {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+  min-width: 0;
+}
+
+.bilan-filter__chips {
+  gap: 8px;
+}
+
+.bilan-filter__dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.bilan-filter__date {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.bilan-filter__deck .glyph--clans {
+  font-size: 18px;
+  color: var(--color-neutral-200);
+}
+
+.bilan-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--color-accent);
+}
+
+.bilan-summary__headline {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.bilan-summary__line {
+  font-size: 13px;
+  color: var(--color-neutral-300);
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 0;
+}
+
+.bilan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.bilan-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bilan-legend__swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.bilan-legend__swatch--gw {
+  background: var(--color-accent);
+}
+
+.bilan-legend__swatch--vp {
+  background: var(--color-neutral-400);
+}
+
+.bilan-bars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.bilan-bar {
+  display: flex;
+  height: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-neutral-800);
+}
+
+.bilan-bar__fill,
+.bilan-bar__rest {
+  flex-basis: 0;
+  min-width: 0;
+}
+
+.bilan-bar__fill--gw {
+  background: var(--color-accent);
+}
+
+.bilan-bar__fill--vp {
+  background: var(--color-neutral-400);
+}
+
+.bilan-axis-tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bilan-axis-tabs .tab-option {
+  flex: none;
+}
+
+.tabs--quiet .tab-option input:checked + .tab-option__label {
+  color: var(--color-neutral-200);
+  border-bottom-color: var(--color-neutral-500);
+}
+
+.bilan-axes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bilan-list,
+.bilan-versions,
+.bilan-facts,
+.tournament-decks__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bilan-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.bilan-row--compact {
+  padding: 0;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.bilan-row__line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.bilan-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bilan-row__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bilan-row__head .glyph--clans,
+.bilan-table__name .glyph--clans {
+  font-size: 20px;
+  color: var(--color-neutral-200);
+  align-self: center;
+}
+
+.bilan-row__name {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bilan-row--compact .bilan-row__name {
+  font-size: 14px;
+}
+
+.bilan-row__name--unknown {
+  color: var(--color-neutral-400);
+}
+
+.bilan-row__sub {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.bilan-row__avg {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-row__avg strong {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+}
+
+.bilan-row__avg small {
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.bilan-row__meta {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-row__toggle,
+.bilan-row__toggle-space {
+  flex: none;
+  width: 20px;
+  min-height: 24px;
+}
+
+.bilan-row__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--color-neutral-400);
+  cursor: pointer;
+  padding: 0;
+}
+
+.bilan-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: calc(var(--radius-md) * 0.75);
+  border: 1px solid var(--color-divider);
+  color: var(--color-neutral-300);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.bilan-versions {
+  margin: 10px 0 0 28px;
+}
+
+.bilan-version {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--color-divider);
+}
+
+.bilan-version__head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 14px;
+}
+
+.bilan-version__label {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+}
+
+.bilan-version__since {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.bilan-version__pending {
+  color: var(--color-accent-300);
+  align-self: center;
+}
+
+.bilan-version__meta {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-version .bilan-version__link {
+  margin-left: auto;
+}
+
+.bilan-note {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  margin: 0;
+}
+
+.bilan-position {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bilan-position__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bilan-position__grouping {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bilan-position__grouping-label {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.bilan-far__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--color-divider);
+  background: none;
+  color: var(--color-neutral-300);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.bilan-far__hint {
+  color: var(--color-neutral-500);
+  font-size: 12px;
+}
+
+.bilan-far__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 14px;
+  border-left: 1px solid var(--color-divider);
+}
+
+/* Tableaux et panneau du bureau (d25). */
+.bilan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+.bilan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bilan-section__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.bilan-section__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  margin: 0;
+}
+
+.bilan-section__hint {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.bilan-table__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px 44px 54px 64px;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.bilan-table__row--head {
+  min-height: 30px;
+  border-top: none;
+  cursor: default;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+.bilan-table__row--compact {
+  color: var(--color-neutral-300);
+}
+
+.bilan-table__row--version {
+  cursor: default;
+  border-top-style: dashed;
+  color: var(--color-neutral-300);
+}
+
+.bilan-table__row--version .bilan-table__name {
+  padding-left: 28px;
+}
+
+.bilan-table__row[aria-selected="true"] {
+  background: var(--color-accent-900);
+}
+
+.bilan-table__th button {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.bilan-table__th[aria-sort="ascending"] button,
+.bilan-table__th[aria-sort="descending"] button {
+  color: var(--color-text);
+}
+
+.bilan-table__th:not(:first-child) {
+  text-align: right;
+}
+
+.bilan-table__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.bilan-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+.bilan-table__num .bilan-bars {
+  grid-template-columns: 1fr;
+}
+
+.bilan-table__num .bilan-bar {
+  height: 2px;
+}
+
+.bilan-table__num--strong {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+}
+
+.bilan-table__select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  border: none;
+  background: none;
+  pointer-events: none;
+}
+
+.bilan-table__select:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.bilan-table__row .bilan-row__toggle,
+.bilan-table__row a {
+  position: relative;
+  z-index: 1;
+}
+
+.bilan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 24px;
+  border-left: 1px solid var(--color-divider);
+}
+
+.bilan-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bilan-panel__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 20px;
+  margin: 0;
+}
+
+.bilan-fact__link {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-divider);
+  color: inherit;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.bilan-fact__date,
+.bilan-fact__result {
+  font-variant-numeric: tabular-nums;
+}
+
+.bilan-fact__time,
+.bilan-fact__context,
+.bilan-fact__version {
+  color: var(--color-neutral-500);
+  font-size: 12px;
+}
+
+.bilan-fact__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bilan-fact__result--gw {
+  color: var(--color-accent-200);
+}
+
+/* Liste d'une version (1b-52, d30). */
+.deck-version-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.version-tabs__item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.version-tabs__item[aria-current="page"] {
+  color: var(--color-text);
+  border-bottom-color: var(--color-accent);
+}
+
+.version-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.version-changes__heading,
+.version-changes__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  margin: 0;
+}
+
+.version-changes__heading {
+  font-size: 16px;
+}
+
+.version-changes__title {
+  font-size: 13px;
+  color: var(--color-neutral-300);
+  margin-bottom: 6px;
+}
+
+.version-changes__groups {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.version-changes__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.version-changes__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.version-changes__qty {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.version-changes__qty--in {
+  color: var(--color-accent-200);
+}
+
+.version-changes__qty--out {
+  color: var(--color-neutral-400);
+}
+
+.version-unavailable {
+  border-left: 2px solid var(--color-accent);
+}
+
+.version-unavailable__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  margin: 0 0 4px;
+}
+
+/* Résultats d'un deck (1b-53, d31). */
+.deck-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deck-results--dense {
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.deck-results__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deck-results__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  margin: 0;
+}
+
+.deck-results__headline {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.deck-results--dense .deck-results__headline {
+  font-size: 14px;
+}
+
+.deck-results__avg {
+  color: var(--color-neutral-300);
+  font-weight: normal;
+}
+
+.deck-results__version {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.deck-results__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 56px 44px 54px 64px 90px;
+  gap: 8px;
+  align-items: center;
+  min-height: 36px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 13px;
+}
+
+.deck-results__row--head {
+  min-height: 28px;
+  border-top: none;
+  font-size: 11px;
+  color: var(--color-neutral-500);
+}
+
+/* Decks joués d'un tournoi (1b-54, d32). */
+.tournament-decks__item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.tournament-decks__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tournament-decks__name {
+  font-size: 15px;
+}
+
+.tournament-decks__sub {
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.deck-archetype-chips .filter-help {
+  margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .bilan-layout--panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 24px;
+  }
+
+  .bilan-filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .bilan-filterbar__group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .bilan-filterbar__label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--color-neutral-500);
+  }
+
+  .bilan-filterbar .chip {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+
+  .bilan-filterbar .bilan-filter__dates {
+    display: flex;
+    gap: 8px;
+  }
+
+  .bilan-filterbar .bilan-filter__date {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bilan-summary {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .bilan-summary > div {
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+  }
+
+  .bilan-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bilan-section--wide,
+  .bilan-grid > [data-testid="bilan-axis-deck"] {
+    grid-column: 1 / -1;
+  }
+
+  .bilan-position__controls {
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .bilan-position__controls .seg {
+    min-width: 260px;
+  }
+
+  .version-changes__groups {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .sheet .deck-archetype-chips .chip {
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
 }

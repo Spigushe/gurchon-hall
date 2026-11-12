@@ -30,6 +30,7 @@ import {
   readDeckCards,
   readDeckCardsByDeck,
   readDeckCountByCard,
+  readAllDeckVersions,
   readDeckVersion,
   readDeckVersions,
   readDecks,
@@ -307,6 +308,13 @@ export function useLocalDeckVersion(id: number | null): DeckVersionRow | null | 
     async () => (id === null ? null : ((await readDeckVersion(db, id)) ?? null)),
     [db, id],
   );
+  return useLiveQuery(querier);
+}
+
+/** Toutes les versions jouées du miroir (`readAllDeckVersions`), pour le bilan. */
+export function useLocalAllDeckVersions(): DeckVersionRow[] | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readAllDeckVersions(db), [db]);
   return useLiveQuery(querier);
 }
 

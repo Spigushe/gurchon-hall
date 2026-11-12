@@ -5,8 +5,8 @@ le 2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
 gel des versions, deck adverse et route des versions, puis tests `/sync`, cf.
 « Livré à A1 », « Livré à A2 », « Livré à B1 » et « Livré à B2 » sous le
 découpage ; A9 tranchée le 2026-11-08 : table dédiée ; front en échec de
-typage jusqu'à C1, par décision ; F0, C1 et D1 faits le 2026-11-12, cf. leurs
-« Livré à »). Prochaine étape : D2. Rédigé sur la branche
+typage jusqu'à C1, par décision ; F0, C1, D1 et D2 faits le 2026-11-12, cf.
+leurs « Livré à »). Prochaine étape : B3 (légalité datée), puis E. Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -400,8 +400,8 @@ Points relevés, à trancher ou à appliquer :
    le lien n'apparaît que pour les axes Deck et Lieu ; ailleurs, chaque partie
    du panneau ouvre son détail, ce qui suffit.
 5. **Barres** : la barre GW montre la part des parties gagnées, sans chiffre
-   écrit ; le brief l'autorisait. À confirmer par l'utilisateur, au vu de
-   « jamais de pourcentage ».
+   écrit ; le brief l'autorisait. **Confirmé par l'utilisateur le
+   2026-11-12** : les barres restent, aucun pourcentage n'étant écrit.
 6. **Glyphes** : le designer signalait Banu Haqim (`n`) et un `o` en carré vide
    dans ses prototypes. Les codes sont ceux de
    `frontend/src/components/glyphs/glyphs.ts` (`"banu haqim": "n"`,
@@ -736,7 +736,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche — **fait le 2026-11-12** (cf. « Livré à C1 ») | B2 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
 | D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) — **fait le 2026-11-12** (cf. « Livré à D1 ») | C1, D0 |
-| D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) | D1 |
+| D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) — **fait le 2026-11-12** (cf. « Livré à D2 ») | D1 |
 | B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne | B1 |
 | E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs | D2 (et B3) |
 | F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone | E |
@@ -1135,6 +1135,72 @@ facultatif.
   fichiers ; `npm run lint` et `tsc` propres ; CRAP front sans régression
   (`GameDetail` à 25) ; aucun `data-testid` disparu ; e2e `games-saisie` et
   `club-sans-reseau` verts aux deux largeurs contre le vrai back.
+
+### Livré à D2 (2026-11-12)
+
+Écrans 3 à 7 du handoff (1b-46 à 1b-58, d25, d30 à d34), en mobile et en
+bureau. Aucun changement de contrat, de `/sync`, de modèle ni de version Dexie.
+
+- **Modèle du bilan** (`features/analysis/bilanModel.ts`, à côté de
+  `analysisModel.ts`, qui garde les positions) : `gameFact` réduit une partie
+  à ce que le bilan regroupe, avec le deck de l'adversaire à chaque position
+  (deck adverse saisi, ou archétype et clan principal d'un deck prêté).
+  Filtres (période, types, deck) ; agrégats `statsOf`, `averageVp` ; axes
+  `deckAxis` (et `versionGroups`), `venueAxis`, `monthAxis`, `opponentAxis`,
+  `positionAxis` ; `bilanSummary`, `sortGroups`, `mainClan`. Tables de petites
+  fonctions, sans `switch`. **Aucun pourcentage**, même en interne : les barres
+  se dessinent en `flex-grow` à partir des comptes. Une partie sans VP compte
+  pour 0, un GW non saisi pour « non ».
+- **Bilan** (`#/bilan`, `BilanPage.tsx` et ses morceaux dans
+  `features/analysis/`) : troisième segment de `PlaySwitcher`. Au mobile, ligne
+  de filtres et feuille 1b-47 (compte vivant, « Effacer les filtres »), résumé
+  en filet accent, un axe à la fois sous des onglets soulignés ; versions
+  dépliables sous chaque deck avec « Voir la liste » ; Position avec « Ma proie
+  | Mon prédateur », « Archétype | Clan », note des parties sans siège, et
+  « Plus loin à la table » replié. Au bureau, barre de filtres en ligne, axes
+  en grille, tri au clic d'en-tête (« inconnu » reste en dernier) et panneau
+  de droite des parties du groupe. États vide, sans correspondance, sans
+  siège. `#/bilan?deck=<clé>` ouvre le bilan filtré sur un deck.
+- **Liste d'une version** (`#/decks/<clé>/versions/<n>`,
+  `DeckVersionPage.tsx`) : `DeckTables` en lecture seule sans proxies,
+  « Première partie le … · N parties », changements depuis la version
+  précédente (`deckVersionModel.ts`), en segmenté au mobile et en carte au
+  bureau avec les onglets de versions ; « Liste indisponible hors ligne » pour
+  une version jamais lue. Liens depuis le détail d'une partie (laissé par D1),
+  le bilan, l'encart Résultats et le tournoi.
+- **Résultats d'un deck** (`DeckResults.tsx`) : dans le détail mobile et sous
+  les tableaux de l'aperçu bureau, une ligne par version, la plus récente en
+  haut, « Pas encore joué » sinon, « Voir dans le bilan ».
+- **Détail de tournoi** : bloc « Decks joués » (`TournamentDecks.tsx`), version
+  de chaque deck, ronde qui l'a figée, rondes jouées avec ; la version s'ajoute
+  au deck de chaque ronde dans « Mes rondes ».
+- **Formulaire de deck** : six puces (`ArchetypeChips.tsx`) à la place de la
+  liste déroulante de C1, création et modification.
+- **Lecture ajoutée** : `readAllDeckVersions` / `useLocalAllDeckVersions`
+  (clan principal de mes decks, clan d'un deck prêté).
+- **Écarts au handoff** :
+  - pas de pastille « Légal le 24 octobre » : elle attend la route de B3 et se
+    posera à côté de la ligne du tournoi, sans rien toucher d'autre ;
+  - pas de lien « Ouvrir ces parties dans la liste » (point 4 du handoff) : la
+    liste des parties ne lit aucun filtre dans l'adresse ; chaque partie du
+    panneau ouvre son détail ;
+  - le retour de la liste d'une version dit « Retour » et revient à l'écran
+    d'où l'on vient, puisqu'on y arrive de cinq endroits ;
+  - les champs De / À de la période sont modifiables, et passent la période en
+    « Période choisie » ;
+  - les barres GW sont posées comme le brief l'autorisait, et l'utilisateur
+    les a confirmées le 2026-11-12 (point 5 du handoff).
+- **Tests** : `tests/unit/features/analysis/bilanModel.test.ts` (filtres,
+  axes, positions à quatre et à trois joueurs, tri, clan principal, aucune
+  sortie avec « % »), `features/decks/deckVersionModel.test.ts` (changements,
+  libellés du tournoi), `tests/unit/ui/bilan.test.tsx` (bilan au mobile et au
+  bureau, liste d'une version et version indisponible, résultats d'un deck,
+  decks d'un tournoi, puces d'archétype), routes du bilan et d'une version
+  dans `routes.test.ts`.
+- **Vérifications** : vitest sous couverture, 1135 tests verts sur 71
+  fichiers ; `npm run lint`, `tsc` et `vite build` propres ; CRAP front sans
+  régression, aucune fonction au-dessus de 30 ; aucun `data-testid` disparu.
+  Playwright non relancé (étape E).
 
 ### Tests attendus (E)
 

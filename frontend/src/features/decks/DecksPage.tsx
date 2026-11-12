@@ -24,8 +24,9 @@ import {
   type DeckListState,
   type LocalDeck,
 } from "../../offline/vtes";
-import { ArchetypeSelect } from "./ArchetypeSelect";
+import { ArchetypeChips } from "./ArchetypeChips";
 import { DeckLegalityTag } from "./DeckLegalityTag";
+import { DeckResults } from "./DeckResults";
 import { DeckTables } from "./DeckTables";
 import { buildDeckTables, deckListSummary, type DeckListSummary } from "./deckTablesModel";
 import { useDeckCardFacts } from "./useDeckCardFacts";
@@ -126,10 +127,7 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
             </p>
           )}
         </div>
-        <div className="field">
-          <label htmlFor={`${formId}-archetype`}>Archétype (facultatif)</label>
-          <ArchetypeSelect id={`${formId}-archetype`} value={archetype} onChange={setArchetype} />
-        </div>
+        <ArchetypeChips legend="Archétype (facultatif)" value={archetype} onChange={setArchetype} testIdPrefix="deck-form-archetype" />
         <Switch
           id={`${formId}-proxy-allowed`}
           checked={proxyAllowed}
@@ -325,6 +323,7 @@ function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
       </div>
 
       <DeckPreviewTables key={deck.key} deck={deck} />
+      <DeckResults key={`results-${deck.key}`} deckKey={deck.key} dense />
     </>
   );
 }

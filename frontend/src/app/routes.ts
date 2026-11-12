@@ -28,10 +28,12 @@ export type Route =
   | { name: "stock"; intent?: StockIntent }
   | { name: "decks"; intent?: DecksIntent }
   | { name: "deck"; key: DeckKey }
+  | { name: "deckVersion"; key: DeckKey; number: number }
   | { name: "games"; intent?: GamesIntent }
   | { name: "game"; key: GameKey }
   | { name: "tournaments" }
   | { name: "tournament"; key: ResourceKey }
+  | { name: "bilan"; deck?: DeckKey }
   | { name: "notebook" }
   | { name: "sync" }
   | { name: "search"; q?: string; deck?: DeckKey }
@@ -87,6 +89,22 @@ function searchRoute(hash: string): Route {
   return route;
 }
 
+/** Bilan (Lot 8) : `deck` (filtre sur un deck, « Voir dans le bilan ») voyage dans la query. */
+function bilanRoute(hash: string): Route {
+  const deck = new URLSearchParams(hash.split("?")[1] ?? "").get("deck");
+  return deck !== null && DECK_KEY.test(deck) ? { name: "bilan", deck: deck as DeckKey } : { name: "bilan" };
+}
+
+/** Liste d'une version jouée (Lot 8) : `#/decks/<clé>/versions/<n>`. */
+function deckVersionRoute(path: string): Route | null {
+  const match = /^\/decks\/(.+)\/versions\/(\d+)$/.exec(path);
+  if (!match) return null;
+  const key = decodeKey(match[1]);
+  const number = Number(match[2]);
+  if (key === null || !DECK_KEY.test(key) || number < 1) return null;
+  return { name: "deckVersion", key: key as DeckKey, number };
+}
+
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, "").split("?")[0].replace(/\/+$/, "");
   if (path === "" || path === "/") return { name: "home" };
@@ -106,6 +124,9 @@ export function parseHash(hash: string): Route {
   if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
   if (path === "/chercher") return searchRoute(hash);
+  if (path === "/bilan") return bilanRoute(hash);
+  const version = deckVersionRoute(path);
+  if (version) return version;
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
     const key = decodeKey(match[1]);
@@ -134,6 +155,8 @@ export function hrefFor(route: Route): string {
       return route.intent ? "#/decks?action=nouveau" : "#/decks";
     case "deck":
       return `#/decks/${keySegment(route.key)}`;
+    case "deckVersion":
+      return `#/decks/${keySegment(route.key)}/versions/${route.number}`;
     case "games":
       return route.intent ? "#/parties?action=nouvelle" : "#/parties";
     case "game":
@@ -142,6 +165,8 @@ export function hrefFor(route: Route): string {
       return "#/tournois";
     case "tournament":
       return `#/tournois/${keySegment(route.key)}`;
+    case "bilan":
+      return route.deck ? `#/bilan?deck=${keySegment(route.deck)}` : "#/bilan";
     case "notebook":
       return "#/carnet";
     case "sync":

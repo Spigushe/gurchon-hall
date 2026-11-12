@@ -448,6 +448,11 @@ export async function readDeckVersions(db: VtesOfflineDb, key: DeckKey): Promise
   });
 }
 
+/** Toutes les versions jouées du miroir (bilan du Lot 8 : clan principal et prêts). */
+export async function readAllDeckVersions(db: VtesOfflineDb): Promise<DeckVersionRow[]> {
+  return db.deckVersions.toArray();
+}
+
 /** Une version par son identifiant ; `undefined` si le miroir ne l'a pas (encore) lue. */
 export async function readDeckVersion(db: VtesOfflineDb, id: number): Promise<DeckVersionRow | undefined> {
   return db.deckVersions.get(id);

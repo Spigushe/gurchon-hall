@@ -38,6 +38,10 @@ const TournamentsPage = lazy(() =>
 const TournamentDetailPage = lazy(() =>
   import("./features/games/TournamentDetailPage").then((m) => ({ default: m.TournamentDetailPage })),
 );
+const BilanPage = lazy(() => import("./features/analysis/BilanPage").then((m) => ({ default: m.BilanPage })));
+const DeckVersionPage = lazy(() =>
+  import("./features/decks/DeckVersionPage").then((m) => ({ default: m.DeckVersionPage })),
+);
 const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
@@ -74,6 +78,8 @@ for (const importRoute of [
   () => import("./features/games/TournamentsPage"),
   () => import("./features/games/TournamentDetailPage"),
   () => import("./features/games/NotebookPage"),
+  () => import("./features/analysis/BilanPage"),
+  () => import("./features/decks/DeckVersionPage"),
   () => import("./features/sync/SyncPage"),
   () => import("./features/search/SearchPage"),
 ]) {
@@ -96,13 +102,14 @@ function navActive(route: Route): Record<NavKey, boolean> {
   return {
     home: route.name === "home",
     stock: route.name === "stock",
-    decks: route.name === "decks" || route.name === "deck",
+    decks: route.name === "decks" || route.name === "deck" || route.name === "deckVersion",
     // Parties : actif sur toutes les routes parties, tournois et carnet.
     games:
       route.name === "games" ||
       route.name === "game" ||
       route.name === "tournaments" ||
       route.name === "tournament" ||
+      route.name === "bilan" ||
       route.name === "notebook",
     sync: route.name === "sync",
     search: route.name === "search",
@@ -186,6 +193,11 @@ function Page({ route }: { route: Route }) {
       return <TournamentsPage />;
     case "tournament":
       return <TournamentDetailPage key={route.key} tournamentKey={route.key} />;
+    case "bilan":
+      // Le deck de l'adresse n'est lu qu'au montage ; une clé le remonte quand on vient d'un autre deck.
+      return <BilanPage key={route.deck ?? "all"} initialDeck={route.deck ?? null} />;
+    case "deckVersion":
+      return <DeckVersionPage key={`${route.key}/${route.number}`} deckKey={route.key} number={route.number} />;
     case "notebook":
       return <NotebookPage />;
     case "sync":

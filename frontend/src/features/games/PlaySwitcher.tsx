@@ -1,7 +1,7 @@
 import { Link } from "../../app/Link";
 
 /**
- * Sélecteur « Parties | Tournois » (P2). Il change de **route** (`#/parties` ↔
+ * Sélecteur « Parties | Tournois | Bilan » (P2 du Lot 7, P10 du Lot 8). Il change de **route** (`#/parties` ↔
  * `#/tournois`), pas un simple état : on peut rouvrir l'un ou l'autre par son adresse.
  * Segmenté pleine largeur au mobile, onglets soulignés avec compteurs au bureau : la
  * même balise, c'est la feuille de style qui tranche (`.play-switch`).
@@ -11,12 +11,12 @@ export function PlaySwitcher({
   gameCount,
   tournamentCount,
 }: {
-  active: "games" | "tournaments";
+  active: "games" | "tournaments" | "bilan";
   gameCount?: number;
   tournamentCount?: number;
 }) {
   return (
-    <nav aria-label="Parties et tournois" className="play-switch" data-testid="play-switch">
+    <nav aria-label="Parties, tournois et bilan" className="play-switch" data-testid="play-switch">
       <Link
         to={{ name: "games" }}
         current={active === "games"}
@@ -34,6 +34,14 @@ export function PlaySwitcher({
       >
         Tournois
         {tournamentCount !== undefined && <span className="play-switch__count"> · {tournamentCount}</span>}
+      </Link>
+      <Link
+        to={{ name: "bilan" }}
+        current={active === "bilan"}
+        className="play-switch__item"
+        data-testid="play-switch-bilan"
+      >
+        Bilan
       </Link>
     </nav>
   );

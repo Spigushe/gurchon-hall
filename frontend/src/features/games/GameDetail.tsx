@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ClockCountdownIcon, PushPinIcon, TrashIcon } from "@phosphor-icons/react";
+import { Link } from "../../app/Link";
 import { ClanGlyph } from "../../components/glyphs/Glyph";
 import { Kbd } from "../../components/Kbd";
 import { useGuardedAction } from "../../components/useGuardedAction";
@@ -453,6 +454,15 @@ function GameFacts({
               {note.pending && <ClockCountdownIcon size={13} aria-hidden="true" />}
               {note.text}
             </span>
+          )}
+          {game.me.deckKey && game.me.deckVersionNumber !== null && (
+            <Link
+              to={{ name: "deckVersion", key: game.me.deckKey, number: game.me.deckVersionNumber }}
+              className="facts__link"
+              data-testid="game-fact-version-link"
+            >
+              Voir la liste v{game.me.deckVersionNumber}
+            </Link>
           )}
         </span>
       </li>

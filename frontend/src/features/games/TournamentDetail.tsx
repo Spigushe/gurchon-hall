@@ -16,6 +16,7 @@ import {
   type LocalTournament,
 } from "../../offline/vtes";
 import { GameForm } from "./GameForm";
+import { TournamentDecks } from "./TournamentDecks";
 import { formatVp, opponentName, roundLabel, timeOfDay } from "./gameFormat";
 import { TournamentForm } from "./TournamentForm";
 import {
@@ -327,6 +328,8 @@ export function TournamentDetail({
 
       <TournamentRoundList games={games} rounds={rounds} dense={dense} deckName={deckName} opponentsOf={opponentsOf} />
 
+      {games !== undefined && <TournamentDecks tournament={tournament} games={games} deckName={deckName} dense={dense} />}
+
       {!dense && actionsBlock}
 
       {games !== undefined && <RankingSection tournament={tournament} final={rounds.final} />}
@@ -462,6 +465,11 @@ function TournamentSummary({
   );
 }
 
+/** « Banu Princes · v2 » : la version jouée s'ajoute au deck de la ronde (d32). */
+function withVersion(name: string | null, game: LocalGame): string | null {
+  return name !== null && game.me.deckVersionNumber !== null ? `${name} · v${game.me.deckVersionNumber}` : name;
+}
+
 /** Mes rondes préliminaires, puis la finale (jouée ou non). */
 function TournamentRoundList({
   games,
@@ -494,12 +502,12 @@ function TournamentRoundList({
           )}
           <ul className="round-list" data-testid="tournament-rounds">
             {rounds.preliminaries.map((game) => (
-              <RoundRow key={game.key} game={game} deckName={deckName(game.me.deckKey)} opponents={opponentsOf(game)} dense={dense} />
+              <RoundRow key={game.key} game={game} deckName={withVersion(deckName(game.me.deckKey), game)} opponents={opponentsOf(game)} dense={dense} />
             ))}
           </ul>
           <ul className="round-list round-list--final" data-testid="tournament-final">
             {rounds.final ? (
-              <RoundRow game={rounds.final} deckName={deckName(rounds.final.me.deckKey)} opponents={opponentsOf(rounds.final)} dense={dense} />
+              <RoundRow game={rounds.final} deckName={withVersion(deckName(rounds.final.me.deckKey), rounds.final)} opponents={opponentsOf(rounds.final)} dense={dense} />
             ) : (
               <li className="round-row round-row--idle" data-testid="tournament-final-idle">
                 <span className="round-row__name">Finale</span>
