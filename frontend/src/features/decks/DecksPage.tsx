@@ -14,14 +14,17 @@ import { DECK_STATUS_LABELS, plural } from "../../labels";
 import { GlyphIcon } from "../../components/glyphs/Glyph";
 import { clanGlyph } from "../../components/glyphs/glyphs";
 import {
+  DECK_ARCHETYPE_LABELS,
   useLocalDeckCards,
   useLocalDeckCardsByDeck,
   useLocalDecks,
   useVtesOffline,
+  type DeckArchetype,
   type DeckKey,
   type DeckListState,
   type LocalDeck,
 } from "../../offline/vtes";
+import { ArchetypeSelect } from "./ArchetypeSelect";
 import { DeckLegalityTag } from "./DeckLegalityTag";
 import { DeckTables } from "./DeckTables";
 import { buildDeckTables, deckListSummary, type DeckListSummary } from "./deckTablesModel";
@@ -61,7 +64,7 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const isDesktop = useIsDesktop();
   const [name, setName] = useState("");
-  const [archetype, setArchetype] = useState("");
+  const [archetype, setArchetype] = useState<DeckArchetype | null>(null);
   const [proxyAllowed, setProxyAllowed] = useState(false);
   const [invalid, setInvalid] = useState<string | null>(null);
 
@@ -78,7 +81,7 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
       // référence locale (`ref:<uuid>`), clé qui reste valable après synchronisation.
       const result = await actions.createDeck({
         name: trimmed,
-        archetype: archetype.trim() === "" ? undefined : archetype.trim(),
+        archetype: archetype ?? undefined,
         proxyAllowed,
       });
       created.key = result.key;
@@ -125,14 +128,7 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
         </div>
         <div className="field">
           <label htmlFor={`${formId}-archetype`}>Archétype (facultatif)</label>
-          <input
-            id={`${formId}-archetype`}
-            className="underline-field"
-            value={archetype}
-            onChange={(event) => setArchetype(event.target.value)}
-            placeholder="ex. grind, vote, combat"
-            autoComplete="off"
-          />
+          <ArchetypeSelect id={`${formId}-archetype`} value={archetype} onChange={setArchetype} />
         </div>
         <Switch
           id={`${formId}-proxy-allowed`}
@@ -204,7 +200,7 @@ function DeckItem({
           {" · "}
           {DECK_STATUS_LABELS[deck.status].toLowerCase()}
           {deck.archivedAt && " · archivé"}
-          {deck.archetype && ` · ${deck.archetype}`}
+          {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
           {deck.proxyAllowed && (
             <>
               {" · "}
@@ -310,7 +306,7 @@ function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
               {" · "}
               {DECK_STATUS_LABELS[deck.status].toLowerCase()}
               {deck.archivedAt && " · archivé"}
-              {deck.archetype && ` · ${deck.archetype}`}
+              {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
               {deck.proxyAllowed && " · proxies autorisés"}
             </span>
             <DeckLegalityTag deck={deck} />

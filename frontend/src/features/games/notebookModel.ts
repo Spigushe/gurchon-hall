@@ -21,7 +21,9 @@ function plural(count: number, one: string, many: string = `${one}s`): string {
 /** Nombre de tables où figure l'adversaire (ma ligne exclue). */
 export function playerTableCount(player: LocalPlayer, games: readonly LocalGame[]): number {
   const local = games.filter((game) =>
-    game.table?.some((line) => !line.isMe && findByKey([player], line.playerKey) !== undefined),
+    game.table?.some(
+      (line) => !line.isMe && line.playerKey !== null && findByKey([player], line.playerKey) !== undefined,
+    ),
   ).length;
   return Math.max(player.gameCount, local);
 }

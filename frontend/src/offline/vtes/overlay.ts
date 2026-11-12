@@ -19,7 +19,7 @@ import {
   type LocalVenue,
 } from "./overlayPlay";
 import { bindingsOfKind } from "./references";
-import type { CardCategory, DeckKey, DeckStatus, VtesOperation } from "./types";
+import type { CardCategory, DeckArchetype, DeckKey, DeckStatus, VtesOperation } from "./types";
 
 /** Entrée de collection telle que l'UI la lit : instantané + opérations en file. */
 export interface LocalStockEntry {
@@ -47,7 +47,8 @@ export interface LocalDeck {
   discriminator: string | null;
   createdOn: string | null;
   status: DeckStatus;
-  archetype: string | null;
+  /** Un des six archétypes (Lot 8, P5), ou rien. */
+  archetype: DeckArchetype | null;
   notes: string | null;
   /** Autorisation de proxy du deck (Lot 4) : plus une propriété de l'entrée de collection. */
   proxyAllowed: boolean;
@@ -449,6 +450,8 @@ export type {
   LocalResource,
   LocalTableLine,
   LocalTournament,
+  LocalTournamentDeckVersion,
   LocalTournamentSummary,
   LocalVenue,
+  PlayedVersion,
 } from "./overlayPlay";

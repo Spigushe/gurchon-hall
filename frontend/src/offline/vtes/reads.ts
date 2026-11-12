@@ -1,5 +1,5 @@
 import { foldText } from "../core/foldText";
-import type { CardRow, CardSetRow, VtesOfflineDb } from "./db";
+import type { CardRow, CardSetRow, DeckVersionRow, VtesOfflineDb } from "./db";
 import {
   findByKey,
   project,
@@ -13,7 +13,8 @@ import {
   type Projection,
   type Snapshot,
 } from "./overlay";
-import type { CardCategory, DeckKey, ResourceKey, VtesOperation } from "./types";
+import { bindingsOfKind } from "./references";
+import { parseDeckKey, type CardCategory, type DeckKey, type ResourceKey, type VtesOperation } from "./types";
 
 /**
  * Lectures locales : ce que l'UI affiche, en ligne comme hors ligne, sans
@@ -420,4 +421,59 @@ export async function readGames(db: VtesOfflineDb, query: GameQuery = {}): Promi
 export async function readGame(db: VtesOfflineDb, key: ResourceKey): Promise<LocalGame | undefined> {
   const { games } = await readProjection(db);
   return findByKey(games, key);
+}
+
+// --- Versions de deck jouées et clans (Lot 8) -------------------------------
+
+/**
+ * Identifiant serveur d'un deck, sans passer par la projection : un deck
+ * supprimé n'y figure plus, mais ses versions restent lisibles (la partie qui
+ * l'a joué les désigne). `null` pour un deck créé hors ligne pas encore
+ * synchronisé, qui n'a donc aucune version.
+ */
+async function deckIdOf(db: VtesOfflineDb, key: DeckKey): Promise<number | null> {
+  const selector = parseDeckKey(key);
+  if ("deckId" in selector) return selector.deckId;
+  const binding = bindingsOfKind(await db.refs.toArray(), "deck").find((item) => item.ref === selector.clientRef);
+  return binding?.id ?? null;
+}
+
+/** Versions jouées d'un deck, par numéro croissant ; vide pour un deck jamais joué (ou pas encore relu). */
+export async function readDeckVersions(db: VtesOfflineDb, key: DeckKey): Promise<DeckVersionRow[]> {
+  return db.transaction("r", db.refs, db.deckVersions, async () => {
+    const deckId = await deckIdOf(db, key);
+    if (deckId === null) return [];
+    const versions = await db.deckVersions.where("deckId").equals(deckId).toArray();
+    return versions.sort((a, b) => a.number - b.number);
+  });
+}
+
+/** Une version par son identifiant ; `undefined` si le miroir ne l'a pas (encore) lue. */
+export async function readDeckVersion(db: VtesOfflineDb, id: number): Promise<DeckVersionRow | undefined> {
+  return db.deckVersions.get(id);
+}
+
+/** Un clan du catalogue, tel que le formulaire de partie le propose (clan principal d'un adversaire, P5). */
+export interface ClanOption {
+  id: number;
+  name: string;
+}
+
+/**
+ * Clans du catalogue, déduits des cartes de crypte (le contrat n'a pas de route
+ * des clans), triés par nom. Vide tant que les détails du catalogue n'ont pas
+ * été lus avec `clanId` (version 7 de la base).
+ */
+export async function readClans(db: VtesOfflineDb): Promise<ClanOption[]> {
+  return db.transaction("r", db.cards, db.cardDetails, async () => {
+    const names = new Map<number, string>();
+    const details = await db.cardDetails.toArray();
+    const withClan = details.filter((detail) => detail.clanId != null);
+    const cards = await db.cards.bulkGet(withClan.map((detail) => detail.id));
+    withClan.forEach((detail, index) => {
+      const name = cards[index]?.clanName;
+      if (name && !names.has(detail.clanId as number)) names.set(detail.clanId as number, name);
+    });
+    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => compare(a.name, b.name));
+  });
 }

@@ -4,6 +4,7 @@ import type { GameRow, PlayerRow, TournamentRow, VenueRow } from "./db";
 import { certainGameWin, tournamentSummary, type RoundResult } from "./playRules";
 import { bindingsOfKind } from "./references";
 import type {
+  DeckArchetype,
   DeckKey,
   DeckPolicy,
   EventTier,
@@ -42,6 +43,16 @@ import type {
  *
  * Les compteurs du serveur (`gameCount` d'un joueur ou d'un lieu,
  * `tournamentCount`) sont repris tels quels : ils ne suivent pas la file.
+ *
+ * **Versions jouées (Lot 8).** Le serveur seul fige une liste ; la surcouche ne
+ * fabrique jamais de version. Pour une écriture en file, elle applique les
+ * règles du serveur à ce qu'elle sait déjà (précisions pour B1 de
+ * `docs/lot8-plan-analyse.md`) : la version du tournoi pour ce deck s'il en a
+ * une, sinon celle que la partie avait déjà pour ce deck, sinon rien. « Rien »
+ * (`deckVersionId === null` sur une ligne qui a un deck) se lit « liste figée à
+ * la synchronisation ». Un regel en file efface la version des decks regelés,
+ * sur cette partie et, dans un tournoi, sur toutes ses parties qui jouent ces
+ * decks ; la ligne du tournoi pour ces decks disparaît jusqu'au rejeu.
  */
 
 /** Ce que toute ressource de la surcouche porte. */
@@ -80,6 +91,15 @@ export interface LocalTournamentSummary {
   finalGameWin: boolean | null;
 }
 
+/** Version d'un deck dans un tournoi, et la partie qui l'a figée (Lot 8, A9). */
+export interface LocalTournamentDeckVersion {
+  deckKey: DeckKey;
+  deckVersionId: number;
+  deckVersionNumber: number;
+  /** Partie à laquelle la liste est rattachée, par sa clé de surcouche. */
+  frozenByGameKey: ResourceKey;
+}
+
 export interface LocalTournament extends LocalResource {
   name: string;
   /** Date locale `AAAA-MM-JJ`. */
@@ -103,21 +123,39 @@ export interface LocalTournament extends LocalResource {
    * n'est contrôlable ou que le tournoi est saisi hors ligne. Jamais recalculé.
    */
   admissibleFinalDecks: DeckKey[] | null;
+  /**
+   * Version de chaque deck joué dans le tournoi (Lot 8, A9), au dernier
+   * rafraîchissement, par deck croissant ; vide pour un tournoi saisi hors
+   * ligne. Un regel en file en retire les decks regelés.
+   */
+  deckVersions: LocalTournamentDeckVersion[];
+}
+
+/** La version figée d'un deck joué ; les deux champs sont nuls ensemble. */
+export interface PlayedVersion {
+  /** `null` sans deck, ou tant que le serveur n'a pas figé la liste (écriture en file). */
+  deckVersionId: number | null;
+  deckVersionNumber: number | null;
 }
 
 /** Une ligne de la table d'une partie. */
-export interface LocalTableLine {
-  playerKey: ResourceKey;
+export interface LocalTableLine extends PlayedVersion {
+  /** Joueur de la ligne ; `null` pour un adversaire non nommé (Lot 8, P6). */
+  playerKey: ResourceKey | null;
   isMe: boolean;
   deckKey: DeckKey | null;
   seat: number | null;
   /** Renseignés sur ma seule ligne (A13). */
   victoryPoints: number | null;
   gameWin: boolean | null;
+  /** Deck d'un adversaire qui ne joue pas un de mes decks (Lot 8, P5). */
+  opponentDeckName: string | null;
+  opponentDeckArchetype: DeckArchetype | null;
+  opponentClanId: number | null;
   notes: string | null;
 }
 
-export interface LocalGameMe {
+export interface LocalGameMe extends PlayedVersion {
   deckKey: DeckKey | null;
   seat: number | null;
   victoryPoints: number | null;
@@ -252,7 +290,21 @@ const NO_SUMMARY: LocalTournamentSummary = {
   finalGameWin: null,
 };
 
-const NO_ME: LocalGameMe = { deckKey: null, seat: null, victoryPoints: null, gameWin: null };
+const NO_VERSION: PlayedVersion = { deckVersionId: null, deckVersionNumber: null };
+
+const NO_ME: LocalGameMe = {
+  deckKey: null,
+  seat: null,
+  victoryPoints: null,
+  gameWin: null,
+  ...NO_VERSION,
+};
+
+/** Version d'une ligne du miroir ; une ligne écrite avant la version 7 de la base n'en a pas. */
+const versionOfRow = (row: { deckVersionId?: number | null; deckVersionNumber?: number | null }): PlayedVersion => ({
+  deckVersionId: row.deckVersionId ?? null,
+  deckVersionNumber: row.deckVersionNumber ?? null,
+});
 
 export interface PlayInput {
   players: readonly PlayerRow[];
@@ -325,9 +377,17 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       row.admissibleFinalDecks === null
         ? null
         : row.admissibleFinalDecks.map((id) => deckKeyOfId(id) as DeckKey),
+    // La partie qui a figé est résolue à la fin (`finish`), une fois les parties semées.
+    deckVersions: (row.deckVersions ?? []).map((version) => ({
+      deckKey: deckKeyOfId(version.deckId) as DeckKey,
+      deckVersionId: version.deckVersionId,
+      deckVersionNumber: version.deckVersionNumber,
+      frozenByGameKey: `id:${version.frozenByGameId}` as ResourceKey,
+    })),
   }));
 
-  const playerKeyOfId = (id: number): ResourceKey => players.keyOfId(id) ?? players.fallback(id, null);
+  const playerKeyOfId = (id: number | null): ResourceKey | null =>
+    id === null ? null : (players.keyOfId(id) ?? players.fallback(id, null));
 
   games.seed(input.games, (row, base) => ({
     ...base,
@@ -343,6 +403,7 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       seat: row.me.seat,
       victoryPoints: row.me.victoryPoints,
       gameWin: row.me.gameWin,
+      ...versionOfRow(row.me),
     },
     notes: row.notes,
     table:
@@ -355,7 +416,11 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
             seat: line.seat,
             victoryPoints: line.victoryPoints,
             gameWin: line.gameWin,
+            opponentDeckName: line.opponentDeckName ?? null,
+            opponentDeckArchetype: line.opponentDeckArchetype ?? null,
+            opponentClanId: line.opponentClanId ?? null,
             notes: line.notes,
+            ...versionOfRow(line),
           })),
   }));
 
@@ -374,46 +439,131 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     tournaments.resolve(ref.tournament_id, ref.client_ref) ??
     tournaments.fallback(ref.tournament_id, ref.client_ref);
 
+  type ParticipantRef = { me?: true | null; player_id?: number | null; client_ref?: string | null };
+
+  /** Clé du joueur d'une ligne ; `null` pour un adversaire non nommé (Lot 8, P6). */
+  const participantKey = (player: ParticipantRef | null | undefined): ResourceKey | null => {
+    if (!player) return null;
+    if (player.me === true) {
+      return [...players.items.values()].find((item) => item.isMe)?.key ?? UNKNOWN_ME_KEY;
+    }
+    return (
+      players.resolve(player.player_id, player.client_ref) ??
+      players.fallback(player.player_id, player.client_ref)
+    );
+  };
+
+  /** Version qu'un deck prend dans une partie, d'après ce que la surcouche sait (cf. en-tête). */
+  type VersionOf = (deckKey: DeckKey | null) => PlayedVersion;
+
   const tableOf = (
     playerCount: number,
     participations: ReadonlyArray<{
-      player: { me?: true | null; player_id?: number | null; client_ref?: string | null };
+      player?: ParticipantRef | null;
       deck?: { deck_id?: number | null; client_ref?: string | null } | null;
       seat?: number | null;
       victory_points?: number | null;
       game_win?: boolean | null;
+      opponent_deck_name?: string | null;
+      opponent_deck_archetype?: DeckArchetype | null;
+      opponent_clan_id?: number | null;
       notes?: string | null;
     }>,
+    versionOf: VersionOf,
   ): LocalTableLine[] =>
     participations.map((line) => {
-      const me = line.player.me === true;
-      const key = me
-        ? ([...players.items.values()].find((player) => player.isMe)?.key ?? UNKNOWN_ME_KEY)
-        : (players.resolve(line.player.player_id, line.player.client_ref) ??
-          players.fallback(line.player.player_id, line.player.client_ref));
+      const key = participantKey(line.player);
       const deck = line.deck;
+      const deckKey: DeckKey | null = deck
+        ? (decks.resolve(deck) ??
+          (deck.deck_id != null ? (`id:${deck.deck_id}` as DeckKey) : (`ref:${deck.client_ref}` as DeckKey)))
+        : null;
       return {
         playerKey: key,
-        isMe: me || players.items.get(key)?.isMe === true,
-        deckKey: deck
-          ? (decks.resolve(deck) ??
-            (deck.deck_id != null ? (`id:${deck.deck_id}` as DeckKey) : (`ref:${deck.client_ref}` as DeckKey)))
-          : null,
+        isMe: line.player?.me === true || (key !== null && players.items.get(key)?.isMe === true),
+        deckKey,
         seat: line.seat ?? null,
         victoryPoints: line.victory_points ?? null,
         // Comme `resolved_game_win` du serveur : un GW omis ou nul vaut le GW
         // certain que les VP donnent, sinon reste nul.
         gameWin: line.game_win ?? certainGameWin(playerCount, line.victory_points),
+        opponentDeckName: line.opponent_deck_name ?? null,
+        opponentDeckArchetype: line.opponent_deck_archetype ?? null,
+        opponentClanId: line.opponent_clan_id ?? null,
         notes: line.notes ?? null,
+        ...versionOf(deckKey),
       };
     });
 
   const meOf = (table: readonly LocalTableLine[], previous: LocalGameMe = NO_ME): LocalGameMe => {
     const line = table.find((item) => item.isMe);
     return line
-      ? { deckKey: line.deckKey, seat: line.seat, victoryPoints: line.victoryPoints, gameWin: line.gameWin }
+      ? {
+          deckKey: line.deckKey,
+          seat: line.seat,
+          victoryPoints: line.victoryPoints,
+          gameWin: line.gameWin,
+          deckVersionId: line.deckVersionId,
+          deckVersionNumber: line.deckVersionNumber,
+        }
       : previous;
   };
+
+  /** La version d'un deck dans un tournoi, au dernier rafraîchissement. */
+  const tournamentVersion = (tournamentKey: ResourceKey | null, deckKey: DeckKey): PlayedVersion | undefined => {
+    if (tournamentKey === null) return undefined;
+    const found = tournaments.items.get(tournamentKey)?.deckVersions.find((item) => item.deckKey === deckKey);
+    return found && { deckVersionId: found.deckVersionId, deckVersionNumber: found.deckVersionNumber };
+  };
+
+  /** La version qu'une partie a déjà pour ce deck (sa table, ou ma ligne en résumé). */
+  const gameVersion = (game: LocalGame | undefined, deckKey: DeckKey): PlayedVersion | undefined => {
+    if (!game) return undefined;
+    const lines: PlayedVersion[] = [
+      ...(game.table ?? []).filter((line) => line.deckKey === deckKey),
+      ...(game.me.deckKey === deckKey ? [game.me] : []),
+    ];
+    const found = lines.find((line) => line.deckVersionId !== null);
+    return found && { deckVersionId: found.deckVersionId, deckVersionNumber: found.deckVersionNumber };
+  };
+
+  /**
+   * Règle du serveur, sur ce que la surcouche sait : la version du tournoi
+   * prime, puis celle que la partie avait pour ce deck ; sinon la liste sera
+   * figée au rejeu. Un deck regelé n'a plus de version connue.
+   */
+  const versionRule =
+    (tournamentKey: ResourceKey | null, previous: LocalGame | undefined, refrozen: boolean): VersionOf =>
+    (deckKey) => {
+      if (deckKey === null || refrozen) return NO_VERSION;
+      return tournamentVersion(tournamentKey, deckKey) ?? gameVersion(previous, deckKey) ?? NO_VERSION;
+    };
+
+  /** Réapplique une règle de version à une table déjà connue (partie qui change de tournoi, regel). */
+  const reversioned = (table: readonly LocalTableLine[], versionOf: VersionOf): LocalTableLine[] =>
+    table.map((line) => ({ ...line, ...versionOf(line.deckKey) }));
+
+  /**
+   * Regel en file dans un tournoi : la version de ces decks change pour toutes
+   * les parties du tournoi qui les jouent, et la ligne du tournoi est retirée,
+   * jusqu'au rejeu.
+   */
+  function forgetTournamentVersions(tournamentKey: ResourceKey | null, deckKeys: ReadonlySet<DeckKey>) {
+    if (tournamentKey === null || deckKeys.size === 0) return;
+    const tournament = tournaments.items.get(tournamentKey);
+    if (tournament) {
+      tournaments.items.set(tournamentKey, {
+        ...tournament,
+        deckVersions: tournament.deckVersions.filter((item) => !deckKeys.has(item.deckKey)),
+      });
+    }
+    const clear = <T extends PlayedVersion & { deckKey: DeckKey | null }>(line: T): T =>
+      line.deckKey !== null && deckKeys.has(line.deckKey) ? { ...line, ...NO_VERSION } : line;
+    for (const game of games.items.values()) {
+      if (game.tournamentKey !== tournamentKey) continue;
+      games.items.set(game.key, { ...game, me: clear(game.me), table: game.table && game.table.map(clear) });
+    }
+  }
 
   const sameName = (a: string, b: string) => foldText(a.trim()) === foldText(b.trim());
 
@@ -546,6 +696,7 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       summary: { ...NO_SUMMARY },
       summaryProvisional: false,
       admissibleFinalDecks: null,
+      deckVersions: [],
     });
   }
 
@@ -603,9 +754,9 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     const ref = operation.client_ref;
     if (games.knows(ref)) return; // le miroir a déjà cette partie et fait foi
     const data = operation.data;
-    const table = tableOf(data.player_count, data.participations);
-    const id = games.boundId(ref);
     const tournamentKey = data.tournament ? tournamentRef(data.tournament) : null;
+    const table = tableOf(data.player_count, data.participations, versionRule(tournamentKey, undefined, false));
+    const id = games.boundId(ref);
     games.add({
       key: `ref:${ref}`,
       id,
@@ -631,10 +782,19 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
     const game = key && games.items.get(key);
     if (!game) return;
     const data = operation.data ?? {};
-    const table = operation.table
-      ? tableOf(data.player_count ?? game.playerCount, operation.table.participations)
-      : game.table;
     const tournamentKey = updatedTournamentKey(data.tournament, game.tournamentKey);
+    const refreeze = data.refreeze_decklists === true;
+    // Comme le service (B1) : les versions ne bougent que si la table est
+    // remplacée, si le tournoi change ou si un regel est demandé.
+    const versionOf = versionRule(tournamentKey, game, refreeze);
+    const reassign = refreeze || tournamentKey !== game.tournamentKey;
+    const table = operation.table
+      ? tableOf(data.player_count ?? game.playerCount, operation.table.participations, versionOf)
+      : game.table && reassign
+        ? reversioned(game.table, versionOf)
+        : game.table;
+    const me = nextMe(game, table, operation.table !== undefined || reassign, versionOf);
+    if (refreeze) forgetTournamentVersions(tournamentKey, playedDecks(table, me));
     games.items.set(game.key, {
       ...game,
       playedAt: data.played_at ?? game.playedAt,
@@ -645,11 +805,34 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       playerCount: data.player_count ?? game.playerCount,
       notes: data.notes !== undefined ? data.notes : game.notes,
       table,
-      me: operation.table && table ? meOf(table, game.me) : game.me,
+      me,
       pending: game.pending || pending,
     });
     touch(game.tournamentKey, pending);
     touch(tournamentKey, pending);
+  }
+
+  /**
+   * Ma ligne après une mise à jour : reprise de la table quand elle est connue
+   * et que la table ou les versions ont bougé, sinon le résumé, dont seule la
+   * version change quand il le faut (table inconnue sur cet appareil).
+   */
+  function nextMe(
+    game: LocalGame,
+    table: readonly LocalTableLine[] | null,
+    changed: boolean,
+    versionOf: VersionOf,
+  ): LocalGameMe {
+    if (!changed) return game.me;
+    if (table) return meOf(table, game.me);
+    return { ...game.me, ...versionOf(game.me.deckKey) };
+  }
+
+  /** Les decks joués à une table (prêts compris) et sur ma ligne. */
+  function playedDecks(table: readonly LocalTableLine[] | null, me: LocalGameMe): Set<DeckKey> {
+    const keys = new Set<DeckKey>();
+    for (const line of [...(table ?? []), me]) if (line.deckKey !== null) keys.add(line.deckKey);
+    return keys;
   }
 
   /** Tournoi d'une mise à jour de partie, sur le modèle de `updatedVenueKey`. */
@@ -718,6 +901,17 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
             own.filter((game) => game.roundType === "final").map(result)[0] ?? null,
           ),
           summaryProvisional: provisional.has(key),
+        });
+      }
+      // La partie qui a figé la liste d'un tournoi, par sa clé de surcouche.
+      for (const tournament of tournaments.items.values()) {
+        if (tournament.deckVersions.length === 0) continue;
+        tournaments.items.set(tournament.key, {
+          ...tournament,
+          deckVersions: tournament.deckVersions.map((item) => ({
+            ...item,
+            frozenByGameKey: games.keyOfId(Number(item.frozenByGameKey.slice(3))) ?? item.frozenByGameKey,
+          })),
         });
       }
       const allTournaments = [...tournaments.items.values()];

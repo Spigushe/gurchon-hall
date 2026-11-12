@@ -15,7 +15,7 @@ import {
   type LocalVenue,
 } from "../../offline/vtes";
 import { GameForm } from "./GameForm";
-import { formatVp, fullDateTime, roundLabel } from "./gameFormat";
+import { formatVp, fullDateTime, opponentName, roundLabel } from "./gameFormat";
 
 type Editing = null | "game" | "table";
 
@@ -217,7 +217,7 @@ function seatRows(
   const seats: SeatRow[] = [];
   if (!table) return seats;
   const lineName = (line: NonNullable<LocalGame["table"]>[number]) =>
-    line.isMe ? "Moi" : ((players && findByKey(players, line.playerKey)?.name) ?? "Joueur inconnu");
+    line.isMe ? "Moi" : opponentName(players, line.playerKey);
   const lineSub = (line: NonNullable<LocalGame["table"]>[number]) => {
     const name = deckName(line.deckKey);
     if (name === null) return null;

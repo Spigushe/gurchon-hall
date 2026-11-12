@@ -16,7 +16,7 @@ import {
   type LocalTournament,
 } from "../../offline/vtes";
 import { GameForm } from "./GameForm";
-import { formatVp, roundLabel, timeOfDay } from "./gameFormat";
+import { formatVp, opponentName, roundLabel, timeOfDay } from "./gameFormat";
 import { TournamentForm } from "./TournamentForm";
 import {
   canAddRound,
@@ -270,7 +270,7 @@ export function TournamentDetail({
   const opponentsOf = (game: LocalGame): string =>
     (game.table ?? [])
       .filter((line) => !line.isMe)
-      .map((line) => (players ? findByKey(players, line.playerKey)?.name : undefined) ?? "Joueur inconnu")
+      .map((line) => opponentName(players, line.playerKey))
       .join(", ");
 
   const deckInfo = finalDeckInfo(tournament, rounds, (key) => deckName(key) ?? "deck");

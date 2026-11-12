@@ -74,6 +74,7 @@ describe("refreshCatalog : deux magasins", () => {
     expect(await db.cards.count()).toBe(2);
     expect(await db.cardDetails.get(10)).toEqual({
       id: 10,
+      clanId: null,
       sect: null,
       title: null,
       path: null,

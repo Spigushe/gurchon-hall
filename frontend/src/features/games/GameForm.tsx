@@ -34,6 +34,7 @@ import {
   formatLocalDate,
   formatVp,
   fromLocalInput,
+  opponentName,
   roundLabel,
   toLocalInput,
   vpLabel,
@@ -233,10 +234,13 @@ function initialDraft(data: PlayData, game: LocalGame | undefined, initial: Game
         .filter((line) => !line.isMe)
         .map((line) => ({
           playerKey: line.playerKey,
-          name: findByKey(data.players, line.playerKey)?.name ?? "Joueur inconnu",
+          name: opponentName(data.players, line.playerKey),
           seat: line.seat,
           deckKey: line.deckKey,
           notes: line.notes,
+          opponentDeckName: line.opponentDeckName,
+          opponentDeckArchetype: line.opponentDeckArchetype,
+          opponentClanId: line.opponentClanId,
         })),
       notes: game.notes ?? "",
       meNotes: mine?.notes ?? null,
@@ -994,7 +998,7 @@ function OpponentsSection({
       {open && (
         <div className="opponents" data-testid="game-form-opponents">
           {draft.opponents.map((opponent, index) => (
-            <div className="opponent-row" key={opponent.playerKey} data-testid="game-form-opponent">
+            <div className="opponent-row" key={opponent.playerKey ?? `sans-nom-${index}`} data-testid="game-form-opponent">
               <select
                 className="seat-select"
                 aria-label={`Siège de ${opponent.name}`}

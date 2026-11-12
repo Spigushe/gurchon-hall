@@ -1,9 +1,18 @@
-import type { GameRoundType, LocalGame } from "../../offline/vtes";
+import { findByKey, type GameRoundType, type LocalGame, type LocalPlayer, type ResourceKey } from "../../offline/vtes";
 
 /**
  * Mise en forme des parties (Lot 7, D1). Fonctions pures : l'affichage se fait
  * toujours en heure locale (risque « fuseau de `played_at` » du plan).
  */
+
+/**
+ * Nom d'un adversaire d'une table. Une ligne sans joueur (Lot 8, P6) se dit
+ * « Adversaire sans nom » ; un joueur absent du carnet local, « Joueur inconnu ».
+ */
+export function opponentName(players: readonly LocalPlayer[] | undefined, key: ResourceKey | null): string {
+  if (key === null) return "Adversaire sans nom";
+  return (players && findByKey(players, key)?.name) ?? "Joueur inconnu";
+}
 
 const NUMBER_WORDS: Record<number, string> = {
   1: "un",

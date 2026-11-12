@@ -11,7 +11,7 @@ import {
   type SearchCatalog,
   type SearchCriteria,
 } from "./cardSearch";
-import type { CardRow, CardSetRow } from "./db";
+import type { CardRow, CardSetRow, DeckVersionRow } from "./db";
 import type {
   LocalDeck,
   LocalDeckCard,
@@ -25,10 +25,13 @@ import {
   readCardSearchStatus,
   readCardUsage,
   readCardSets,
+  readClans,
   readDeck,
   readDeckCards,
   readDeckCardsByDeck,
   readDeckCountByCard,
+  readDeckVersion,
+  readDeckVersions,
   readDecks,
   readGame,
   readGames,
@@ -43,6 +46,7 @@ import {
   type CardQuery,
   type CardSearchStatus,
   type CardUsage,
+  type ClanOption,
   type DeckQuery,
   type GameQuery,
   type PlayerQuery,
@@ -281,4 +285,34 @@ export function useLocalGame(key: ResourceKey): LocalGame | null | undefined {
   const { db } = useVtesOffline();
   const read = useCallback((k: ResourceKey) => readGame(db, k), [db]);
   return useByKey(read, key);
+}
+
+// --- Versions de deck jouées et clans (Lot 8) -------------------------------
+
+/** Versions jouées d'un deck, par numéro croissant (`readDeckVersions`). */
+export function useLocalDeckVersions(key: DeckKey | null): DeckVersionRow[] | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(async () => (key === null ? [] : readDeckVersions(db, key)), [db, key]);
+  return useLiveQuery(querier);
+}
+
+/**
+ * Une version par son identifiant : `null` si la partie n'est pas encore figée
+ * (identifiant nul) ou que le miroir ne l'a pas lue, `undefined` avant la
+ * première lecture.
+ */
+export function useLocalDeckVersion(id: number | null): DeckVersionRow | null | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(
+    async () => (id === null ? null : ((await readDeckVersion(db, id)) ?? null)),
+    [db, id],
+  );
+  return useLiveQuery(querier);
+}
+
+/** Clans du catalogue, pour le clan principal d'un adversaire (`readClans`). */
+export function useLocalClans(): ClanOption[] | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(() => readClans(db), [db]);
+  return useLiveQuery(querier);
 }

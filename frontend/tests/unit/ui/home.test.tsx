@@ -46,7 +46,8 @@ describe("Atelier : disposition mobile (inchangée, Lot 5)", () => {
     });
 
     const name = await screen.findByText("Malkavien");
-    expect(name.closest(".row")).toHaveTextContent("vote");
+    // Le code `vote` s'affiche par son libellé (Lot 8, P5).
+    expect(name.closest(".row")).toHaveTextContent("Vote");
     expect(screen.queryByTestId("home-deck-table")).not.toBeInTheDocument();
     expect(screen.queryByTestId("home-deck-row")).not.toBeInTheDocument();
     // Aucune lecture de légalité par deck sur cette disposition : la colonne

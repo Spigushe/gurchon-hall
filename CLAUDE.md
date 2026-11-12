@@ -99,8 +99,13 @@ la base de développement. Vérifier la variable avant toute migration. Depuis l
 2026-11-02, l'API refuse de démarrer contre une base qui n'est pas à la tête des
 scripts (`backend/app/db/schema_check.py`, lecture seule, aucune migration
 automatique ; `SCHEMA_REVISION_CHECK=false` ramène l'arrêt à un avertissement, réservé
-aux tests). Cette base n'est
-pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
+aux tests). Cette base n'est pas versionnée. **Depuis le 2026-11-12 (F0 du Lot 8),
+elle est repartie de zéro** : supprimée, montée par `upgrade head` à `ac6cda5ad252`
+(R13), catalogue réimporté (4212 cartes). Elle ne contient plus que des données de
+recette et deux comptes, le compte historique (`id = 1`) laissé non réclamé et un
+compte créé par `manage_accounts.py create` (`id = 2`). Ce qui suit, jusqu'à la
+réclamation du 2026-10-02, décrit l'ancienne base, et les sauvegardes `.bak` qu'il
+cite n'ont plus d'usage (P4 de `docs/lot8-plan-analyse.md`). Elle avait été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
 avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
 le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (Lot 6), puis le
 2026-11-02 à `e2a7819dd4a2` (Lot 7 : R10 puis R11 en un seul `upgrade head`), puis

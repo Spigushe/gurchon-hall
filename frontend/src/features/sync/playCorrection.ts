@@ -1,4 +1,7 @@
 import { toDeckRef, type DeckPolicy, type EventTier, type FinalDeckRule, type VtesOperation } from "../../offline/vtes";
+import type { components } from "../../api-client/schema.d.ts";
+
+type Schemas = components["schemas"];
 
 /**
  * Corrections des opérations de la pratique de jeu refusées (Lot 7).
@@ -20,14 +23,13 @@ import { toDeckRef, type DeckPolicy, type EventTier, type FinalDeckRule, type Vt
  * - `conflict` d'un nom déjà pris (joueur, lieu, tournoi) : le nom.
  */
 
-type Participation = {
-  player: { me?: true | null; player_id?: number | null; client_ref?: string | null };
-  deck?: { deck_id?: number | null; client_ref?: string | null } | null;
-  seat?: number | null;
-  victory_points?: number | null;
-  game_win?: boolean | null;
-  notes?: string | null;
-};
+/**
+ * Une ligne de table telle que l'opération la porte. Depuis le Lot 8, `player`
+ * peut manquer (adversaire non nommé, P6) et la ligne peut décrire le deck
+ * adverse (P5) : une correction ne touche qu'à ma ligne et recopie les autres
+ * telles quelles, champs nouveaux compris.
+ */
+type Participation = Schemas["ParticipationCreate"];
 
 export interface PlayCorrectionFields {
   name: boolean;
@@ -88,7 +90,7 @@ export function participationsOf(operation: VtesOperation): Participation[] | nu
 }
 
 const meIndex = (participations: readonly Participation[] | null) =>
-  participations ? participations.findIndex((line) => line.player.me === true) : -1;
+  participations ? participations.findIndex((line) => line.player?.me === true) : -1;
 
 /** Les champs à proposer pour corriger `operation` ; tout à `false` si elle ne se corrige pas ici. */
 export function fieldsOf(operation: VtesOperation): PlayCorrectionFields {
@@ -264,7 +266,7 @@ function draftDeck(line: Participation, deckKey: string): Participation["deck"] 
 /** Corrige ma ligne de table (siège, VP, GW, deck) ; les autres lignes restent telles quelles. */
 function correctMe(lines: readonly Participation[], numbers: DraftNumbers, draft: PlayDraft): Participation[] {
   return lines.map((line) => {
-    if (line.player.me !== true) return line;
+    if (line.player?.me !== true) return line;
     return compact({
       ...line,
       seat: numbers.seat ?? undefined,

@@ -9,6 +9,7 @@ import { isInteractiveTarget, useKeyboardShortcuts } from "../../components/useK
 import { CATEGORY_LABELS, DECK_STATUS_LABELS, formatTime, plural } from "../../labels";
 import { useConnectivity, useFlush, useSyncStatus } from "../../offline/react";
 import {
+  DECK_ARCHETYPE_LABELS,
   useLocalDeckCards,
   useLocalDecks,
   useLocalGames,
@@ -168,7 +169,7 @@ function HomeDeckListItem({ deck }: { deck: LocalDeck }) {
           <p className="row__meta">
             {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"} ·{" "}
             {DECK_STATUS_LABELS[deck.status].toLowerCase()}
-            {deck.archetype ? ` · ${deck.archetype}` : ""}
+            {deck.archetype ? ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}` : ""}
             {counts && (
               <span data-testid="home-deck-counts">
                 {" · "}

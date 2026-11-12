@@ -50,6 +50,7 @@ import {
   refreshCardSets,
   refreshCatalog,
   refreshDecks,
+  refreshDeckVersions,
   refreshGames,
   refreshLanguages,
   refreshPlayers,
@@ -308,6 +309,9 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       ["venues", () => refreshVenues(client, db)],
       ["tournaments", () => refreshTournaments(client, db)],
       ["games", () => refreshGames(client, db)],
+      // Lot 8 : les versions que les parties et les tournois désignent, une
+      // fois ces deux miroirs relus.
+      ["deckVersions", () => refreshDeckVersions(client, db)],
     ];
     let report: RefreshReport = { complete: false, refreshed: [], errors: [], authRequired: false };
     // Un verdict tombé pendant la lecture rendrait l'instantané périmé (une

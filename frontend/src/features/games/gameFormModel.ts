@@ -1,6 +1,7 @@
 import {
   certainGameWin,
   GAME_WIN_MINIMUM_VP,
+  type DeckArchetype,
   type DeckKey,
   type GameRoundType,
   type LocalGame,
@@ -15,13 +16,22 @@ import { formatVp, numberWord } from "./gameFormat";
  */
 
 export interface OpponentDraft {
-  playerKey: ResourceKey;
+  /** Joueur du carnet ; `null` pour un adversaire non nommé (Lot 8, P6). */
+  playerKey: ResourceKey | null;
   name: string;
   seat: number | null;
   /** Un de mes decks prêté à cet adversaire (P4). */
   deckKey: DeckKey | null;
   /** Notes de la ligne, reportées telles quelles à la modification d'une table. */
   notes: string | null;
+  /**
+   * Deck adverse (Lot 8, P5), reporté tel quel à la modification d'une table
+   * tant que le formulaire ne le saisit pas (écran 1 de D1) : remplacer la
+   * table sans lui l'effacerait.
+   */
+  opponentDeckName?: string | null;
+  opponentDeckArchetype?: DeckArchetype | null;
+  opponentClanId?: number | null;
 }
 
 export interface GameDraft {
@@ -170,6 +180,7 @@ export function buildParticipations(draft: GameDraft): ParticipationInput[] {
     const line: ParticipationInput = { player: opponent.playerKey };
     if (opponent.deckKey !== null) line.deck = opponent.deckKey;
     if (opponent.seat !== null) line.seat = opponent.seat;
+    copyOpponentDeck(opponent, line);
     if (opponent.notes !== null) line.notes = opponent.notes;
     return line;
   });
@@ -189,7 +200,18 @@ export function participationsOf(game: LocalGame): ParticipationInput[] | null {
     }
     if (line.deckKey !== null) out.deck = line.deckKey;
     if (line.seat !== null) out.seat = line.seat;
+    if (!line.isMe) copyOpponentDeck(line, out);
     if (line.notes !== null) out.notes = line.notes;
     return out;
   });
+}
+
+/** Les trois champs du deck adverse (Lot 8, P5), recopiés seulement s'ils sont saisis (même forme des deux côtés). */
+function copyOpponentDeck(
+  from: Pick<OpponentDraft, "opponentDeckName" | "opponentDeckArchetype" | "opponentClanId">,
+  to: ParticipationInput,
+): void {
+  if (from.opponentDeckName != null) to.opponentDeckName = from.opponentDeckName;
+  if (from.opponentDeckArchetype != null) to.opponentDeckArchetype = from.opponentDeckArchetype;
+  if (from.opponentClanId != null) to.opponentClanId = from.opponentClanId;
 }

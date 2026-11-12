@@ -7,6 +7,7 @@ import {
   toPlayerRef,
   toTournamentRef,
   toVenueRef,
+  type DeckArchetype,
   type DeckKey,
   type DeckPolicy,
   type DeckSelector,
@@ -101,7 +102,8 @@ export interface DeckInput {
   name: string;
   createdOn?: string | null;
   status?: Schemas["DeckStatus"];
-  archetype?: string | null;
+  /** Un des six archétypes (Lot 8, P5) : le serveur refuse tout autre texte, et le lot entier avec (422). */
+  archetype?: DeckArchetype | null;
   notes?: string | null;
   /**
    * Autorise les proxies dans ce deck (Lot 4) : ce n'est plus une propriété
@@ -135,7 +137,7 @@ export interface DeckPatch {
   name?: string;
   createdOn?: string | null;
   status?: Schemas["DeckStatus"];
-  archetype?: string | null;
+  archetype?: DeckArchetype | null;
   notes?: string | null;
   /** Autorise (`true`) ou interdit (`false`) les proxies dans ce deck (Lot 4). */
   proxyAllowed?: boolean;
@@ -462,24 +464,42 @@ export function tournamentDelete(
   };
 }
 
-/** Une ligne de la table d'une partie. Les adversaires n'ont ni VP ni GW (A13). */
+/**
+ * Une ligne de la table d'une partie. Les adversaires n'ont ni VP ni GW (A13).
+ *
+ * Lot 8 : `player` omis (ou `null`) fait une ligne d'adversaire non nommé (P6),
+ * qui doit porter un siège, un deck prêté ou un des trois champs du deck
+ * adverse (P5), sans quoi le serveur la refuse (`invalid`). Ces trois champs ne
+ * vont que sur une ligne d'adversaire sans deck prêté. Aucune version de deck :
+ * le serveur la fige lui-même (P3).
+ */
 export interface ParticipationInput {
-  /** `"me"` pour ma ligne, sinon le joueur désigné par sa clé ou son sélecteur. */
-  player: ParticipantTarget;
+  /** `"me"` pour ma ligne, le joueur désigné par sa clé ou son sélecteur, ou rien pour un adversaire non nommé. */
+  player?: ParticipantTarget | null;
   deck?: DeckTarget | null;
   seat?: number | null;
   victoryPoints?: number | null;
   gameWin?: boolean | null;
+  /** Nom du deck adverse, pour mémoire (P5) ; n'entre dans aucun axe d'analyse. */
+  opponentDeckName?: string | null;
+  opponentDeckArchetype?: DeckArchetype | null;
+  /** Clan principal du deck adverse, identifiant du catalogue (`readClans`). */
+  opponentClanId?: number | null;
   notes?: string | null;
 }
 
 function participation(input: ParticipationInput): Schemas["ParticipationCreate"] {
+  // Un adversaire non nommé **omet** `player` : c'est la forme que le contrat
+  // documente, et une opération sans le champ garde l'empreinte la plus courte.
   return defined({
-    player: toParticipantRef(input.player),
+    player: input.player == null ? undefined : toParticipantRef(input.player),
     deck: refField(input.deck, toDeckRef),
     seat: input.seat,
     victory_points: input.victoryPoints,
     game_win: input.gameWin,
+    opponent_deck_name: input.opponentDeckName,
+    opponent_deck_archetype: input.opponentDeckArchetype,
+    opponent_clan_id: input.opponentClanId,
     notes: input.notes,
   });
 }
@@ -534,6 +554,15 @@ export interface GameUpdate {
   /** Champs de la partie. Omis : `data` est omis de l'opération (pas `{}`). */
   fields?: GamePatch;
   /**
+   * « Figer sur la liste actuelle » (Lot 8, P3) : le serveur refige chaque deck
+   * de la table sur sa liste courante, après les autres changements de la même
+   * opération ; dans un tournoi, toutes les parties du tournoi jouées avec ces
+   * decks. Seul `true` est écrit (`refreeze_decklists`, dans `data`) : `false`
+   * et l'absence ont le même effet, et l'omettre garde l'empreinte d'une
+   * opération écrite avant le lot.
+   */
+  refreezeDecklists?: boolean;
+  /**
    * La table **complète** voulue, jamais une partie de table : le serveur la
    * remplace d'un bloc. À ne fournir que pour une table connue.
    */
@@ -541,8 +570,9 @@ export interface GameUpdate {
 }
 
 /**
- * `data` n'est écrit que si `fields` est fourni, `table` que s'il l'est : la file
- * garde le corps exact, et `data: {}` et `data` omis ont deux empreintes.
+ * `data` n'est écrit que si `fields` ou le regel est fourni, `table` que s'il
+ * l'est : la file garde le corps exact, et `data: {}` et `data` omis ont deux
+ * empreintes.
  */
 export function gameUpdate(
   clock: OperationClock,
@@ -550,22 +580,24 @@ export function gameUpdate(
   update: GameUpdate,
 ): OperationOf<"game.update"> {
   const { fields, table } = update;
+  const refreeze = update.refreezeDecklists === true;
   return {
     type: "game.update",
     operation_id: clock.newId(),
     recorded_at: clock.now(),
     game: toGameRef(game),
-    ...(fields === undefined
+    ...(fields === undefined && !refreeze
       ? {}
       : {
           data: defined({
-            played_at: fields.playedAt,
-            venue: refField(fields.venue, toVenueRef),
-            tournament: refField(fields.tournament, toTournamentRef),
-            round_number: fields.roundNumber,
-            round_type: fields.roundType,
-            player_count: fields.playerCount,
-            notes: fields.notes,
+            played_at: fields?.playedAt,
+            venue: refField(fields?.venue, toVenueRef),
+            tournament: refField(fields?.tournament, toTournamentRef),
+            round_number: fields?.roundNumber,
+            round_type: fields?.roundType,
+            player_count: fields?.playerCount,
+            notes: fields?.notes,
+            refreeze_decklists: refreeze ? true : undefined,
           }),
         }),
     ...(table === undefined ? {} : { table: { participations: table.map(participation) } }),

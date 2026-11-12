@@ -14,6 +14,32 @@ export type OperationOf<T extends VtesOperationType> = Extract<VtesOperation, { 
 export type DeckStatus = Schemas["DeckStatus"];
 export type CardCategory = Schemas["CardCategory"];
 
+/** Archétype d'un deck, le mien ou celui d'un adversaire (Lot 8, P5) : six codes fermés. */
+export type DeckArchetype = Schemas["DeckArchetype"];
+
+/**
+ * Les six archétypes, dans l'ordre où l'utilisateur les a donnés (A0, P5) :
+ * l'ordre des puces des formulaires et des groupes du bilan.
+ */
+export const DECK_ARCHETYPES: readonly DeckArchetype[] = [
+  "bleed",
+  "vote",
+  "wall",
+  "toolbox",
+  "rush",
+  "combo",
+];
+
+/** Libellés affichés, en anglais comme les joueurs les disent (P5). */
+export const DECK_ARCHETYPE_LABELS: Readonly<Record<DeckArchetype, string>> = {
+  bleed: "Bleed",
+  vote: "Vote",
+  wall: "Wall",
+  toolbox: "Toolbox",
+  rush: "Rush",
+  combo: "Combo",
+};
+
 /** Désignation d'un deck : identifiant serveur, ou référence client d'une création hors ligne. */
 export type DeckSelector = { deckId: number } | { clientRef: string };
 
@@ -84,7 +110,11 @@ export const gameKeyOf: (selector: ResourceSelector) => GameKey = resourceKeyOf;
  */
 export type ResourceTarget = ResourceKey | ResourceSelector;
 
-/** Un participant à une table : « moi », ou un joueur désigné. */
+/**
+ * Un participant à une table : « moi », ou un joueur désigné. Une ligne
+ * d'adversaire non nommé (Lot 8, P6) n'a pas de participant : elle omet le
+ * champ (`ParticipationInput.player`).
+ */
 export type ParticipantTarget = "me" | ResourceTarget;
 
 const selectorOf = (target: ResourceTarget): ResourceSelector =>

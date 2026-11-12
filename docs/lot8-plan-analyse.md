@@ -732,8 +732,8 @@ Sur le handoff de D0, en mobile puis en bureau :
 | A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync — **fait le 2026-11-08** (cf. « Livré à A2 ») | A1 |
 | B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` — **fait le 2026-11-12** (cf. « Livré à B1 ») | A2 |
 | B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` — **fait le 2026-11-12** (cf. « Livré à B2 ») | B1 |
-| F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
-| C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche | B2 |
+| F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) — **fait le 2026-11-12** par l'utilisateur (cf. « Livré à F0 ») | B2 |
+| C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche — **fait le 2026-11-12** (cf. « Livré à C1 ») | B2 |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau, versé dans `docs/design-handoff/` — **fait le 2026-11-08** (cf. « Handoff reçu », sous P10) | A0 |
 | D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) | C1, D0 |
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) | D1 |
@@ -976,6 +976,95 @@ d'une table, passage de la ligne du tournoi à la partie suivante.
   le temps d'un passage, fait tomber les quatre tests qui le visent. `ruff
   check` propre. Le contrat ne bouge pas (50 opérations sur 30 chemins), ni
   le score CRAP, aucune fonction de `app/` n'ayant changé.
+
+### Livré à F0 (2026-11-12)
+
+Fait par l'utilisateur. Relevé après coup sur `backend/vtes.db` (`DATABASE_URL`
+non définie) : révision `ac6cda5ad252` (la tête), catalogue réimporté
+(4212 cartes), aucun deck, aucune partie, aucune version. Deux comptes : le
+compte historique recréé par R8 (`id = 1`), laissé non réclamé avec son
+adresse provisoire, et un compte créé par `manage_accounts.py create`
+(`id = 2`), qui a son « Moi ». Le compte utilisé est donc le `2` : sa base
+IndexedDB s'appelle `gurchon-hall-offline-u2`, neuve, et le point 4 de la
+procédure (effacer les données du site) devient sans objet. Aucune copie
+`.bak` de la base d'avant n'apparaît à côté de `vtes.db` ; le point 1 était
+facultatif.
+
+### Livré à C1 (2026-11-12)
+
+- **Dexie version 7** (`offline/vtes/db.ts`) : magasin `deckVersions`
+  (`id, deckId`), ajouté sans changement de clé. Écart à A6 : l'`upgrade` vide
+  `cardDetails`. Le formulaire de partie a besoin de la liste des clans avec
+  leur identifiant (`opponent_clan_id`), que le miroir ne gardait pas et
+  qu'aucune route ne sert ; `CardDetailRow` gagne `clanId`, et le vidage rend
+  le catalogue « incomplet », ce qui déclenche la relecture unique du lot
+  Chercher (P11) au retour du réseau. `cards` n'est pas touché : le picker et
+  les libellés marchent hors ligne pendant ce temps, seuls les filtres de
+  Chercher attendent.
+- **Lignes du miroir** : `GameTableLineRow` (joueur nullable, version, trois
+  champs adverses), `GameMeRow` (version) et `TournamentRow.deckVersions`
+  (A9). Les champs nouveaux sont facultatifs dans le type : une ligne écrite
+  avant la version 7 les lit comme nuls, sans vidage du miroir des parties.
+  `DeckRow.archetype` passe à `DeckArchetype`.
+- **Rafraîchissement** (`refresh.ts`) : les champs nouveaux sont lus, et
+  `refreshDeckVersions` s'ajoute après les parties dans `runtime.ts`. Il ne lit
+  `GET /decks/{id}/versions` que pour les decks que désignent les parties ou
+  les tournois du miroir, et saute un deck dont toutes les versions désignées
+  sont déjà connues (une version ne change jamais). Un deck qui n'est plus
+  joué sort du magasin ; un deck introuvable (404) est omis.
+- **Constructeurs** (`operations.ts`) : `ParticipationInput.player` devient
+  facultatif (omis pour un adversaire non nommé, comme le contrat le
+  documente), et la ligne gagne `opponentDeckName`, `opponentDeckArchetype`,
+  `opponentClanId`. `GameUpdate.refreezeDecklists` n'écrit
+  `refreeze_decklists: true` dans `data` que s'il est vrai : `false` et
+  l'absence gardent l'empreinte d'une opération d'avant le lot. L'archétype de
+  `deck.create` et `deck.update` est typé sur les six codes.
+- **Surcouche** (`overlayPlay.ts`) : `LocalTableLine.playerKey` nullable,
+  champs adverses, et `deckVersionId` / `deckVersionNumber` sur chaque ligne
+  et sur ma ligne en résumé ; `LocalTournament.deckVersions`, avec la partie
+  qui a figé désignée par sa clé de surcouche. Le client ne fabrique jamais de
+  version. Pour une écriture en file, il applique les règles du serveur à ce
+  qu'il sait : version du tournoi pour ce deck, sinon celle que la partie
+  avait déjà pour ce deck, sinon rien, ce que l'écran lira « liste figée à la
+  synchronisation ». Un regel en file efface la version des decks regelés sur
+  la partie et, en tournoi, sur toutes les rondes qui les jouent, et retire la
+  ligne du tournoi pour ces decks jusqu'au rejeu.
+- **Lectures** : `readDeckVersions` (par clé de deck, référence client
+  comprise, sans passer par la projection pour qu'un deck supprimé reste
+  lisible), `readDeckVersion`, `readClans` (clans déduits des cartes de
+  crypte, triés par nom), et les hooks `useLocalDeckVersions`,
+  `useLocalDeckVersion`, `useLocalClans`. `DECK_ARCHETYPES` et
+  `DECK_ARCHETYPE_LABELS` (Bleed, Vote, Wall, Toolbox, Rush, Combo) sont
+  exportés avec le type.
+- **Front de nouveau compilable** : les 10 erreurs `tsc` laissées par A2 sont
+  corrigées. `playCorrection.ts` reprend le type généré de la ligne et
+  recopie les lignes d'adversaire telles quelles. Les écrans qui affichent un
+  adversaire disent « Adversaire sans nom » pour une ligne sans joueur
+  (`opponentName`, dans `gameFormat.ts`). Le formulaire de partie reporte le
+  deck adverse et la ligne sans joueur à la modification d'une table, sans
+  encore les saisir (D1) : remplacer la table sans eux les aurait effacés.
+  L'archétype des formulaires de deck passe provisoirement à une liste
+  déroulante des six codes (`ArchetypeSelect`), que les puces du handoff
+  remplaceront à D2, et s'affiche par son libellé.
+- **Tests** : `tests/unit/offline/vtesLot8.test.ts` (22 : constructeurs, lecture
+  du miroir avec et sans les champs nouveaux, versions d'une écriture en file
+  dans chaque cas des précisions pour B1, regel en amicale et en tournoi,
+  aller-retour de la table par le formulaire, montée de la version 6 à la
+  version 7, miroir des versions et son cache, lecture par référence client,
+  clans). Le serveur factice rend les champs du Lot 8 et la route des
+  versions. Attendus mis à jour : version de base 7 dans trois tests de
+  montée, `clanId` dans le détail d'une carte, libellé « Vote » dans
+  l'Atelier. Un test des decks attend désormais les comptes de la liste par
+  `waitFor`, comme les lignes voisines : le rafraîchissement a une étape de
+  plus, et ces comptes arrivent un cycle plus tard.
+- **Vérifications** : vitest sous couverture, 1052 tests verts sur 64
+  fichiers ; `npm run lint` et `npx tsc --noEmit -p tsconfig.app.json`
+  propres ; CRAP front sans régression ; aucun `data-testid` disparu.
+  Playwright non relancé.
+- **Laissé à D1 et D2** : la saisie du deck adverse et de la ligne sans joueur,
+  l'action « Figer sur la liste actuelle » (`updateGame(game,
+  { refreezeDecklists: true })`, qui passe déjà par la file), l'affichage des
+  versions, et les puces d'archétype.
 
 ### Tests attendus (E)
 

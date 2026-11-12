@@ -11,13 +11,16 @@ import { useIsDesktop } from "../../components/useIsDesktop";
 import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { DECK_STATUS_LABELS } from "../../labels";
 import {
+  DECK_ARCHETYPE_LABELS,
   useLocalDeck,
   useLocalDeckCards,
   useVtesOffline,
+  type DeckArchetype,
   type DeckKey,
   type LocalDeck,
 } from "../../offline/vtes";
 import { AddDeckCardForm } from "./AddDeckCardForm";
+import { ArchetypeSelect } from "./ArchetypeSelect";
 import { DeckComposition } from "./DeckComposition";
 import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
@@ -31,7 +34,7 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
   const titleId = `${formId}-title`;
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [name, setName] = useState(deck.name);
-  const [archetype, setArchetype] = useState(deck.archetype ?? "");
+  const [archetype, setArchetype] = useState<DeckArchetype | null>(deck.archetype);
   const [notes, setNotes] = useState(deck.notes ?? "");
   const [proxyAllowed, setProxyAllowed] = useState(deck.proxyAllowed);
   const [invalid, setInvalid] = useState<string | null>(null);
@@ -44,7 +47,7 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
     // Seuls les champs modifiés partent : `null` explicite efface, absent ne touche pas.
     const patch: Parameters<typeof actions.updateDeck>[1] = {};
     if (trimmed !== deck.name) patch.name = trimmed;
-    if (archetype.trim() !== (deck.archetype ?? "")) patch.archetype = archetype.trim() || null;
+    if (archetype !== deck.archetype) patch.archetype = archetype;
     if (notes.trim() !== (deck.notes ?? "")) patch.notes = notes.trim() || null;
     if (proxyAllowed !== deck.proxyAllowed) patch.proxyAllowed = proxyAllowed;
     if (Object.keys(patch).length === 0) return onClose();
@@ -74,13 +77,7 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
         </div>
         <div className="field">
           <label htmlFor={`${formId}-archetype`}>Archétype</label>
-          <input
-            id={`${formId}-archetype`}
-            className="underline-field"
-            value={archetype}
-            onChange={(event) => setArchetype(event.target.value)}
-            autoComplete="off"
-          />
+          <ArchetypeSelect id={`${formId}-archetype`} value={archetype} onChange={setArchetype} />
         </div>
         <div className="field">
           <label htmlFor={`${formId}-notes`}>Notes</label>
@@ -437,7 +434,7 @@ function deckMeta(deck: LocalDeck, archived: boolean, withDiscriminator: boolean
     );
   }
   if (archived) parts.push("archivé");
-  if (deck.archetype) parts.push(deck.archetype);
+  if (deck.archetype) parts.push(DECK_ARCHETYPE_LABELS[deck.archetype]);
   if (deck.proxyAllowed) {
     parts.push(
       <span key="proxy" data-testid="deck-proxy-allowed">
