@@ -157,6 +157,38 @@ lit l'exigence `mono` / `choice` / `combo` de krcg).
 | Images par impression dans le miroir | environ 0,8 Mo par base de compte | si la lecture à la demande se révèle trop lente |
 | Black Hand et Seraph exigés par une carte de bibliothèque | ce sont des traits du Sabbat : une carte qui exige un vampire Black Hand ou Seraph exige de fait un vampire Sabbat. Le lot Chercher les laisse dans les autres valeurs de l'exigence (`other_requirements`), sans impliquer le Sabbat ni les rendre filtrables (décision de l'utilisateur du 2026-11-03, après A1). Les traiter demanderait de décider s'ils impliquent le Sabbat, comme un titre implique sa secte, et d'en faire une valeur de filtre, côté bibliothèque comme côté crypte (où VDB les range parmi les traits) | avec les traits de VDB ci-dessus, ou dès qu'un deck Black Hand le demande |
 
+### L'art de l'extension dans la Collection
+
+Demandée par l'utilisateur le 2026-11-12. Une entrée de collection désigne un
+exemplaire précis (carte × langue × extension), mais la Collection montre
+encore l'image générique de la carte : l'aperçu au survol du tableau bureau
+lit `CardRow.imageUrl` du miroir (`StockList.tsx`), et le mobile n'affiche
+aucune image, ni dans la liste ni dans la feuille d'entrée (`StockForm.tsx`).
+On veut voir l'art de l'extension de l'exemplaire.
+
+**L'extension.** Le patron existe depuis le lot Chercher : `ChosenCardImage`
+lit la fiche `GET /cartes/{id}` à la demande (`useCardOnline`), prend l'image
+de l'impression (`printingImage`), puis l'image générique, puis le
+pictogramme. Il suffit de le brancher sur l'aperçu bureau, sur la feuille
+d'entrée (l'image suit le sélecteur d'extension pendant une création) et, au
+mobile, sur une image à toucher comme dans le picker. Couverture relevée dans
+la base de développement : 9397 impressions sur 10 131 ont une image.
+
+**La langue, plus tard.** Écartée par l'utilisateur le 2026-11-12 : krcg ne
+publie pas de scan par extension et par langue. Ses impressions n'ont que le
+scan anglais (`card/set/<extension>/<nom>.jpg`), ses traductions un seul scan
+par langue sans extension (`card/fr/<nom>.jpg`, 370 cartes en français et 297
+en espagnol sur 428 traductions), et `card/set/<extension>/fr/<nom>.jpg`
+répond 404 (vérifié le même jour). Montrer le scan français reviendrait à
+perdre l'art de l'extension, puisque ce scan peut venir d'une autre extension.
+La piste revient si une source publie l'image par extension et par langue.
+
+En ligne seulement, comme toutes les images (P7 du lot Chercher) : hors ligne,
+la Collection garde son pictogramme. Front seul, sans route, champ de contrat,
+type d'opération `/sync`, migration ni version Dexie. Place proposée : un
+petit lot à part, ou en passant avec le lot Inventaires, qui retouche la
+Collection de toute façon.
+
 ## Socle hors ligne (valeur pour Barrin)
 
 | Piste | Ce qu'elle apporterait | Place proposée |
