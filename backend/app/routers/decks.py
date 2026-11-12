@@ -27,6 +27,7 @@ from app.schemas.collection import (
     DeckListState,
     DeckRead,
     DeckUpdate,
+    DeckVersionRead,
 )
 from app.services import decks
 
@@ -157,6 +158,23 @@ def delete_deck(deck_id: PathId, db: DbSession, user: CurrentUser):
 )
 def get_deck_legality(deck_id: PathId, db: DbSession, user: CurrentUser):
     return decks.get_legality(db, user.id, deck_id)
+
+
+@router.get(
+    "/{deck_id}/versions",
+    response_model=list[DeckVersionRead],
+    operation_id="listDeckVersions",
+    summary="Versions jouées d'un deck",
+    description=(
+        "Les listes que le deck a eues quand une partie l'a joué (Lot 8), par "
+        "numéro croissant, chacune avec ses cartes (carte × quantité totale, par "
+        "identifiant de carte croissant) et ses comptes crypte et bibliothèque. "
+        "Vide pour un deck jamais joué. Lisible aussi pour un deck supprimé."
+    ),
+    responses={**NOT_FOUND},
+)
+def list_deck_versions(deck_id: PathId, db: DbSession, user: CurrentUser):
+    return decks.list_deck_versions(db, user.id, deck_id)
 
 
 @router.post(

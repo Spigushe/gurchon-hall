@@ -1844,6 +1844,80 @@
         }
       }
     },
+    "/decks/{deck_id}/versions": {
+      "get": {
+        "tags": [
+          "decks"
+        ],
+        "summary": "Versions jouées d'un deck",
+        "description": "Les listes que le deck a eues quand une partie l'a joué (Lot 8), par numéro croissant, chacune avec ses cartes (carte × quantité totale, par identifiant de carte croissant) et ses comptes crypte et bibliothèque. Vide pour un deck jamais joué. Lisible aussi pour un deck supprimé.",
+        "operationId": "listDeckVersions",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeckVersionRead"
+                  },
+                  "title": "Response Listdeckversions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/decks/{deck_id}/cartes": {
       "post": {
         "tags": [
@@ -6410,6 +6484,79 @@
         "title": "DeckUpdateOperation",
         "description": "Modifie un deck — y compris pour l'archiver ou le désarchiver.\n\n`data` suit la sémantique de `PATCH /decks/{id}` : seuls les champs fournis\nsont appliqués, et `archived` range ou sort de l'archive. Passer le deck à\n`active` exige qu'il soit légal, comme en ligne ; passer `proxy_allowed` à\n`false` est refusé (`conflict`) tant qu'une ligne du deck joue un proxy."
       },
+      "DeckVersionCardRead": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "quantity"
+        ],
+        "title": "DeckVersionCardRead",
+        "description": "Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).\n\nNi langue, ni extension, ni proxy : deux versions ne se distinguent que par\ncarte × quantité, et c'est tout ce qu'une liste de tournoi demande. Le\nclient lit le reste de la carte dans son miroir du catalogue."
+      },
+      "DeckVersionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number",
+            "description": "Numéro de la version dans son deck, à partir de 1 (« v3 »)."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Instant où la version a été figée (UTC)."
+          },
+          "crypt_count": {
+            "type": "integer",
+            "title": "Crypt Count",
+            "description": "Cartes de crypte, quantités comprises."
+          },
+          "library_count": {
+            "type": "integer",
+            "title": "Library Count",
+            "description": "Cartes de bibliothèque, quantités comprises."
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/DeckVersionCardRead"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Les cartes de la version, par identifiant de carte croissant ; vide pour un deck joué sans aucune ligne.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deck_id",
+          "number",
+          "created_at",
+          "crypt_count",
+          "library_count",
+          "cards"
+        ],
+        "title": "DeckVersionRead",
+        "description": "Une liste d'un deck telle qu'elle a été jouée (Lot 8, P1).\n\nCoupée par le serveur quand une partie désigne le deck et que sa liste\ndiffère de la dernière version ; jamais modifiée ensuite. Un deck jamais\njoué n'a aucune version."
+      },
       "DisciplineRead": {
         "properties": {
           "id": {
@@ -8501,7 +8648,7 @@
           "frozen_by_game_id": {
             "type": "integer",
             "title": "Frozen By Game Id",
-            "description": "Partie qui a figé la liste (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde."
+            "description": "Partie à laquelle la liste est rattachée (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde ; elle passe à la partie suivante du tournoi avec ce deck quand celle-ci est supprimée ou ne le joue plus, et un regel la remplace par la partie regelée."
           }
         },
         "type": "object",

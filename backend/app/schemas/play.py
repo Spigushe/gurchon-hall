@@ -423,8 +423,10 @@ class TournamentDeckVersionRead(ReadModel):
     deck_version_number: int = Field(description=_VERSION_NUMBER_DESCRIPTION)
     frozen_by_game_id: int = Field(
         description=(
-            "Partie qui a figé la liste (« figée à la ronde 2 ») : la première "
-            "figée, pas forcément la plus petite ronde."
+            "Partie à laquelle la liste est rattachée (« figée à la ronde 2 ») : la "
+            "première figée, pas forcément la plus petite ronde ; elle passe à la "
+            "partie suivante du tournoi avec ce deck quand celle-ci est supprimée ou "
+            "ne le joue plus, et un regel la remplace par la partie regelée."
         )
     )
 

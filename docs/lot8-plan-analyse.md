@@ -1,9 +1,11 @@
 # Lot 8 — Analyse : plan d'implémentation
 
-Statut : **A0 close le 2026-11-08 ; A1 et A2 livrées le 2026-11-08** (modèles
-et R13, `ac6cda5ad252`, puis schémas et contrat, cf. « Livré à A1 » et « Livré
-à A2 » sous le découpage ; A9 tranchée le même jour : table dédiée ; front en
-échec de typage jusqu'à C1, par décision). Rédigé sur la branche
+Statut : **A0 close le 2026-11-08 ; A1 et A2 livrées le 2026-11-08, B1 le
+2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
+gel des versions, deck adverse et route des versions, cf. « Livré à A1 »,
+« Livré à A2 » et « Livré à B1 » sous le découpage ; A9 tranchée le
+2026-11-08 : table dédiée ; front en échec de typage jusqu'à C1, par
+décision). Prochaine étape : B2 (`/sync`). Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -624,6 +626,79 @@ refuse de supprimer la partie qui a figé tant que la ligne la désigne, et
 c'est le service (B1) qui la fait passer à la partie suivante ou la retire,
 dans la même transaction.
 
+#### Précisions pour B1 (2026-11-12)
+
+Règles que A3 et A9 laissaient ouvertes, tranchées par l'architecte avant B1.
+Aucune ne revient sur une décision de A0. Deux invariants les résument :
+
+- dans une partie, un deck n'a qu'une version, quelle que soit la ligne qui le
+  joue (la mienne ou un prêt) ;
+- dans un tournoi, une ligne `tournament_deck_version` existe pour un deck si
+  et seulement si une partie du tournoi le joue, et toutes ces parties portent
+  sa version.
+
+1. **Remplacement de la table.** Les lignes sont recréées et peuvent n'avoir
+   aucun joueur : la version se garde par deck, au sein de la partie. Si
+   l'ancienne table jouait déjà ce deck avec une version, la nouvelle ligne la
+   reprend ; sinon le deck se fige. Dans un tournoi, la version du tournoi
+   prime. Une ligne sans version (partie d'avant le gel, qui n'existe que dans
+   les tests de migration) n'a rien à garder : son deck se fige. Corriger un VP
+   le lendemain ne change donc pas la liste jouée.
+2. **Ligne sans joueur.** « Un siège ou un deck » (P6) s'entend : un siège, un
+   deck prêté, ou l'un des trois champs adverses ; « elle jouait Tremere »
+   suffit. Des notes seules ne suffisent pas, la ligne est refusée (`invalid`).
+   Une telle ligne n'est pas le « Moi » : ni VP ni GW, et pas de champ adverse
+   si elle joue un de mes decks, comme une ligne nommée. Le contrôle « même
+   joueur deux fois » ignore les lignes sans joueur ; sièges et nombre de
+   lignes les comptent.
+3. **Deck supprimé.** Accepté sur une ligne si l'ancienne table le jouait
+   déjà, sur n'importe quelle ligne : même appariement par deck qu'au point 1,
+   à la place de `kept_decks` par joueur. Il garde sa version ; s'il faut le
+   figer (ligne sans version, ou regel), c'est depuis `deleted_deck_card` (A3).
+4. **Partie suivante.** Quand la partie désignée par `frozen_by_game_id` ne
+   joue plus ce deck dans ce tournoi, la ligne passe à la partie restante du
+   tournoi qui le joue (prêt compris) au plus petit identifiant, sans changer
+   de version, et disparaît s'il n'en reste aucune. Les identifiants n'étant
+   jamais réattribués (R11), c'est l'ordre de création, le plus proche de « la
+   première figée ». Quatre cas : partie supprimée, partie qui quitte le
+   tournoi, ligne dont le deck change ou s'efface, table remplacée sans ce
+   deck. Avec le second invariant, supprimer un tournoi vide n'a rien à
+   nettoyer.
+5. **Partie qui change de tournoi.** Vers une amicale, elle garde la version
+   de chaque ligne, sans regel : son deck n'a pas changé, et une amicale est
+   figée partie par partie. Vers un tournoi (depuis un autre ou depuis une
+   amicale), chaque deck prend la version de ce tournoi s'il en a une ; sinon
+   sa version actuelle devient celle du tournoi, cette partie la figeant.
+   « La fixe sinon » (P3) veut dire « fixe la version du tournoi », pas « fige
+   la liste courante » : la version gardée est la meilleure estimation de la
+   liste jouée ce jour-là, la liste courante peut être postérieure. Une ligne
+   sans version se fige.
+6. **Regel (`refreeze_decklists`).** Il porte sur chaque deck de la table,
+   prêts compris, et s'applique après les autres changements de la même
+   écriture, sur l'état final. En amicale, sur les lignes de cette partie
+   seulement. En tournoi, pour chaque deck : gel de la liste courante (la
+   dernière version est réutilisée si elle est identique), réécriture de la
+   ligne `tournament_deck_version` (version, et cette partie en
+   `frozen_by_game_id`), réalignement de toutes les participations du tournoi
+   qui jouent ce deck, `updated_at` touché sur chaque partie dont une ligne a
+   changé de version. `tournament.updated_at` ne bouge pas : `deck_versions`
+   est une lecture dérivée, comme `admissible_final_decks` qui change déjà
+   sans lui, et le miroir relit le détail de chaque tournoi à chaque
+   rafraîchissement ; une optimisation future sur cet horodatage devra traiter
+   les deux ensemble. Un regel sur une partie sans deck est accepté sans
+   effet. La confirmation côté client nomme chaque deck dont la version
+   changera.
+7. **Deck vide.** Un deck sans ligne, joué, donne une version sans carte,
+   réutilisée tant qu'il reste vide. Accepté : une partie n'exige ni deck actif
+   ni deck légal (A8 du Lot 7).
+8. **`GET /decks/{id}/versions`.** Versions par numéro croissant, cartes de
+   chaque version par identifiant de carte croissant ; 404 pour un deck
+   inconnu ou d'un autre compte, lisible pour un deck supprimé, liste vide pour
+   un deck jamais joué. `DeckVersionRead` et `DeckVersionCardRead` suffisent à
+   A4 ; seule la description de `cards` a été précisée (ordre, version vide),
+   sans effet sur le contrat tant que la route n'existe pas. Les lignes de
+   `TournamentDetailRead.deck_versions` se rendent par `deck_id` croissant.
+
 ## Écrans (frontend-react)
 
 Sur le handoff de D0, en mobile puis en bureau :
@@ -654,7 +729,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | A0 | utilisateur, orchestrateur | P1 à P12 tranchées dans ce fichier ; brief Claude Design écrit — **fait le 2026-11-08** | rien |
 | A1 | architecte-contrat | modèles, R13, aller-retour sur base vide et sur base peuplée par les fixtures — **fait le 2026-11-08** (cf. « Livré à A1 ») | A0 |
 | A2 | architecte-contrat | schémas, export du contrat, client TS, section « Lot 8 » du contrat de sync — **fait le 2026-11-08** (cf. « Livré à A2 ») | A1 |
-| B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` | A2 |
+| B1 | backend-fastapi | gel des versions et règle du tournoi (A3), champs adverses et leurs règles, archétype fermé des decks, `GET /decks/{id}/versions` — **fait le 2026-11-12** (cf. « Livré à B1 ») | A2 |
 | B2 | backend-fastapi | `/sync` : champs facultatifs, drapeau `refreeze_decklists`, archétype fermé dans `deck.*` | B1 |
 | F0 | orchestrateur | `vtes.db` **écrasée** et reconstruite à neuf à la tête (P4) | B2 |
 | C1 | pwa-offline | Dexie 7, miroir des versions, champs des lignes, constructeurs d'opérations, surcouche | B2 |
@@ -758,7 +833,7 @@ types générés dès A2, comme C1a au Lot 7.
   (`_refuse_what_b1_brings`, et le drapeau dans `update_game`) : une ligne
   sans joueur, un champ adverse ou `refreeze_decklists: true` sont refusés en
   422 (verdict `invalid` par `/sync`) jusqu'à ce que B1 sache les
-  enregistrer. **À retirer à B1.**
+  enregistrer. **À retirer à B1** (fait, cf. « Livré à B1 »).
 - **Front rouge jusqu'à C1**, décision de l'utilisateur du 2026-11-08 : A2 ne
   touche aucun fichier du front hors `src/api-client/schema.d.ts`.
   `npx tsc --noEmit -p tsconfig.app.json` signale 10 erreurs, donc le build et
@@ -776,6 +851,94 @@ types générés dès A2, comme C1a au Lot 7.
   refus d'une seule opération par `/sync`) ; attentes alignées dans
   `test_api_decks`, `test_deck_state_matrix`, `test_sync_service`,
   `test_schemas_write`, `test_schemas_read` et `test_play_routes`.
+
+### Livré à B1 (2026-11-12)
+
+Les règles suivies sont celles de A3 et A9, complétées avant le code par
+l'architecte-contrat dans « Précisions pour B1 (2026-11-12) », sous A9 :
+une version par deck dans une partie, appariement par deck au remplacement
+d'une table, passage de la ligne du tournoi à la partie suivante.
+
+- **Gel** (`app/services/deck_versions.py`, nouveau) : `freeze_decklist`
+  agrège la liste par carte, sans langue, extension ni proxy (P2), puis
+  réutilise la dernière version si la liste n'a pas changé, ou crée la
+  suivante. Un deck supprimé se fige depuis `deleted_deck_card` ; un deck vide
+  donne une version sans carte.
+- **Règle du tournoi** (A9), dans le même module :
+  - `assign_versions` décide la version de chaque deck d'une partie qu'on
+    écrit. La version du tournoi passe en premier, puis celle que la partie
+    avait déjà, et sinon le deck se fige. La ligne `tournament_deck_version`
+    se crée si elle manque.
+  - Le regel passe en dernier, sur l'état final. En tournoi, il réécrit la
+    ligne, réaligne toutes les participations du deck et touche `updated_at`
+    des parties modifiées. `tournament.updated_at` ne bouge pas.
+  - `hand_over` fait passer la ligne à la partie restante au plus petit
+    identifiant, ou la retire. Il est appelé après chaque écriture qui peut
+    changer les decks d'un tournoi, et avant la suppression d'une partie,
+    puisque la clé étrangère ne cascade pas.
+- **`app/services/games.py`** :
+  - la création fige ;
+  - la modification ne décide des versions que si la table est remplacée,
+    si le tournoi change ou si `refreeze_decklists` est posé ; toute autre
+    écriture garde les versions ;
+  - `update_game` est découpée en `_resolve_targets`, `_apply_fields` et
+    `_write_table`.
+- **Ligne sans joueur et deck adverse** (P5, P6) :
+  - `Line` accepte un joueur nul et porte les trois champs adverses.
+  - Les refus passent en 422 (`invalid` par `/sync`) : un champ adverse sur ma
+    ligne ou sur une ligne qui joue un de mes decks, une ligne sans joueur qui
+    ne porte ni siège, ni deck prêté, ni champ adverse (des notes seules ne
+    suffisent pas), et des VP sur une ligne sans joueur.
+  - Un clan inconnu rend 404.
+  - Un deck supprimé reste accepté si l'ancienne table le jouait déjà, sur
+    n'importe quelle ligne (`kept_decks` devient un ensemble de decks).
+  - `vtes_rules.table_issues` ignore les joueurs nuls dans le contrôle de
+    doublon.
+- **Garde provisoire d'A2 retirée** : `_refuse_what_b1_brings`, `_NOT_YET` et
+  le refus du drapeau ont disparu. Les tests qui attendaient ces refus
+  constatent maintenant l'enregistrement.
+- **Archétype fermé** : aucun reste de texte libre dans les services ni les
+  routeurs, rien à changer après A2.
+- **Contrat** : `GET /decks/{id}/versions` (`listDeckVersions`) rend les
+  versions par numéro croissant, cartes par identifiant croissant, avec les
+  comptes de crypte et de bibliothèque. Un deck jamais joué donne une liste
+  vide, un deck supprimé reste lisible, et un autre compte reçoit 404.
+  `TournamentDetailRead.deck_versions` est rempli, trié par deck. La
+  description de `frozen_by_game_id` ne dit plus « la première figée ». Le
+  contrat passe à **50 opérations sur 30 chemins**, client TS régénéré.
+- **Tests** : `backend/tests/test_lot8_freeze.py` (57, dont 5 ajoutés par
+  qa-tests : passage d'un tournoi à un autre, regel en tournoi avec un deck
+  prêté, regel dans la même écriture qu'un déplacement vers un tournoi, regel
+  d'un deck supprimé, regel sans changement de liste). La route est ajoutée à
+  la matrice d'autorisation (401 sans session, 404 pour un autre compte). Les
+  décomptes d'opérations sont alignés dans `test_contract_card_search` et
+  `test_openapi_contract`.
+- **Vérifications** (coûts Argon2 de la CI) :
+  - passe complète sous couverture : 2612 verts et 2 `xfail`, aucun échec ;
+  - les 5 tests de la QA, venus après cette passe, sont verts seuls (57 verts
+    dans `test_lot8_freeze.py`), donc 2617 verts attendus à la prochaine
+    passe complète ;
+  - `ruff check` propre, contrat à jour (`--check`) ;
+  - CRAP back : 363 fonctions, aucune au-dessus de 30, pire 21
+    (`admissible_final_decks`, inchangée), aucune régression. Parmi les
+    fonctions touchées, `table_issues` est à 14, `update_game` à 13 ;
+  - front : toujours 10 erreurs `tsc`, mêmes fichiers et même nature qu'à A2.
+- **`/sync`, en avance sur B2** : `game.create`, `game.update` et
+  `game.delete` passent par les services modifiés, si bien que le gel, le
+  deck adverse et le drapeau s'appliquent déjà par la file. Seul le test
+  `/sync` de la ligne sans joueur a changé : il envoie des notes seules et
+  attend `invalid`. B2 garde les tests `/sync` dédiés (drapeau, deck adverse,
+  rejeu sans regel, opération d'avant le lot) et la combinaison d'un
+  remplacement de table et du drapeau dans un même `game.update`, que seule
+  la file permet d'écrire (`PUT /parties/{id}/participations` n'a pas le
+  drapeau).
+- **Écarts au plan** : aucun sur les règles. Deux points à connaître :
+  - une collision de numéro de version entre deux écritures concurrentes rend
+    le 409 générique des parties (« La partie contredit des données
+    existantes. ») ;
+  - le cas « ligne sans version, qui se fige » (point 1 des précisions) ne
+    se produit qu'après R13 sur une base peuplée. Il n'a pas de test de
+    service, puisque la base de développement sera écrasée (P4).
 
 ### Tests attendus (E)
 

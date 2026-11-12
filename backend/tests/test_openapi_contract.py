@@ -106,6 +106,7 @@ EXPECTED_OPERATIONS = {
     ("patch", "/decks/{deck_id}"): "updateDeck",
     ("delete", "/decks/{deck_id}"): "deleteDeck",
     ("get", "/decks/{deck_id}/legalite"): "getDeckLegality",
+    ("get", "/decks/{deck_id}/versions"): "listDeckVersions",
     ("post", "/decks/{deck_id}/cartes"): "addDeckCard",
     (
         "patch",

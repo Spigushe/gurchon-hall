@@ -400,16 +400,18 @@ def round_issues(
 
 @dataclass(frozen=True)
 class TableLine:
-    """Une ligne de table, une fois le joueur résolu en identifiant."""
+    """Une ligne de table, une fois le joueur résolu en identifiant. Une ligne
+    d'adversaire non nommé (Lot 8, P6) n'a pas de joueur."""
 
-    player_id: int
+    player_id: int | None
     is_me: bool
     seat: int | None
 
 
 def table_issues(player_count: int, lines: Iterable[TableLine]) -> list[str]:
     """Une table se tient (A2, A5) : exactement une ligne « Moi », aucun joueur
-    ni siège répété, au plus `player_count` lignes et sièges.
+    ni siège répété (une ligne sans joueur n'a pas d'identité à répéter), au plus
+    `player_count` lignes et sièges.
 
     À appeler **après** la résolution des joueurs : un adversaire désigné une
     fois par identifiant et une fois par référence client, ou un « Moi »
@@ -422,7 +424,7 @@ def table_issues(player_count: int, lines: Iterable[TableLine]) -> list[str]:
         issues.append("La table ne contient pas ma participation.")
     elif mine > 1:
         issues.append("La table contient plusieurs fois ma participation.")
-    players = [line.player_id for line in lines]
+    players = [line.player_id for line in lines if line.player_id is not None]
     if len(players) != len(set(players)):
         issues.append("La table désigne plusieurs fois le même joueur.")
     seats = [line.seat for line in lines if line.seat is not None]

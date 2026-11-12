@@ -25,12 +25,13 @@ from app.models import Game, Tournament
 from app.models.enums import RoundType
 from app.schemas.play import (
     TournamentCreate,
+    TournamentDeckVersionRead,
     TournamentDetailRead,
     TournamentRead,
     TournamentSummary,
     TournamentUpdate,
 )
-from app.services import games, refs, vtes_rules
+from app.services import deck_versions, games, refs, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict, integrity_as_conflict
 from app.services.play_checks import (
@@ -125,18 +126,24 @@ def get_tournament(
     db: Session, user_id: int, tournament_id: int
 ) -> TournamentDetailRead:
     """Le tournoi, mon bilan, mes parties (rondes dans l'ordre, finale en
-    dernier) et les decks que ma finale peut jouer quand c'est calculable."""
+    dernier), les decks que ma finale peut jouer quand c'est calculable et la
+    version de chaque deck joué (A9), triée par deck."""
     tournament = _load(db, user_id, tournament_id)
     rounds = load_rounds(db, user_id, tournament_id)
     played = db.scalars(
         select(Game)
         .where(Game.user_id == user_id, Game.tournament_id == tournament_id)
         .options(selectinload(Game.participations))
+        .execution_options(populate_existing=True)
     ).unique()
     return TournamentDetailRead(
         **_read(tournament, rounds).model_dump(),
         games=[games.to_read(g) for g in sorted(played, key=_game_sort_key)],
         admissible_final_decks=admissible_decks(state_of(tournament), rounds),
+        deck_versions=[
+            TournamentDeckVersionRead.model_validate(row)
+            for row in deck_versions.tournament_versions(db, user_id, tournament_id)
+        ],
     )
 
 

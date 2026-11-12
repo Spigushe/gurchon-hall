@@ -726,18 +726,14 @@ l'ancienne forme, le temps de vider les files.
 **Classement des refus (B1).** Mêmes codes qu'en ligne, un refus n'interrompant
 jamais le lot :
 
-- `invalid` : une ligne sans joueur qui ne porte ni siège ni deck ; un champ
+- `invalid` : une ligne sans joueur qui ne porte ni siège, ni deck prêté, ni
+  champ adverse (des notes seules ne suffisent pas) ; un champ
   adverse sur ma ligne, ou sur une ligne qui joue un de mes decks prêtés ;
 - `not_found` : un `opponent_clan_id` qui ne désigne aucun clan du catalogue ;
 - les règles de table du Lot 7 restent, la règle « exactement une ligne du
   Moi » se lisant sur les lignes qui ont un joueur.
 
-**Garde provisoire, de A2 à B1.** Le contrat accepte les champs nouveaux dès
-A2, mais le service ne sait les enregistrer qu'à B1. D'ici là, une ligne sans
-joueur, un champ adverse ou `refreeze_decklists: true` sont refusés en
-`invalid` (« … pas encore enregistré par le serveur (Lot 8, étape B1). »),
-verdict d'une seule opération et non 422 du lot, plutôt qu'un 500 ou des champs
-perdus sans prévenir.
+**Garde provisoire retirée à B1.** Entre A2 et B1, une ligne sans joueur, un champ adverse ou `refreeze_decklists: true` étaient refusés en `invalid`. Le service de B1 les enregistre : seuls les refus du classement ci-dessus subsistent.
 
 **Lectures.** `ParticipationRead` et `ParticipationSummary` rendent
 `deck_version_id` et `deck_version_number` ; `ParticipationRead`, les trois

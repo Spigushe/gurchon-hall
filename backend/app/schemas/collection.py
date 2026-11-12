@@ -429,5 +429,9 @@ class DeckVersionRead(ReadModel):
         description="Cartes de bibliothèque, quantités comprises."
     )
     cards: list[DeckVersionCardRead] = Field(
-        default=[], description="Les cartes de la version, par identifiant."
+        default=[],
+        description=(
+            "Les cartes de la version, par identifiant de carte croissant ; "
+            "vide pour un deck joué sans aucune ligne."
+        ),
     )

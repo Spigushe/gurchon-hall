@@ -8,9 +8,8 @@ Ce que ce fichier fige, en attendant le service de B1 :
   regel (P3), et l'empreinte inchangée d'une opération écrite avant le lot ;
 * les lectures : version jouée et deck adverse d'une ligne, version d'un deck
   dans un tournoi (A9) ;
-* les gardes provisoires du service (ligne sans joueur, deck adverse, regel),
-  qui refusent en 422 ce que B1 apprendra à enregistrer, plutôt qu'un 500 ou
-  des champs perdus sans prévenir. Ces tests-là sont à remplacer à B1.
+* ce que le service de B1 enregistre : ligne sans joueur, deck adverse, regel
+  (les gardes provisoires de A2 ont été retirées).
 """
 
 from uuid import uuid4
@@ -283,80 +282,64 @@ def test_a_tournament_deck_version_reads_its_number_and_the_freezing_game(
         round_type="preliminary",
         round_number=2,
     ).json()
-    mine = _my_line(db, game["id"])
-    version = DeckVersion(user_id=mine.user_id, deck_id=deck["id"], number=1)
-    db.add(version)
-    db.flush()
-    row = TournamentDeckVersion(
-        tournament_id=tournament["id"],
-        deck_id=deck["id"],
-        user_id=mine.user_id,
-        deck_version_id=version.id,
-        frozen_by_game_id=game["id"],
-    )
-    db.add(row)
-    db.commit()
-
+    row = db.get(TournamentDeckVersion, (tournament["id"], deck["id"]))
     assert TournamentDeckVersionRead.model_validate(row).model_dump() == {
         "deck_id": deck["id"],
-        "deck_version_id": version.id,
+        "deck_version_id": row.deck_version_id,
         "deck_version_number": 1,
         "frozen_by_game_id": game["id"],
     }
-    # Le détail du tournoi porte le champ dès A2 ; B1 le remplit.
     detail = me_api.get(f"/tournois/{tournament['id']}").json()
-    assert isinstance(detail["deck_versions"], list)
+    assert detail["deck_versions"] == [
+        TournamentDeckVersionRead.model_validate(row).model_dump()
+    ]
 
 
 # --------------------------------------------------------------------------
-# Gardes provisoires du service (à remplacer à B1)
+# Ce que B1 enregistre (les gardes provisoires de A2 sont retirées)
 # --------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "line",
-    [
-        pytest.param({"seat": 2}, id="adversaire non nommé"),
-        pytest.param(
-            {"player": None, "seat": 2, "opponent_deck_archetype": "wall"},
-            id="non nommé avec deck adverse",
-        ),
-    ],
-)
-def test_an_unnamed_line_is_refused_until_b1(me_api, line):
-    response = _game(me_api, [{"player": ME}, line])
-    assert response.status_code == 422
-    assert "Adversaire non nommé" in response.text
-    assert me_api.get("/parties").json() == []
+def test_an_unnamed_line_with_a_seat_is_recorded(me_api):
+    response = _game(me_api, [{"player": ME}, {"seat": 2}])
+    assert response.status_code == 201, response.text
+    assert [p["player_id"] is None for p in response.json()["participations"]] == [
+        True,
+        False,
+    ]
 
 
-def test_an_opponent_deck_is_refused_until_b1(me_api):
+def test_an_opponent_deck_is_recorded(me_api):
     opponent = me_api.post("/joueurs", json={"name": "Mikael"}).json()
     response = _game(
         me_api,
         [
             {"player": ME},
-            {"player": {"player_id": opponent["id"]}, "opponent_clan_id": 1},
+            {
+                "player": {"player_id": opponent["id"]},
+                "opponent_deck_archetype": "wall",
+            },
         ],
     )
-    assert response.status_code == 422
-    assert "Deck adverse" in response.text
+    assert response.status_code == 201, response.text
+    archetypes = [
+        p["opponent_deck_archetype"] for p in response.json()["participations"]
+    ]
+    assert sorted(a or "" for a in archetypes) == ["", "wall"]
 
 
-def test_refreeze_is_refused_until_b1(me_api):
+def test_refreeze_is_accepted(me_api):
     game = _game(me_api, [{"player": ME}]).json()
-    response = me_api.patch(
-        f"/parties/{game['id']}", json={"refreeze_decklists": True}
-    )
-    assert response.status_code == 422
-    assert "Figer sur la liste actuelle" in response.text
-    unchanged = me_api.patch(
-        f"/parties/{game['id']}", json={"refreeze_decklists": False}
-    )
-    assert unchanged.status_code == 200
+    for flag in (True, False):
+        response = me_api.patch(
+            f"/parties/{game['id']}", json={"refreeze_decklists": flag}
+        )
+        assert response.status_code == 200, response.text
 
 
-def test_through_sync_an_unnamed_line_is_one_refused_operation(me_api):
+def test_through_sync_an_unnamed_line_without_content_is_one_refused_operation(
+    me_api,
+):
     """Le schéma accepte la ligne : le refus est le verdict d'une seule
     opération, et le reste du lot s'applique."""
     response = me_api.post(
@@ -369,7 +352,7 @@ def test_through_sync_an_unnamed_line_is_one_refused_operation(me_api):
                     data={
                         "played_at": PLAYED,
                         "player_count": 4,
-                        "participations": [{"player": ME}, {"seat": 3}],
+                        "participations": [{"player": ME}, {"notes": "seul"}],
                     },
                 ),
                 _op("deck.create", client_ref="ref-deck", data={"name": "Suite"}),

@@ -76,8 +76,9 @@ from app.schemas.collection import (
     DeckListState,
     DeckRead,
     DeckUpdate,
+    DeckVersionRead,
 )
-from app.services import catalog, stock, vtes_rules
+from app.services import catalog, deck_versions, stock, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict
 from app.services.text_search import contains_folded
@@ -299,6 +300,15 @@ def list_decks(
     if q:
         stmt = stmt.where(contains_folded(Deck.name, q))
     return list(db.scalars(stmt.order_by(Deck.name, Deck.discriminator, Deck.id)))
+
+
+def list_deck_versions(
+    db: Session, user_id: int, deck_id: int
+) -> list[DeckVersionRead]:
+    """Les versions jouées d'un deck (Lot 8, A4) ; lisible aussi pour un deck
+    supprimé, vide pour un deck jamais joué."""
+    _get_deck(db, user_id, deck_id)
+    return deck_versions.read_versions(db, deck_id)
 
 
 def get_deck_detail(db: Session, user_id: int, deck_id: int) -> DeckDetailRead:

@@ -354,6 +354,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/decks/{deck_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Versions jouées d'un deck
+         * @description Les listes que le deck a eues quand une partie l'a joué (Lot 8), par numéro croissant, chacune avec ses cartes (carte × quantité totale, par identifiant de carte croissant) et ses comptes crypte et bibliothèque. Vide pour un deck jamais joué. Lisible aussi pour un deck supprimé.
+         */
+        get: operations["listDeckVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/decks/{deck_id}/cartes": {
         parameters: {
             query?: never;
@@ -1819,6 +1839,61 @@ export interface components {
             data: components["schemas"]["DeckUpdate"];
         };
         /**
+         * DeckVersionCardRead
+         * @description Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).
+         *
+         *     Ni langue, ni extension, ni proxy : deux versions ne se distinguent que par
+         *     carte × quantité, et c'est tout ce qu'une liste de tournoi demande. Le
+         *     client lit le reste de la carte dans son miroir du catalogue.
+         */
+        DeckVersionCardRead: {
+            /** Card Id */
+            card_id: number;
+            /** Quantity */
+            quantity: number;
+        };
+        /**
+         * DeckVersionRead
+         * @description Une liste d'un deck telle qu'elle a été jouée (Lot 8, P1).
+         *
+         *     Coupée par le serveur quand une partie désigne le deck et que sa liste
+         *     diffère de la dernière version ; jamais modifiée ensuite. Un deck jamais
+         *     joué n'a aucune version.
+         */
+        DeckVersionRead: {
+            /** Id */
+            id: number;
+            /** Deck Id */
+            deck_id: number;
+            /**
+             * Number
+             * @description Numéro de la version dans son deck, à partir de 1 (« v3 »).
+             */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Instant où la version a été figée (UTC).
+             */
+            created_at: string;
+            /**
+             * Crypt Count
+             * @description Cartes de crypte, quantités comprises.
+             */
+            crypt_count: number;
+            /**
+             * Library Count
+             * @description Cartes de bibliothèque, quantités comprises.
+             */
+            library_count: number;
+            /**
+             * Cards
+             * @description Les cartes de la version, par identifiant de carte croissant ; vide pour un deck joué sans aucune ligne.
+             * @default []
+             */
+            cards: components["schemas"]["DeckVersionCardRead"][];
+        };
+        /**
          * DisciplineRead
          * @description Discipline.
          */
@@ -2879,7 +2954,7 @@ export interface components {
             deck_version_number: number;
             /**
              * Frozen By Game Id
-             * @description Partie qui a figé la liste (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde.
+             * @description Partie à laquelle la liste est rattachée (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde ; elle passe à la partie suivante du tournoi avec ce deck quand celle-ci est supprimée ou ne le joue plus, et un regel la remplace par la partie regelée.
              */
             frozen_by_game_id: number;
         };
@@ -4548,6 +4623,55 @@ export interface operations {
             };
             /** @description Conflit avec l'état des données (doublon, stock, règle). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDeckVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckVersionRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
