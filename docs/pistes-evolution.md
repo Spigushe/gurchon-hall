@@ -11,27 +11,10 @@ socle hors ligne plus fiable pour Barrin, puis ce qui sert la pratique de VtES.
 
 ## À regarder en premier
 
-### Figer la decklist jouée à chaque partie (avant le Lot 8)
-
-Une participation pointe le deck vivant (`participation.deck_id`). Si le deck
-« Banu Princes » change trois cartes après un tournoi, l'historique de ce
-tournoi montre la nouvelle liste, et l'analyse du Lot 8 attribuera les
-résultats d'avril à la liste de juin. La suppression logique fige déjà une
-decklist (`deleted_deck_card`, Lot 2) ; le même patron, appliqué au moment où
-une partie est saisie, ou une version de deck incrémentée à chaque
-modification, rendrait l'analyse juste.
-
-C'est la piste la plus urgente de cette liste : chaque partie saisie sans
-instantané est une partie que le Lot 8 ne saura pas rattacher à la bonne
-liste. Place proposée : ouverture du Lot 8, ou petit lot juste avant.
-
-### La légalité d'un deck à la date d'un tournoi (Lot 8)
-
-Limite n°6 de la clôture du Lot 2 : les fonctions pures prennent une date
-d'évaluation, mais l'API ne l'expose pas. Avec les tournois du Lot 7, la
-question « ce deck était-il légal le jour du tournoi ? » a un sens. Ouvrir un
-paramètre `on` sur `GET /decks/{id}/legalite`, ou évaluer d'office à la date
-du tournoi depuis sa fiche. Coût faible, les fonctions existent.
+Les deux pistes qui ouvraient cette section, « figer la decklist jouée à
+chaque partie » et « la légalité d'un deck à la date d'un tournoi », ont été
+livrées par le Lot 8 (versions de deck figées au jeu, légalité d'une version à
+la date du tournoi) et retirées le 2026-11-13.
 
 ### La liste des manques (après Inventaires)
 
@@ -64,7 +47,8 @@ navigateur, sans dépendance nouvelle.
 | Suggestions à partir des decks des adversaires | proposer les listes que jouent les gens du club, une fois le Lot 8 livré | extension du lot Inventaires |
 | Export texte d'un deck | partager une liste au format VDB ou au format texte des listes de tournoi | Lot 9, sens inverse de l'import |
 | Statistiques de deck | répartition des disciplines de la bibliothèque et courbe des coûts ; le compte par type, les totaux de sang et de pool, les groupes et la capacité moyenne de la crypte sont livrés par le lot Affichage des decks | quand le besoin apparaît, le miroir a déjà tout |
-| Historique des versions d'un deck | comparer deux états d'une liste, revenir en arrière | avec l'instantané de decklist ci-dessus |
+| Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
+| Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
 
 ### Lien public vers une decklist, vivant ou figé
 

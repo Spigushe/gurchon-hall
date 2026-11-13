@@ -6,8 +6,8 @@ gel des versions, deck adverse et route des versions, puis tests `/sync`, cf.
 « Livré à A1 », « Livré à A2 », « Livré à B1 » et « Livré à B2 » sous le
 découpage ; A9 tranchée le 2026-11-08 : table dédiée ; front en échec de
 typage jusqu'à C1, par décision ; F0, C1, D1, D2 et B3 faits le 2026-11-12, E
-le 2026-11-13, cf. leurs « Livré à »). Prochaine étape : F (mise en service,
-CLAUDE.md, vérification sur téléphone). Rédigé sur la branche
+le 2026-11-13, cf. leurs « Livré à »). **Lot clos le 2026-11-13** (F : vérification
+sur téléphone, correctif des polices d'icônes, CLAUDE.md, cf. « Livré à F »). Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -740,7 +740,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) — **fait le 2026-11-12** (cf. « Livré à D2 ») | D1 |
 | B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne — **fait le 2026-11-12**, avec sa pastille (cf. « Livré à B3 ») | B1 |
 | E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs — **fait le 2026-11-13** (cf. « Livré à E ») | D2 (et B3) |
-| F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone | E |
+| F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone — **fait le 2026-11-13** (cf. « Livré à F ») | E |
 
 **F0 : la base est écrasée, pas migrée** (décision du 2026-11-07, P4).
 L'application n'est pas en ligne et les données actuelles sont de la recette.
@@ -1324,6 +1324,45 @@ Dexie, ni aucun `data-testid` n'ont bougé.
     au second passage.
 - **Reste du critère de fin de lot, hors E** : la vérification sur téléphone
   et l'étape F (CLAUDE.md, pistes retirées de `docs/pistes-evolution.md`).
+
+### Livré à F (2026-11-13)
+
+- **Mise en service** : rien à faire. `backend/vtes.db` est à la tête
+  (`ac6cda5ad252`) depuis F0, aucune révision ne s'est ajoutée depuis, et le
+  contrat compte 51 opérations sur 31 chemins, comme le critère de fin de lot
+  le demande.
+- **Vérification sur téléphone** par l'utilisateur, sur le build de
+  `scripts\run.ps1 preview` en Wifi (`http://` sur l'adresse du réseau local) :
+  partie saisie en mode avion avec le deck de ma proie, deck modifié ensuite,
+  synchronisation, la partie gardant sa liste et le bilan la comptant face à ce
+  deck. Conforme.
+- **Défaut relevé et corrigé : polices d'icônes absentes en mode avion.** La
+  feuille « Clan principal » et les tableaux du deck, ouverts pour la première
+  fois hors ligne, montraient les lettres de la police de repli. Ce n'est pas
+  une régression du lot : `ankha2.otf` et `vtes-clans.otf` sont dans le
+  precache, mais en `http://` sur une IP le service worker ne s'enregistre pas,
+  et un navigateur ne télécharge une `@font-face` qu'au premier glyphe qui
+  l'utilise. Correctif : `preloadGlyphFonts`
+  (`frontend/src/components/glyphs/preloadGlyphFonts.ts`, appelé dans
+  `main.tsx`) demande les deux polices au démarrage, sans jamais lever ; avec le
+  service worker, le precache les sert. Contrôlé dans Chromium sur
+  `http://<IP>:4180`, sans contexte sécurisé ni service worker : les deux
+  polices sont chargées dès l'ouverture, avant tout écran à icônes. Test :
+  `tests/unit/components/preloadGlyphFonts.test.ts` (4).
+- **Documentation** : CLAUDE.md (en-tête, §5 versions, archétypes et
+  positions, §6, §7, §11, §12) ; « figer la decklist jouée » et « légalité à la
+  date d'un tournoi » retirées de `docs/pistes-evolution.md`, avec deux lignes
+  pour ce qui reste (comparer deux versions quelconques, légalité datée d'un
+  deck vivant) ; référence de clôture des `data-testid`,
+  `docs/qa-baselines/testids-lot8-cloture.txt` (563 littéraux statiques
+  distincts, 475 à l'ouverture).
+- **Vérifications** : pytest inchangé depuis E (aucun fichier du back
+  touché) ; après le correctif, vitest sous couverture vert, 1163 tests sur 73
+  fichiers, CRAP front sans régression, `npm run lint` et `tsc` (app et node)
+  propres, aucun `data-testid` disparu. Sur trois passes de vitest sans
+  couverture, une a vu échouer un test non identifié, non reproduit aux deux
+  suivantes : la flakiness résiduelle des Lots 5c et 6, toujours à attribuer.
+  Playwright non relancé depuis E, le correctif ne touchant que le démarrage.
 
 ### Tests attendus (E)
 
