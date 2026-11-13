@@ -93,7 +93,7 @@ describe("version 6 du schéma (lot Chercher : détails du catalogue)", () => {
     const after = new VtesOfflineDb(name);
     try {
       await after.open();
-      expect(after.verno).toBe(6);
+      expect(after.verno).toBe(7);
       expect(await after.cards.count()).toBe(2);
       expect(await after.stock.count()).toBe(1);
       expect(await after.decks.count()).toBe(1);
@@ -139,7 +139,7 @@ describe("version 6 du schéma (lot Chercher : détails du catalogue)", () => {
       const db = new VtesOfflineDb(target);
       try {
         await db.open();
-        expect(db.verno).toBe(6);
+        expect(db.verno).toBe(7);
         expect((await db.outbox.toArray()).map((row) => row.operationId)).toEqual(["op-1"]);
       } finally {
         db.close();
@@ -156,8 +156,8 @@ describe("version 6 du schéma (lot Chercher : détails du catalogue)", () => {
     const second = new VtesOfflineDb(name);
     try {
       await Promise.all([first.open(), second.open()]);
-      expect(first.verno).toBe(6);
-      expect(second.verno).toBe(6);
+      expect(first.verno).toBe(7);
+      expect(second.verno).toBe(7);
       await first.cardDetails.bulkPut(mirrorRows([elan]).details);
       expect(await second.cardDetails.count()).toBe(1);
     } finally {

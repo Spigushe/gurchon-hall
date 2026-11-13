@@ -91,6 +91,29 @@ class DeckStatus(StrEnum):
     ACTIVE = "active"
 
 
+class DeckArchetype(StrEnum):
+    """Archétype d'un deck, le mien comme celui d'un adversaire (Lot 8, P5).
+
+    Liste fermée, choisie par l'utilisateur pour toute l'application : un axe
+    d'analyse qui ne se fragmente pas (« Ministry », « ministry bleed » et
+    « Ministère » ne font plus trois groupes). Un deck à cheval sur deux
+    archétypes se range sous un seul ; le nom de deck adverse, libre, garde la
+    nuance. Les libellés affichés sont ceux des joueurs, en anglais (Bleed,
+    Vote…), et ne vivent que côté client.
+
+    Remplace le texte libre de `deck.archetype` (Lot 1) : la révision R13
+    convertit une valeur égale à un code une fois repliée et refuse de monter
+    sur toute autre.
+    """
+
+    BLEED = "bleed"
+    VOTE = "vote"
+    WALL = "wall"
+    TOOLBOX = "toolbox"
+    RUSH = "rush"
+    COMBO = "combo"
+
+
 class DeckPolicy(StrEnum):
     """Contrainte de deck d'un tournoi (CLAUDE.md §5, « mono / multi-deck »)."""
 

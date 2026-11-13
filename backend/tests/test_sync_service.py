@@ -344,9 +344,9 @@ def test_omitting_a_field_and_sending_null_are_two_different_bodies(api, world):
         "operation_id": key,
         "recorded_at": RECORDED_AT,
         "deck": {"deck_id": world.deck.id},
-        "data": {"archetype": "Vote"},
+        "data": {"archetype": "vote"},
     }
-    erasing = silent | {"data": {"archetype": "Vote", "notes": None}}
+    erasing = silent | {"data": {"archetype": "vote", "notes": None}}
     sync_batch(api, silent)
 
     result = sync_batch(api, erasing)["results"][0]
@@ -557,7 +557,7 @@ def test_a_deck_created_offline_is_designated_by_its_reference_in_the_same_batch
                 "quantity": 2,
             },
         ),
-        op("deck.update", deck={"client_ref": "ref-A"}, data={"archetype": "Bleed"}),
+        op("deck.update", deck={"client_ref": "ref-A"}, data={"archetype": "bleed"}),
     )
 
     assert [r["outcome"] for r in body["results"]] == ["applied"] * 3
@@ -567,7 +567,7 @@ def test_a_deck_created_offline_is_designated_by_its_reference_in_the_same_batch
     assert [r["resource"]["deck_id"] for r in body["results"]] == [deck_id] * 3
 
     deck = api.get(f"/decks/{deck_id}").json()
-    assert deck["archetype"] == "Bleed"
+    assert deck["archetype"] == "bleed"
     assert [line["quantity"] for line in deck["cards"]] == [2]
     # Le discriminant est tiré par le serveur, jamais fourni.
     assert len(deck["discriminator"]) == 4

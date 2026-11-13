@@ -76,13 +76,31 @@ export interface FakeTournament {
   updated_at: string;
 }
 export interface FakeParticipation {
-  player_id: number;
+  /** `null` pour un adversaire non nommé (Lot 8, P6) ; `-1` pour un joueur que le serveur n'a pas su résoudre. */
+  player_id: number | null;
   is_me: boolean;
   deck_id: number | null;
+  /** Version figée (Lot 8) : le serveur factice ne fige rien, un test la pose à la main. */
+  deck_version_id?: number | null;
+  deck_version_number?: number | null;
   seat: number | null;
   victory_points: number | null;
   game_win: boolean | null;
+  opponent_deck_name?: string | null;
+  opponent_deck_archetype?: string | null;
+  opponent_clan_id?: number | null;
   notes: string | null;
+}
+
+/** Une version de deck figée, dans la forme de `DeckVersionRead` (Lot 8). */
+export interface FakeDeckVersion {
+  id: number;
+  deck_id: number;
+  number: number;
+  created_at: string;
+  crypt_count: number;
+  library_count: number;
+  cards: Array<{ card_id: number; quantity: number }>;
 }
 export interface FakeGame {
   id: number;
@@ -134,6 +152,13 @@ export interface FakeServer {
     games: FakeGame[];
     /** Decks admis en finale rendus par `GET /tournois/{id}` (par identifiant de tournoi). */
     admissible: Map<number, number[]>;
+    /** Versions servies par `GET /decks/{id}/versions` (Lot 8). */
+    deckVersions: FakeDeckVersion[];
+    /** `deck_versions` rendues par `GET /tournois/{id}` (par identifiant de tournoi, Lot 8). */
+    tournamentDeckVersions: Map<
+      number,
+      Array<{ deck_id: number; deck_version_id: number; deck_version_number: number; frozen_by_game_id: number }>
+    >;
     journal: Map<string, { fingerprint: string; verdict: Verdict }>;
     requests: Array<{ method: string; path: string; body: unknown }>;
     /** Nombre de fois où un versement de produit a réellement été appliqué. */
@@ -171,6 +196,8 @@ export function createFakeServer(): FakeServer {
     tournaments: [],
     games: [],
     admissible: new Map(),
+    deckVersions: [],
+    tournamentDeckVersions: new Map(),
     journal: new Map(),
     requests: [],
     depositsApplied: 0,
@@ -228,16 +255,20 @@ export function createFakeServer(): FakeServer {
     const data = (op.data ?? {}) as Json;
     const tableOf = (rows: Json[]): FakeParticipation[] =>
       rows.map((line) => {
-        const player = line.player as Json;
-        const playerId = player.me === true ? 1 : resolveRef("player", player);
+        const player = line.player as Json | null | undefined;
+        // Lot 8, P6 : une ligne sans `player` est un adversaire non nommé.
+        const playerId = !player ? null : player.me === true ? 1 : (resolveRef("player", player) ?? -1);
         const deck = line.deck as Json | null | undefined;
         return {
-          player_id: playerId ?? -1,
+          player_id: playerId,
           is_me: playerId === 1,
           deck_id: deck ? ((deck.deck_id as number | undefined) ?? resolveDeck(deck)?.id ?? null) : null,
           seat: (line.seat as number | null | undefined) ?? null,
           victory_points: (line.victory_points as number | null | undefined) ?? null,
           game_win: (line.game_win as boolean | null | undefined) ?? null,
+          opponent_deck_name: (line.opponent_deck_name as string | null | undefined) ?? null,
+          opponent_deck_archetype: (line.opponent_deck_archetype as string | null | undefined) ?? null,
+          opponent_clan_id: (line.opponent_clan_id as number | null | undefined) ?? null,
           notes: (line.notes as string | null | undefined) ?? null,
         };
       });
@@ -653,6 +684,8 @@ export function createFakeServer(): FakeServer {
         const line = game.participations.find((p) => p.is_me);
         return {
           deck_id: line?.deck_id ?? null,
+          deck_version_id: line?.deck_version_id ?? null,
+          deck_version_number: line?.deck_version_number ?? null,
           seat: line?.seat ?? null,
           victory_points: line?.victory_points ?? null,
           game_win: line?.game_win ?? null,
@@ -715,6 +748,7 @@ export function createFakeServer(): FakeServer {
           ...tournamentRead(tournament),
           games: state.games.filter((g) => g.tournament_id === tournament.id).map(gameRead),
           admissible_final_decks: state.admissible.get(tournament.id) ?? null,
+          deck_versions: state.tournamentDeckVersions.get(tournament.id) ?? [],
         });
       }
       if (url.pathname === "/parties") return json(state.games.map(gameRead));
@@ -727,6 +761,11 @@ export function createFakeServer(): FakeServer {
           participations: game.participations.map((line, index) => ({
             id: index + 1,
             game_id: game.id,
+            deck_version_id: null,
+            deck_version_number: null,
+            opponent_deck_name: null,
+            opponent_deck_archetype: null,
+            opponent_clan_id: null,
             ...line,
           })),
         });
@@ -746,6 +785,14 @@ export function createFakeServer(): FakeServer {
         updated_at: "2026-09-20T12:00:00Z",
       });
       if (url.pathname === "/decks") return json(state.decks.map(deckRead));
+      const versionsMatch = url.pathname.match(/^\/decks\/(\d+)\/versions$/);
+      if (versionsMatch) {
+        const deckId = Number(versionsMatch[1]);
+        if (!state.decks.some((item) => item.id === deckId)) return json({ detail: "introuvable" }, 404);
+        return json(
+          state.deckVersions.filter((version) => version.deck_id === deckId).sort((a, b) => a.number - b.number),
+        );
+      }
       const match = url.pathname.match(/^\/decks\/(\d+)$/);
       if (match) {
         const deck = state.decks.find((item) => item.id === Number(match[1]));

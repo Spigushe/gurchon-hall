@@ -1,4 +1,4 @@
-"""Schémas des joueurs, parties, tournois et participations (Lot 7).
+"""Schémas des joueurs, parties, tournois et participations (Lot 7, Lot 8).
 
 Note sur les date-heures entrantes : `played_at` exige un instant **avec
 fuseau** et le convertit en UTC. Une partie saisie hors ligne à 20h à Paris et
@@ -33,6 +33,12 @@ qui refuse fait échouer le **lot entier** en 422, sans verdict, alors qu'un
 refus du service est le verdict `invalid` d'une seule opération, avec son
 message, que l'écran Synchronisation sait corriger (décision du 2026-10-29,
 après la revue de l'étape A2).
+
+**Lot 8.** Une ligne de table porte la version figée du deck qu'elle joue
+(`deck_version_id`, `deck_version_number`), posée par le serveur et jamais
+écrite par le client ; une ligne d'adversaire peut décrire son deck (clan
+principal, archétype, nom) et ne désigner aucun joueur (P5, P6) ; un tournoi
+dit la version de chaque deck joué et la partie qui l'a figée (A9).
 """
 
 from datetime import date, datetime
@@ -40,6 +46,7 @@ from datetime import date, datetime
 from pydantic import Field
 
 from app.models.enums import (
+    DeckArchetype,
     DeckPolicy,
     EventTier,
     FinalDeckRule,
@@ -107,10 +114,36 @@ class PlayerUpdate(WriteModel):
 # --------------------------------------------------------------------------
 
 
+_VERSION_ID_DESCRIPTION = (
+    "Version figée du deck joué (`GET /decks/{id}/versions`), posée par le "
+    "serveur ; nulle sans deck, ou tant que la partie n'est pas figée."
+)
+_VERSION_NUMBER_DESCRIPTION = "Numéro de cette version dans son deck (« v3 »)."
+_OPPONENT_DECK_NAME_DESCRIPTION = (
+    "Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe "
+    "d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes "
+    "decks."
+)
+_OPPONENT_ARCHETYPE_DESCRIPTION = (
+    "Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le "
+    "nom de deck adverse."
+)
+_OPPONENT_CLAN_DESCRIPTION = (
+    "Clan principal du deck d'un adversaire, parmi les clans du catalogue. "
+    "Mêmes conditions que le nom de deck adverse."
+)
+
+
 class ParticipationSummary(ReadModel):
     """Ma ligne d'une partie, en résumé : ce qu'une liste affiche."""
 
     deck_id: int | None = None
+    deck_version_id: int | None = Field(
+        default=None, description=_VERSION_ID_DESCRIPTION
+    )
+    deck_version_number: int | None = Field(
+        default=None, description=_VERSION_NUMBER_DESCRIPTION
+    )
     seat: int | None = None
     victory_points: float | None = None
     game_win: bool | None = None
@@ -121,14 +154,24 @@ class ParticipationRead(ReadModel):
 
     Seule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance
     des joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes
-    decks, prêté pour la partie (P4).
+    decks, prêté pour la partie (P4), ou la description du deck adverse (Lot 8,
+    P5), et peut ne désigner aucun joueur (P6).
     """
 
     id: int
     game_id: int
-    player_id: int
+    player_id: int | None = Field(
+        default=None,
+        description="Joueur de la ligne ; nul pour un adversaire non nommé.",
+    )
     is_me: bool = Field(description="Vrai pour ma ligne, la seule à porter VP et GW.")
     deck_id: int | None = None
+    deck_version_id: int | None = Field(
+        default=None, description=_VERSION_ID_DESCRIPTION
+    )
+    deck_version_number: int | None = Field(
+        default=None, description=_VERSION_NUMBER_DESCRIPTION
+    )
     seat: int | None = Field(
         default=None,
         description="Siège à la table, 1 = premier joueur.",
@@ -143,6 +186,15 @@ class ParticipationRead(ReadModel):
         default=None,
         description="Mon Game Win ; toujours nul sur une ligne d'adversaire.",
     )
+    opponent_deck_name: str | None = Field(
+        default=None, description=_OPPONENT_DECK_NAME_DESCRIPTION
+    )
+    opponent_deck_archetype: DeckArchetype | None = Field(
+        default=None, description=_OPPONENT_ARCHETYPE_DESCRIPTION
+    )
+    opponent_clan_id: int | None = Field(
+        default=None, description=_OPPONENT_CLAN_DESCRIPTION
+    )
     notes: str | None = None
 
 
@@ -150,22 +202,39 @@ class ParticipationCreate(WriteModel):
     """Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.
 
     `player` désigne le joueur : `{"me": true}`, un adversaire par `player_id`,
-    ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est
-    mon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).
-    `victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;
-    laissé vide, le GW est posé par le serveur quand il est certain (A4). Table
+    ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. Omis, la
+    ligne est celle d'un adversaire non nommé (Lot 8, P6), qui doit alors
+    porter un siège ou un deck. `deck` est mon deck sur ma ligne, un deck prêté
+    sur celle d'un adversaire (P4). `victory_points` et `game_win` ne sont
+    acceptés que sur ma ligne (A13) ; laissé vide, le GW est posé par le
+    serveur quand il est certain (A4). Les trois champs `opponent_*` ne sont
+    acceptés que sur une ligne d'adversaire sans deck prêté (P5). Table
     (exactement une ligne « Moi », joueurs et sièges distincts), bornes
-    relatives à la table et GW : contrôles du service, après résolution des
-    joueurs (`vtes_rules.table_issues`).
+    relatives à la table, GW et champs adverses : contrôles du service, après
+    résolution des joueurs (`vtes_rules.table_issues`).
+
+    Pas de version de deck : le serveur la fige lui-même (Lot 8, P3).
     """
 
-    player: ParticipantRef
+    player: ParticipantRef | None = Field(
+        default=None,
+        description="Joueur de la ligne ; à omettre pour un adversaire non nommé.",
+    )
     deck: DeckRef | None = None
     seat: int | None = Field(default=None, ge=1, le=MAX_TABLE_SIZE)
     victory_points: float | None = Field(
         default=None, ge=0, le=MAX_TABLE_SIZE, multiple_of=VP_STEP
     )
     game_win: bool | None = None
+    opponent_deck_name: str | None = Field(
+        default=None, max_length=120, description=_OPPONENT_DECK_NAME_DESCRIPTION
+    )
+    opponent_deck_archetype: DeckArchetype | None = Field(
+        default=None, description=_OPPONENT_ARCHETYPE_DESCRIPTION
+    )
+    opponent_clan_id: int | None = Field(
+        default=None, ge=1, le=MAX_DB_INT, description=_OPPONENT_CLAN_DESCRIPTION
+    )
     notes: str | None = None
 
 
@@ -253,6 +322,11 @@ class GameUpdate(WriteModel):
     nullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être
     remis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au
     service.
+
+    `refreeze_decklists` (Lot 8, P3) fige à nouveau les decks de la table sur
+    leur liste actuelle : pour une amicale, cette partie seulement ; pour une
+    partie de tournoi, toutes les parties du tournoi jouées avec chacun de ces
+    decks, la version d'un deck dans un tournoi étant unique.
     """
 
     played_at: AwareDateTime = UNSET
@@ -262,6 +336,15 @@ class GameUpdate(WriteModel):
     round_type: RoundType = UNSET
     player_count: int = Field(default=UNSET, ge=2, le=MAX_TABLE_SIZE)
     notes: str | None = None
+    refreeze_decklists: bool = Field(
+        default=False,
+        description=(
+            "Fige à nouveau les decks de la table sur leur liste actuelle (« Figer "
+            "sur la liste actuelle »). Dans un tournoi, s'applique à toutes les "
+            "parties du tournoi jouées avec ces decks. Faux par défaut : une "
+            "modification qui ne change pas le deck d'une ligne garde sa version."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
@@ -328,9 +411,29 @@ class TournamentRead(ReadModel):
     updated_at: datetime
 
 
+class TournamentDeckVersionRead(ReadModel):
+    """La version d'un deck dans un tournoi, et la partie qui l'a figée (A9).
+
+    Dans un tournoi, un deck n'a qu'une version : la liste figée à la première
+    partie où il a été joué, ou au dernier « Figer sur la liste actuelle ».
+    """
+
+    deck_id: int
+    deck_version_id: int
+    deck_version_number: int = Field(description=_VERSION_NUMBER_DESCRIPTION)
+    frozen_by_game_id: int = Field(
+        description=(
+            "Partie à laquelle la liste est rattachée (« figée à la ronde 2 ») : la "
+            "première figée, pas forcément la plus petite ronde ; elle passe à la "
+            "partie suivante du tournoi avec ce deck quand celle-ci est supprimée ou "
+            "ne le joue plus, et un regel la remplace par la partie regelée."
+        )
+    )
+
+
 class TournamentDetailRead(TournamentRead):
-    """Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et
-    les decks admis en finale."""
+    """Un tournoi, mes parties dans l'ordre des rondes (finale en dernier), les
+    decks admis en finale et la version de chaque deck joué."""
 
     games: list[GameRead] = []
     admissible_final_decks: list[int] | None = Field(
@@ -339,6 +442,13 @@ class TournamentDetailRead(TournamentRead):
             "Decks que ma finale peut jouer, en multi-deck selon la règle "
             "annoncée ; nul quand rien n'est contrôlable (mono-deck, règle "
             "inconnue, aucune préliminaire jouée avec un deck)."
+        ),
+    )
+    deck_versions: list[TournamentDeckVersionRead] = Field(
+        default=[],
+        description=(
+            "Une ligne par deck joué dans le tournoi, prêts compris, avec sa "
+            "version et la partie qui l'a figée."
         ),
     )
 

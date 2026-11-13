@@ -42,6 +42,7 @@ from app.models import (
     CardTypeLink,
     Clan,
     Deck,
+    DeckArchetype,
     DeckCard,
     DeckPolicy,
     DeckStatus,
@@ -360,7 +361,7 @@ def populate_world(session: Session) -> SimpleNamespace:
         name="Ventrue Grinder",
         created_on=date(2026, 1, 15),
         status=DeckStatus.ACTIVE,
-        archetype="Vote",
+        archetype=DeckArchetype.VOTE,
         user_id=user_id,
     )
     deck_card = DeckCard(

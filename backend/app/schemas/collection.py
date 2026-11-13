@@ -17,7 +17,7 @@ from typing import Annotated
 
 from pydantic import Field, model_validator
 
-from app.models.enums import DeckStatus
+from app.models.enums import DeckArchetype, DeckStatus
 from app.schemas.base import (
     MAX_DB_INT,
     UNSET,
@@ -234,6 +234,12 @@ class DeckCardUpdate(WriteModel):
         return self
 
 
+ARCHETYPE_DESCRIPTION = (
+    "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, "
+    "`combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
+)
+
+
 class DeckRead(ReadModel):
     """Un deck, sans sa composition."""
 
@@ -247,7 +253,9 @@ class DeckRead(ReadModel):
     )
     created_on: date | None = None
     status: DeckStatus
-    archetype: str | None = None
+    archetype: DeckArchetype | None = Field(
+        default=None, description=ARCHETYPE_DESCRIPTION
+    )
     notes: str | None = None
     proxy_allowed: bool = Field(
         description=(
@@ -292,7 +300,9 @@ class DeckCreate(WriteModel):
     name: RequiredText = Field(max_length=120)
     created_on: date | None = None
     status: DeckStatus = DeckStatus.DRAFT
-    archetype: str | None = Field(default=None, max_length=120)
+    archetype: DeckArchetype | None = Field(
+        default=None, description=ARCHETYPE_DESCRIPTION
+    )
     notes: str | None = None
     proxy_allowed: bool = Field(
         default=False,
@@ -319,7 +329,9 @@ class DeckUpdate(WriteModel):
     name: RequiredText = Field(default=UNSET, max_length=120)
     created_on: date | None = None
     status: DeckStatus = UNSET
-    archetype: str | None = Field(default=None, max_length=120)
+    archetype: DeckArchetype | None = Field(
+        default=None, description=ARCHETYPE_DESCRIPTION
+    )
     notes: str | None = None
     proxy_allowed: bool = Field(
         default=UNSET,
@@ -382,3 +394,57 @@ class DeckLegality(ReadModel):
     )
     is_legal: bool
     issues: list[str] = []
+
+
+class DeckVersionLegality(DeckLegality):
+    """Verdict de légalité d'une version jouée, à une date choisie (Lot 8, P11).
+
+    Mêmes règles et mêmes champs que `DeckLegality`, évaluées sur la liste figée
+    et non sur la composition vivante : « la liste jouée était-elle légale le jour
+    du tournoi ? ». Une version ne retient ni langue ni proxy, les proxies
+    comptant de toute façon dans les effectifs.
+    """
+
+    deck_version_id: int
+    number: int = Field(description="Numéro de la version évaluée (« v3 »).")
+
+
+class DeckVersionCardRead(ReadModel):
+    """Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).
+
+    Ni langue, ni extension, ni proxy : deux versions ne se distinguent que par
+    carte × quantité, et c'est tout ce qu'une liste de tournoi demande. Le
+    client lit le reste de la carte dans son miroir du catalogue.
+    """
+
+    card_id: int
+    quantity: int
+
+
+class DeckVersionRead(ReadModel):
+    """Une liste d'un deck telle qu'elle a été jouée (Lot 8, P1).
+
+    Coupée par le serveur quand une partie désigne le deck et que sa liste
+    diffère de la dernière version ; jamais modifiée ensuite. Un deck jamais
+    joué n'a aucune version.
+    """
+
+    id: int
+    deck_id: int
+    number: int = Field(
+        description="Numéro de la version dans son deck, à partir de 1 (« v3 »)."
+    )
+    created_at: datetime = Field(
+        description="Instant où la version a été figée (UTC)."
+    )
+    crypt_count: int = Field(description="Cartes de crypte, quantités comprises.")
+    library_count: int = Field(
+        description="Cartes de bibliothèque, quantités comprises."
+    )
+    cards: list[DeckVersionCardRead] = Field(
+        default=[],
+        description=(
+            "Les cartes de la version, par identifiant de carte croissant ; "
+            "vide pour un deck joué sans aucune ligne."
+        ),
+    )

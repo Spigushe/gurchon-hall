@@ -1,12 +1,13 @@
-# Brief : synchronisation d'un tournoi depuis Archon (Lot 9)
+# Brief : synchronisation d'un tournoi depuis Archon
 
 Souhait de l'utilisateur du 2026-11-02, exprimé pendant l'étape F du Lot 7 :
 récupérer depuis Archon (archon.vekn.net) les informations des tournois auxquels
 il participe. Ce brief garde la forme voulue et ce que l'exploration de l'API a
-montré ce jour-là. La faisabilité s'évalue à l'ouverture du Lot 9, qui partage
-le thème de l'import externe avec les decks VDB (CLAUDE.md §12).
+montré ce jour-là. D'abord rangé au Lot 9, à côté de l'import des decks VDB, le
+chantier a été **renvoyé le 2026-11-12 après la mise en production de la v1**,
+qui suit le Lot 11 (CLAUDE.md §12). La faisabilité s'évalue à son ouverture.
 
-> **État au 2026-11-02 : non commencé, faisabilité à évaluer.** Rien n'a été
+> **État au 2026-11-12 : non commencé, faisabilité à évaluer.** Rien n'a été
 > codé. Le préalable (rôle DEV sur Archon, ci-dessous) dépend de l'utilisateur
 > et non du code.
 
@@ -87,7 +88,7 @@ Le secret du client ne peut pas vivre dans la PWA : l'appel part du back
 FastAPI. Limites de débit annoncées : 600 requêtes par minute par client sur
 `/v1`, 20 par minute sur les routes en flux, 429 avec `Retry-After` au-delà.
 
-## Points à trancher à l'ouverture du Lot 9
+## Points à trancher à l'ouverture du chantier
 
 - **Obtenir le rôle DEV** et enregistrer un client. Sans lui, aucun essai réel.
 - **Un script d'essai** côté back qui lit un tournoi réel de l'utilisateur, pour
@@ -118,9 +119,10 @@ FastAPI. Limites de débit annoncées : 600 requêtes par minute par client sur
   compte et jamais partagée ; à garder en tête si le partage entre comptes
   arrive un jour.
 
-## Lien avec le reste du Lot 9
+## Lien avec le Lot 9
 
 Les decks publiés sur Archon donnent leurs cartes en identifiants krcg, les mêmes
 que notre catalogue. Importer le deck que j'ai joué à un tournoi rejoint donc
-l'import VDB du même lot, avec la même question : que faire d'une carte absente
-de la collection (§11.2).
+l'import VDB du Lot 9, livré d'ici là : il réutilisera son appariement des
+cartes et la réponse qu'il aura donnée à la même question, que faire d'une carte
+absente de la collection (§11.2).

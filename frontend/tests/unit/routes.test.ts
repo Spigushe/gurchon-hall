@@ -87,6 +87,17 @@ describe("routes clientes", () => {
     });
   });
 
+  it("ouvre le bilan, filtré ou non sur un deck, et la liste d'une version (Lot 8)", () => {
+    expect(hrefFor({ name: "bilan" })).toBe("#/bilan");
+    expect(hrefFor({ name: "bilan", deck: "id:4" })).toBe("#/bilan?deck=id:4");
+    expect(parseHash("#/bilan?deck=id:4")).toEqual({ name: "bilan", deck: "id:4" });
+    expect(parseHash("#/bilan?deck=pas-une-cle")).toEqual({ name: "bilan" });
+    expect(hrefFor({ name: "deckVersion", key: "ref:3f2a-9c", number: 2 })).toBe("#/decks/ref:3f2a-9c/versions/2");
+    expect(parseHash("#/decks/id:4/versions/3")).toEqual({ name: "deckVersion", key: "id:4", number: 3 });
+    expect(parseHash("#/decks/id:4/versions/0")).toEqual({ name: "not-found" });
+    expect(parseHash("#/decks/id:4/versions/v2")).toEqual({ name: "not-found" });
+  });
+
   it("tolère l'adresse vide, la barre finale et une query", () => {
     expect(parseHash("")).toEqual({ name: "home" });
     expect(parseHash("#")).toEqual({ name: "home" });

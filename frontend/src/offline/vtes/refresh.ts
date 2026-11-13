@@ -7,6 +7,7 @@ import type {
   CardSetRow,
   DeckCardRow,
   DeckRow,
+  DeckVersionRow,
   GameRow,
   GameTableLineRow,
   LanguageRow,
@@ -265,6 +266,7 @@ export function cardDetailRowOf(card: CardSearchItem): CardDetailRow {
   }));
   return {
     id: card.id,
+    clanId: card.clan?.id ?? null,
     sect: card.sect?.name ?? null,
     title: card.title,
     path: card.path,
@@ -407,6 +409,12 @@ export async function refreshTournaments(client: ApiClient, db: VtesOfflineDb): 
         finalGameWin: detail.my_summary.final_game_win,
       },
       admissibleFinalDecks: detail.admissible_final_decks,
+      deckVersions: detail.deck_versions.map((version) => ({
+        deckId: version.deck_id,
+        deckVersionId: version.deck_version_id,
+        deckVersionNumber: version.deck_version_number,
+        frozenByGameId: version.frozen_by_game_id,
+      })),
       notes: detail.notes,
       updatedAt: detail.updated_at,
     });
@@ -431,6 +439,8 @@ function gameRow(game: Schemas["GameRead"], table: GameTableLineRow[] | null): G
     playerCount: game.player_count,
     me: {
       deckId: game.me.deck_id,
+      deckVersionId: game.me.deck_version_id,
+      deckVersionNumber: game.me.deck_version_number,
       seat: game.me.seat,
       victoryPoints: game.me.victory_points,
       gameWin: game.me.game_win,
@@ -446,9 +456,14 @@ function tableLine(line: Schemas["ParticipationRead"]): GameTableLineRow {
     playerId: line.player_id,
     isMe: line.is_me,
     deckId: line.deck_id,
+    deckVersionId: line.deck_version_id,
+    deckVersionNumber: line.deck_version_number,
     seat: line.seat,
     victoryPoints: line.victory_points,
     gameWin: line.game_win,
+    opponentDeckName: line.opponent_deck_name,
+    opponentDeckArchetype: line.opponent_deck_archetype,
+    opponentClanId: line.opponent_clan_id,
     notes: line.notes,
   };
 }
@@ -484,6 +499,74 @@ export async function refreshGames(client: ApiClient, db: VtesOfflineDb): Promis
     await db.games.clear();
     await db.games.bulkPut(rows);
     await pruneSettled(db, settledUpTo, isGameOperation);
+  });
+  return rows.length;
+}
+
+// --- Versions de deck jouées (Lot 8) ----------------------------------------
+
+/** Versions que le miroir des parties et des tournois désigne, par deck. */
+async function referencedVersions(db: VtesOfflineDb): Promise<Map<number, Set<number>>> {
+  const byDeck = new Map<number, Set<number>>();
+  const note = (deckId: number | null, versionId: number | null | undefined) => {
+    if (deckId === null) return;
+    const versions = byDeck.get(deckId) ?? new Set<number>();
+    if (versionId != null) versions.add(versionId);
+    byDeck.set(deckId, versions);
+  };
+  const [games, tournaments] = await Promise.all([db.games.toArray(), db.tournaments.toArray()]);
+  for (const game of games) {
+    note(game.me.deckId, game.me.deckVersionId);
+    for (const line of game.table ?? []) note(line.deckId, line.deckVersionId);
+  }
+  for (const tournament of tournaments) {
+    for (const version of tournament.deckVersions ?? []) note(version.deckId, version.deckVersionId);
+  }
+  return byDeck;
+}
+
+function deckVersionRow(version: Schemas["DeckVersionRead"]): DeckVersionRow {
+  return {
+    id: version.id,
+    deckId: version.deck_id,
+    number: version.number,
+    createdAt: version.created_at,
+    cryptCount: version.crypt_count,
+    libraryCount: version.library_count,
+    cards: version.cards.map((card) => ({ cardId: card.card_id, quantity: card.quantity })),
+  };
+}
+
+/**
+ * Versions des decks joués (A6), lues par `GET /decks/{id}/versions` pour les
+ * seuls decks que désignent les parties ou les tournois du miroir : à appeler
+ * **après** eux (`runtime.ts`). Une version ne change jamais : un deck dont
+ * toutes les versions désignées sont déjà au miroir n'est pas relu. Un deck
+ * qui n'est plus joué sort du magasin. Un deck introuvable (404) est omis,
+ * comme une partie disparue entre la liste et le détail ; toute autre erreur
+ * annule le rafraîchissement, l'ancien miroir restant intact.
+ */
+export async function refreshDeckVersions(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const referenced = await referencedVersions(db);
+  const known = await db.deckVersions.toArray();
+  const knownIds = new Set(known.map((row) => row.id));
+  const rows: DeckVersionRow[] = [];
+  for (const [deckId, versionIds] of referenced) {
+    // Une ligne sans version (partie d'avant le gel) n'oblige pas à relire le deck.
+    const upToDate = [...versionIds].every((id) => knownIds.has(id));
+    if (upToDate) {
+      rows.push(...known.filter((row) => row.deckId === deckId));
+      continue;
+    }
+    const result = await client.GET("/decks/{deck_id}/versions", {
+      params: { path: { deck_id: deckId } },
+    });
+    if (result.data === undefined && result.response.status === 404) continue;
+    rows.push(...unwrap(result, `GET /decks/${deckId}/versions`).map(deckVersionRow));
+  }
+  await db.transaction("rw", db.deckVersions, async () => {
+    await db.deckVersions.clear();
+    await db.deckVersions.bulkPut(rows);
   });
   return rows.length;
 }

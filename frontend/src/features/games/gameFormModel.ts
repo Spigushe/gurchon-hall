@@ -1,6 +1,9 @@
 import {
   certainGameWin,
+  DECK_ARCHETYPE_LABELS,
   GAME_WIN_MINIMUM_VP,
+  type ClanOption,
+  type DeckArchetype,
   type DeckKey,
   type GameRoundType,
   type LocalGame,
@@ -15,13 +18,28 @@ import { formatVp, numberWord } from "./gameFormat";
  */
 
 export interface OpponentDraft {
-  playerKey: ResourceKey;
+  /** Joueur du carnet ; `null` pour un adversaire non nommé (Lot 8, P6). */
+  playerKey: ResourceKey | null;
   name: string;
+  /**
+   * Clé locale d'une ligne sans joueur, pour que React la suive quand une ligne
+   * voisine est retirée (une ligne nommée se suit par son joueur).
+   */
+  uid?: string;
   seat: number | null;
   /** Un de mes decks prêté à cet adversaire (P4). */
   deckKey: DeckKey | null;
   /** Notes de la ligne, reportées telles quelles à la modification d'une table. */
   notes: string | null;
+  /**
+   * Deck adverse (Lot 8, P5) : clan principal, archétype, nom. Jamais envoyé
+   * avec un deck prêté, dont le deck est déjà connu (le serveur le refuserait).
+   */
+  opponentDeckName?: string | null;
+  opponentDeckArchetype?: DeckArchetype | null;
+  opponentClanId?: number | null;
+  /** Sous-bloc « Son deck » déplié (état d'écran, jamais envoyé). */
+  deckOpen?: boolean;
 }
 
 export interface GameDraft {
@@ -115,9 +133,11 @@ export function applyDraftChanges(current: GameDraft, changes: Partial<GameDraft
   return certainGameWin(next.playerCount, next.vp) === true ? { ...next, gameWin: true } : next;
 }
 
+export type FormErrorId = "gw" | "vp" | "table" | "unnamed";
+
 export interface FormError {
   /** Identifiant stable, repris par `data-form-error` pour poser le focus. */
-  id: "gw" | "vp" | "table";
+  id: FormErrorId;
   message: string;
 }
 
@@ -130,8 +150,29 @@ export function formErrors(draft: GameDraft): FormError[] {
   if (over) errors.push({ id: "vp", message: over });
   const overflow = tableOverflow(draft);
   if (overflow) errors.push({ id: "table", message: overflow });
+  if (draft.opponents.some(isEmptyUnnamed)) {
+    errors.push({ id: "unnamed", message: "Une ligne sans nom doit porter un siège ou un deck pour être enregistrée." });
+  }
   return errors;
 }
+
+/** Le deck adverse est-il saisi (au moins un des trois champs) ? */
+export function hasOpponentDeck(
+  line: Pick<OpponentDraft, "opponentDeckName" | "opponentDeckArchetype" | "opponentClanId">,
+): boolean {
+  return (
+    (line.opponentDeckName ?? "").trim() !== "" || line.opponentDeckArchetype != null || line.opponentClanId != null
+  );
+}
+
+/**
+ * Une ligne sans joueur qui ne dit rien (précision 2 de B1) : ni siège, ni deck
+ * prêté, ni deck adverse. Des notes seules ne suffisent pas, le serveur la refuserait.
+ */
+export function isEmptyUnnamed(line: OpponentDraft): boolean {
+  return line.playerKey === null && line.seat === null && line.deckKey === null && !hasOpponentDeck(line);
+}
+
 
 /** Trop d'adversaires pour la table, sinon `null`. */
 export function tableOverflow(draft: Pick<GameDraft, "opponents" | "playerCount">): string | null {
@@ -170,6 +211,7 @@ export function buildParticipations(draft: GameDraft): ParticipationInput[] {
     const line: ParticipationInput = { player: opponent.playerKey };
     if (opponent.deckKey !== null) line.deck = opponent.deckKey;
     if (opponent.seat !== null) line.seat = opponent.seat;
+    if (opponent.deckKey === null) copyOpponentDeck(opponent, line);
     if (opponent.notes !== null) line.notes = opponent.notes;
     return line;
   });
@@ -189,7 +231,47 @@ export function participationsOf(game: LocalGame): ParticipationInput[] | null {
     }
     if (line.deckKey !== null) out.deck = line.deckKey;
     if (line.seat !== null) out.seat = line.seat;
+    if (!line.isMe && line.deckKey === null) copyOpponentDeck(line, out);
     if (line.notes !== null) out.notes = line.notes;
     return out;
   });
+}
+
+/** Les trois champs du deck adverse (Lot 8, P5), recopiés seulement s'ils sont saisis (même forme des deux côtés). */
+function copyOpponentDeck(
+  from: Pick<OpponentDraft, "opponentDeckName" | "opponentDeckArchetype" | "opponentClanId">,
+  to: ParticipationInput,
+): void {
+  // Le nom se saisit tel quel et part rogné ; vide, il ne part pas.
+  const name = from.opponentDeckName?.trim();
+  if (name) to.opponentDeckName = name;
+  if (from.opponentDeckArchetype != null) to.opponentDeckArchetype = from.opponentDeckArchetype;
+  if (from.opponentClanId != null) to.opponentClanId = from.opponentClanId;
+}
+
+/** « [glyphe] Brujah · Rush » replié, ou « Facultatif » quand rien n'est saisi. */
+export function opponentDeckSummary(
+  line: Pick<OpponentDraft, "opponentDeckName" | "opponentDeckArchetype" | "opponentClanId">,
+  clans: readonly ClanOption[],
+): { clan: string | null; text: string } {
+  const clan = line.opponentClanId == null ? null : (clans.find((item) => item.id === line.opponentClanId)?.name ?? "Clan inconnu");
+  const parts = [
+    clan,
+    line.opponentDeckArchetype ? DECK_ARCHETYPE_LABELS[line.opponentDeckArchetype] : null,
+    (line.opponentDeckName ?? "").trim() || null,
+  ].filter((part): part is string => part !== null);
+  return { clan, text: parts.length === 0 ? "Facultatif" : parts.join(" · ") };
+}
+
+/** Les trois derniers clans saisis pour un adversaire, du plus récent au plus ancien (1b-49). */
+export function recentClanIds(games: readonly LocalGame[], limit = 3): number[] {
+  const recent: number[] = [];
+  for (const game of games) {
+    for (const line of game.table ?? []) {
+      const id = line.opponentClanId;
+      if (id != null && !recent.includes(id)) recent.push(id);
+      if (recent.length >= limit) return recent;
+    }
+  }
+  return recent;
 }

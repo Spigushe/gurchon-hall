@@ -52,7 +52,7 @@ from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import (
     Card,
@@ -61,6 +61,8 @@ from app.models import (
     Deck,
     DeckCard,
     DeckStatus,
+    DeckVersion,
+    DeckVersionCard,
     DeletedDeckCard,
 )
 from app.models.base import utcnow
@@ -76,8 +78,10 @@ from app.schemas.collection import (
     DeckListState,
     DeckRead,
     DeckUpdate,
+    DeckVersionLegality,
+    DeckVersionRead,
 )
-from app.services import catalog, stock, vtes_rules
+from app.services import catalog, deck_versions, stock, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict
 from app.services.text_search import contains_folded
@@ -199,25 +203,16 @@ def _today() -> date:
     return datetime.now(UTC).date()
 
 
-def get_legality(
-    db: Session, user_id: int, deck_id: int, on: date | None = None
-) -> DeckLegality:
-    """Verdict de légalité à la date `on` (aujourd'hui UTC par défaut).
+def _legality_fields(entries: Collection[tuple[Card, int]], on: date) -> dict:
+    """Verdict des cinq règles du §5 sur des couples (carte, quantité), à la date `on`.
 
-    Calculé sur la composition **vivante** : un deck supprimé est refusé (409).
+    Commun à la composition vivante et à une version figée (Lot 8, P11) : une carte
+    peut figurer sur plusieurs couples (deux langues d'une ligne vivante), elle
+    n'est alors comptée qu'une fois pour les groupes et les dates.
     """
-    _get_live_deck(db, user_id, deck_id)
-    on = on or _today()
-    lines = db.scalars(
-        select(DeckCard)
-        .where(DeckCard.deck_id == deck_id)
-        .options(joinedload(DeckCard.card).joinedload(Card.clan))
-    ).all()
-
-    crypt = sum(x.quantity for x in lines if x.card.category is CardCategory.CRYPT)
-    library = sum(x.quantity for x in lines if x.card.category is CardCategory.LIBRARY)
-    # Une carte possédée en deux langues fait deux lignes : on la compte une fois.
-    cards = {line.card_id: line.card for line in lines}.values()
+    crypt = sum(n for card, n in entries if card.category is CardCategory.CRYPT)
+    library = sum(n for card, n in entries if card.category is CardCategory.LIBRARY)
+    cards = {card.id: card for card, _ in entries}.values()
     numbers = sorted(
         {
             number
@@ -256,19 +251,66 @@ def get_legality(
         banned={label(c) for c in banned},
         not_yet_legal={label(c) for c in early},
     )
-    return DeckLegality(
+    return {
+        "evaluated_on": on,
+        "crypt_count": crypt,
+        "library_count": library,
+        "crypt_minimum": vtes_rules.CRYPT_MINIMUM,
+        "library_minimum": vtes_rules.LIBRARY_MINIMUM,
+        "library_maximum": vtes_rules.LIBRARY_MAXIMUM,
+        "crypt_groups": [f"G{number}" for number in numbers],
+        "banned_cards": [CardSummary.model_validate(c) for c in banned],
+        "not_yet_legal_cards": [CardSummary.model_validate(c) for c in early],
+        "is_legal": not issues,
+        "issues": issues,
+    }
+
+
+def get_legality(
+    db: Session, user_id: int, deck_id: int, on: date | None = None
+) -> DeckLegality:
+    """Verdict de légalité à la date `on` (aujourd'hui UTC par défaut).
+
+    Calculé sur la composition **vivante** : un deck supprimé est refusé (409).
+    """
+    _get_live_deck(db, user_id, deck_id)
+    lines = db.scalars(
+        select(DeckCard)
+        .where(DeckCard.deck_id == deck_id)
+        .options(joinedload(DeckCard.card).joinedload(Card.clan))
+    ).all()
+    entries = [(line.card, line.quantity) for line in lines]
+    return DeckLegality(deck_id=deck_id, **_legality_fields(entries, on or _today()))
+
+
+def get_version_legality(
+    db: Session, user_id: int, deck_id: int, number: int, on: date | None = None
+) -> DeckVersionLegality:
+    """Verdict de légalité d'une version jouée à la date `on` (Lot 8, P11).
+
+    La liste figée ne change jamais : la question est « était-elle légale ce
+    jour-là ? », d'où une date passée par l'appelant (celle du tournoi), le jour
+    UTC par défaut. Lisible pour un deck supprimé, comme ses versions ; 404 pour
+    un numéro que le deck n'a pas.
+    """
+    _get_deck(db, user_id, deck_id)
+    version = db.scalars(
+        select(DeckVersion)
+        .where(DeckVersion.deck_id == deck_id, DeckVersion.number == number)
+        .options(
+            selectinload(DeckVersion.cards)
+            .joinedload(DeckVersionCard.card)
+            .joinedload(Card.clan)
+        )
+    ).first()
+    if version is None:
+        raise NotFoundError(f"Version {number} du deck {deck_id} introuvable.")
+    entries = [(line.card, line.quantity) for line in version.cards]
+    return DeckVersionLegality(
         deck_id=deck_id,
-        evaluated_on=on,
-        crypt_count=crypt,
-        library_count=library,
-        crypt_minimum=vtes_rules.CRYPT_MINIMUM,
-        library_minimum=vtes_rules.LIBRARY_MINIMUM,
-        library_maximum=vtes_rules.LIBRARY_MAXIMUM,
-        crypt_groups=[f"G{number}" for number in numbers],
-        banned_cards=[CardSummary.model_validate(c) for c in banned],
-        not_yet_legal_cards=[CardSummary.model_validate(c) for c in early],
-        is_legal=not issues,
-        issues=issues,
+        deck_version_id=version.id,
+        number=version.number,
+        **_legality_fields(entries, on or _today()),
     )
 
 
@@ -299,6 +341,15 @@ def list_decks(
     if q:
         stmt = stmt.where(contains_folded(Deck.name, q))
     return list(db.scalars(stmt.order_by(Deck.name, Deck.discriminator, Deck.id)))
+
+
+def list_deck_versions(
+    db: Session, user_id: int, deck_id: int
+) -> list[DeckVersionRead]:
+    """Les versions jouées d'un deck (Lot 8, A4) ; lisible aussi pour un deck
+    supprimé, vide pour un deck jamais joué."""
+    _get_deck(db, user_id, deck_id)
+    return deck_versions.read_versions(db, deck_id)
 
 
 def get_deck_detail(db: Session, user_id: int, deck_id: int) -> DeckDetailRead:

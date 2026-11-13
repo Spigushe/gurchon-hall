@@ -279,11 +279,13 @@ def test_the_stock_filter_ignores_the_case_of_accented_letters(api, db):
 # --- Noms : bornes -----------------------------------------------------------
 
 
-def test_deck_name_and_archetype_length_limits(api):
+def test_deck_name_length_limits_and_closed_archetype(api):
+    """Le nom reste borné à 120 ; l'archétype n'a plus de longueur, il est l'un
+    des six codes (Lot 8, P5)."""
     assert api.post("/decks", json={"name": "x" * 120}).status_code == 201
     assert api.post("/decks", json={"name": "x" * 121}).status_code == 422
-    too_long = api.post("/decks", json={"name": "a", "archetype": "y" * 121})
-    assert too_long.status_code == 422
+    outside = api.post("/decks", json={"name": "a", "archetype": "y" * 121})
+    assert outside.status_code == 422
 
 
 def test_a_blank_deck_name_is_refused(api):

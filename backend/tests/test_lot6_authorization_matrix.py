@@ -107,6 +107,10 @@ _PROTECTED_ROUTES = [
     ("PATCH", "/decks/1", {"notes": "x"}),
     ("DELETE", "/decks/1", None),
     ("GET", "/decks/1/legalite", None),
+    # Lot 8, étape B1 : les versions jouées d'un deck.
+    ("GET", "/decks/1/versions", None),
+    # Lot 8, étape B3 : légalité d'une version à une date (P11).
+    ("GET", "/decks/1/versions/1/legalite?on=2026-11-01", None),
     (
         "POST",
         "/decks/1/cartes",
@@ -207,6 +211,8 @@ def test_deck_routes_all_render_a_plain_404_for_another_accounts_deck(two_accoun
         api_b.patch(f"/decks/{deck_id}", json={"notes": "intrusion"}),
         api_b.delete(f"/decks/{deck_id}"),
         api_b.get(f"/decks/{deck_id}/legalite"),
+        api_b.get(f"/decks/{deck_id}/versions"),
+        api_b.get(f"/decks/{deck_id}/versions/1/legalite"),
         api_b.post(
             f"/decks/{deck_id}/cartes",
             json={

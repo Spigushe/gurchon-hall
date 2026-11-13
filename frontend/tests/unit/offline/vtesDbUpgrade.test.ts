@@ -109,7 +109,7 @@ describe("montée de version 2 → 4 (Lot 4 : extension dans l'identité du stoc
     // du Lot 7 : `vtesDbV5.test.ts`).
     const after = new VtesOfflineDb(name);
     try {
-      expect(after.verno).toBe(6);
+      expect(after.verno).toBe(7);
 
       // Miroirs vidés : la clé primaire a changé (stock, deckCards), ou la
       // forme des lignes a changé (cards, decks) sans que la clé bouge.

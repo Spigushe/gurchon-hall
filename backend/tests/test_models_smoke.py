@@ -40,9 +40,12 @@ from app.models import (
     CardTypeLink,
     Clan,
     Deck,
+    DeckArchetype,
     DeckCard,
     DeckPolicy,
     DeckStatus,
+    DeckVersion,
+    DeckVersionCard,
     DeletedDeckCard,
     Discipline,
     Game,
@@ -57,6 +60,7 @@ from app.models import (
     SyncOperationType,
     SyncResourceKind,
     Tournament,
+    TournamentDeckVersion,
     TournamentFormat,
     Venue,
 )
@@ -178,7 +182,7 @@ def seeded(session):
         discriminator="8561",
         created_on=date(2026, 1, 15),
         status=DeckStatus.ACTIVE,
-        archetype="Vote",
+        archetype=DeckArchetype.VOTE,
     )
     # Un deck supprimé, dont la decklist a été figée : c'est la seule façon
     # d'avoir une ligne dans `deleted_deck_card`.
@@ -234,19 +238,42 @@ def seeded(session):
         round_type=RoundType.PRELIMINARY,
         player_count=5,
     )
-    session.add(game)
+    # Lot 8 : la liste du deck figée à cette partie, en carte × quantité.
+    version = DeckVersion(user_id=user_id, deck_id=deck.id, number=1)
+    version.cards.append(DeckVersionCard(card_id=card.id, quantity=4))
+    session.add_all([game, version])
     session.flush()
 
-    session.add(
-        Participation(
-            game_id=game.id,
-            user_id=user_id,
-            player_id=player.id,
-            deck_id=deck.id,
-            seat=3,
-            victory_points=2.5,
-            game_win=True,
-        )
+    session.add_all(
+        [
+            Participation(
+                game_id=game.id,
+                user_id=user_id,
+                player_id=player.id,
+                deck_id=deck.id,
+                deck_version_id=version.id,
+                seat=3,
+                victory_points=2.5,
+                game_win=True,
+            ),
+            # Un adversaire non nommé (P6) dont on connaît le deck (P5).
+            Participation(
+                game_id=game.id,
+                user_id=user_id,
+                seat=4,
+                opponent_deck_name="Ventrue bleed",
+                opponent_deck_archetype=DeckArchetype.BLEED,
+                opponent_clan_id=clan.id,
+            ),
+            # La version du deck dans le tournoi, figée par cette partie (A9).
+            TournamentDeckVersion(
+                tournament_id=tournament.id,
+                deck_id=deck.id,
+                user_id=user_id,
+                deck_version_id=version.id,
+                frozen_by_game_id=game.id,
+            ),
+        ]
     )
 
     # Journal de la file hors ligne (Lot 3) : la création du deck ci-dessus,

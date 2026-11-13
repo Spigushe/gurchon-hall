@@ -85,7 +85,7 @@ def stocked_cards(db, crypt_quantity, library_quantity):
 
 
 def test_create_deck_defaults_to_draft(api):
-    response = api.post("/decks", json={"name": "Mon deck", "archetype": "Bleed"})
+    response = api.post("/decks", json={"name": "Mon deck", "archetype": "bleed"})
 
     assert response.status_code == 201
     body = response.json()
@@ -93,7 +93,7 @@ def test_create_deck_defaults_to_draft(api):
     assert re.fullmatch(r"\d{4}", body["discriminator"])
     assert body["archived_at"] is None and body["deleted_at"] is None
     assert body["status"] == "draft"
-    assert body["archetype"] == "Bleed"
+    assert body["archetype"] == "bleed"
     assert body["created_at"] and body["updated_at"]
 
 

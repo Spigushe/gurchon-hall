@@ -11,27 +11,10 @@ socle hors ligne plus fiable pour Barrin, puis ce qui sert la pratique de VtES.
 
 ## À regarder en premier
 
-### Figer la decklist jouée à chaque partie (avant le Lot 8)
-
-Une participation pointe le deck vivant (`participation.deck_id`). Si le deck
-« Banu Princes » change trois cartes après un tournoi, l'historique de ce
-tournoi montre la nouvelle liste, et l'analyse du Lot 8 attribuera les
-résultats d'avril à la liste de juin. La suppression logique fige déjà une
-decklist (`deleted_deck_card`, Lot 2) ; le même patron, appliqué au moment où
-une partie est saisie, ou une version de deck incrémentée à chaque
-modification, rendrait l'analyse juste.
-
-C'est la piste la plus urgente de cette liste : chaque partie saisie sans
-instantané est une partie que le Lot 8 ne saura pas rattacher à la bonne
-liste. Place proposée : ouverture du Lot 8, ou petit lot juste avant.
-
-### La légalité d'un deck à la date d'un tournoi (Lot 8)
-
-Limite n°6 de la clôture du Lot 2 : les fonctions pures prennent une date
-d'évaluation, mais l'API ne l'expose pas. Avec les tournois du Lot 7, la
-question « ce deck était-il légal le jour du tournoi ? » a un sens. Ouvrir un
-paramètre `on` sur `GET /decks/{id}/legalite`, ou évaluer d'office à la date
-du tournoi depuis sa fiche. Coût faible, les fonctions existent.
+Les deux pistes qui ouvraient cette section, « figer la decklist jouée à
+chaque partie » et « la légalité d'un deck à la date d'un tournoi », ont été
+livrées par le Lot 8 (versions de deck figées au jeu, légalité d'une version à
+la date du tournoi) et retirées le 2026-11-13.
 
 ### La liste des manques (après Inventaires)
 
@@ -63,8 +46,65 @@ navigateur, sans dépendance nouvelle.
 | Export de la collection | sauvegarde, et retour vers l'inventaire de VDB ; l'import, lui, est au lot Inventaires | avec le lot Inventaires ou après |
 | Suggestions à partir des decks des adversaires | proposer les listes que jouent les gens du club, une fois le Lot 8 livré | extension du lot Inventaires |
 | Export texte d'un deck | partager une liste au format VDB ou au format texte des listes de tournoi | Lot 9, sens inverse de l'import |
-| Statistiques de deck | répartition des disciplines, des types et des coûts | après Chercher, qui enrichit le miroir des cartes |
-| Historique des versions d'un deck | comparer deux états d'une liste, revenir en arrière | avec l'instantané de decklist ci-dessus |
+| Statistiques de deck | répartition des disciplines de la bibliothèque et courbe des coûts ; le compte par type, les totaux de sang et de pool, les groupes et la capacité moyenne de la crypte sont livrés par le lot Affichage des decks | quand le besoin apparaît, le miroir a déjà tout |
+| Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
+| Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
+
+### Lien public vers une decklist, vivant ou figé
+
+Demandée par l'utilisateur le 2026-11-08. Il s'agit de partager un deck avec
+quelqu'un qui n'a pas de compte : un lien qu'on colle dans un message, qui
+s'ouvre sans session et affiche la decklist en lecture seule. On choisit
+l'option à la création du lien.
+
+Le lien **vivant** suit le deck : chaque consultation montre la composition du
+moment. C'est celui qu'on envoie pendant la construction, pour demander un
+avis. Le lien **figé** (snapshot) montre la liste telle qu'elle était à sa
+création, même si le deck change ensuite ; c'est celui qu'on donne à un
+organisateur de tournoi, ou qu'on garde pour une liste publiée.
+
+La page montrerait le nom du deck, son archétype et sa composition par carte,
+dans les tableaux à icônes du lot Affichage des decks (`DeckTables` en lecture
+seule). Rien de la collection : ni langue, ni extension, ni proxies, ni
+disponibilités. Le handle du compte (`username`) seulement si l'utilisateur le
+choisit.
+
+Points à trancher, relevés en écrivant la piste :
+
+1. **Le figé et les versions du Lot 8.** `deck_version` (A1 de
+   `docs/lot8-plan-analyse.md`) garde déjà carte × quantité, sans langue ni
+   extension, soit exactement ce qu'un lien figé doit montrer. On peut couper
+   une version au moment du partage, mais une version naîtrait alors sans
+   partie et l'analyse par version en verrait une de plus. Ou bien une copie
+   propre au lien, sur le patron de `deleted_deck_card`, qui laisse les
+   versions du Lot 8 liées au seul jeu au prix d'une troisième table de liste
+   figée.
+2. **Première route publique sur une donnée privée.** Hors catalogue et
+   authentification, toute route exige aujourd'hui une session (CLAUDE.md §7).
+   Une route du genre `GET /listes/{jeton}` ferait exception : jeton opaque
+   impossible à deviner (32 octets, comme la session ; jamais l'identifiant du
+   deck, qui est séquentiel), même 404 pour un jeton inconnu, révoqué ou visant
+   un deck supprimé, limitation de débit contre l'énumération, `Cache-Control`
+   court pour le vivant et long pour le figé. Garder le jeton en clair permet
+   de recopier le lien plus tard ; n'en garder que l'empreinte, comme
+   `auth_session`, oblige à ne le montrer qu'une fois. Une decklist n'étant pas
+   un secret, le clair se défend.
+3. **Révocation et cycle de vie.** Plusieurs liens par deck, chacun
+   révocable. Reste à dire ce que deviennent les liens d'un deck archivé, et
+   d'un deck supprimé : le vivant tomberait en 404, le figé pourrait survivre
+   puisqu'il ne dépend plus du deck.
+4. **Hors ligne.** Créer un lien suppose de l'envoyer, donc du réseau : un
+   geste en ligne, comme la légalité, plutôt qu'un type d'opération `/sync` de
+   plus. Un jeton tiré par le client (UUID v4) permettrait de le créer hors
+   ligne, mais le lien ne marcherait qu'après synchronisation.
+5. **Page publique côté client.** Sans session, la coquille affiche l'écran de
+   connexion. Une route à hash `#/liste/<jeton>` devrait s'afficher sans compte
+   et sans ouvrir de base IndexedDB.
+
+Le lien ne sert qu'une fois l'application joignable depuis Internet, donc au
+Lot 11 (HTTPS) ; avant, il ne marche que sur le réseau local. Place proposée :
+après le Lot 8, dont il reprendrait les versions, à côté de l'export texte du
+Lot 9 qui répond au même besoin de partage.
 
 ## Recherche dans le catalogue (après le lot Chercher)
 
@@ -140,7 +180,10 @@ lit l'exigence `mono` / `choice` / `combo` de krcg).
 
 - Les tris restent sensibles à la casse et aux accents (limite n°5 du Lot 2) :
   « Élan » se range après « Zoé ». Le repli `fold_text` existe déjà, il
-  suffirait de trier dessus.
+  suffirait de trier dessus. Chercher, les tableaux de deck et, côté API, les
+  listes de joueurs et de lieux le font déjà. Restent les cartes, la
+  collection et les decks côté API (`ORDER BY name`), et toutes les listes du
+  miroir, que `reads.ts` trie par comparaison brute.
 - La légende des raccourcis `?`, annoncée par le handoff bureau, n'a jamais été
   livrée (reliquat du Lot 5bis).
 - Une flakiness vitest résiduelle, vue aux Lots 5c et 6, reste à attribuer à un

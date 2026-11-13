@@ -354,6 +354,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/decks/{deck_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Versions jouées d'un deck
+         * @description Les listes que le deck a eues quand une partie l'a joué (Lot 8), par numéro croissant, chacune avec ses cartes (carte × quantité totale, par identifiant de carte croissant) et ses comptes crypte et bibliothèque. Vide pour un deck jamais joué. Lisible aussi pour un deck supprimé.
+         */
+        get: operations["listDeckVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}/versions/{number}/legalite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Légalité d'une version jouée à une date
+         * @description Les cinq règles de la légalité d'un deck, évaluées sur la liste figée de la version `number` (Lot 8, P11), à la date `on` (celle du tournoi, en général ; le jour UTC si elle manque). Lisible pour un deck supprimé, comme ses versions ; 404 pour un numéro que le deck n'a pas.
+         */
+        get: operations["getDeckVersionLegality"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/decks/{deck_id}/cartes": {
         parameters: {
             query?: never;
@@ -1292,6 +1332,23 @@ export interface components {
          */
         CostType: "pool" | "blood" | "conviction";
         /**
+         * DeckArchetype
+         * @description Archétype d'un deck, le mien comme celui d'un adversaire (Lot 8, P5).
+         *
+         *     Liste fermée, choisie par l'utilisateur pour toute l'application : un axe
+         *     d'analyse qui ne se fragmente pas (« Ministry », « ministry bleed » et
+         *     « Ministère » ne font plus trois groupes). Un deck à cheval sur deux
+         *     archétypes se range sous un seul ; le nom de deck adverse, libre, garde la
+         *     nuance. Les libellés affichés sont ceux des joueurs, en anglais (Bleed,
+         *     Vote…), et ne vivent que côté client.
+         *
+         *     Remplace le texte libre de `deck.archetype` (Lot 1) : la révision R13
+         *     convertit une valeur égale à un code une fois repliée et refuse de monter
+         *     sur toute autre.
+         * @enum {string}
+         */
+        DeckArchetype: "bleed" | "vote" | "wall" | "toolbox" | "rush" | "combo";
+        /**
          * DeckCardCreate
          * @description Ajout d'une carte à un deck.
          *
@@ -1468,8 +1525,8 @@ export interface components {
             created_on?: string | null;
             /** @default draft */
             status?: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype?: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype?: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -1556,8 +1613,8 @@ export interface components {
             /** Created On */
             created_on: string | null;
             status: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes: string | null;
             /**
@@ -1681,8 +1738,8 @@ export interface components {
             /** Created On */
             created_on: string | null;
             status: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes: string | null;
             /**
@@ -1756,8 +1813,8 @@ export interface components {
             /** Created On */
             created_on?: string | null;
             status?: components["schemas"]["DeckStatus"];
-            /** Archetype */
-            archetype?: string | null;
+            /** @description Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client. */
+            archetype?: components["schemas"]["DeckArchetype"] | null;
             /** Notes */
             notes?: string | null;
             /**
@@ -1800,6 +1857,122 @@ export interface components {
             type: "deck.update";
             deck: components["schemas"]["DeckRef"];
             data: components["schemas"]["DeckUpdate"];
+        };
+        /**
+         * DeckVersionCardRead
+         * @description Une carte d'une version figée, avec sa quantité totale (Lot 8, P2).
+         *
+         *     Ni langue, ni extension, ni proxy : deux versions ne se distinguent que par
+         *     carte × quantité, et c'est tout ce qu'une liste de tournoi demande. Le
+         *     client lit le reste de la carte dans son miroir du catalogue.
+         */
+        DeckVersionCardRead: {
+            /** Card Id */
+            card_id: number;
+            /** Quantity */
+            quantity: number;
+        };
+        /**
+         * DeckVersionLegality
+         * @description Verdict de légalité d'une version jouée, à une date choisie (Lot 8, P11).
+         *
+         *     Mêmes règles et mêmes champs que `DeckLegality`, évaluées sur la liste figée
+         *     et non sur la composition vivante : « la liste jouée était-elle légale le jour
+         *     du tournoi ? ». Une version ne retient ni langue ni proxy, les proxies
+         *     comptant de toute façon dans les effectifs.
+         */
+        DeckVersionLegality: {
+            /** Deck Id */
+            deck_id: number;
+            /**
+             * Evaluated On
+             * Format: date
+             * @description Date à laquelle le verdict a été rendu (bans, légalité).
+             */
+            evaluated_on: string;
+            /** Crypt Count */
+            crypt_count: number;
+            /** Library Count */
+            library_count: number;
+            /** Crypt Minimum */
+            crypt_minimum: number;
+            /** Library Minimum */
+            library_minimum: number;
+            /** Library Maximum */
+            library_maximum: number;
+            /**
+             * Crypt Groups
+             * @description Groupes présents dans la crypt, au format des cartes (« G2 »), sans doublon, triés par numéro, « Any » exclu.
+             * @default []
+             */
+            crypt_groups: string[];
+            /**
+             * Banned Cards
+             * @description Cartes du deck bannies à la date d'évaluation. Des cartes entières et non des noms : « Theo Bell » ne désigne rien sans son groupe.
+             * @default []
+             */
+            banned_cards: components["schemas"]["CardSummary"][];
+            /**
+             * Not Yet Legal Cards
+             * @description Cartes dont la date d'entrée en légalité est postérieure à la date d'évaluation : imprimées, mais pas encore jouables.
+             * @default []
+             */
+            not_yet_legal_cards: components["schemas"]["CardSummary"][];
+            /** Is Legal */
+            is_legal: boolean;
+            /**
+             * Issues
+             * @default []
+             */
+            issues: string[];
+            /** Deck Version Id */
+            deck_version_id: number;
+            /**
+             * Number
+             * @description Numéro de la version évaluée (« v3 »).
+             */
+            number: number;
+        };
+        /**
+         * DeckVersionRead
+         * @description Une liste d'un deck telle qu'elle a été jouée (Lot 8, P1).
+         *
+         *     Coupée par le serveur quand une partie désigne le deck et que sa liste
+         *     diffère de la dernière version ; jamais modifiée ensuite. Un deck jamais
+         *     joué n'a aucune version.
+         */
+        DeckVersionRead: {
+            /** Id */
+            id: number;
+            /** Deck Id */
+            deck_id: number;
+            /**
+             * Number
+             * @description Numéro de la version dans son deck, à partir de 1 (« v3 »).
+             */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Instant où la version a été figée (UTC).
+             */
+            created_at: string;
+            /**
+             * Crypt Count
+             * @description Cartes de crypte, quantités comprises.
+             */
+            crypt_count: number;
+            /**
+             * Library Count
+             * @description Cartes de bibliothèque, quantités comprises.
+             */
+            library_count: number;
+            /**
+             * Cards
+             * @description Les cartes de la version, par identifiant de carte croissant ; vide pour un deck joué sans aucune ligne.
+             * @default []
+             */
+            cards: components["schemas"]["DeckVersionCardRead"][];
         };
         /**
          * DisciplineRead
@@ -2063,6 +2236,11 @@ export interface components {
          *     nullables ; le lieu, le tournoi, la ronde et les notes peuvent, eux, être
          *     remis à `null`. Tournoi et ronde se contrôlent sur l'état fusionné, au
          *     service.
+         *
+         *     `refreeze_decklists` (Lot 8, P3) fige à nouveau les decks de la table sur
+         *     leur liste actuelle : pour une amicale, cette partie seulement ; pour une
+         *     partie de tournoi, toutes les parties du tournoi jouées avec chacun de ces
+         *     decks, la version d'un deck dans un tournoi étant unique.
          */
         GameUpdate: {
             /**
@@ -2079,6 +2257,12 @@ export interface components {
             player_count?: number;
             /** Notes */
             notes?: string | null;
+            /**
+             * Refreeze Decklists
+             * @description Fige à nouveau les decks de la table sur leur liste actuelle (« Figer sur la liste actuelle »). Dans un tournoi, s'applique à toutes les parties du tournoi jouées avec ces decks. Faux par défaut : une modification qui ne change pas le deck d'une ligne garde sa version.
+             * @default false
+             */
+            refreeze_decklists?: boolean;
         };
         /**
          * GameUpdateOperation
@@ -2207,16 +2391,22 @@ export interface components {
          * @description Une ligne de la table, dans une partie saisie ou remplacée d'un bloc.
          *
          *     `player` désigne le joueur : `{"me": true}`, un adversaire par `player_id`,
-         *     ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. `deck` est
-         *     mon deck sur ma ligne, un deck prêté sur celle d'un adversaire (P4).
-         *     `victory_points` et `game_win` ne sont acceptés que sur ma ligne (A13) ;
-         *     laissé vide, le GW est posé par le serveur quand il est certain (A4). Table
+         *     ou, par `/sync`, un adversaire créé hors ligne par `client_ref`. Omis, la
+         *     ligne est celle d'un adversaire non nommé (Lot 8, P6), qui doit alors
+         *     porter un siège ou un deck. `deck` est mon deck sur ma ligne, un deck prêté
+         *     sur celle d'un adversaire (P4). `victory_points` et `game_win` ne sont
+         *     acceptés que sur ma ligne (A13) ; laissé vide, le GW est posé par le
+         *     serveur quand il est certain (A4). Les trois champs `opponent_*` ne sont
+         *     acceptés que sur une ligne d'adversaire sans deck prêté (P5). Table
          *     (exactement une ligne « Moi », joueurs et sièges distincts), bornes
-         *     relatives à la table et GW : contrôles du service, après résolution des
-         *     joueurs (`vtes_rules.table_issues`).
+         *     relatives à la table, GW et champs adverses : contrôles du service, après
+         *     résolution des joueurs (`vtes_rules.table_issues`).
+         *
+         *     Pas de version de deck : le serveur la fige lui-même (Lot 8, P3).
          */
         ParticipationCreate: {
-            player: components["schemas"]["ParticipantRef"];
+            /** @description Joueur de la ligne ; à omettre pour un adversaire non nommé. */
+            player?: components["schemas"]["ParticipantRef"] | null;
             deck?: components["schemas"]["DeckRef"] | null;
             /** Seat */
             seat?: number | null;
@@ -2224,6 +2414,18 @@ export interface components {
             victory_points?: number | null;
             /** Game Win */
             game_win?: boolean | null;
+            /**
+             * Opponent Deck Name
+             * @description Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks.
+             */
+            opponent_deck_name?: string | null;
+            /** @description Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse. */
+            opponent_deck_archetype?: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Opponent Clan Id
+             * @description Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse.
+             */
+            opponent_clan_id?: number | null;
             /** Notes */
             notes?: string | null;
         };
@@ -2233,15 +2435,19 @@ export interface components {
          *
          *     Seule ma ligne porte un résultat (VP, GW) : on ne suit pas la performance
          *     des joueurs rencontrés (A13). Une ligne d'adversaire peut porter l'un de mes
-         *     decks, prêté pour la partie (P4).
+         *     decks, prêté pour la partie (P4), ou la description du deck adverse (Lot 8,
+         *     P5), et peut ne désigner aucun joueur (P6).
          */
         ParticipationRead: {
             /** Id */
             id: number;
             /** Game Id */
             game_id: number;
-            /** Player Id */
-            player_id: number;
+            /**
+             * Player Id
+             * @description Joueur de la ligne ; nul pour un adversaire non nommé.
+             */
+            player_id: number | null;
             /**
              * Is Me
              * @description Vrai pour ma ligne, la seule à porter VP et GW.
@@ -2249,6 +2455,16 @@ export interface components {
             is_me: boolean;
             /** Deck Id */
             deck_id: number | null;
+            /**
+             * Deck Version Id
+             * @description Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée.
+             */
+            deck_version_id: number | null;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number | null;
             /**
              * Seat
              * @description Siège à la table, 1 = premier joueur.
@@ -2264,6 +2480,18 @@ export interface components {
              * @description Mon Game Win ; toujours nul sur une ligne d'adversaire.
              */
             game_win: boolean | null;
+            /**
+             * Opponent Deck Name
+             * @description Nom du deck d'un adversaire, gardé pour mémoire ; n'entre dans aucun axe d'analyse. Seulement sur une ligne d'adversaire qui ne joue pas un de mes decks.
+             */
+            opponent_deck_name: string | null;
+            /** @description Archétype du deck d'un adversaire, parmi les six. Mêmes conditions que le nom de deck adverse. */
+            opponent_deck_archetype: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Opponent Clan Id
+             * @description Clan principal du deck d'un adversaire, parmi les clans du catalogue. Mêmes conditions que le nom de deck adverse.
+             */
+            opponent_clan_id: number | null;
             /** Notes */
             notes: string | null;
         };
@@ -2274,6 +2502,16 @@ export interface components {
         ParticipationSummary: {
             /** Deck Id */
             deck_id: number | null;
+            /**
+             * Deck Version Id
+             * @description Version figée du deck joué (`GET /decks/{id}/versions`), posée par le serveur ; nulle sans deck, ou tant que la partie n'est pas figée.
+             */
+            deck_version_id: number | null;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number | null;
             /** Seat */
             seat: number | null;
             /** Victory Points */
@@ -2779,6 +3017,29 @@ export interface components {
             data: components["schemas"]["TournamentCreate"];
         };
         /**
+         * TournamentDeckVersionRead
+         * @description La version d'un deck dans un tournoi, et la partie qui l'a figée (A9).
+         *
+         *     Dans un tournoi, un deck n'a qu'une version : la liste figée à la première
+         *     partie où il a été joué, ou au dernier « Figer sur la liste actuelle ».
+         */
+        TournamentDeckVersionRead: {
+            /** Deck Id */
+            deck_id: number;
+            /** Deck Version Id */
+            deck_version_id: number;
+            /**
+             * Deck Version Number
+             * @description Numéro de cette version dans son deck (« v3 »).
+             */
+            deck_version_number: number;
+            /**
+             * Frozen By Game Id
+             * @description Partie à laquelle la liste est rattachée (« figée à la ronde 2 ») : la première figée, pas forcément la plus petite ronde ; elle passe à la partie suivante du tournoi avec ce deck quand celle-ci est supprimée ou ne le joue plus, et un regel la remplace par la partie regelée.
+             */
+            frozen_by_game_id: number;
+        };
+        /**
          * TournamentDeleteOperation
          * @description Supprime un tournoi ; refusée (`conflict`) s'il contient des parties.
          */
@@ -2804,8 +3065,8 @@ export interface components {
         };
         /**
          * TournamentDetailRead
-         * @description Un tournoi, mes parties dans l'ordre des rondes (finale en dernier) et
-         *     les decks admis en finale.
+         * @description Un tournoi, mes parties dans l'ordre des rondes (finale en dernier), les
+         *     decks admis en finale et la version de chaque deck joué.
          */
         TournamentDetailRead: {
             /** Id */
@@ -2860,6 +3121,12 @@ export interface components {
              * @description Decks que ma finale peut jouer, en multi-deck selon la règle annoncée ; nul quand rien n'est contrôlable (mono-deck, règle inconnue, aucune préliminaire jouée avec un deck).
              */
             admissible_final_decks: number[] | null;
+            /**
+             * Deck Versions
+             * @description Une ligne par deck joué dans le tournoi, prêts compris, avec sa version et la partie qui l'a figée.
+             * @default []
+             */
+            deck_versions: components["schemas"]["TournamentDeckVersionRead"][];
         };
         /**
          * TournamentFormat
@@ -4437,6 +4704,108 @@ export interface operations {
             };
             /** @description Conflit avec l'état des données (doublon, stock, règle). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listDeckVersions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckVersionRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getDeckVersionLegality: {
+        parameters: {
+            query?: {
+                /** @description Date d'évaluation, `AAAA-MM-JJ` ; le jour UTC par défaut. */
+                on?: string | null;
+            };
+            header?: never;
+            path: {
+                deck_id: number;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckVersionLegality"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

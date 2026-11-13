@@ -20,6 +20,14 @@ sémantique offline) :
   `docs/lot-chercher-plan.md` fait foi pour les données et les règles, et liste les écarts au
   handoff (section « Handoff reçu », sous P6).
 
+- [`LOT8.md`](LOT8.md) — analyse (Lot 8) : bilan `#/bilan`, deck des adversaires, version de
+  deck jouée et « Figer sur la liste actuelle », liste d'une version, résultats d'un deck,
+  versions et légalité datée d'un tournoi, archétype en six puces ; mobile 1b-46 à 1b-58,
+  bureau d25 et d27 à d34. Produit à partir du brief
+  [`lot8-brief-claude-design.md`](lot8-brief-claude-design.md), reçu le 2026-11-08 ; résumé du
+  designer dans [`LOT8-README.md`](LOT8-README.md). `docs/lot8-plan-analyse.md` fait foi pour
+  les données et les règles, et liste les points relevés (section « Handoff reçu », sous P10).
+
 - [`DECKS.md`](DECKS.md) — affichage des decks : tableaux crypte / bibliothèque à icônes, aperçu
   bureau de `#/decks` et deckbuilder `#/decks/{key}` à picker repliable, bureau d22–d24 et mobile
   1b-43, 1b-44. Reçu le 2026-11-06 hors brief ; sa section « Raccord au code » liste ce qu'il
@@ -38,6 +46,9 @@ sémantique offline) :
 - `Gurchon Hall Decks.dc.html`, `DeckTables.dc.html`, `Gurchon Hall Deck Page.dc.html` — affichage
   des decks (`DECKS.md`) ; `Deck Page` est la première version du deckbuilder, gardée pour
   référence. Polices d'icônes chargées depuis static.krcg.org, comme ceux du lot Chercher.
+- `Gurchon Hall Bilan.dc.html`, `Gurchon Hall Bilan Bureau.dc.html`, `lot8-data.js` — Lot 8
+  (`LOT8.md`). `lot8-data.js` est chargé par `import()` : servir le dossier en HTTP
+  (`npx serve .`), il ne se charge pas depuis `file://`.
 - `support.js` — runtime généré des prototypes `.dc.html` (tous le chargent ; à ne pas éditer).
 - `nocturne/` — design system partagé (tokens, styles).
 - `screenshots/1b-*.png` — captures mobiles ; `screenshots/desktop/d*.png` — captures bureau

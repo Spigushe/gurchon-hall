@@ -50,7 +50,8 @@ OWNER_REVISION = "89695b77ef45"  # propriétaire sur les données (Lot 6, R9)
 PRACTICE_REVISION = "783b24f9e769"  # pratique de jeu (Lot 7, R10)
 IDS_REVISION = "e2a7819dd4a2"  # identifiants jamais réattribués (Lot 7, R11)
 REQUIREMENT_REVISION = "8ab23342a26f"  # exigence des cartes (lot Chercher, R12)
-HEAD_REVISION = REQUIREMENT_REVISION
+VERSIONS_REVISION = "ac6cda5ad252"  # versions jouées et deck adverse (Lot 8, R13)
+HEAD_REVISION = VERSIONS_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -64,6 +65,7 @@ REVISIONS = [
     PRACTICE_REVISION,
     IDS_REVISION,
     REQUIREMENT_REVISION,
+    VERSIONS_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -86,6 +88,8 @@ EXPECTED_TABLES = {
     "clan",
     "deck",
     "deck_card",
+    "deck_version",
+    "deck_version_card",
     "deleted_deck_card",
     "discipline",
     "game",
@@ -95,6 +99,7 @@ EXPECTED_TABLES = {
     "sect",
     "sync_operation",
     "tournament",
+    "tournament_deck_version",
     "user_account",
     "venue",
 }
@@ -245,7 +250,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Douze révisions à la suite, sans branche : une racine, une tête."""
+    """Treize révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -257,11 +262,11 @@ def test_history_has_a_single_head_and_a_single_root():
 # --------------------------------------------------------------------------
 
 
-def test_upgrade_head_creates_the_twenty_five_tables(empty_db):
+def test_upgrade_head_creates_the_twenty_eight_tables(empty_db):
     assert not empty_db.exists()
     alembic(empty_db, "upgrade", "head")
     assert table_names(empty_db) == EXPECTED_TABLES
-    assert len(table_names(empty_db) - {"alembic_version"}) == 25
+    assert len(table_names(empty_db) - {"alembic_version"}) == 28
 
 
 def test_upgrade_head_stamps_the_revision(migrated):
@@ -370,7 +375,7 @@ def test_migrated_schema_equals_the_models_schema(migrated, tmp_path):
 
     from_migration = snapshot_of(migrated)
 
-    assert len(from_models) == 25
+    assert len(from_models) == 28
     assert set(from_migration) == set(from_models)
     for table in from_models:
         assert from_migration[table] == from_models[table], table
@@ -2788,8 +2793,12 @@ def seed_practice_at_r10(db_path: Path) -> None:
         )
 
 
-def test_head_gives_an_autoincrement_key_to_the_four_tables_only(migrated, tmp_path):
-    """Les tables migrées et celles des modèles sont les mêmes ; rien d'autre."""
+def test_head_gives_an_autoincrement_key_to_the_four_tables_and_the_versions(
+    migrated, tmp_path
+):
+    """Les tables migrées et celles des modèles sont les mêmes ; rien d'autre.
+    Les quatre de R11, plus `deck_version` (Lot 8, R13) : un client garde
+    l'identifiant d'une version dans son miroir."""
     models_path = tmp_path / "models.db"
     engine = create_engine(url_for(models_path))
     try:
@@ -2797,8 +2806,8 @@ def test_head_gives_an_autoincrement_key_to_the_four_tables_only(migrated, tmp_p
     finally:
         engine.dispose()
 
-    assert autoincrement_tables(migrated) == set(NEVER_REUSED)
-    assert autoincrement_tables(models_path) == set(NEVER_REUSED)
+    assert autoincrement_tables(migrated) == {*NEVER_REUSED, "deck_version"}
+    assert autoincrement_tables(models_path) == {*NEVER_REUSED, "deck_version"}
 
 
 @pytest.mark.parametrize(
@@ -3055,7 +3064,12 @@ def test_the_requirement_revision_adds_no_table(empty_db):
     alembic(empty_db, "upgrade", IDS_REVISION)
     before = table_names(empty_db)
     alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
-    assert table_names(empty_db) == before == EXPECTED_TABLES
+    # Les trois tables du Lot 8 (R13) viennent après.
+    assert table_names(empty_db) == before == EXPECTED_TABLES - {
+        "deck_version",
+        "deck_version_card",
+        "tournament_deck_version",
+    }
 
 
 def test_upgrade_keeps_a_populated_catalogue_and_starts_empty(empty_db):
@@ -3115,4 +3129,441 @@ def test_the_requirement_revision_renders_offline_in_both_directions(empty_db):
     )
     assert "ALTER TABLE card DROP COLUMN library_requirement" in down.stdout
     assert "CREATE TABLE" not in down.stdout
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot 8 : versions jouées et deck adverse (R13)
+# --------------------------------------------------------------------------
+
+VERSIONS_SUFFIX = f"_avant_{VERSIONS_REVISION}"
+LOT8_TABLES = ("deck_version", "deck_version_card", "tournament_deck_version")
+
+# Tout `deck` sauf l'archétype, seule colonne que R13 convertit.
+DECK_WITHOUT_ARCHETYPE = (
+    "SELECT id, user_id, name, discriminator, created_on, status, notes,"
+    " proxy_allowed, archived_at, deleted_at, created_at, updated_at"
+    " FROM deck ORDER BY id"
+)
+ARCHETYPES_BY_DECK = "SELECT id, archetype FROM deck ORDER BY id"
+CONVERTED_ARCHETYPES = [
+    (1, None),
+    (2, "toolbox"),
+    (3, "vote"),
+    (4, None),
+    (5, "bleed"),
+]
+# Les colonnes de `participation` d'avant le Lot 8, dans l'ordre des deux DDL.
+PARTICIPATION_BEFORE_LOT8 = (
+    "SELECT id, user_id, game_id, player_id, deck_id, seat, victory_points,"
+    " game_win, notes FROM participation ORDER BY id"
+)
+LOT8_PARTICIPATION_COLUMNS = (
+    "SELECT deck_version_id, opponent_deck_name, opponent_deck_archetype,"
+    " opponent_clan_id FROM participation ORDER BY id"
+)
+
+
+def seed_practice_at_r12(db_path: Path) -> None:
+    """La pratique de R10 (parties, tables, deck prêté, deux comptes) et des
+    decks dont l'archétype, en texte libre, se convertit : casse, espaces de
+    bord, valeur faite d'espaces, NULL."""
+    seed_practice_at_r10(db_path)
+    execute(db_path, "INSERT INTO clan (id, name) VALUES (1, 'Banu Haqim')")
+    execute(
+        db_path,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, archetype)"
+        " VALUES (2, 1, 'Wall Ventrue', '0001', 'draft', 'Toolbox'),"
+        " (3, 1, 'Vote Tremere', '0001', 'active', '  vote '),"
+        " (4, 1, 'Sans genre', '0001', 'draft', '   '),"
+        " (5, 2, 'Compte deux', '0001', 'draft', 'BLEED')",
+    )
+
+
+def lot8_rows(db_path: Path) -> dict[str, list[tuple]]:
+    """La pratique de R11, `participation` réduite à ses colonnes d'avant le
+    Lot 8, et `deck` sans son archétype."""
+    return {
+        **practice_rows(db_path),
+        "participation": rows(db_path, PARTICIPATION_BEFORE_LOT8),
+        "deck": rows(db_path, DECK_WITHOUT_ARCHETYPE),
+    }
+
+
+def migrated_r12_with_practice(db_path: Path) -> None:
+    alembic(db_path, "upgrade", REQUIREMENT_REVISION)
+    seed_practice_at_r12(db_path)
+    assert foreign_key_violations(db_path) == []
+
+
+def test_upgrade_converts_the_archetypes_and_keeps_every_row(empty_db):
+    """Base peuplée par les fixtures : rien ne se perd, les participations
+    ressortent identiques, colonnes du Lot 8 à NULL, et aucune liste n'est
+    figée (P4)."""
+    migrated_r12_with_practice(empty_db)
+    before = lot8_rows(empty_db)
+
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+
+    assert lot8_rows(empty_db) == before
+    assert rows(empty_db, ARCHETYPES_BY_DECK) == CONVERTED_ARCHETYPES
+    assert set(rows(empty_db, LOT8_PARTICIPATION_COLUMNS)) == {
+        (None, None, None, None)
+    }
+    for table in LOT8_TABLES:
+        assert scalar(empty_db, f"SELECT COUNT(*) FROM {table}") == 0
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+    assert (
+        rows(
+            empty_db,
+            "SELECT name FROM sqlite_master"
+            f" WHERE name LIKE '%{VERSIONS_SUFFIX}%'"
+            f" OR sql LIKE '%{VERSIONS_SUFFIX}%'",
+        )
+        == []
+    )
+
+
+def test_upgrade_refuses_an_archetype_outside_the_six(empty_db):
+    """La révision ne devine pas : la montée s'arrête avant toute
+    modification et nomme les valeurs fautives, et elles seules."""
+    migrated_r12_with_practice(empty_db)
+    execute(
+        empty_db,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, archetype)"
+        " VALUES (6, 1, 'Stealth', '0001', 'draft', 'Stealth bleed'),"
+        " (7, 1, 'Ministry', '0001', 'draft', 'Ministère')",
+    )
+    ddl_before = schema_text(empty_db)
+    archetypes_before = rows(empty_db, ARCHETYPES_BY_DECK)
+
+    result = alembic(empty_db, "upgrade", VERSIONS_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "'Stealth bleed'" in output
+    assert "'Ministère'" in output
+    assert "'Toolbox'" not in output
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == REQUIREMENT_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+    assert rows(empty_db, ARCHETYPES_BY_DECK) == archetypes_before
+
+
+# --- Contraintes à la tête --------------------------------------------------
+
+
+@pytest.fixture
+def versioned(migrated) -> Path:
+    """Tête avec un deck joué à deux rondes d'un tournoi, sa version et la
+    ligne qui la fixe pour le tournoi ; un second deck versionné, et le deck
+    versionné d'un second compte."""
+    add_account(migrated, 2)
+    execute(migrated, "INSERT INTO clan (id, name) VALUES (1, 'Banu Haqim')")
+    execute(
+        migrated,
+        "INSERT INTO card (id, vekn_id, name, category, advanced, burn_option,"
+        " trifle) VALUES (1, 200025, 'Aidan Lyle', 'crypt', 0, 0, 0),"
+        " (2, 100002, '419 Operation', 'library', 0, 0, 0)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, archetype)"
+        " VALUES (1, 1, 'Banu Princes', '0001', 'active', 'vote'),"
+        " (2, 1, 'Wall', '0001', 'draft', NULL),"
+        " (3, 2, 'Autre', '0001', 'draft', NULL)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO deck_version (id, user_id, deck_id, number)"
+        " VALUES (1, 1, 1, 1), (2, 1, 2, 1), (3, 2, 3, 1)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO deck_version_card (deck_version_id, card_id, quantity)"
+        " VALUES (1, 1, 12), (1, 2, 60), (2, 1, 4)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO tournament (id, user_id, name, start_date, deck_policy,"
+        " format) VALUES (1, 1, 'Open', '2026-11-01', 'mono', 'constructed')",
+    )
+    execute(
+        migrated,
+        "INSERT INTO game (id, user_id, played_at, tournament_id, round_number,"
+        " round_type, player_count) VALUES"
+        " (1, 1, '2026-11-01 14:00:00', 1, 1, 'preliminary', 5),"
+        " (2, 1, '2026-11-01 16:00:00', 1, 2, 'preliminary', 5)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO participation (id, user_id, game_id, player_id, deck_id,"
+        " deck_version_id, seat, victory_points, game_win) VALUES"
+        " (1, 1, 1, 1, 1, 1, 1, 2.0, 1), (2, 1, 2, 1, 1, 1, 1, 1.0, 0)",
+    )
+    execute(
+        migrated,
+        "INSERT INTO tournament_deck_version (tournament_id, deck_id, user_id,"
+        " deck_version_id, frozen_by_game_id) VALUES (1, 1, 1, 1, 1)",
+    )
+    assert foreign_key_violations(migrated) == []
+    return migrated
+
+
+def participation_insert(columns: str, values: str) -> str:
+    """Une ligne de plus à la ronde 2, sans joueur sauf mention."""
+    return (
+        f"INSERT INTO participation (user_id, game_id, {columns})"
+        f" VALUES (1, 2, {values})"
+    )
+
+
+def tournament_version_insert(values: str) -> str:
+    return (
+        "INSERT INTO tournament_deck_version (tournament_id, deck_id, user_id,"
+        f" deck_version_id, frozen_by_game_id) VALUES ({values})"
+    )
+
+
+@pytest.mark.parametrize(
+    ("statement", "refused_by"),
+    [
+        pytest.param(
+            "UPDATE deck SET archetype = 'Stealth bleed' WHERE id = 2",
+            "CHECK",
+            id="archétype de deck hors des six",
+        ),
+        pytest.param(
+            participation_insert("seat, opponent_deck_archetype", "3, 'aggro'"),
+            "CHECK",
+            id="archétype adverse hors des six",
+        ),
+        pytest.param(
+            participation_insert("seat, deck_version_id", "3, 1"),
+            "CHECK",
+            id="version sans deck",
+        ),
+        pytest.param(
+            participation_insert("seat, deck_id, deck_version_id", "3, 2, 1"),
+            "FOREIGN KEY",
+            id="version d'un autre deck",
+        ),
+        pytest.param(
+            participation_insert("seat, deck_id, deck_version_id", "3, 1, 3"),
+            "FOREIGN KEY",
+            id="version d'un autre compte",
+        ),
+        pytest.param(
+            participation_insert("seat, opponent_clan_id", "3, 99"),
+            "FOREIGN KEY",
+            id="clan inconnu",
+        ),
+        pytest.param(
+            "INSERT INTO deck_version (user_id, deck_id, number) VALUES (1, 1, 1)",
+            "UNIQUE",
+            id="numéro de version déjà pris",
+        ),
+        pytest.param(
+            "INSERT INTO deck_version (user_id, deck_id, number) VALUES (1, 1, 0)",
+            "CHECK",
+            id="numéro de version nul",
+        ),
+        pytest.param(
+            "INSERT INTO deck_version (user_id, deck_id, number) VALUES (2, 1, 2)",
+            "FOREIGN KEY",
+            id="version du deck d'un autre compte",
+        ),
+        pytest.param(
+            "INSERT INTO deck_version_card (deck_version_id, card_id, quantity)"
+            " VALUES (2, 2, 0)",
+            "CHECK",
+            id="quantité nulle dans une version",
+        ),
+        pytest.param(
+            tournament_version_insert("1, 1, 1, 1, 2"),
+            "UNIQUE",
+            id="deux versions d'un deck dans un tournoi",
+        ),
+        pytest.param(
+            tournament_version_insert("1, 2, 1, 1, 2"),
+            "FOREIGN KEY",
+            id="version de tournoi qui n'est pas celle du deck",
+        ),
+        pytest.param(
+            "DELETE FROM game WHERE id = 1",
+            "FOREIGN KEY",
+            id="suppression de la partie qui a figé",
+        ),
+    ],
+)
+def test_head_enforces_the_version_and_opponent_rules(
+    versioned, statement, refused_by
+):
+    assert refused_by in refusal(versioned, statement)
+
+
+def test_head_accepts_unnamed_opponents_with_their_deck(versioned):
+    """P6 : plusieurs lignes sans joueur à la même table, avec un deck
+    adverse ; l'unicité (`game_id`, `player_id`) ne compare pas les NULL."""
+    engine = create_app_engine(url_for(versioned))
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    participation_insert(
+                        "seat, opponent_deck_name, opponent_deck_archetype,"
+                        " opponent_clan_id",
+                        "2, 'Banu bleed', 'bleed', 1",
+                    )
+                )
+            )
+            connection.execute(
+                text(
+                    participation_insert("seat, opponent_deck_archetype", "5, 'wall'")
+                )
+            )
+    finally:
+        engine.dispose()
+    assert (
+        scalar(versioned, "SELECT COUNT(*) FROM participation WHERE player_id IS NULL")
+        == 2
+    )
+
+
+def test_head_drops_the_cards_of_a_deleted_version(versioned):
+    """Une version ne s'efface pas en pratique ; si elle s'efface, ses cartes
+    partent avec elle."""
+    engine = create_app_engine(url_for(versioned))
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM deck_version WHERE id = 2"))
+    finally:
+        engine.dispose()
+    assert (
+        scalar(
+            versioned,
+            "SELECT COUNT(*) FROM deck_version_card WHERE deck_version_id = 2",
+        )
+        == 0
+    )
+
+
+def test_head_never_gives_a_deleted_version_identifier_again(versioned):
+    execute(versioned, "DELETE FROM deck_version WHERE id = 3")
+    execute(
+        versioned,
+        "INSERT INTO deck_version (user_id, deck_id, number) VALUES (2, 3, 1)",
+    )
+    assert scalar(versioned, "SELECT MAX(id) FROM deck_version") == 4
+
+
+# --- Descente, aller-retour, hors ligne ------------------------------------
+
+
+def test_downgrade_restores_the_r12_ddl_and_every_row(empty_db):
+    """Au caractère près pour le DDL ; l'archétype redescend en texte sous sa
+    forme convertie, sans perte."""
+    migrated_r12_with_practice(empty_db)
+    ddl_before = schema_text(empty_db)
+    rows_before = lot8_rows(empty_db)
+
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+    alembic(empty_db, "downgrade", REQUIREMENT_REVISION)
+
+    assert schema_text(empty_db) == ddl_before
+    assert lot8_rows(empty_db) == rows_before
+    assert rows(empty_db, ARCHETYPES_BY_DECK) == CONVERTED_ARCHETYPES
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+@pytest.mark.parametrize(
+    ("statement", "label"),
+    [
+        pytest.param(
+            "INSERT INTO deck_version (user_id, deck_id, number) VALUES (1, 1, 1)",
+            "deck_version : 1",
+            id="une version",
+        ),
+        pytest.param(
+            "UPDATE participation SET opponent_deck_name = 'Ministry' WHERE id = 2",
+            "participation avec un deck adverse : 1",
+            id="un nom de deck adverse",
+        ),
+        pytest.param(
+            "UPDATE participation SET opponent_clan_id = 1 WHERE id = 3",
+            "participation avec un deck adverse : 1",
+            id="un clan adverse",
+        ),
+        pytest.param(
+            "UPDATE participation SET player_id = NULL WHERE id = 3",
+            "participation sans joueur : 1",
+            id="une ligne sans joueur",
+        ),
+    ],
+)
+def test_downgrading_the_versions_revision_refuses_lot8_data(
+    empty_db, statement, label
+):
+    migrated_r12_with_practice(empty_db)
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+    execute(empty_db, statement)
+    ddl_before = schema_text(empty_db)
+
+    result = alembic(empty_db, "downgrade", REQUIREMENT_REVISION, check=False)
+
+    assert result.returncode != 0
+    assert label in result.stdout + result.stderr
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == VERSIONS_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+
+
+def test_the_versions_revision_round_trip_is_identical(empty_db):
+    migrated_r12_with_practice(empty_db)
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+    ddl = schema_text(empty_db)
+    data = {**lot8_rows(empty_db), "archetype": rows(empty_db, ARCHETYPES_BY_DECK)}
+
+    alembic(empty_db, "downgrade", REQUIREMENT_REVISION)
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert {
+        **lot8_rows(empty_db),
+        "archetype": rows(empty_db, ARCHETYPES_BY_DECK),
+    } == data
+
+
+def test_the_versions_revision_upgrade_renders_offline(empty_db):
+    """La garde est sautée ; le script appelle `fold_text`, que l'application
+    enregistre sur chaque connexion SQLite."""
+    up = alembic(
+        empty_db, "upgrade", f"{REQUIREMENT_REVISION}:{VERSIONS_REVISION}", "--sql"
+    )
+    for table in ("deck", "participation"):
+        assert f"ALTER TABLE {table} RENAME TO {table}{VERSIONS_SUFFIX}" in up.stdout
+    for table in LOT8_TABLES:
+        assert f"CREATE TABLE {table} " in up.stdout
+    assert up.stdout.count("PRIMARY KEY AUTOINCREMENT") == 1
+    assert "NULLIF(fold_text(trim(archetype)), '')" in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_versions_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{VERSIONS_REVISION}:{REQUIREMENT_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
     assert not empty_db.exists()

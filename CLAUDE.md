@@ -4,10 +4,11 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher et Affichage des decks livrés**
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks et 8 livrés**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
-téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07, §12). Lot 0 : squelette
+téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
+vérifié sur téléphone le 2026-11-13, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -56,14 +57,24 @@ ligne par carte, détail par impression, `+` qui prend au stock, `−` à 1 qui 
 icônes de clan et comptes sur chaque ligne de la liste, picker bureau repliable avec
 onglets Crypte / Bibliothèque, légalité du deckbuilder bureau en pastille à infobulle
 (plan dans `docs/lot-affichage-decks-plan.md`, handoff `docs/design-handoff/DECKS.md`,
-décisions au §11). Le modèle compte **25 tables** et douze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+décisions au §11). Lot 8 : la liste d'un deck est figée quand une partie le joue,
+en versions numérotées (carte × quantité, une version par deck et par tournoi),
+avec « Figer sur la liste actuelle » pour corriger après coup ; le deck d'un
+adversaire (clan principal, un des six archétypes fermés, nom), et une ligne
+d'adversaire sans joueur ; l'archétype d'un deck devient lui aussi un de ces six ;
+bilan hors ligne (`#/bilan`) par deck et version, lieu, mois, position à la table
+(proie, prédateur, puis grande proie et grand prédateur) et adversaire, sans aucun
+pourcentage ; liste d'une version, résultats d'un deck, légalité d'une version à la
+date du tournoi (plan dans `docs/lot8-plan-analyse.md`, handoff
+`docs/design-handoff/LOT8.md`, décisions au §11). Le modèle compte **28 tables** et
+treize révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (2491 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (2680 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -74,14 +85,17 @@ l'API de sauvegarde de SQLite, relevé en lecture seule, comparaison ligne à li
 deux relevés : l'outil des mises en service, depuis le lot Chercher),
 `uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions|check-me>`
 (comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1030 tests sur 63 fichiers),
-`npm run test:e2e` (Playwright, 78 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 41 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 26 dans
-`desktop-real-backend` ; il reconstruit `dist/` et `dist-real/` avant de lancer
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1163 tests sur 73 fichiers, à lancer depuis PowerShell en
+`C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
+`npm run test:e2e` (Playwright, 82 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 43 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 28 dans
+`desktop-real-backend` ; si un back de développement tourne et que
+`frontend/.env.local` pointe dessus, comme après `run.ps1 preview`, deux tests du
+projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
 Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
 si le code a changé depuis),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-affichage-decks-cloture.txt`
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot8-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -99,8 +113,13 @@ la base de développement. Vérifier la variable avant toute migration. Depuis l
 2026-11-02, l'API refuse de démarrer contre une base qui n'est pas à la tête des
 scripts (`backend/app/db/schema_check.py`, lecture seule, aucune migration
 automatique ; `SCHEMA_REVISION_CHECK=false` ramène l'arrêt à un avertissement, réservé
-aux tests). Cette base n'est
-pas versionnée ; elle a été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
+aux tests). Cette base n'est pas versionnée. **Depuis le 2026-11-12 (F0 du Lot 8),
+elle est repartie de zéro** : supprimée, montée par `upgrade head` à `ac6cda5ad252`
+(R13), catalogue réimporté (4212 cartes). Elle ne contient plus que des données de
+recette et deux comptes, le compte historique (`id = 1`) laissé non réclamé et un
+compte créé par `manage_accounts.py create` (`id = 2`). Ce qui suit, jusqu'à la
+réclamation du 2026-10-02, décrit l'ancienne base, et les sauvegardes `.bak` qu'il
+cite n'ont plus d'usage (P4 de `docs/lot8-plan-analyse.md`). Elle avait été reconstruite le 2026-09-29 à la révision `b7e41d0c9a52`,
 avec le catalogue krcg importé (4149 cartes, 51 extensions, 113 produits), puis migrée
 le même jour à `f3a91c47b2de`, puis le 2026-10-02 à `89695b77ef45` (Lot 6), puis le
 2026-11-02 à `e2a7819dd4a2` (Lot 7 : R10 puis R11 en un seul `upgrade head`), puis
@@ -149,11 +168,13 @@ neuve), puis `upgrade head` avant de relancer l'import.
 **Routes existantes** : `/health`, `/cartes`, `/bundles`, `/langues`, `/stock`, `/decks`,
 `/extensions`, `/sync`, depuis le Lot 6 `/inscription`, `/connexion`, `/deconnexion`,
 `/moi`, et depuis le Lot 7 `/joueurs`, `/lieux`, `/tournois`, `/parties` (dont
-`PUT /parties/{id}/participations`) — 49 opérations sur 29 chemins au contrat, détail
-au §7. Hors catalogue et authentification, toute route exige une session. Une UI
+`PUT /parties/{id}/participations`), et depuis le Lot 8 `GET /decks/{id}/versions`
+et `GET /decks/{id}/versions/{number}/legalite` — 51 opérations sur 31 chemins au
+contrat, détail au §7. Hors catalogue et authentification, toute route exige une session. Une UI
 métier de consultation et de saisie existe pour la collection, les decks, les parties,
-les tournois, le carnet d'adversaires et de lieux, et la recherche dans le catalogue
-(`#/chercher`, depuis le lot Chercher) (`frontend/src/features/`, routeur
+les tournois, le carnet d'adversaires et de lieux, la recherche dans le catalogue
+(`#/chercher`, depuis le lot Chercher), le bilan (`#/bilan`) et la liste d'une
+version jouée (`#/decks/<clé>/versions/<n>`, depuis le Lot 8) (`frontend/src/features/`, routeur
 à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
 compte, déconnexion), mobile et bureau.
 
@@ -347,6 +368,31 @@ du seuil touche les deux.
   meilleure ronde préliminaire, comparée par GW, puis VP, puis TP ; égalité parfaite :
   tirage au sort) ou **choix libre** (n'importe quel deck joué en préliminaires).
   Sans TP, l'outil admet en finale tous les decks à égalité sur GW et VP.
+- **Version jouée d'un deck** (Lot 8, P1 à P3) : une partie ne pointe plus seulement
+  le deck vivant, mais la liste jouée, figée par le serveur quand il applique
+  l'écriture de la partie. Deux listes ne diffèrent que par carte × quantité totale :
+  langue, extension et proxies ne coupent pas de version. Liste identique à la
+  dernière version du deck : elle est reprise ; différente : une version suivante est
+  numérotée (v1, v2…). **Dans un tournoi, une version par deck** : celle de la
+  première partie figée qui le joue vaut pour toutes les autres, finale comprise (un
+  deck ne change pas pendant un tournoi), et « Figer sur la liste actuelle » sur une
+  partie de tournoi refige toutes celles qui jouent ce deck. Une amicale se fige
+  partie par partie. Décision de l'utilisateur, pas règle VEKN codée.
+- **Archétype** (Lot 8, P5) : liste fermée de six, pour mes decks comme pour ceux des
+  adversaires, un seul choix, facultatif : Bleed, Vote, Wall, Toolbox, Rush, Combo
+  (codes `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`). Choix de l'utilisateur,
+  aucun référentiel VEKN n'en publiant. Le **clan principal** d'un deck adverse se
+  saisit dans les clans du catalogue ; celui de mes decks se déduit de la crypte de la
+  version jouée (le clan qui y compte le plus d'exemplaires).
+- **Positions à la table** (Lot 8, P7, P8) : le jeu tourne dans l'ordre des sièges.
+  La proie du siège *n* est le siège *n* + 1 (le dernier a le premier pour proie), le
+  prédateur le siège *n* − 1 ; la grande proie *n* + 2, le grand prédateur *n* − 2.
+  Ce sont les positions **de départ**, les évictions ne sont pas saisies. À deux
+  joueurs, l'adversaire est proie et prédateur ; à quatre, le siège d'en face est
+  grande proie et grand prédateur ; à six, il n'a aucune position ; à trois ou moins,
+  pas de grande position. Une partie sans mon siège sort de l'axe et se compte ; un
+  siège sans ligne saisie est « inconnu ». Convention de l'outil, calculée côté client
+  seulement (`frontend/src/features/analysis/analysisModel.ts`, `seatPositions`).
 - **Langues** : stock compté séparément par langue — **FR**, **EN**, **ES** ou
   « autre » (`XX`) —, la liste restant ouverte puisque `language` est une table et
   non un enum. Toute entrée de collection porte un code de langue, jamais vide.
@@ -357,6 +403,10 @@ du seuil touche les deux.
 Le Lot 6 ne change aucune de ces règles : la légalité porte sur la composition et le
 catalogue, qui est commun à tous les comptes. Seule la portée de la comptabilité du
 stock et de l'identité d'un deck devient « par compte » (§6).
+
+Le Lot 8 ne change pas non plus les règles de score ni de tournoi : le contrôle de
+mono-deck regarde toujours le deck, pas sa version, et la légalité d'une version
+jouée se lit par les mêmes cinq règles, à la date du tournoi.
 
 Ces règles métier sont la responsabilité de l'agent **architecte-contrat** (skill
 `regles-vtes`).
@@ -425,15 +475,33 @@ Le lot Chercher ajoute la douzième révision, `8ab23342a26f` (R12, A3 du plan) 
 données. Elle se rend hors ligne dans les deux sens et sa descente retire la colonne
 sans garde, l'exigence étant la copie d'une source publique qu'un rejeu de l'import
 rétablit. La secte, elle, n'a demandé aucune migration : `card.sect_id` existait depuis
-le Lot 1 et l'import la remplit. Le modèle compte **25 tables** et douze révisions.
+le Lot 1 et l'import la remplit.
+Le Lot 8 ajoute la treizième révision, `ac6cda5ad252` (R13, A1 et A8 du plan) : trois
+tables neuves, `deck_version`, `deck_version_card` et `tournament_deck_version` ;
+`participation` recréée (joueur nullable, `deck_version_id` et trois champs de deck
+adverse) ; `deck` recréée pour le CHECK de son archétype, qui passe d'un texte libre à
+l'enum `DeckArchetype`. Une seule conversion : un archétype égal à l'un des six codes
+une fois replié (`fold_text`, « Toolbox » → `toolbox`) est converti, un archétype vide
+ou fait d'espaces devient NULL, et toute autre valeur fait **refuser la montée**
+(`RuntimeError` avant toute modification, valeurs fautives citées) : la migration ne
+devine pas qu'un « stealth bleed » est un Bleed. Forme de R9 (renommage puis
+recréation à la main) ; la montée se rend hors ligne mais appelle `fold_text`, donc se
+joue sur une connexion ouverte par l'application, pas dans le client `sqlite3` nu. La
+descente rend les archétypes en texte, refuse de tourner dès qu'il existe une version
+ou un champ adverse, et ne se rend pas hors ligne (sa garde lit la base, comme celle
+de R10). Elle n'a été appliquée sur aucune base peuplée réelle, la base de
+développement ayant été reconstruite à neuf (F0) : les tests d'aller-retour sur une
+base peuplée par les fixtures sont sa seule garantie avant la mise en production. Le
+modèle compte **28 tables** et treize révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
 | Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé). Révoquer une session, c'est supprimer sa ligne |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; `sect_id` rempli par l'import pour toute carte de crypte (secte dérivée du texte, lot Chercher), nul en bibliothèque ; `library_requirement`, exigence brute de `vteslibmeta.csv`, lue à la sortie par `library_requirement` (R12) ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme) |
-| Pratique | `player`, `tournament`, `game`, `participation` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme). Depuis le Lot 8 : `deck.archetype` est l'enum `DeckArchetype` (six codes, CHECK `ck_deck_deck_archetype`, nullable) |
+| Versions jouées | `deck_version`, `deck_version_card` | Lot 8. `deck_version` : `user_id`, `deck_id`, `number` (≥ 1, unique par deck), `created_at` seul (une version ne se modifie jamais), en `AUTOINCREMENT` ; FK composite (`deck_id`, `user_id`) → `deck`, et unicité (`id`, `deck_id`, `user_id`) qui sert de cible à `participation`. `deck_version_card` : carte × quantité (≥ 1), PK (`deck_version_id`, `card_id`), FK vers `card` seulement, comme `deleted_deck_card` vers `card_set` : une liste figée ne réserve rien. Pas d'empreinte, la comparaison se fait en mémoire. Une version vide existe (deck joué sans carte) |
+| Pratique | `player`, `tournament`, `game`, `participation`, `tournament_deck_version` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table. Depuis le Lot 8 : `participation.player_id` nullable (adversaire non nommé, P6 ; l'unicité (`game_id`, `player_id`) tient, SQLite ne comparant pas les NULL), `deck_version_id` avec une FK composite (`deck_version_id`, `deck_id`, `user_id`) → `deck_version` et le CHECK `ck_participation_version_requires_deck`, et sur une ligne d'adversaire `opponent_deck_name` (120 caractères), `opponent_deck_archetype` (`DeckArchetype`) et `opponent_clan_id` (FK vers `clan`). `tournament_deck_version` (A9) : PK (`tournament_id`, `deck_id`), `deck_version_id` et `frozen_by_game_id`, non nul et sans cascade, si bien que la base refuse de supprimer la partie qui a figé tant que la ligne la désigne ; le service la fait passer à la partie restante au plus petit identifiant, ou la retire |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
 **Identité et cycle de vie d'un deck** (passe 2) : `deck.name` n'est plus unique ; il
@@ -452,8 +520,8 @@ quel statut restaurer.
 
 Choix transverses : dates/heures stockées en **UTC** (les schémas d'entrée exigent un
 fuseau et normalisent, les schémas de lecture ressortent un instant explicite suffixé
-« Z ») ; enums fermés (catégorie de carte, statut de deck, mono/multi,
-format, type de ronde, type de coût, exigence de discipline, type d'occurrence) portés
+« Z ») ; enums fermés (catégorie de carte, statut de deck, archétype depuis le Lot 8,
+mono/multi, format, type de ronde, type de coût, exigence de discipline, type d'occurrence) portés
 par des CHECK nommés en base ; SQLite avec `PRAGMA foreign_keys = ON` sur chaque
 connexion (`backend/app/db/session.py`) — sauf pendant une migration, où
 `migrations/env.py` les coupe le temps du mode batch (qui recrée les tables, et vidait
@@ -498,6 +566,15 @@ colonne) → en logique de service + tests :
   au Lot 7* ;
 - classement final saisi, borné par le nombre de joueurs, de 1 à 5 si j'ai joué la
   finale, 1 si j'y ai le GW — *fait au Lot 7* ;
+- gel de la liste jouée (§5) : dans une partie, un deck n'a qu'une version, quelle
+  que soit la ligne qui le joue ; dans un tournoi, une ligne `tournament_deck_version`
+  existe pour un deck si et seulement si une partie du tournoi le joue, et toutes ces
+  parties portent sa version. Seules la création, le remplacement de la table, le
+  changement de tournoi et le drapeau `refreeze_decklists` décident des versions ;
+  toute autre écriture les garde — *fait au Lot 8* (`services/deck_versions.py`) ;
+- champs de deck adverse seulement sur une ligne d'adversaire qui ne joue pas un de
+  mes decks ; une ligne sans joueur porte un siège, un deck prêté ou un champ adverse
+  (des notes seules ne suffisent pas), jamais de VP — *fait au Lot 8* ;
 - réconciliation stock ↔ decks (optionnel, cf. §11).
 
 ---
@@ -513,8 +590,8 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 à 7 (chemins en français, `operationId` en anglais camelCase),
-49 opérations sur 29 chemins :
+Livré aux Lots 2 à 8 (chemins en français, `operationId` en anglais camelCase),
+51 opérations sur 31 chemins :
 
 | Route | Rôle |
 | --- | --- |
@@ -529,16 +606,18 @@ Livré aux Lots 2 à 7 (chemins en français, `operationId` en anglais camelCase
 | `GET/POST /langues` | liste ouverte des langues ; lecture publique, ajout réservé au rôle `admin` (403 pour un compte `user`, Lot 6) |
 | `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}/{card_set_id}` | collection, une entrée par carte, langue et extension ; filtre `card_set_id` sur la liste ; 404 pour une extension où la carte n'a pas été imprimée |
 | `GET /decks` | liste filtrée par `state` (`active` par défaut, `archived`, `all`), `status` et `q` ; tri nom puis discriminant. Les decks supprimés n'y figurent jamais |
-| `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client |
+| `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client ; depuis le Lot 8, `archetype` est un des six codes de `DeckArchetype` ou nul (422 sinon, sans repli de casse), dans `DeckCreate`, `DeckUpdate` et `DeckRead` |
 | `GET /decks/{id}` | deck et composition ; un deck supprimé se lit encore, en lecture seule, depuis sa decklist figée |
 | `PATCH /decks/{id}` | modification partielle, `proxy_allowed` compris (409 s'il est retiré à un deck qui joue des proxies), et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
 | `GET /decks/{id}/legalite` | verdict daté (`evaluated_on`) : les cinq règles du §5, les seuils, les groupes de crypt, les cartes bannies et pas encore légales, et `issues` en clair |
 | `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck ; une ligne qui consomme au moins un exemplaire réel est allouée depuis l'entrée de stock du même triplet, une ligne entièrement en proxy n'en exige aucune (`f3a91c47b2de`) |
+| `GET /decks/{id}/versions` (`listDeckVersions`) | Lot 8. Versions jouées par numéro croissant, chacune avec sa date, ses cartes (carte × quantité, par identifiant croissant) et ses comptes crypte et bibliothèque ; liste vide pour un deck jamais joué, lisible pour un deck supprimé |
+| `GET /decks/{id}/versions/{number}/legalite` (`getDeckVersionLegality`) | Lot 8. Les cinq règles du §5 sur la liste figée de la version, à la date `on` (jour UTC par défaut) : `DeckVersionLegality`, soit `DeckLegality` plus `deck_version_id` et `number` ; 404 pour un numéro que le deck n'a pas |
 | `GET/POST /joueurs`, `GET/PATCH/DELETE /joueurs/{id}` | Lot 7. Adversaires du compte, « Moi » en tête de liste (`q`) ; 409 nom déjà pris, et à la suppression du « Moi » ou d'un joueur présent à une table |
 | `GET/POST /lieux`, `GET/PATCH/DELETE /lieux/{id}` | Lot 7. Lieux du compte (`name`, `city`, `notes`), avec leurs compteurs de parties et de tournois ; 409 nom déjà pris ou lieu référencé |
 | `GET/POST /tournois`, `GET/PATCH/DELETE /tournois/{id}` | Lot 7. Liste (`q`, `from`, `to`) avec mon bilan (`my_summary` : GW et VP des préliminaires, rondes jouées, VP et GW de finale) ; détail avec mes parties et `admissible_final_decks` ; 422 multi-deck à un niveau de championnat ou classement contredit, 409 si le passage en mono ou un changement de règle de finale contredit les parties ; suppression refusée (409) tant qu'il contient des parties |
-| `GET/POST /parties`, `GET/PATCH/DELETE /parties/{id}` | Lot 7. Liste filtrée (`tournament_id`, `casual`, `deck_id`, `venue_id`, `from`, `to`), avec ma ligne en résumé (`me`) et `tournament_name` ; création avec la table complète, qui contient exactement une ligne du « Moi » ; suppression physique |
+| `GET/POST /parties`, `GET/PATCH/DELETE /parties/{id}` | Lot 7. Liste filtrée (`tournament_id`, `casual`, `deck_id`, `venue_id`, `from`, `to`), avec ma ligne en résumé (`me`) et `tournament_name` ; création avec la table complète, qui contient exactement une ligne du « Moi » ; suppression physique. Depuis le Lot 8 : chaque ligne rend `deck_version_id` et `deck_version_number` (jamais écrits par le client), une ligne d'adversaire peut omettre `player` et porter `opponent_deck_name`, `opponent_deck_archetype`, `opponent_clan_id` ; `GameUpdate.refreeze_decklists` refige la liste courante (sur tout le tournoi pour ce deck) ; `TournamentDetailRead.deck_versions` donne, par deck joué, sa version et la partie qui l'a figée |
 | `PUT /parties/{id}/participations` (`replaceGameParticipations`) | Lot 7. Remplace la table entière (`GameTableReplace`) : pas de verbe par participation |
 | `POST /sync` | lot d'opérations idempotentes de la file offline (vingt types : `stock.upsert/delete`, `deck.create/update/delete`, `deck_card.upsert/delete`, `bundle.deposit`, et depuis le Lot 7 `player.*`, `venue.*`, `tournament.*`, `game.*` en `create/update/delete`), avec `card_set_id` obligatoire partout où figure `language_code` depuis le Lot 4 ; un verdict par opération, jamais une bascule en bloc du lot. Détail complet au §11 et dans `docs/lot3-sync-contrat.md` |
 
@@ -553,6 +632,16 @@ une lecture complète du catalogue passe de 4,3 Mo de JSON à 501 Ko en 22 pages
 `BaseHTTPMiddleware` (slowapi, contrôle d'origine), qui relaient le corps en flux ;
 au-dessus d'elles, elle perdait le `Content-Length` des réponses courtes. Aucun corps
 ne portant de secret, il n'y a pas de risque de type BREACH.
+
+Le Lot 8 ajoute deux routes sous `/decks` (51 opérations sur 31 chemins,
+`API_ROUTE_PREFIXES` inchangé) et aucun type d'opération `/sync`. Les champs nouveaux
+des parties sont **facultatifs** dans `game.create`, `game.update` et le remplacement de
+table : une opération écrite avant le lot se rejoue telle quelle, avec la même
+empreinte (`exclude_unset`), et un rejeu rend le verdict mémorisé sans rien refiger.
+Une exception assumée : `deck.create` et `deck.update` n'acceptent plus qu'un des six
+archétypes, et un archétype libre resté en file fait refuser le lot en 422 (aucune
+file n'existait hors des postes de recette). Section « Lot 8 » dans
+`docs/lot3-sync-contrat.md`.
 
 Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
 format standard de FastAPI, y compris ceux que le service produit lui-même. `POST /sync`
@@ -778,7 +867,9 @@ Tranchées (contexte VtES, avant Lot 1) :
    (nom et archétype) entrera dans le suivi, pour analyser les résultats d'un de
    mes decks selon le deck de ma proie et celui de mon prédateur. Ses
    **résultats** restent hors suivi (A13 et P7 de `docs/lot7-plan-parties.md`).
-   Le Lot 7 applique encore la règle d'origine.
+   Le Lot 7 applique encore la règle d'origine. *Appliqué au Lot 8* : clan
+   principal, archétype (un des six) et nom de deck sur une ligne d'adversaire,
+   nommé ou non (P5, P6 de `docs/lot8-plan-analyse.md`) ; ni VP ni GW pour lui.
 4. **Langue au niveau de la carte** (pas seulement du stock ni du deck) : un
    deck peut donc contenir des cartes de langues différentes d'un exemplaire à
    l'autre.
@@ -944,6 +1035,8 @@ Limites connues et décisions en attente, à la clôture du Lot 2 :
 6. **`banned_on` et `legal_from` ne sont évalués qu'à la date du jour** : les fonctions
    pures prennent une date d'évaluation, mais l'API n'expose pas ce paramètre. Un verdict
    rétrospectif (« ce deck était-il légal en mars ? ») demanderait de l'ouvrir.
+   *Soldée en partie au Lot 8* : la date s'ouvre pour une version jouée
+   (`GET /decks/{id}/versions/{number}/legalite?on=…`), pas pour le deck vivant.
 
 Tranchées pendant le Lot 3 :
 
@@ -1756,6 +1849,122 @@ Limites connues à la clôture du lot Affichage des decks :
   picker replié après un rechargement au bureau), `printings` et l'e2e n°14 de
   `lot5c-symetrie` mis à jour.
 
+Tranchées pendant le Lot 8 (P4 et P10 tranchées par l'utilisateur le 2026-11-07, les
+autres le 2026-11-08 à l'étape A0, A9 le même jour après le handoff, précisions pour B1
+le 2026-11-12 ; plan, livraisons par étape et écarts dans
+`docs/lot8-plan-analyse.md`, qui fait foi pour le détail, handoff dans
+`docs/design-handoff/LOT8.md`) :
+
+- **Versions coupées au jeu (P1, P2).** Ni une copie par partie, qui aurait donné trois
+  copies identiques pour trois rondes, ni une version à chaque modification du deck,
+  inutilisable. Le serveur fige la liste quand il applique l'écriture d'une partie
+  (`freeze_decklist`, `services/deck_versions.py`) : carte × quantité totale, sans
+  langue, extension ni proxy, la dernière version reprise si la liste n'a pas changé.
+  Un deck jamais joué n'a pas de version ; un deck supprimé se fige depuis
+  `deleted_deck_card` ; un deck vide donne une version sans carte.
+- **Le serveur fige, pas le client (P3).** Envoyer la liste dans l'opération aurait
+  alourdi le contrat et fait valider une decklist par partie à partir d'un miroir
+  peut-être en retard. Par `/sync`, l'ordre de la file fait l'ordre du gel : une partie
+  saisie hors ligne puis le deck retouché arrivent dans cet ordre, et la partie garde la
+  liste d'avant. Limite acceptée : sur deux appareils, c'est l'ordre d'arrivée au
+  serveur qui décide. Le client ne fabrique jamais de version ; une partie en file
+  affiche « liste figée à la synchronisation ».
+- **Une version par deck et par tournoi (P3, voulue par l'utilisateur, A9).** La
+  première partie figée qui joue un deck fixe sa version pour le tournoi entier, finale
+  comprise, et une ronde 2 saisie avant la ronde 1 la fixe. La règle tient en base dans
+  `tournament_deck_version`, qui dit aussi quelle partie a figé (« figée à la ronde 2 »
+  du handoff, non déductible). Elle rend P12 (deux versions dans un tournoi mono-deck)
+  sans objet. Une partie qui quitte un tournoi pour une amicale garde ses versions ; une
+  partie qui entre dans un tournoi prend la version du tournoi, ou y fixe la sienne.
+- **« Figer sur la liste actuelle » (P3)**, par `game.update` et le drapeau
+  `refreeze_decklists` : seule correction possible, sur la liste courante uniquement,
+  sans choix parmi les versions passées. En tournoi, elle refige toutes les parties qui
+  jouent ce deck et touche leur `updated_at` pour que le miroir relise leurs tables,
+  pas celui du tournoi. La confirmation annonce l'effet (« elle deviendra la v3 », « rien
+  ne change ») en comparant la liste à la **dernière** version, comme le serveur, sur une
+  table de cas commune aux deux (`backend/tests/fixtures/decklist_freeze_cases.json`) ;
+  la première écriture comparait à la version jouée, écart trouvé et corrigé à l'étape E.
+- **Base de développement écrasée, pas migrée (P4, F0).** L'application n'étant pas
+  en ligne et la base ne contenant que de la recette, `backend/vtes.db` a été
+  reconstruite à neuf à la tête le 2026-11-12 : aucune partie n'est antérieure au gel,
+  et R13 n'a rien converti en réel.
+- **Six archétypes fermés pour toute l'application (P5)**, contre la recommandation
+  d'un texte libre : un texte se fragmente (« Ministry », « ministry bleed »), une liste
+  fermée donne un axe d'analyse fiable. `deck.archetype` passe du texte libre à l'enum,
+  formulaire à six puces. Libellés en anglais, vocabulaire des joueurs.
+- **Adversaire non nommé (P6)** : une ligne sans joueur, montrée « Joueur non nommé »,
+  pour noter « elle jouait Tremere » sans remplir le carnet de « Inconnu 1 ».
+- **Positions de départ, jusqu'aux grandes proie et prédateur (P7, P8)**, déduites des
+  sièges, sans rien stocker (§5). Proie et prédateur sont l'axe principal ; les deux
+  positions éloignées viennent après, repliées (« Plus loin à la table »).
+- **Jamais de pourcentage (P8)**, quel que soit le nombre de parties : « 6 GW sur 14
+  parties ». Le modèle n'en produit aucun, même en interne, pour qu'un écran ne puisse
+  pas en afficher ; les barres GW se dessinent en `flex-grow` à partir des comptes
+  (confirmées par l'utilisateur le 2026-11-12). Pas de courbes dans le temps.
+- **Analyse côté client, hors ligne (P9).** Fonctions pures sur le miroir
+  (`features/analysis/analysisModel.ts` pour les positions, `bilanModel.ts` pour les
+  filtres, axes et agrégats), en tables de petites fonctions sans `switch`. Pas de route
+  `/analyse` : elle serait indisponible au club et ignorerait les parties en file.
+- **Navigation (P10).** Troisième segment « Bilan » dans l'onglet Parties
+  (`#/bilan`, `#/bilan?deck=<clé>`), sans sixième onglet ; encart « Résultats » d'un
+  deck ; liste d'une version (`#/decks/<clé>/versions/<n>`, `DeckTables` en lecture
+  seule, changements depuis la version précédente) ; bloc « Decks joués » du tournoi ;
+  aucune dépendance de graphique.
+- **Légalité d'une version à la date du tournoi (P11)**, en ligne seulement, en
+  pastille dans « Decks joués » (« Légal le 24 octobre », « Illégal le 24 octobre ·
+  bibliothèque 58/60 »). Le calcul est commun à `GET /decks/{id}/legalite`
+  (`_legality_fields`).
+- **Dexie version 7** : magasin `deckVersions` (`id, deckId`) ajouté sans changement de
+  clé ; l'`upgrade` vide `cardDetails` pour y ajouter `clanId` (liste des clans du
+  formulaire), ce qui rend le catalogue « incomplet » et déclenche sa relecture unique
+  au retour du réseau, sans toucher `cards`. Les versions se relisent pour les seuls
+  decks que désignent les parties ou les tournois du miroir, et une version déjà connue
+  n'est jamais relue.
+- **Polices d'icônes chargées au démarrage** (`components/glyphs/preloadGlyphFonts.ts`),
+  défaut relevé à la vérification sur téléphone : en `http://` sur l'adresse du réseau
+  local, sans service worker, un écran à icônes ouvert pour la première fois en mode
+  avion montrait les lettres de la police de repli. Elles sont demandées tant que le
+  réseau est là ; avec le service worker, le precache les sert.
+- **`data-testid`** : référence de clôture `docs/qa-baselines/testids-lot8-cloture.txt`
+  (563 littéraux statiques distincts, 475 à l'ouverture), aucun disparu.
+
+Limites connues à la clôture du Lot 8 :
+
+- **R13 jamais appliquée à une base réelle peuplée** : la base de développement a été
+  reconstruite à neuf, si bien que la conversion des archétypes et la recréation de
+  `participation` et `deck` ne sont éprouvées que par les tests d'aller-retour sur une
+  base peuplée par les fixtures. À essayer sur copie avant la mise en production.
+- **Deux appareils** : le gel suit l'ordre d'application sur le serveur, pas l'ordre
+  de saisie entre appareils ; une partie saisie hors ligne sur le téléphone pendant que
+  le deck change en ligne sur l'ordinateur prend la liste de l'ordinateur. Remède :
+  « Figer sur la liste actuelle ».
+- **Petits nombres** : le bilan ne pondère rien et n'affiche aucun pourcentage, mais
+  quelques parties suffisent à faire un groupe ; le nombre de parties reste toujours
+  écrit à côté.
+- **Six archétypes seulement** : un deck à cheval se range sous un seul ; le nom de
+  deck adverse, libre, garde la nuance sans entrer dans aucun axe.
+- **Lectures du miroir** : le bilan relit toutes les parties et leurs tables, déjà
+  lentes à charger sur un long carnet (limite du Lot 7) ; à mesurer au-delà de quelques
+  centaines de parties.
+- **Collision de numéro de version** entre deux écritures concurrentes en ligne : 409
+  générique des parties (« La partie contredit des données existantes. »).
+- **Vérification sur téléphone du 2026-11-13**, en `http://` sur le réseau local
+  comme au lot Chercher : partie saisie en mode avion avec le deck de la proie, deck
+  modifié ensuite, synchronisation, liste gardée et bilan correct. Le correctif des
+  polices a été contrôlé dans Chromium sur la même adresse (polices chargées dès
+  l'ouverture, sans service worker).
+- **Écarts au handoff** gardés : pas de lien « Ouvrir ces parties dans la liste »
+  (la liste des parties ne lit aucun filtre dans l'adresse) ; « Decks joués » au
+  bureau en liste et non en tableau à quatre colonnes.
+- **Tests de référence** : `backend/tests/test_lot8_freeze.py` (gel et règle du
+  tournoi, table de cas commune), `test_sync_lot8.py`, `test_lot8_contract.py`,
+  `test_lot8_version_legality.py`, section « Lot 8 » de `test_migrations.py` ; côté
+  client `vtesLot8.test.ts`, `seatPositions.test.ts`, `bilanModel.test.ts`,
+  `freezeModel.test.ts`, `deckVersionModel.test.ts`, `tests/unit/ui/gamesLot8.test.tsx`
+  et `bilan.test.tsx` ; e2e `lot8-analyse` aux deux largeurs contre le vrai back (partie
+  hors ligne puis deck retouché, liste figée ; bilan filtré sur un deck, avec sa proie et
+  son prédateur).
+
 ---
 
 ## 12. Roadmap
@@ -1928,23 +2137,23 @@ Limites connues à la clôture du lot Affichage des decks :
    références CRAP vides des deux côtés ; 475 `data-testid` distincts, chaque
    disparition justifiée. Captures à 390 et 1440px validées par l'utilisateur. Le
    **Lot 8** vient ensuite.
-11. **Lot 8 — Analyse** — *prochain lot.* Perf par deck, historique par lieu/date. Ajouté le
-   2026-11-02 : le nom et l'archétype du deck de chaque adversaire nommé à une
-   table (décision 3 revue, §11), pour analyser les résultats d'un deck face au
-   deck de sa proie et à celui de son prédateur. Proposition : deux colonnes
-   facultatives en texte libre sur la ligne d'adversaire de `participation`,
-   comme `deck.archetype`, avec en suggestion les valeurs déjà saisies, et sans
-   effet sur une ligne qui joue un de mes decks prêtés (P4 du Lot 7). Restent à
-   trancher : la convention de siège (la proie du siège *n* est-elle le siège
-   *n* + 1, le dernier ayant le premier pour proie ?), une analyse limitée aux
-   tables dont les sièges sont saisis (le siège est facultatif), et la table à
-   deux, où proie et prédateur sont le même joueur.
-   Préalable relevé le 2026-11-03 : une participation pointe le deck vivant, si bien
-   qu'un deck modifié après un tournoi réécrit l'historique de ce tournoi. Figer la
-   decklist jouée (sur le patron de `deleted_deck_card`) ou versionner les decks est
-   à trancher à l'ouverture du lot, et le plus tôt sera le mieux : une partie saisie
-   sans instantané ne se rattache plus à la bonne liste (`docs/pistes-evolution.md`).
-12. **Lot 9 — Import de decks depuis VDB** : importer des decklists externes depuis VDB
+11. **Lot 8 — Analyse** — *livré, clos et vérifié sur téléphone le 2026-11-13.*
+   Sur le handoff `docs/design-handoff/LOT8.md` reçu le 2026-11-08 : liste d'un deck
+   figée au jeu en versions numérotées, une par deck et par tournoi, avec « Figer sur
+   la liste actuelle » ; six archétypes fermés pour toute l'application ; deck adverse
+   (clan principal, archétype, nom) et adversaire non nommé ; positions à la table
+   jusqu'aux grandes proie et prédateur ; bilan hors ligne par deck et version, lieu,
+   mois, position et adversaire, jamais de pourcentage ; liste d'une version, résultats
+   d'un deck, légalité d'une version à la date du tournoi ; en mobile et en bureau.
+   Une révision, `ac6cda5ad252` (R13) : 28 tables, treize révisions. Contrat à 51
+   opérations sur 31 chemins, aucun type `/sync` nouveau ; Dexie version 7. Base de
+   développement reconstruite à neuf (F0, données de recette). Plan et livraisons par
+   étape (A0 à F) dans `docs/lot8-plan-analyse.md`, décisions et limites au §11.
+   2680 tests backend (2 `xfail` assumés, `ruff check` propre) ; 1163 tests vitest sur
+   73 fichiers, lint et `tsc` propres ; 82 tests Playwright (8 `chromium`, 43
+   `real-backend`, 3 `desktop`, 28 `desktop-real-backend`) ; références CRAP vides des
+   deux côtés ; aucun `data-testid` disparu. Le **Lot 9** vient ensuite.
+12. **Lot 9 — Import de decks depuis VDB** — *prochain lot* : importer des decklists externes depuis VDB
   (`github.com/smeea/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
   langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
    (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
@@ -1953,13 +2162,9 @@ Limites connues à la clôture du lot Affichage des decks :
    d'une carte externe avec le catalogue (identifiant VEKN, ou nom, groupe et
    *advanced*) est à écrire en fonction réutilisable : le lot Inventaires s'en
    servira pour importer l'export de collection de VDB.
-   Ajouté le 2026-11-02, faisabilité à évaluer à l'ouverture du lot :
-   **synchroniser un tournoi depuis Archon** (archon.vekn.net). Le numéro VEKN
-   du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un tournoi reçoit
-   son lien Archon, et un bouton, grisé hors connexion, lance l'import. L'API
-   publique d'Archon est en lecture seule et ne publie aucun nom, seulement des
-   identifiants. Elle exige un client OAuth2, donc le rôle DEV accordé par un IC.
-   Relevé de l'API, limites et points à trancher dans `docs/lot9-brief-archon.md`.
+   La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02,
+   en est sortie le 2026-11-12 : elle attend la mise en production de la v1
+   (après le Lot 11, ci-dessous).
 13. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
    Lot 9.* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
    (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
@@ -1986,6 +2191,16 @@ Limites connues à la clôture du lot Affichage des decks :
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
     Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
     en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
+16. **Synchronisation Archon** — *renvoyée le 2026-11-12 après la mise en
+    production de la v1*, qui suit le Lot 11 ; souhait du 2026-11-02, d'abord
+    rangé au Lot 9. **Synchroniser un tournoi depuis Archon** (archon.vekn.net) :
+    le numéro VEKN du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un
+    tournoi reçoit son lien Archon, et un bouton, grisé hors connexion, lance
+    l'import. L'API publique d'Archon est en lecture seule et ne publie aucun nom,
+    seulement des identifiants. Elle exige un client OAuth2, donc le rôle DEV
+    accordé par un IC. Faisabilité à évaluer à l'ouverture ; l'import d'un deck
+    joué réutilisera l'appariement des cartes du Lot 9. Relevé de l'API, limites
+    et points à trancher dans `docs/brief-archon.md`.
 
 Hors feuille de route, une réserve d'idées non décidées (instantané de decklist,
 légalité à la date d'un tournoi, liste des manques, checklist d'assemblage, garde

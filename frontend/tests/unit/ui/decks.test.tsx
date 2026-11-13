@@ -330,7 +330,7 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
     // asynchrones, distinctes du verdict : attendre qu'elles reflètent les deux lignes.
     await waitFor(() => expect(screen.getByTestId("deck-tables-crypt-total")).toHaveTextContent("1"));
     expect(screen.getByTestId("deck-tables-library-total")).toHaveTextContent("2");
-    expect(screen.getByTestId("deck-item-counts")).toHaveTextContent("1 / 2");
+    await waitFor(() => expect(screen.getByTestId("deck-item-counts")).toHaveTextContent("1 / 2"));
 
     expect(within(screen.getByTestId("deck-tables-crypt")).getByText(/Theo Bell/)).toBeInTheDocument();
     expect(within(screen.getByTestId("deck-tables-library")).getByText(/Élan vital/)).toBeInTheDocument();

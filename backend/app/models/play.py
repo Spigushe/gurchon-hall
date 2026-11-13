@@ -3,10 +3,17 @@
 Portée volontairement réduite côté adversaires (CLAUDE.md §11 point 3) : on
 suit **mes** parties et **mes** résultats, VP et GW seulement (Lot 7, P7 : ni
 points de tournoi, ni place à la table). `Player` sert surtout à identifier
-« Moi » et, au besoin, à mettre un nom en face d'un siège ; on ne modélise ni
-les decks des adversaires, ni leurs résultats. Une `Participation`
-d'adversaire reste donc sans VP ni GW, ce que le service impose (Lot 7, A13) ;
-elle peut porter l'un de **mes** decks, prêté pour la partie (P4).
+« Moi » et, au besoin, à mettre un nom en face d'un siège ; on ne modélise pas
+les résultats des adversaires. Une `Participation` d'adversaire reste donc
+sans VP ni GW, ce que le service impose (Lot 7, A13) ; elle peut porter l'un
+de **mes** decks, prêté pour la partie (P4), ou, depuis le Lot 8, une
+description du deck adverse (clan principal, archétype, nom), et peut même ne
+désigner aucun joueur du carnet (P6 : « Joueur non nommé »).
+
+**Versions jouées (Lot 8).** Toute ligne qui désigne un deck pointe la
+version figée de ce deck (`deck_version_id`). Dans un tournoi, un deck n'a
+qu'une version, figée à sa première partie : `TournamentDeckVersion` la porte,
+avec la partie qui l'a figée (A9).
 
 **« Moi » existe toujours (Lot 7, A1).** Un compte a exactement un joueur
 `is_me`, créé par le serveur : par la révision R10 pour les comptes
@@ -45,8 +52,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import NEVER_REUSE_IDS, Base, TimestampMixin
-from app.models.collection import Deck
+from app.models.collection import Deck, DeckVersion
 from app.models.enums import (
+    DeckArchetype,
     DeckPolicy,
     EventTier,
     FinalDeckRule,
@@ -54,7 +62,7 @@ from app.models.enums import (
     TournamentFormat,
     enum_column,
 )
-from app.models.reference import Venue
+from app.models.reference import Clan, Venue
 from app.models.types import UtcDateTime
 
 # Condition de l'index partiel « un seul Moi par compte ». `is_me = 1` est
@@ -275,7 +283,7 @@ class Game(Base, TimestampMixin):
     @property
     def me(self) -> Participation | None:
         """Ma ligne de la table ; une partie en a toujours une (A2)."""
-        return next((p for p in self.participations if p.player.is_me), None)
+        return next((p for p in self.participations if p.is_me), None)
 
     @property
     def tournament_name(self) -> str | None:
@@ -292,6 +300,18 @@ class Participation(Base):
     table peut distribuer et au moins 2, CLAUDE.md §5). Ces contrôles, comme
     l'absence de VP et de GW sur la ligne d'un adversaire, sont des règles de
     service (Lot 7, A4 et A13).
+
+    **Lot 8.** `deck_version_id` désigne la liste figée du deck joué ; la clé
+    composite (`deck_version_id`, `deck_id`, `user_id`) garantit qu'elle est
+    une version **de ce deck** et de ce compte, et le CHECK
+    `version_requires_deck` couvre le cas où `deck_id` est nul, que
+    `MATCH SIMPLE` laisserait passer. Les trois champs `opponent_*` décrivent
+    le deck d'un adversaire (P5) ; `player_id` devient facultatif (P6).
+    Restent au service, comme A13 : champs adverses refusés sur ma ligne et
+    sur une ligne qui joue un de mes decks prêtés, une ligne sans joueur
+    porte un siège ou un deck, exactement une ligne du « Moi » par partie.
+    L'unicité (`game_id`, `player_id`) tient avec plusieurs lignes sans
+    joueur : SQLite ne compare pas les NULL entre eux.
     """
 
     __tablename__ = "participation"
@@ -300,6 +320,10 @@ class Participation(Base):
         UniqueConstraint("game_id", "seat"),
         CheckConstraint("victory_points >= 0", name="victory_points_positive"),
         CheckConstraint("seat >= 1", name="seat_positive"),
+        CheckConstraint(
+            "deck_version_id IS NULL OR deck_id IS NOT NULL",
+            name="version_requires_deck",
+        ),
         ForeignKeyConstraint(
             ["game_id", "user_id"],
             ["game.id", "game.user_id"],
@@ -307,16 +331,29 @@ class Participation(Base):
         ),
         ForeignKeyConstraint(["player_id", "user_id"], ["player.id", "player.user_id"]),
         ForeignKeyConstraint(["deck_id", "user_id"], ["deck.id", "deck.user_id"]),
+        ForeignKeyConstraint(
+            ["deck_version_id", "deck_id", "user_id"],
+            ["deck_version.id", "deck_version.deck_id", "deck_version.user_id"],
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("user_account.id"))
     game_id: Mapped[int] = mapped_column()
-    player_id: Mapped[int] = mapped_column()
+    # Nul pour un adversaire dont on ignore le nom (Lot 8, P6).
+    player_id: Mapped[int | None] = mapped_column()
     deck_id: Mapped[int | None] = mapped_column(index=True)
+    deck_version_id: Mapped[int | None] = mapped_column()
     seat: Mapped[int | None] = mapped_column()
     victory_points: Mapped[float | None] = mapped_column(Float())
     game_win: Mapped[bool | None] = mapped_column()
+    # Deck d'un adversaire (Lot 8, P5) : le nom est gardé pour mémoire et
+    # n'entre dans aucun axe d'analyse ; clan principal et archétype, si.
+    opponent_deck_name: Mapped[str | None] = mapped_column(String(120))
+    opponent_deck_archetype: Mapped[DeckArchetype | None] = mapped_column(
+        enum_column(DeckArchetype, "deck_archetype")
+    )
+    opponent_clan_id: Mapped[int | None] = mapped_column(ForeignKey("clan.id"))
     notes: Mapped[str | None] = mapped_column(Text())
 
     game: Mapped[Game] = relationship(
@@ -328,7 +365,7 @@ class Participation(Base):
         foreign_keys="Participation.game_id",
     )
     # `lazy="joined"` : `is_me` et `Game.me` lisent le joueur de chaque ligne.
-    player: Mapped[Player] = relationship(
+    player: Mapped[Player | None] = relationship(
         primaryjoin=(
             "and_(Participation.player_id == Player.id, "
             "Participation.user_id == Player.user_id)"
@@ -343,9 +380,87 @@ class Participation(Base):
         ),
         foreign_keys="Participation.deck_id",
     )
+    # Lecture seule : `deck_version_id` est posé par le service de gel, et la
+    # version ne s'écrit jamais à travers la ligne qui la joue. `lazy="joined"`
+    # : `ParticipationSummary.deck_version_number` la lit pour chaque partie
+    # d'une liste.
+    deck_version: Mapped[DeckVersion | None] = relationship(
+        primaryjoin="Participation.deck_version_id == DeckVersion.id",
+        foreign_keys="Participation.deck_version_id",
+        viewonly=True,
+        lazy="joined",
+    )
+    opponent_clan: Mapped[Clan | None] = relationship()
 
     @property
     def is_me(self) -> bool:
         """Ma ligne, la seule à porter VP et GW (A13) ; lu pour
-        `ParticipationRead`."""
-        return self.player.is_me
+        `ParticipationRead`. Une ligne sans joueur (P6) n'est jamais la
+        mienne."""
+        return self.player is not None and self.player.is_me
+
+    @property
+    def deck_version_number(self) -> int | None:
+        """Numéro de la version jouée (« v3 »), lu pour `ParticipationRead`."""
+        return self.deck_version.number if self.deck_version is not None else None
+
+
+class TournamentDeckVersion(Base):
+    """La version d'un deck dans un tournoi, et la partie qui l'a figée (A9).
+
+    Règle de P3 : dans un tournoi, la liste figée à la première partie où un
+    deck est joué est la version de ce deck pour toutes les autres parties du
+    tournoi, finale comprise. La clé primaire (`tournament_id`, `deck_id`) la
+    tient en base : une seule version par deck et par tournoi. « Première »
+    veut dire la première **figée**, pas la ronde au plus petit numéro, d'où
+    `frozen_by_game_id`, que l'écran nomme (« figée à la ronde 2 ») et que
+    rien d'autre ne permettrait de retrouver après un regel.
+
+    Clés composites vers le tournoi, la version (qui doit être celle du deck,
+    par `deck_id`) et la partie, toutes du même compte. Aucune ne cascade :
+    supprimer la partie qui a figé est refusé par la base tant que la ligne la
+    désigne, et c'est au service de la faire passer à la partie suivante du
+    tournoi avec ce deck, ou de la retirer s'il n'en reste aucune.
+    """
+
+    __tablename__ = "tournament_deck_version"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tournament_id", "user_id"],
+            ["tournament.id", "tournament.user_id"],
+        ),
+        ForeignKeyConstraint(
+            ["deck_version_id", "deck_id", "user_id"],
+            ["deck_version.id", "deck_version.deck_id", "deck_version.user_id"],
+        ),
+        ForeignKeyConstraint(
+            ["frozen_by_game_id", "user_id"],
+            ["game.id", "game.user_id"],
+        ),
+    )
+
+    tournament_id: Mapped[int] = mapped_column(primary_key=True)
+    deck_id: Mapped[int] = mapped_column(primary_key=True)
+    # Pas de clé étrangère simple : les composites l'impliquent toutes.
+    user_id: Mapped[int] = mapped_column()
+    deck_version_id: Mapped[int] = mapped_column()
+    # Indexée : supprimer une partie demande « quelles versions a-t-elle
+    # figées ? ».
+    frozen_by_game_id: Mapped[int] = mapped_column(index=True)
+
+    deck_version: Mapped[DeckVersion] = relationship(
+        primaryjoin="TournamentDeckVersion.deck_version_id == DeckVersion.id",
+        foreign_keys="TournamentDeckVersion.deck_version_id",
+        viewonly=True,
+        lazy="joined",
+    )
+    frozen_by_game: Mapped[Game] = relationship(
+        primaryjoin="TournamentDeckVersion.frozen_by_game_id == Game.id",
+        foreign_keys="TournamentDeckVersion.frozen_by_game_id",
+        viewonly=True,
+    )
+
+    @property
+    def deck_version_number(self) -> int:
+        """Numéro de la version du tournoi, lu pour `TournamentDeckVersionRead`."""
+        return self.deck_version.number

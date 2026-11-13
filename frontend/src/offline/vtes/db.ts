@@ -3,6 +3,8 @@ import type { components } from "../../api-client/schema.d.ts";
 import { CORE_STORES_V1, CORE_STORES_V2, OfflineCoreDb } from "../core/db";
 import type { CardCategory, DeckStatus } from "./types";
 
+type DeckArchetypeCode = components["schemas"]["DeckArchetype"];
+
 /** Langue connue du serveur (miroir de `GET /langues`). */
 export interface LanguageRow {
   code: string;
@@ -61,7 +63,8 @@ export interface DeckRow {
   discriminator: string;
   createdOn: string | null;
   status: DeckStatus;
-  archetype: string | null;
+  /** Un des six archétypes (Lot 8, P5), ou rien. */
+  archetype: DeckArchetypeCode | null;
   notes: string | null;
   /** Autorisation de proxy du deck (Lot 4) : ce n'est plus une propriété de l'entrée de collection. */
   proxyAllowed: boolean;
@@ -147,6 +150,8 @@ export type TournamentFormatName = Schemas["TournamentFormat"];
 export type TournamentEventTier = Schemas["EventTier"];
 /** `FinalDeckRule` du contrat. */
 export type TournamentFinalDeckRule = Schemas["FinalDeckRule"];
+/** `DeckArchetype` du contrat (Lot 8, P5) : six codes fermés, pour mes decks et ceux des adversaires. */
+export type DeckArchetype = Schemas["DeckArchetype"];
 
 /** Joueur (miroir de `GET /joueurs`) : le « Moi » du compte ou un adversaire nommé. */
 export interface PlayerRow {
@@ -178,6 +183,15 @@ export interface TournamentSummaryRow {
   finalGameWin: boolean | null;
 }
 
+/** Version d'un deck dans un tournoi (`TournamentDeckVersionRead`, Lot 8, A9). */
+export interface TournamentDeckVersionRow {
+  deckId: number;
+  deckVersionId: number;
+  deckVersionNumber: number;
+  /** Partie à laquelle la liste est rattachée (« figée à la ronde 2 »). */
+  frozenByGameId: number;
+}
+
 /** Tournoi (miroir de `GET /tournois/{id}` : le bilan et les decks admis ne viennent que du détail). */
 export interface TournamentRow {
   id: number;
@@ -195,27 +209,50 @@ export interface TournamentRow {
   myRanking: number | null;
   /** Bilan calculé par le serveur ; le bilan provisoire d'une saisie en file est recalculé localement. */
   summary: TournamentSummaryRow;
+  /**
+   * Version de chaque deck joué dans le tournoi, et la partie qui l'a figée
+   * (Lot 8, A9), par deck croissant. Absent d'une ligne écrite avant la
+   * version 7 de la base : la lecture le tient pour vide.
+   */
+  deckVersions?: TournamentDeckVersionRow[];
   /** Decks admis en finale (A11), lus par le détail à chaque rafraîchissement ; `null` quand rien n'est contrôlable. */
   admissibleFinalDecks: number[] | null;
   notes: string | null;
   updatedAt: string;
 }
 
-/** Ligne de la table d'une partie, rangée dans la ligne de la partie (A3). */
+/**
+ * Ligne de la table d'une partie, rangée dans la ligne de la partie (A3).
+ *
+ * Lot 8 : `playerId` est nul pour un adversaire non nommé (P6) ; la version
+ * figée du deck joué et la description du deck adverse (P5) s'ajoutent. Les
+ * champs marqués facultatifs manquent sur une ligne écrite avant la version 7
+ * de la base : la lecture les tient pour nuls.
+ */
 export interface GameTableLineRow {
-  playerId: number;
+  playerId: number | null;
   isMe: boolean;
   deckId: number | null;
+  /** Version figée par le serveur (`GET /decks/{id}/versions`) ; nulle sans deck. */
+  deckVersionId?: number | null;
+  deckVersionNumber?: number | null;
   seat: number | null;
   /** Renseignés sur ma seule ligne (A13). */
   victoryPoints: number | null;
   gameWin: boolean | null;
+  /** Deck d'un adversaire qui ne joue pas un de mes decks (P5). */
+  opponentDeckName?: string | null;
+  opponentDeckArchetype?: DeckArchetypeCode | null;
+  opponentClanId?: number | null;
   notes: string | null;
 }
 
 /** Ma ligne d'une partie en résumé (`ParticipationSummary`), ce que la liste affiche. */
 export interface GameMeRow {
   deckId: number | null;
+  /** Version figée de mon deck (Lot 8) ; facultative comme sur `GameTableLineRow`. */
+  deckVersionId?: number | null;
+  deckVersionNumber?: number | null;
   seat: number | null;
   victoryPoints: number | null;
   gameWin: boolean | null;
@@ -292,6 +329,12 @@ export interface CardTranslatedNameDetail {
  */
 export interface CardDetailRow {
   id: number;
+  /**
+   * Identifiant du clan d'une carte de crypte (Lot 8) : la liste des clans du
+   * formulaire de partie (clan principal d'un adversaire, P5) s'en déduit, le
+   * contrat n'ayant pas de route des clans. Nul en bibliothèque.
+   */
+  clanId: number | null;
   /** Secte d'une carte de crypte (nom de la table `sect`), nulle en bibliothèque. */
   sect: string | null;
   title: string | null;
@@ -337,6 +380,43 @@ export const VTES_STORES_V5 = {
   cardDetails: "id",
 } as const;
 
+// --- Versions de deck jouées (Lot 8) --------------------------------------
+
+/** Une carte d'une version figée : carte × quantité, sans langue, extension ni proxy (P2). */
+export interface DeckVersionCardRow {
+  cardId: number;
+  quantity: number;
+}
+
+/**
+ * Une liste d'un deck telle qu'elle a été jouée (miroir de
+ * `GET /decks/{id}/versions`, Lot 8, P1). Coupée par le serveur, jamais
+ * modifiée ensuite : le client ne fabrique jamais de version.
+ */
+export interface DeckVersionRow {
+  id: number;
+  deckId: number;
+  /** Numéro dans le deck, à partir de 1 (« v3 »). */
+  number: number;
+  /** Instant UTC (« …Z »). */
+  createdAt: string;
+  cryptCount: number;
+  libraryCount: number;
+  /** Par identifiant de carte croissant ; vide pour un deck joué sans ligne. */
+  cards: DeckVersionCardRow[];
+}
+
+/**
+ * Lot 8, cran unique (déclaré en version 7 de la base) : le magasin des
+ * versions de deck. Ajout d'un magasin, aucune clé ne change. L'`upgrade` de la
+ * version 7 vide seulement `cardDetails`, qui gagne `clanId` : le catalogue est
+ * alors « incomplet » et se relit une fois au retour du réseau (P11 du lot
+ * Chercher), sans toucher à `cards` ni au picker hors ligne.
+ */
+export const VTES_STORES_V6 = {
+  deckVersions: "id, deckId",
+} as const;
+
 export const DEFAULT_DB_NAME = "gurchon-hall-offline";
 
 export class VtesOfflineDb extends OfflineCoreDb {
@@ -351,6 +431,7 @@ export class VtesOfflineDb extends OfflineCoreDb {
   declare tournaments: Table<TournamentRow, number>;
   declare games: Table<GameRow, number>;
   declare cardDetails: Table<CardDetailRow, number>;
+  declare deckVersions: Table<DeckVersionRow, number>;
 
   constructor(name: string = DEFAULT_DB_NAME) {
     super(name);
@@ -380,5 +461,12 @@ export class VtesOfflineDb extends OfflineCoreDb {
     // Version 6 (lot Chercher) : les détails du catalogue (`VTES_STORES_V5`).
     // Ajout d'un magasin seulement, comme la version 5.
     this.version(6).stores({ ...VTES_STORES_V5 });
+    // Version 7 (Lot 8) : les versions de deck jouées (`VTES_STORES_V6`), et
+    // `cardDetails` vidé pour qu'il se relise avec `clanId`.
+    this.version(7)
+      .stores({ ...VTES_STORES_V6 })
+      .upgrade(async (tx) => {
+        await tx.table("cardDetails").clear();
+      });
   }
 }

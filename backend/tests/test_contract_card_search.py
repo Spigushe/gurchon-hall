@@ -130,8 +130,8 @@ def test_the_card_summary_embedded_elsewhere_does_not_grow(schemas):
     assert properties(schemas, "CardSummary") == SUMMARY
 
 
-def test_the_contract_keeps_forty_nine_operations_on_twenty_nine_paths():
+def test_the_contract_has_fifty_one_operations_on_thirty_one_paths():
     paths = app.openapi()["paths"]
     verbs = {"get", "post", "put", "patch", "delete"}
-    assert len(paths) == 29
-    assert sum(1 for item in paths.values() for verb in item if verb in verbs) == 49
+    assert len(paths) == 31
+    assert sum(1 for item in paths.values() for verb in item if verb in verbs) == 51
