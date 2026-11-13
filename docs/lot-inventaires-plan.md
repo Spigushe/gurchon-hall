@@ -34,7 +34,8 @@ suggestion.
 
 Deux conséquences, décidées par l'utilisateur le même jour :
 
-- **le lot est reporté après le Lot 9** (P0 ci-dessous) ;
+- **le lot est reporté après le Lot 9** (P0 ci-dessous), puis, le 2026-11-13,
+  **après la première mise en ligne** (révision de P0) ;
 - **il profite de l'import VDB** : VDB sait exporter une collection, et un
   inventaire tenu dans VDB doit pouvoir entrer tel quel dans l'outil.
 
@@ -109,6 +110,27 @@ Conséquences : l'ajout « à la collection » du lot Chercher vise l'inventaire
 unique d'aujourd'hui, devenu le principal à la migration ; un deck importé au
 Lot 9 puise dans la collection unique, et la migration le rattache au principal
 comme les autres.
+
+**Révisé le 2026-11-13, par l'utilisateur : après la première mise en ligne.**
+L'ordre devient : Lot 9, Lot 10, Lot 11 (première mise en ligne), puis ce lot ;
+sa place par rapport à la synchronisation Archon, elle aussi renvoyée après la
+v1, reste à trancher. Ce que le report change, à reprendre à l'ouverture :
+
+- **la migration convertira des données de production**, et non plus la base
+  de recette : essai sur une copie de la base servie, sauvegarde datée,
+  comparaison ligne à ligne par `backend/scripts/compare_db.py`, et des files
+  possiblement en attente sur des téléphones, que les références d'inventaire
+  facultatives dans `/sync` (A8) doivent laisser se rejouer sans perte. Le
+  point « une file en attente sur un téléphone » des risques cesse d'être
+  théorique ;
+- **l'appariement du Lot 9 est proposé côté client**
+  (`docs/lot9-plan-import-vdb.md`, P1), sur une table de cas commune. L'import
+  d'un inventaire, prévu ici côté serveur (A10), demandera un jumeau Python
+  testé sur cette table, ou passera lui aussi côté client ;
+- **le décompte des révisions et des tables** (A9) est à refaire contre ce que
+  les Lots 9 à 11 auront ajouté ;
+- les pistes « liste des manques » et « checklist d'assemblage », rangées
+  « après Inventaires » dans `docs/pistes-evolution.md`, suivent le report.
 
 ### P1. Qu'est-ce qu'un inventaire ?
 

@@ -2153,20 +2153,36 @@ Limites connues à la clôture du Lot 8 :
    73 fichiers, lint et `tsc` propres ; 82 tests Playwright (8 `chromium`, 43
    `real-backend`, 3 `desktop`, 28 `desktop-real-backend`) ; références CRAP vides des
    deux côtés ; aucun `data-testid` disparu. Le **Lot 9** vient ensuite.
-12. **Lot 9 — Import de decks depuis VDB** — *prochain lot* : importer des decklists externes depuis VDB
-  (`github.com/smeea/vdb`) et les rattacher au modèle deck du Lot 4 (stock par carte,
-  langue et extension, `deck_card`, discriminant). À ne pas confondre avec l'import du catalogue krcg
-   (§11.1), qui alimente les cartes : ici, ce sont des decks. Restent à trancher
-   l'appariement des cartes sur `vekn_id` et le sort d'une carte absente de la
-   collection, un deck ne s'alimentant que du stock possédé (§11.2). L'appariement
-   d'une carte externe avec le catalogue (identifiant VEKN, ou nom, groupe et
-   *advanced*) est à écrire en fonction réutilisable : le lot Inventaires s'en
-   servira pour importer l'export de collection de VDB.
-   La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02,
-   en est sortie le 2026-11-12 : elle attend la mise en production de la v1
-   (après le Lot 11, ci-dessous).
-13. **Lot Inventaires** — *proposé le 2026-11-03, placé par l'utilisateur après le
-   Lot 9.* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
+12. **Lot 9 — Import de decks depuis VDB** — *prochain lot, plan rédigé le 2026-11-13,
+   A0 à trancher* : importer une decklist venue de VDB (`github.com/smeea/vdb`) et en
+   faire un deck du compte, rattaché au modèle du Lot 4 (lignes carte × langue ×
+   extension, stock possédé, discriminant). À ne pas confondre avec l'import du
+   catalogue krcg (§11.1), qui alimente les cartes : ici, ce sont des decks. Le plan
+   propose un import **dans le navigateur, hors ligne** (texte collé aux formats
+   `TEXT`, `TWD`, `JOL`, `LACKEY` de VDB, fichier `.txt` ou URL « deck dans l'URL »),
+   apparié contre le miroir du catalogue et écrit par les opérations `/sync`
+   existantes, en une transaction de la file : ni route, ni contrat, ni migration,
+   ni version Dexie. Une carte non possédée est prise au stock libre d'abord, le
+   manque passant en proxy, acheté ou laissé hors du deck, au choix de l'import ;
+   un nom de vampire réimprimé sans groupe désigne la version d'origine, comme chez
+   VDB, et le rapport le dit. S'y ajoute l'export texte d'un deck et d'une version
+   jouée au format de VDB. Propositions P1 à P10, conception et découpage dans
+   `docs/lot9-plan-import-vdb.md`. L'appariement s'écrit sur une table de cas
+   commune, que le lot Inventaires reprendra pour importer l'export de collection
+   de VDB. La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le
+   2026-11-02, en est sortie le 2026-11-12 : elle attend la mise en production de la
+   v1 (après le Lot 11, ci-dessous).
+13. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
+  le déploiement de gurchon-hall lui-même est traité au Lot 11.
+14. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
+    l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
+    hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
+    Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
+    en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2). C'est
+    la **première mise en ligne** (v1).
+15. **Lot Inventaires** — *proposé le 2026-11-03, placé d'abord après le Lot 9,
+   reporté par l'utilisateur le 2026-11-13 après la première mise en ligne
+   (Lot 11).* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
    (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
    précisée par l'utilisateur, est de **suggérer des decklists viables** à partir
    d'un inventaire ou d'un classeur. Plusieurs inventaires par compte, dont un
@@ -2181,16 +2197,15 @@ Limites connues à la clôture du Lot 8 :
    suggestions sont des gestes en ligne, comme la légalité. Une révision convertit
    les données existantes vers l'inventaire principal, et les références
    d'inventaire restent facultatives dans `/sync`, pour qu'une file en attente se
-   rejoue sans perte. Ne décale pas la numérotation des Lots 10 et 11, et peut
-   passer après le Lot 10 si Barrin presse. Lecture des issues, propositions P1 à
-   P9 à trancher, conception et découpage dans `docs/lot-inventaires-plan.md`.
-14. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
-  le déploiement de gurchon-hall lui-même est traité au Lot 11.
-15. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
-    l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
-    hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
-    Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
-    en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2).
+   rejoue sans perte. Conséquences du report : cette révision sera la première à
+   convertir des données **de production**, avec des files peut-être en attente sur
+   des téléphones, ce qui rend les références d'inventaire facultatives
+   indispensables et impose l'essai sur copie puis la comparaison par
+   `scripts/compare_db.py` ; l'appariement du Lot 9 étant écrit côté client, l'import
+   serveur prévu ici demandera un jumeau Python sur la même table de cas, ou passera
+   lui aussi côté client ; l'ordre entre ce lot et la synchronisation Archon reste à
+   trancher. Lecture des issues, propositions P1 à P9 à trancher, conception et
+   découpage dans `docs/lot-inventaires-plan.md`.
 16. **Synchronisation Archon** — *renvoyée le 2026-11-12 après la mise en
     production de la v1*, qui suit le Lot 11 ; souhait du 2026-11-02, d'abord
     rangé au Lot 9. **Synchroniser un tournoi depuis Archon** (archon.vekn.net) :

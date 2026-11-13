@@ -45,7 +45,7 @@ navigateur, sans dépendance nouvelle.
 | Emplacement fin dans un classeur | page et pochette d'un exemplaire | seulement si le besoin apparaît à l'usage |
 | Export de la collection | sauvegarde, et retour vers l'inventaire de VDB ; l'import, lui, est au lot Inventaires | avec le lot Inventaires ou après |
 | Suggestions à partir des decks des adversaires | proposer les listes que jouent les gens du club, une fois le Lot 8 livré | extension du lot Inventaires |
-| Export texte d'un deck | partager une liste au format VDB ou au format texte des listes de tournoi | Lot 9, sens inverse de l'import |
+| Export texte d'un deck | partager une liste au format VDB ou au format texte des listes de tournoi | proposé au Lot 9 (P9 de `docs/lot9-plan-import-vdb.md`), sens inverse de l'import |
 | Statistiques de deck | répartition des disciplines de la bibliothèque et courbe des coûts ; le compte par type, les totaux de sang et de pool, les groupes et la capacité moyenne de la crypte sont livrés par le lot Affichage des decks | quand le besoin apparaît, le miroir a déjà tout |
 | Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
 | Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
