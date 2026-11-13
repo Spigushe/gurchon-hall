@@ -199,18 +199,18 @@ function DeckItem({
           {DECK_STATUS_LABELS[deck.status].toLowerCase()}
           {deck.archivedAt && " · archivé"}
           {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
-          {deck.proxyAllowed && (
-            <>
-              {" · "}
-              <span data-testid="deck-proxy-allowed-badge">proxies autorisés</span>
-            </>
-          )}
           {summary && (
             <span data-testid="deck-item-counts" title="Crypte / bibliothèque">
               {` · ${summary.crypt} / ${summary.library}`}
             </span>
           )}
         </span>
+        {/* Sur sa propre ligne : la première ligne garde la même forme, avec ou sans proxies. */}
+        {deck.proxyAllowed && (
+          <span className="row__meta" data-testid="deck-proxy-allowed-badge">
+            proxies autorisés
+          </span>
+        )}
         {deck.pending && (
           <span className="row__pending" data-testid="pending-badge">
             <ClockCountdownIcon size={14} />
