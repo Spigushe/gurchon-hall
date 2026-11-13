@@ -2153,20 +2153,27 @@ Limites connues à la clôture du Lot 8 :
    73 fichiers, lint et `tsc` propres ; 82 tests Playwright (8 `chromium`, 43
    `real-backend`, 3 `desktop`, 28 `desktop-real-backend`) ; références CRAP vides des
    deux côtés ; aucun `data-testid` disparu. Le **Lot 9** vient ensuite.
-12. **Lot 9 — Import de decks depuis VDB** — *prochain lot, plan rédigé le 2026-11-13,
-   A0 à trancher* : importer une decklist venue de VDB (`github.com/smeea/vdb`) et en
-   faire un deck du compte, rattaché au modèle du Lot 4 (lignes carte × langue ×
-   extension, stock possédé, discriminant). À ne pas confondre avec l'import du
-   catalogue krcg (§11.1), qui alimente les cartes : ici, ce sont des decks. Le plan
-   propose un import **dans le navigateur, hors ligne** (texte collé aux formats
-   `TEXT`, `TWD`, `JOL`, `LACKEY` de VDB, fichier `.txt` ou URL « deck dans l'URL »),
-   apparié contre le miroir du catalogue et écrit par les opérations `/sync`
-   existantes, en une transaction de la file : ni route, ni contrat, ni migration,
-   ni version Dexie. Une carte non possédée est prise au stock libre d'abord, le
-   manque passant en proxy, acheté ou laissé hors du deck, au choix de l'import ;
-   un nom de vampire réimprimé sans groupe désigne la version d'origine, comme chez
-   VDB, et le rapport le dit. S'y ajoute l'export texte d'un deck et d'une version
-   jouée au format de VDB. Propositions P1 à P10, conception et découpage dans
+12. **Lot 9 — Import de decks depuis VDB** — *prochain lot, plan rédigé et A0 tranché
+   le 2026-11-13, exports réels de VDB attendus avant le code* : importer une decklist
+   venue de VDB (`github.com/smeea/vdb`) et en faire un deck du compte, rattaché au
+   modèle du Lot 4 (lignes carte × langue × extension, discriminant). À ne pas
+   confondre avec l'import du catalogue krcg (§11.1), qui alimente les cartes : ici,
+   ce sont des decks. Une liste (texte collé aux formats `TEXT`, `TWD`, `JOL`,
+   `LACKEY` de VDB, fichier `.txt`, URL qui porte la liste) se lit et s'apparie
+   **dans le navigateur, hors ligne** ; l'URL d'un deck VDB (`vdb.im/decks/<id>`)
+   se lit **par le serveur**, en ligne (route `GET /vdb/decks/{id}`, relais de
+   l'API non documentée de VDB), avec un message hors connexion. Le deck s'écrit
+   toujours par les opérations `/sync` existantes, en une transaction de la file.
+   Pour ce lot, **tout entre en proxy**, en anglais et dernière extension par
+   défaut, en brouillon, archétype choisi à l'import ; prendre au stock ou acheter
+   attendra les retours après la mise en ligne. Un vampire réimprimé sans groupe
+   prend le groupe que le reste de la crypte rend légal, à défaut la version
+   d'origine comme chez VDB, et le rapport le dit. Un deck importé par son URL
+   garde l'identifiant VDB au serveur (`deck.vdb_deck_id`, révision R14) et se
+   **met à jour depuis VDB** : retour en brouillon, cartes nouvelles en proxy, une
+   carte jouée sur plusieurs lignes refaite en une ligne de proxies avec un
+   message. Export d'un deck et d'une version jouée au format `TEXT` de VDB, copié
+   (repli sans HTTPS) ou téléchargé en `.txt`. Décisions P1 à P10, conception et découpage dans
    `docs/lot9-plan-import-vdb.md`. L'appariement s'écrit sur une table de cas
    commune, que le lot Inventaires reprendra pour importer l'export de collection
    de VDB. La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le

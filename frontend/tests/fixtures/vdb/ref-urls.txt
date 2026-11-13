@@ -1,0 +1,8 @@
+# j'ai du dupliquer le deck TWD en deck personnel pour ces données,
+# cela ne change pas le contenu de la liste, les métadata seront différentes
+[url_courte]
+https://vdb.im/decks/4fc0ee5e9
+[snapshot_url]
+https://vdb.im/decks/b4a7ee6d5
+[deck_in_url]
+https://vdb.im/decks/deck?name=Guns%20and%20shit%20(Mostly%20guns)&author=%F0%9F%91%BB%20spigushe&description=by%20%C3%89douard%20Menneson#200816=1;201526=2;201576=2;201579=2;201614=2;201657=1;201658=2;100001=7;100052=1;100232=4;100297=1;100366=1;100392=6;100545=1;100563=10;100588=1;100698=1;100809=1;100903=1;100910=4;101277=1;101324=1;101350=1;101435=1;101439=1;101945=3;102121=7;102218=7;102229=5;102230=14
