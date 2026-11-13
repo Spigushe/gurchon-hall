@@ -60,8 +60,8 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
                 ),
               };
             }
-            // Dexie multiplie la version par 10 : la version 6 du schéma (lot Chercher, détails
-            // du catalogue, cf. `offline/vtes/db.ts`) est 60 côté IndexedDB.
+            // Dexie multiplie la version par 10 : la version 7 du schéma (Lot 8, versions
+            // jouées, cf. `offline/vtes/db.ts`) est 70 côté IndexedDB.
             const version = db.version;
             db.close();
             resolve({ version, stores });
@@ -71,13 +71,14 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
       }),
   );
 
-  expect(schema.version).toBe(60);
+  expect(schema.version).toBe(70);
   expect(Object.keys(schema.stores).sort()).toEqual(
     [
       "cardDetails",
       "cardSets",
       "cards",
       "deckCards",
+      "deckVersions",
       "decks",
       "games",
       "languages",
@@ -106,7 +107,10 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
   // Détails du catalogue (lot Chercher) : même clé que `cards`, aucun index.
   expect(schema.stores.cardDetails.keyPath).toBe("id");
   expect(schema.stores.cardDetails.indexes).toEqual({});
-  // Copie locale de `GET /moi` (Lot 6, § P3) : une ligne de plus que les quatorze
+  // Versions jouées (Lot 8) : clé `id`, index sur le deck.
+  expect(schema.stores.deckVersions.keyPath).toBe("id");
+  expect(Object.keys(schema.stores.deckVersions.indexes)).toEqual(["deckId"]);
+  // Copie locale de `GET /moi` (Lot 6, § P3) : une ligne de plus que les quinze
   // magasins vérifiés ci-dessus, dans `meta` (clé `"account"`), pas un magasin séparé.
 
   await context.setOffline(false);

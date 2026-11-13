@@ -5,8 +5,9 @@ le 2026-11-12** (modèles et R13, `ac6cda5ad252`, puis schémas et contrat, puis
 gel des versions, deck adverse et route des versions, puis tests `/sync`, cf.
 « Livré à A1 », « Livré à A2 », « Livré à B1 » et « Livré à B2 » sous le
 découpage ; A9 tranchée le 2026-11-08 : table dédiée ; front en échec de
-typage jusqu'à C1, par décision ; F0, C1, D1 et D2 faits le 2026-11-12, cf.
-leurs « Livré à »). Prochaine étape : B3 (légalité datée), puis E. Rédigé sur la branche
+typage jusqu'à C1, par décision ; F0, C1, D1, D2 et B3 faits le 2026-11-12, E
+le 2026-11-13, cf. leurs « Livré à »). Prochaine étape : F (mise en service,
+CLAUDE.md, vérification sur téléphone). Rédigé sur la branche
 `lot-8-analyse`, partie de `75367a7` (lot Affichage des decks clos). P4 et P10
 tranchées par l'utilisateur le 2026-11-07, les autres le 2026-11-08 (« Tranché
 à A0 » sous chaque proposition). Trois écarts aux recommandations : une
@@ -738,7 +739,7 @@ Sur le handoff de D0, en mobile puis en bureau :
 | D1 | frontend-react | formulaire et détail de partie (écrans 1 et 2) — **fait le 2026-11-12** (cf. « Livré à D1 ») | C1, D0 |
 | D2 | frontend-react | modèle d'analyse (A7), liste d'une version, bilan, résultats d'un deck, détail de tournoi, formulaire de deck (écrans 3 à 7) — **fait le 2026-11-12** (cf. « Livré à D2 ») | D1 |
 | B3 | backend-fastapi | P11 : légalité d'une version à une date, détachable si le lot traîne — **fait le 2026-11-12**, avec sa pastille (cf. « Livré à B3 ») | B1 |
-| E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs | D2 (et B3) |
+| E | qa-tests | tests, matrice d'autorisation, e2e aux deux largeurs — **fait le 2026-11-13** (cf. « Livré à E ») | D2 (et B3) |
 | F | orchestrateur | mise en service finale, CLAUDE.md, vérification sur téléphone | E |
 
 **F0 : la base est écrasée, pas migrée** (décision du 2026-11-07, P4).
@@ -1124,7 +1125,8 @@ facultatif.
     phrase par deck, nommé (précision 6 de B1).
 - **Laissé à E** : la table de cas commune au client et au serveur pour la
   comparaison de deux listes (point 2 du handoff) ; `freezeOutcome` a la
-  sienne côté client seulement.
+  sienne côté client seulement. Faite à E, qui y a trouvé un écart (cf.
+  « Livré à E »).
 - **Tests** : `tests/unit/features/analysis/seatPositions.test.ts` (table de
   cas des sièges, de deux à six joueurs), `features/games/freezeModel.test.ts`,
   `features/games/opponentDeck.test.ts`, et `tests/unit/ui/gamesLot8.test.tsx`
@@ -1249,6 +1251,79 @@ P11, back et pastille ensemble : la route n'a qu'un usage, et le bloc
   sur 72 fichiers ; `npm run lint` et `tsc` propres ; CRAP sans régression
   des deux côtés ; aucun `data-testid` disparu. Playwright non relancé
   (étape E).
+
+### Livré à E (2026-11-13)
+
+On a comparé les tests existants à « Tests attendus (E) », ci-dessous, puis
+ajouté ce qui manquait. Le seul code d'application touché est le correctif
+de `freezeOutcome`. Ni le contrat, ni `/sync`, ni le modèle, ni la version
+Dexie, ni aucun `data-testid` n'ont bougé.
+
+- **Back : presque tout était couvert** par A1 (R13, 27 tests), A2 (46), B1
+  (57), B2 (29) et B3 (19), avec la matrice d'autorisation qui contient déjà
+  `GET /decks/{id}/versions` et la légalité d'une version. Seul trou : la
+  table de cas commune que D1 avait laissée.
+- **Table de cas du regel**, commune au serveur et au client :
+  `backend/tests/fixtures/decklist_freeze_cases.json`. Elle contient 14 cas :
+  même liste, impressions et proxies sans effet, reprise de la dernière
+  version, liste nouvelle, liste revenue à une version plus ancienne, deck
+  vidé ou resté vide. Côté serveur
+  (`test_refreeze_follows_the_shared_case_table`, dans
+  `test_lot8_freeze.py`), une amicale est saisie par version puis regelée
+  par `PATCH`, par la vraie route. Côté client, `freezeOutcome` lit la même
+  table (`freezeModel.test.ts`).
+- **Écart trouvé et corrigé, côté client** : la confirmation de « Figer sur
+  la liste actuelle » comparait d'abord la liste à la version **jouée**. Le
+  serveur, lui, ne réutilise que la **dernière** version (précision 6 de
+  B1). Exemple : une partie en v1, une v2 depuis, puis le deck revenu à la
+  liste de la v1. La confirmation annonçait « la partie ne change pas »,
+  alors que le serveur crée une v3. `freezeOutcome` compare maintenant à la
+  dernière version. Le texte des phrases ne change pas.
+- **e2e contre le vrai back, aux deux largeurs**
+  (`tests/e2e-real/lot8-analyse.spec.ts`,
+  `tests/e2e-desktop-real/lot8-analyse.spec.ts`, corps commun dans
+  `tests/e2e-real/support/lot8.ts`) :
+  - une partie saisie hors ligne (« liste figée à la synchronisation »),
+    puis le deck retouché hors ligne par le `+` des tableaux. Au rejeu, sans
+    refus, le serveur a une seule version, celle d'avant la retouche, et le
+    deck vivant a la nouvelle quantité. La partie montre la v1, et sa liste
+    se lit en lecture seule à l'ancienne quantité ;
+  - le bilan ouvert par `#/bilan?deck=…` et lu hors ligne, avec deux parties
+    du deck et une d'un autre deck : 2 parties dans le résumé, sans
+    pourcentage, un seul groupe dans l'axe Deck. Ma proie : Bleed sur 2
+    parties. Mon prédateur : Vote et Wall, une partie chacun. L'autre deck
+    n'apparaît nulle part.
+- **e2e périmés depuis C1, mis à jour** : trois tests attendaient encore la
+  base IndexedDB en version 60 (Dexie 6) : `offline-db-schema` et
+  `chercher-filtres` aux deux largeurs. Ils attendent maintenant 70, et le
+  magasin `deckVersions` avec son index. Le helper qui reconstruit une base
+  « Dexie 5 » (`rebuildAsDexieV5`) retire aussi `deckVersions`, sinon la
+  montée trouverait le magasin déjà là. Aucun défaut de la montée elle-même.
+- **Piège d'environnement, à connaître** : les projets sans back (`chromium`,
+  `desktop`) font passer les routes protégées en erreur réseau. Si un back de
+  développement tourne et que `frontend/.env.local` pointe dessus (ce que
+  `run.ps1 preview` met en place pour le téléphone), `npm run test:e2e`
+  compile `dist/` vers ce serveur. Il répond alors 401 au cookie simulé, et
+  deux tests du bureau (`navigation`, `side-panel`) tombent sur « Reconnexion
+  nécessaire ». Ce n'est pas un défaut : un build avec `VITE_API_BASE_URL`
+  injoignable les fait passer. Côté vitest, le lancer depuis Git Bash
+  (`/c/…`) fait échouer chaque fichier (« failed to find the current
+  suite ») : il faut le lancer depuis PowerShell, en `C:\…`.
+- **Vérifications** :
+  - `uv run pytest` sous couverture : 2680 verts, les 2 `xfail` connus ;
+    `ruff check` propre ; CRAP back sans régression ;
+  - vitest sous couverture : 1159 tests verts sur 72 fichiers ;
+    `npm run lint` et `tsc` (app et node) propres ; CRAP front sans
+    régression ;
+  - aucun `data-testid` disparu (`testid-census.mjs --check`) ;
+  - Playwright : 82 tests sur 38 fichiers (8 `chromium`, 43 `real-backend`,
+    3 `desktop`, 28 `desktop-real-backend`). Au premier passage complet,
+    77 verts. Les cinq échecs sont ceux décrits ci-dessus (trois e2e
+    périmés, deux tests faussés par l'environnement). Après correction, ils
+    passent, avec les projets `chromium` et `desktop` au complet : 43 tests
+    au second passage.
+- **Reste du critère de fin de lot, hors E** : la vérification sur téléphone
+  et l'étape F (CLAUDE.md, pistes retirées de `docs/pistes-evolution.md`).
 
 ### Tests attendus (E)
 

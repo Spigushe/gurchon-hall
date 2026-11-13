@@ -6,6 +6,8 @@ que la composition, pas le stock, et les tests n'ont pas à monter une
 collection pour chaque version.
 """
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -322,6 +324,47 @@ def test_refreeze_with_an_unchanged_list_keeps_the_latest_version(w):
     game = _game(w, deck)
     _patch(w, game["id"], refreeze_decklists=True)
     assert _number(w, game["id"]) == 1
+
+
+FREEZE_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "decklist_freeze_cases.json").read_text(
+        encoding="utf-8"
+    )
+)["cases"]
+
+
+def _put_list(w, deck_id, lines):
+    _clear(w, deck_id)
+    for line in lines:
+        _put(
+            w,
+            deck_id,
+            getattr(w, line["card"]),
+            line["quantity"],
+            proxy=line.get("proxy", 0),
+            card_set=line.get("set", 0),
+        )
+
+
+@pytest.mark.parametrize("case", FREEZE_CASES, ids=[c["name"] for c in FREEZE_CASES])
+def test_refreeze_follows_the_shared_case_table(w, case):
+    """Table commune avec `freezeOutcome` (client) : ce que le serveur fait d'un
+    regel est ce que la confirmation annonce."""
+    deck = _deck(w, proxy_allowed=True)
+    games = []
+    for number, lines in enumerate(case["versions"], start=1):
+        _put_list(w, deck, lines)
+        games.append(_game(w, deck)["id"])
+        assert _number(w, games[-1]) == number
+    _put_list(w, deck, case["current"])
+    game_id = games[case["played"] - 1]
+    _patch(w, game_id, refreeze_decklists=True)
+
+    number = _number(w, game_id)
+    known = len(case["versions"])
+    created = len(w.api.get(f"/decks/{deck}/versions").json()) > known
+    kind = "new" if created else ("same" if number == case["played"] else "reuse")
+    assert {"kind": kind, "number": number} == case["expected"]
 
 
 # --------------------------------------------------------------------------

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   decklistOf,
@@ -19,6 +21,28 @@ import type {
   LocalTournament,
   ResourceKey,
 } from "../../../../src/offline/vtes";
+
+interface FreezeCaseLine {
+  card: "crypt" | "library" | "other";
+  quantity: number;
+  set?: number;
+  proxy?: number;
+}
+
+/** Table de cas commune avec pytest (`test_refreeze_follows_the_shared_case_table`). */
+const FREEZE_CASES = (
+  JSON.parse(
+    readFileSync(resolve(__dirname, "../../../../../backend/tests/fixtures/decklist_freeze_cases.json"), "utf-8"),
+  ) as {
+    cases: {
+      name: string;
+      versions: FreezeCaseLine[][];
+      played: number;
+      current: FreezeCaseLine[];
+      expected: { kind: "same" | "reuse" | "new"; number: number };
+    }[];
+  }
+).cases;
 
 const BANU = "id:1" as DeckKey;
 const TOREADOR = "id:2" as DeckKey;
@@ -139,6 +163,18 @@ describe("freezeOutcome", () => {
     expect(freezeOutcome([{ cardId: 7, quantity: 6 }], v2, [v1, v2, v3])).toEqual({ kind: "new", number: 4 });
     // Une liste revenue à la v1 ne la reprend pas : seule la dernière version est réutilisée.
     expect(freezeOutcome([{ cardId: 7, quantity: 3 }], v2, [v1, v2])).toEqual({ kind: "new", number: 3 });
+  });
+
+  it("liste revenue à la version jouée qui n'est plus la dernière : une version neuve", () => {
+    expect(freezeOutcome([{ cardId: 7, quantity: 3 }], v1, [v1, v2])).toEqual({ kind: "new", number: 3 });
+  });
+
+  it.each(FREEZE_CASES.map((c) => [c.name, c] as const))("table commune avec le serveur : %s", (_name, c) => {
+    const cardId = (card: string) => ({ crypt: 1, library: 2, other: 3 })[card]!;
+    const listOf = (lines: FreezeCaseLine[]) => lines.map((line) => ({ cardId: cardId(line.card), quantity: line.quantity }));
+    const versions = c.versions.map((lines, index) => ({ number: index + 1, cards: listOf(lines) }));
+    const played = versions[c.played - 1]!;
+    expect(freezeOutcome(listOf(c.current), played, versions)).toEqual(c.expected);
   });
 
   it("rien à comparer sans liste actuelle ou sans version lue", () => {

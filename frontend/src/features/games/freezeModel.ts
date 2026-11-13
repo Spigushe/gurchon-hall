@@ -1,7 +1,6 @@
 import {
   findByKey,
   type DeckKey,
-  type DeckVersionCardRow,
   type DeckVersionRow,
   type LocalGame,
   type LocalTournament,
@@ -41,10 +40,14 @@ export function sameDecklist(a: Decklist, b: Decklist): boolean {
 
 /**
  * Ce que le regel fera d'un deck, annoncé avant l'envoi :
- * - `same` : la liste actuelle est celle de la version jouée, rien ne change ;
- * - `reuse` : elle est celle d'une version plus récente, que la partie reprendra
- *   (le serveur réutilise la dernière version quand la liste n'a pas changé) ;
- * - `new` : elle diffère de toutes, une version est créée ;
+ * - `same` : la version jouée est la dernière et la liste actuelle est la
+ *   sienne, rien ne change ;
+ * - `reuse` : la liste actuelle est celle d'une version plus récente, la
+ *   dernière, que la partie reprendra ;
+ * - `new` : elle diffère de la dernière version, une version est créée, même si
+ *   elle égale une version plus ancienne (le serveur ne réutilise que la
+ *   dernière). Table de cas commune avec le serveur :
+ *   `backend/tests/fixtures/decklist_freeze_cases.json` ;
  * - `unknown` : rien à comparer sur cet appareil (version jamais lue, deck
  *   supprimé ou absent du miroir), le serveur tranchera.
  */
@@ -65,17 +68,18 @@ export function freezeOutcome(
   versions: ReadonlyArray<Pick<DeckVersionRow, "number" | "cards">>,
 ): FreezeOutcome {
   if (current === null || played === null) return { kind: "unknown" };
-  const list = decklistOf(current);
-  const of = (cards: readonly DeckVersionCardRow[]) => decklistOf(cards);
-  if (sameDecklist(list, of(played.cards))) return { kind: "same", number: played.number };
-  const latest = versions.reduce<Pick<DeckVersionRow, "number" | "cards"> | null>(
-    (best, version) => (best === null || version.number > best.number ? version : best),
-    null,
+  // Le serveur ne compare qu'à la dernière version (`freeze_decklist`) : une liste
+  // revenue à la version jouée, quand une plus récente existe, en crée une nouvelle.
+  const latest = versions.reduce<Pick<DeckVersionRow, "number" | "cards">>(
+    (best, version) => (version.number > best.number ? version : best),
+    played,
   );
-  if (latest !== null && latest.number !== played.number && sameDecklist(list, of(latest.cards))) {
-    return { kind: "reuse", number: latest.number };
+  if (!sameDecklist(decklistOf(current), decklistOf(latest.cards))) {
+    return { kind: "new", number: latest.number + 1 };
   }
-  return { kind: "new", number: Math.max(latest?.number ?? 0, played.number) + 1 };
+  return latest.number === played.number
+    ? { kind: "same", number: played.number }
+    : { kind: "reuse", number: latest.number };
 }
 
 /**

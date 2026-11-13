@@ -85,7 +85,7 @@ test("base Dexie 5 avec un catalogue ancien (bureau) : colonne de filtres étein
   await page.reload();
   await expect(page.getByTestId("home-page")).toBeVisible();
   await expectCatalogDownloaded(page, 9);
-  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 60, cards: 9, details: 0 });
+  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 70, cards: 9, details: 0 });
 
   // Le picker de la Collection (feuille latérale au bureau) lit `cards`.
   await page.evaluate(() => {
@@ -113,5 +113,5 @@ test("base Dexie 5 avec un catalogue ancien (bureau) : colonne de filtres étein
   await expect(page.getByTestId("search-outdated")).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator(".search-desktop--outdated")).toHaveCount(0);
   await expect(searchRows(page).filter({ hasText: CARDS.aura })).toHaveCount(1);
-  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 60, cards: 10, details: 10 });
+  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 70, cards: 10, details: 10 });
 });

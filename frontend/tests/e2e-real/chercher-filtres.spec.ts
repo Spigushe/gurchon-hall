@@ -149,8 +149,8 @@ test("secte de crypte et exigences de bibliothèque, lues par le serveur et filt
 
 /**
  * Scénario 3 du plan : un téléphone resté en version 5 (avant le lot), avec un
- * catalogue ancien, ouvre le nouveau code hors ligne. La montée en version 6
- * n'ajoute que `cardDetails` et ne vide rien : le picker de la Collection
+ * catalogue ancien, ouvre le nouveau code hors ligne. La montée en version 7
+ * ajoute `cardDetails` (6) et `deckVersions` (7) et ne vide pas `cards` : le picker de la Collection
  * marche, Chercher cherche par le nom seulement et désactive ses filtres. Au
  * retour du réseau, la relecture du catalogue part seule (P11) et tout
  * s'active.
@@ -172,7 +172,7 @@ test("base Dexie 5 avec un catalogue ancien : ouverte hors ligne, puis complét�
   await page.reload();
   await expect(page.getByRole("heading", { name: "Gurchon Hall" })).toBeVisible();
   await expectCatalogDownloaded(page, 9);
-  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 60, cards: 9, details: 0 });
+  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 70, cards: 9, details: 0 });
 
   // Le picker de la Collection lit `cards`, inchangé par la montée.
   await goToStock(page);
@@ -198,7 +198,7 @@ test("base Dexie 5 avec un catalogue ancien : ouverte hors ligne, puis complét�
   await expect(page.getByTestId("search-outdated")).toHaveCount(0, { timeout: 30_000 });
   await expect(page.getByTestId("search-filters-open")).toBeEnabled();
   await expect(searchRows(page).filter({ hasText: CARDS.aura })).toHaveCount(1);
-  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 60, cards: 10, details: 10 });
+  await expect.poll(() => readCatalogStores(page)).toEqual({ version: 70, cards: 10, details: 10 });
   await input.fill("tarbaby");
   await expect(searchRows(page).filter({ hasText: CARDS.tarbaby })).toHaveCount(1);
 });

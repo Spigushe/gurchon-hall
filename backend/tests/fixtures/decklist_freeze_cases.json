@@ -1,0 +1,115 @@
+{
+  "description": "Table de cas du regel d'une partie (« Figer sur la liste actuelle », Lot 8, P2, P3 et précision 6 de B1), commune au serveur (freeze_decklist par PATCH /parties/{id} avec refreeze_decklists, backend/tests/test_lot8_freeze.py) et au client (freezeOutcome, frontend/src/features/games/freezeModel.ts, qui annonce le résultat avant l'envoi). `versions` : les listes successives du deck, chacune jouée par une amicale, qui deviennent v1, v2… (deux listes voisines diffèrent toujours, sans quoi le serveur réutiliserait la précédente). `played` : le numéro de la version que porte la partie regelée. `current` : les lignes du deck au moment du regel ; `set` (0 ou 1, deux impressions de la carte) et `proxy` ne comptent pas (P2), les quantités d'une même carte s'additionnent. `expected.kind` : `same` (la partie garde sa version), `reuse` (elle passe à la dernière version, identique à la liste actuelle) ou `new` (une version est créée) ; `expected.number` : le numéro qu'elle porte après le regel. Seule la dernière version est réutilisée : une liste revenue à une version plus ancienne en crée une nouvelle. Cartes : `crypt`, `library`, `other`.",
+  "cases": [
+    {
+      "name": "liste inchangée, version jouée qui est la dernière",
+      "versions": [[{ "card": "library", "quantity": 3 }], [{ "card": "library", "quantity": 4 }]],
+      "played": 2,
+      "current": [{ "card": "library", "quantity": 4 }],
+      "expected": { "kind": "same", "number": 2 }
+    },
+    {
+      "name": "impressions et proxies ne coupent pas de version",
+      "versions": [[{ "card": "crypt", "quantity": 2 }, { "card": "library", "quantity": 3 }]],
+      "played": 1,
+      "current": [
+        { "card": "crypt", "quantity": 1, "set": 0 },
+        { "card": "crypt", "quantity": 1, "set": 1, "proxy": 1 },
+        { "card": "library", "quantity": 3, "set": 1, "proxy": 2 }
+      ],
+      "expected": { "kind": "same", "number": 1 }
+    },
+    {
+      "name": "liste de la dernière version : la partie la reprend",
+      "versions": [[{ "card": "library", "quantity": 3 }], [{ "card": "library", "quantity": 4 }]],
+      "played": 1,
+      "current": [{ "card": "library", "quantity": 4 }],
+      "expected": { "kind": "reuse", "number": 2 }
+    },
+    {
+      "name": "liste de la dernière de trois versions",
+      "versions": [
+        [{ "card": "library", "quantity": 3 }],
+        [{ "card": "library", "quantity": 4 }],
+        [{ "card": "library", "quantity": 5 }]
+      ],
+      "played": 1,
+      "current": [{ "card": "library", "quantity": 2, "set": 0 }, { "card": "library", "quantity": 3, "set": 1 }],
+      "expected": { "kind": "reuse", "number": 3 }
+    },
+    {
+      "name": "liste nouvelle : la version qui suit la dernière",
+      "versions": [[{ "card": "library", "quantity": 3 }], [{ "card": "library", "quantity": 4 }]],
+      "played": 2,
+      "current": [{ "card": "library", "quantity": 6 }],
+      "expected": { "kind": "new", "number": 3 }
+    },
+    {
+      "name": "liste revenue à la version jouée, qui n'est plus la dernière",
+      "versions": [[{ "card": "library", "quantity": 3 }], [{ "card": "library", "quantity": 4 }]],
+      "played": 1,
+      "current": [{ "card": "library", "quantity": 3 }],
+      "expected": { "kind": "new", "number": 3 }
+    },
+    {
+      "name": "liste revenue à une version plus ancienne que la jouée",
+      "versions": [[{ "card": "library", "quantity": 3 }], [{ "card": "library", "quantity": 4 }]],
+      "played": 2,
+      "current": [{ "card": "library", "quantity": 3 }],
+      "expected": { "kind": "new", "number": 3 }
+    },
+    {
+      "name": "liste revenue à la v1 sur trois versions",
+      "versions": [
+        [{ "card": "library", "quantity": 3 }],
+        [{ "card": "library", "quantity": 4 }],
+        [{ "card": "library", "quantity": 5 }]
+      ],
+      "played": 2,
+      "current": [{ "card": "library", "quantity": 3 }],
+      "expected": { "kind": "new", "number": 4 }
+    },
+    {
+      "name": "une quantité seule change",
+      "versions": [[{ "card": "crypt", "quantity": 12 }, { "card": "library", "quantity": 3 }]],
+      "played": 1,
+      "current": [{ "card": "crypt", "quantity": 12 }, { "card": "library", "quantity": 4 }],
+      "expected": { "kind": "new", "number": 2 }
+    },
+    {
+      "name": "une carte ajoutée",
+      "versions": [[{ "card": "library", "quantity": 3 }]],
+      "played": 1,
+      "current": [{ "card": "library", "quantity": 3 }, { "card": "other", "quantity": 1 }],
+      "expected": { "kind": "new", "number": 2 }
+    },
+    {
+      "name": "même total, cartes différentes",
+      "versions": [[{ "card": "library", "quantity": 2 }, { "card": "other", "quantity": 1 }]],
+      "played": 1,
+      "current": [{ "card": "library", "quantity": 1 }, { "card": "other", "quantity": 2 }],
+      "expected": { "kind": "new", "number": 2 }
+    },
+    {
+      "name": "deck vidé",
+      "versions": [[{ "card": "library", "quantity": 3 }]],
+      "played": 1,
+      "current": [],
+      "expected": { "kind": "new", "number": 2 }
+    },
+    {
+      "name": "deck resté vide",
+      "versions": [[]],
+      "played": 1,
+      "current": [],
+      "expected": { "kind": "same", "number": 1 }
+    },
+    {
+      "name": "deck vide de nouveau, version vide qui n'est plus la dernière",
+      "versions": [[], [{ "card": "library", "quantity": 1 }]],
+      "played": 1,
+      "current": [],
+      "expected": { "kind": "new", "number": 3 }
+    }
+  ]
+}
