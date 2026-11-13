@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "./index.css";
+import { preloadGlyphFonts } from "./components/glyphs/preloadGlyphFonts";
 import { AuthGate } from "./features/auth/AuthGate.tsx";
 import { requestPersistentStorage } from "./offline/core/storage";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
@@ -25,6 +26,11 @@ createRoot(document.getElementById("root") as HTMLElement).render(
 // pour la stratégie de mise à jour et `vite.config.ts` pour la config du
 // plugin (manifest, precache, exclusion des routes API).
 registerServiceWorker();
+
+// Polices d'icônes chargées d'emblée, pour qu'un écran à icônes ouvert pour
+// la première fois hors ligne les ait même sans service worker (`http://` sur
+// le réseau local) ; cf. `src/components/glyphs/preloadGlyphFonts.ts`.
+void preloadGlyphFonts();
 
 // Stockage persistant (lot Chercher, P14) : sans écran ; le résultat se lit en
 // console, et dans le panneau Application de Chrome DevTools (« Storage »).
