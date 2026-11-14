@@ -2,7 +2,7 @@ import { useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { FileTextIcon } from "@phosphor-icons/react";
 import { Link } from "../../../app/Link";
 import { useConnectivity } from "../../../offline/react";
-import { readDecks, useLocalDecks, useVtesOffline, type LocalDeck } from "../../../offline/vtes";
+import { readDecks, useLocalDecks, useVtesOffline } from "../../../offline/vtes";
 import {
   decklistFromVdbDeck,
   matchDecklist,
@@ -11,7 +11,8 @@ import {
   type ImportSource,
 } from "../import";
 import { VDB_OFFLINE_MESSAGE, recognitionText } from "../import/importLabels";
-import { continueBlocked, linkedDeckOf, type ImportSelection } from "./importSheetModel";
+import { VDB_REFRESH_ARCHIVED_MESSAGE } from "./deckRefreshModel";
+import { continueBlocked, linkedDeckOf, type ImportSelection, type LinkedRefresh } from "./importSheetModel";
 import { ImportFooter } from "./ImportFooter";
 import { useReadVdbDeck } from "./useReadVdbDeck";
 
@@ -23,11 +24,13 @@ function Recognition({
   index,
   online,
   linked,
+  onRefresh,
 }: {
   source: ImportSource;
   index: CardIndex;
   online: boolean;
-  linked: LocalDeck | null;
+  linked: LinkedRefresh | null;
+  onRefresh: (linked: LinkedRefresh) => void;
 }) {
   if (source.kind === "empty") {
     return <p className="hint">Collez un export texte de VDB, une liste « 3x Nom », ou l'adresse d'un deck VDB.</p>;
@@ -47,7 +50,7 @@ function Recognition({
       </p>
     );
   }
-  if (linked) return <LinkedNotice deck={linked} />;
+  if (linked) return <LinkedNotice linked={linked} onRefresh={onRefresh} />;
   return (
     <>
       <p className="hint" data-testid="deck-import-recognized" data-format="vdb-deck">
@@ -62,15 +65,28 @@ function Recognition({
   );
 }
 
-/** P8 : un deck VDB déjà lié se met à jour, il ne s'importe pas une seconde fois. */
-function LinkedNotice({ deck }: { deck: LocalDeck }) {
+/** P8 : un deck VDB déjà lié se met à jour (D3), il ne s'importe pas une seconde fois. */
+function LinkedNotice({ linked, onRefresh }: { linked: LinkedRefresh; onRefresh: (linked: LinkedRefresh) => void }) {
+  const { deck } = linked;
+  const archived = deck.archivedAt !== null;
   return (
     <div className="quote-block" data-testid="deck-import-linked">
       <p>
         Ce deck VDB est déjà lié à « {deck.name}
-        {deck.discriminator ? `#${deck.discriminator}` : ""} » : ouvrez ce deck plutôt que d'en créer un second.
+        {deck.discriminator ? `#${deck.discriminator}` : ""} » : mettez ce deck à jour plutôt que d'en créer un second.
       </p>
-      <p>
+      {archived && <p data-testid="deck-import-linked-archived">{VDB_REFRESH_ARCHIVED_MESSAGE}</p>}
+      <p className="confirm-row">
+        {!archived && (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            data-testid="deck-import-linked-refresh"
+            onClick={() => onRefresh(linked)}
+          >
+            Mettre à jour depuis VDB
+          </button>
+        )}
         <Link to={{ name: "deck", key: deck.key }} className="btn-ghost" data-testid="deck-import-linked-open">
           Ouvrir le deck →
         </Link>
@@ -91,6 +107,7 @@ export function ImportInputStep({
   text,
   onTextChange,
   onContinue,
+  onRefresh,
   onCancel,
 }: {
   index: CardIndex;
@@ -99,6 +116,8 @@ export function ImportInputStep({
   text: string;
   onTextChange: (text: string) => void;
   onContinue: (selection: ImportSelection) => void;
+  /** Un deck déjà lié : la feuille passe à sa mise à jour (P8, D3). */
+  onRefresh: (linked: LinkedRefresh) => void;
   onCancel: () => void;
 }) {
   const id = useId();
@@ -108,14 +127,15 @@ export function ImportInputStep({
   const reader = useReadVdbDeck();
   const fileInput = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [fetchedLinked, setFetchedLinked] = useState<LocalDeck | null>(null);
+  const [fetchedLinked, setFetchedLinked] = useState<LinkedRefresh | null>(null);
   const source = useMemo(() => parseImportInput(text), [text]);
-  const linked = source.kind === "vdb-deck" ? linkedDeckOf(decks, source.vdbDeckId) : null;
+  const linkedDeck = source.kind === "vdb-deck" ? linkedDeckOf(decks, source.vdbDeckId) : null;
+  const linked: LinkedRefresh | null = fetchedLinked ?? (linkedDeck ? { deck: linkedDeck, vdbDeck: null } : null);
 
   const blocked = continueBlocked(source, {
     catalogEmpty,
     loading: reader.state.kind === "loading",
-    linked: (fetchedLinked ?? linked) !== null,
+    linked: linked !== null,
     online,
   });
 
@@ -145,7 +165,7 @@ export function ImportInputStep({
     // VDB rend son propre identifiant, qui peut différer de l'adresse collée (A7).
     // Relu dans la base : la liste du rendu du clic peut être périmée après la lecture chez VDB.
     const already = linkedDeckOf(await readDecks(db, { state: "all" }), deck.vdb_deck_id);
-    if (already) return setFetchedLinked(already);
+    if (already) return setFetchedLinked({ deck: already, vdbDeck: deck });
     onContinue({ decklist: decklistFromVdbDeck(deck), vdbDeckId: deck.vdb_deck_id });
   };
 
@@ -196,7 +216,7 @@ export function ImportInputStep({
           Le catalogue n'est pas encore sur cet appareil : il se charge à la première connexion au réseau.
         </p>
       ) : (
-        <Recognition source={source} index={index} online={online} linked={fetchedLinked ?? linked} />
+        <Recognition source={source} index={index} online={online} linked={linked} onRefresh={onRefresh} />
       )}
       {reader.state.kind === "error" && (
         <p className="error-text" role="alert" data-testid="deck-import-error">

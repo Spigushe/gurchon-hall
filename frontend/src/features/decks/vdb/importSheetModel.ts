@@ -1,6 +1,7 @@
 import { plural } from "../../../labels";
 import type { LocalDeck, LocalDeckCard } from "../../../offline/vtes";
 import type { DeckImportPlan, ImportSource, ParsedDecklist } from "../import";
+import type { VdbDeckRead } from "./useReadVdbDeck";
 
 /** Logique de la feuille d'import (Lot 9, D2), sans React. */
 
@@ -8,6 +9,15 @@ import type { DeckImportPlan, ImportSource, ParsedDecklist } from "../import";
 export interface ImportSelection {
   decklist: ParsedDecklist;
   vdbDeckId: string | null;
+}
+
+/**
+ * Un deck déjà lié au deck VDB collé (P8), avec la réponse de VDB si l'écran
+ * l'a déjà lue : la mise à jour (D3) la reprend sans seconde lecture.
+ */
+export interface LinkedRefresh {
+  deck: LocalDeck;
+  vdbDeck: VdbDeckRead | null;
 }
 
 /** Date de création pour le tri ; un deck pas encore synchronisé (sans date) est le plus récent. */

@@ -6791,3 +6791,30 @@ fieldset:disabled .chip {
 .deck-import__report-item--unmatched .deck-import__report-message {
   color: var(--color-accent-200);
 }
+
+/* Lot 9, D3 : mise à jour depuis VDB, les changements carte par carte. */
+.deck-refresh__changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.deck-refresh__kind {
+  display: inline-block;
+  min-width: 9.5em;
+  color: var(--color-neutral-400);
+  font-size: 13px;
+}
+
+.deck-refresh__detail {
+  color: var(--color-neutral-300);
+}
+
+.deck-refresh__change--remade .deck-refresh__detail,
+.deck-refresh__change--removed .deck-refresh__kind {
+  color: var(--color-accent-200);
+}

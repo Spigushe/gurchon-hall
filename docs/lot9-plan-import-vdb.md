@@ -547,7 +547,7 @@ En mobile puis en bureau :
 | C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline — **fait le 2026-11-14** (cf. « Livré à C1 ») | A1 |
 | D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas — **fait le 2026-11-14** (cf. « Livré à D1 ») | A1 |
 | D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels — **fait le 2026-11-14** (cf. « Livré à D2 ») | B1, C1, D1 |
-| D3 | frontend-react | mise à jour depuis VDB, mobile et bureau | D2 |
+| D3 | frontend-react | mise à jour depuis VDB, mobile et bureau — **fait le 2026-11-14** (cf. « Livré à D3 ») | D2 |
 | D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version — **fait le 2026-11-14** (cf. « Livré à D4 ») | D1 |
 | E | qa-tests | tests, e2e aux deux largeurs, CRAP, recensement des `data-testid` | D2, D3, D4 |
 | F | orchestrateur | vérification sur téléphone, CLAUDE.md, pistes | E |
@@ -1008,6 +1008,59 @@ première connexion d'un appareil, la liste et l'aperçu des decks montrent
 quelques secondes des comptes « 0 / 0 » et des cartes « Hors catalogue
 local », le temps que le catalogue finisse de s'écrire ; tout est juste
 ensuite.
+
+### Livré à D3 (2026-11-14)
+
+Écran 4, dans `frontend/src/features/decks/vdb/` :
+
+- **Entrées** : « Mettre à jour depuis VDB » dans les actions d'un deck lié
+  (sous la composition au mobile, dans l'en-tête du deckbuilder au bureau),
+  absente d'un deck non lié. Grisée pour un deck archivé (raison en
+  infobulle) et hors connexion, la raison écrite alors sous les actions (« La
+  mise à jour lit le deck chez VDB : elle se fait en ligne. »). Le bloc
+  d'actions sort de `DeckView` dans un composant `DeckActions`, ce qui fait
+  baisser la complexité de `DeckView` au lieu de la monter. Depuis l'import
+  (P8), la notice d'un lien déjà lié propose « Mettre à jour depuis VDB » à
+  côté de « Ouvrir le deck » et passe, dans la même feuille, à la mise à jour
+  de ce deck ; un deck lié archivé ne la propose pas et le dit. Quand l'écran
+  d'import a déjà lu le deck chez VDB (lien collé sous un autre identifiant),
+  la mise à jour reprend cette réponse sans relire.
+- **Feuille** (`DeckRefreshSheet`, étape `DeckRefreshStep`) : lecture chez VDB
+  une fois à l'ouverture, en ligne seulement ; un refus est dit avec le
+  message de D2, et « Réessayer » relit. Puis l'effet en clair
+  (`refreshEffectText` : cartes qui changent et inchangées, passage en
+  brouillon, autorisation de proxy rendue, ce qui ne bouge pas), les
+  changements carte par carte (« Augmentée Blur — 2 → 3, 1 proxy ajouté »,
+  « Refaite en proxy Theo Bell (G2) — 2 lignes remplacées par 3 proxies, les
+  exemplaires réels ont été rendus à la collection. »), et le rapport replié
+  s'il y a des identifiants inconnus du catalogue. « Appliquer » **recalcule
+  le plan sur le deck relu dans la base** (A3) puis le passe à
+  `actions.refreshDeck`, en une transaction de la file ; l'écriture ne
+  demande pas le réseau. Listes identiques : « Rien à mettre à jour », bouton
+  grisé. Après une mise à jour lancée depuis l'import, le deck s'ouvre.
+- **Écart de D1 rendu visible** : un deck qui n'autorise plus les proxies et
+  que la mise à jour en écrit les retrouve, et l'effet le dit (« Il
+  autorisera de nouveau les proxies, que la mise à jour ajoute. »).
+- **Langue** : une ligne nouvelle ou refaite part en EN, dernière extension
+  (P7) ; pas de choix de langue dans cet écran.
+- **Index d'appariement partagé** : `useImportCardIndex` sert l'import et la
+  mise à jour. Libellés purs dans `vdb/deckRefreshModel.ts`.
+- **Tests** : `tests/unit/features/decks/vdb/deckRefreshModel.test.ts`
+  (libellés de chaque changement, effet, raison du grisé) et
+  `tests/unit/ui/deckRefresh.test.tsx` (mise à jour complète en ligne puis
+  écrite hors ligne, cinq sortes de changement et une carte inconnue, ordre
+  des opérations en file ; listes identiques ; refus puis « Réessayer » ;
+  grisé hors ligne au mobile ; deck archivé ; deck non lié ; autorisation de
+  proxy rendue ; depuis l'import, avec et sans lecture déjà faite, et deck lié
+  archivé).
+
+État après D3 : **1430 tests vitest verts sur 86 fichiers** sous couverture
+(lancés avec `--maxWorkers=1` : le poste manquait de mémoire, deux workers
+parallèles étant tués en cours de route sans qu'aucun test échoue), `tsc` et
+lint propres, aucune fonction au-dessus de 30 ni régression CRAP, aucun
+`data-testid` disparu par rapport à la référence de clôture du Lot 8. Ni
+e2e ni captures à cette étape : ils relèvent de E et de la vérification à
+390 et 1440px.
 
 ## Tests attendus (E)
 
