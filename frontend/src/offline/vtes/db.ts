@@ -69,6 +69,12 @@ export interface DeckRow {
   /** Autorisation de proxy du deck (Lot 4) : ce n'est plus une propriété de l'entrée de collection. */
   proxyAllowed: boolean;
   archivedAt: string | null;
+  /**
+   * Deck VDB dont ce deck est importé par son adresse (Lot 9, A6), nul sinon.
+   * Champ non indexé, donc sans version Dexie : une ligne lue avant le lot ne
+   * l'a pas et se lit « non lié » jusqu'au rafraîchissement suivant.
+   */
+  vdbDeckId?: string | null;
 }
 
 export interface DeckCardRow {

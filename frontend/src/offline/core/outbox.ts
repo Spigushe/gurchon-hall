@@ -28,6 +28,11 @@ export interface EnqueueOptions {
   createsRef?: string;
 }
 
+/** Une opération d'un lot rangé par `enqueueAll`, avec ses options d'`enqueue`. */
+export interface EnqueueItem<TOp extends OperationEnvelope = OperationEnvelope> extends EnqueueOptions {
+  operation: TOp;
+}
+
 export interface ReissueOptions {
   /**
    * Place de la nouvelle opération dans la file : `same` (défaut) reprend celle
@@ -142,33 +147,70 @@ export class Outbox<TOp extends OperationEnvelope = OperationEnvelope> {
    * faite : c'est tout ce que la saisie attend, jamais le réseau.
    */
   async enqueue(operation: TOp, options: EnqueueOptions = {}): Promise<OutboxEntry<TOp>> {
+    const [entry] = await this.enqueueAll([{ operation, ...options }]);
+    return entry;
+  }
+
+  /**
+   * Range plusieurs opérations en fin de file, **dans l'ordre donné et en une
+   * seule transaction IndexedDB** (Lot 9, A4) : une saisie qui produit
+   * plusieurs opérations (un deck et ses lignes) est rangée en entier ou pas du
+   * tout. Une fermeture d'onglet au milieu ne laisse rien de partiel.
+   *
+   * Mêmes contrôles qu'`enqueue`, opération par opération : une clé déjà en
+   * file, ou répétée dans le lot, lève `DuplicateOperationError` ; une référence
+   * réservée déjà prise, ou réservée deux fois dans le lot, lève
+   * `DuplicateRefError`. Un refus annule le lot entier : rien n'est rangé.
+   *
+   * Une seule annonce aux abonnés et aux autres onglets, après la transaction.
+   * Un lot vide ne fait rien et n'annonce rien.
+   */
+  async enqueueAll(items: readonly EnqueueItem<TOp>[]): Promise<OutboxEntry<TOp>[]> {
+    if (items.length === 0) return [];
     const { outbox, refs } = this.db;
-    const entry = await this.db.transaction("rw", outbox, refs, async () => {
-      if (await outbox.get(operation.operation_id)) {
-        throw new DuplicateOperationError(operation.operation_id);
+    const entries = await this.db.transaction("rw", outbox, refs, async () => {
+      const seenIds = new Set<string>();
+      const seenRefs = new Set<string>();
+      for (const { operation, createsRef } of items) {
+        await this.checkFree(operation.operation_id, createsRef, seenIds, seenRefs);
       }
-      if (options.createsRef !== undefined) {
-        const taken =
-          (await outbox.where("clientRef").equals(options.createsRef).count()) > 0 ||
-          (await refs.get(options.createsRef)) !== undefined;
-        if (taken) throw new DuplicateRefError(options.createsRef);
-      }
-      const last = await outbox.orderBy("rank").last();
-      const created: OutboxEntry<TOp> = {
+      let rank = (await outbox.orderBy("rank").last())?.rank ?? 0;
+      const created: OutboxEntry<TOp>[] = items.map(({ operation, createsRef }) => ({
         operationId: operation.operation_id,
-        rank: (last?.rank ?? 0) + 1,
+        rank: ++rank,
         type: operation.type,
         state: "pending",
         operation,
         recordedAt: operation.recorded_at,
         attempts: 0,
-        ...(options.createsRef !== undefined ? { clientRef: options.createsRef } : {}),
-      };
-      await outbox.add(created as OutboxEntry<OperationEnvelope>);
+        ...(createsRef !== undefined ? { clientRef: createsRef } : {}),
+      }));
+      await outbox.bulkAdd(created as OutboxEntry<OperationEnvelope>[]);
       return created;
     });
     this.emit("enqueued");
-    return entry;
+    return entries;
+  }
+
+  /** Contrôles d'`enqueueAll` pour une opération, dans la transaction. */
+  private async checkFree(
+    operationId: string,
+    createsRef: string | undefined,
+    seenIds: Set<string>,
+    seenRefs: Set<string>,
+  ): Promise<void> {
+    const { outbox, refs } = this.db;
+    if (seenIds.has(operationId) || (await outbox.get(operationId))) {
+      throw new DuplicateOperationError(operationId);
+    }
+    seenIds.add(operationId);
+    if (createsRef === undefined) return;
+    const taken =
+      seenRefs.has(createsRef) ||
+      (await outbox.where("clientRef").equals(createsRef).count()) > 0 ||
+      (await refs.get(createsRef)) !== undefined;
+    if (taken) throw new DuplicateRefError(createsRef);
+    seenRefs.add(createsRef);
   }
 
   async get(operationId: string): Promise<OutboxEntry<TOp> | undefined> {

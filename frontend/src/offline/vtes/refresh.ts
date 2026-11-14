@@ -189,6 +189,7 @@ export async function refreshDecks(client: ApiClient, db: VtesOfflineDb): Promis
     notes: deck.notes,
     proxyAllowed: deck.proxy_allowed,
     archivedAt: deck.archived_at,
+    vdbDeckId: deck.vdb_deck_id,
   }));
   const deckCards: DeckCardRow[] = details.flatMap((deck) =>
     deck.cards.map((line) => ({

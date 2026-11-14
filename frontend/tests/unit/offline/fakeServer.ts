@@ -136,6 +136,10 @@ export interface FakeServer {
       proxy_allowed: boolean;
       archetype?: string | null;
       archived_at: string | null;
+      /** Lot 9 : facultatifs, un deck posé à la main dans un test d'avant le lot ne les a pas. */
+      status?: "draft" | "active";
+      notes?: string | null;
+      vdb_deck_id?: string | null;
     }>;
     deckCards: Array<{
       deck_id: number;
@@ -160,6 +164,13 @@ export interface FakeServer {
       Array<{ deck_id: number; deck_version_id: number; deck_version_number: number; frozen_by_game_id: number }>
     >;
     journal: Map<string, { fingerprint: string; verdict: Verdict }>;
+    /**
+     * Types d'opérations que le serveur factice refuse (`invalid`), pour obtenir
+     * un refus sans champ à corriger. Vide par défaut ; avant le Lot 9, il ne
+     * gérait pas `deck.update` et les tests de l'écran Synchronisation s'en
+     * servaient comme refus : ils le demandent désormais ici.
+     */
+    refusedTypes: Set<string>;
     requests: Array<{ method: string; path: string; body: unknown }>;
     /** Nombre de fois où un versement de produit a réellement été appliqué. */
     depositsApplied: number;
@@ -199,6 +210,7 @@ export function createFakeServer(): FakeServer {
     deckVersions: [],
     tournamentDeckVersions: new Map(),
     journal: new Map(),
+    refusedTypes: new Set(),
     requests: [],
     depositsApplied: 0,
     catalog: CARDS.map((card) => searchItem({ ...card, cardSetIds: [CARD_SET_ID] })),
@@ -456,6 +468,9 @@ export function createFakeServer(): FakeServer {
       error: null,
     });
     const data = (op.data ?? {}) as Json;
+    if (state.refusedTypes.has(op.type as string)) {
+      return refuse("invalid", `type refusé par le serveur factice : ${String(op.type)}`);
+    }
     switch (op.type) {
       case "stock.upsert": {
         const language = data.language_code as string;
@@ -486,9 +501,49 @@ export function createFakeServer(): FakeServer {
           proxy_allowed: (data.proxy_allowed as boolean | undefined) ?? false,
           archetype: (data.archetype as string | null | undefined) ?? null,
           archived_at: null,
+          status: (data.status as "draft" | "active" | undefined) ?? "draft",
+          notes: (data.notes as string | null | undefined) ?? null,
+          vdb_deck_id: (data.vdb_deck_id as string | null | undefined) ?? null,
         };
         state.decks.push(deck);
         return ok({ kind: "deck", deck_id: deck.id });
+      }
+      case "deck.update": {
+        const deck = resolveDeck(op.deck as Json);
+        if (!deck) return refuse("unresolved_client_ref", "deck introuvable");
+        if (deck.archived_at !== null && data.archived !== false) {
+          return refuse("conflict", "deck archivé");
+        }
+        if (data.status !== undefined) deck.status = data.status as "draft" | "active";
+        if (data.name !== undefined) deck.name = data.name as string;
+        if (data.notes !== undefined) deck.notes = data.notes as string | null;
+        if (data.proxy_allowed !== undefined) deck.proxy_allowed = data.proxy_allowed as boolean;
+        if (data.archived !== undefined) {
+          deck.archived_at = data.archived ? (deck.archived_at ?? "2026-09-20T12:00:00Z") : null;
+        }
+        return ok({ kind: "deck", deck_id: deck.id });
+      }
+      case "deck_card.delete": {
+        const deck = resolveDeck(op.deck as Json);
+        if (!deck) return refuse("unresolved_client_ref", "deck introuvable");
+        const before = state.deckCards.length;
+        state.deckCards = state.deckCards.filter(
+          (line) =>
+            !(
+              line.deck_id === deck.id &&
+              line.card_id === op.card_id &&
+              line.language_code === op.language_code &&
+              line.card_set_id === op.card_set_id
+            ),
+        );
+        if (state.deckCards.length === before) return refuse("not_found", "ligne introuvable");
+        return ok({
+          kind: "deck_card",
+          deck_id: deck.id,
+          card_id: op.card_id,
+          language_code: op.language_code,
+          card_set_id: op.card_set_id,
+        });
       }
       case "deck_card.upsert": {
         const deck = resolveDeck(op.deck as Json);
@@ -511,7 +566,12 @@ export function createFakeServer(): FakeServer {
         if (acquired > added) {
           return refuse("invalid", "acquired_quantity au-delà des exemplaires ajoutés à la ligne");
         }
-        if (!owned && acquired === 0) {
+        const proxies = (data.proxy_quantity as number | undefined) ?? 0;
+        if (proxies > 0 && !deck.proxy_allowed) {
+          return refuse("conflict", "proxies non autorisés par le deck");
+        }
+        // Une ligne tout en proxy ne demande rien à la collection (f3a91c47b2de).
+        if (real > 0 && !owned && acquired === 0) {
           return refuse("conflict", "exemplaires insuffisants");
         }
         if ((owned?.quantity_owned ?? 0) + acquired < real) {
@@ -775,11 +835,12 @@ export function createFakeServer(): FakeServer {
         name: deck.name,
         discriminator: deck.discriminator,
         created_on: null,
-        status: "draft",
+        status: deck.status ?? "draft",
         archetype: deck.archetype ?? null,
-        notes: null,
+        notes: deck.notes ?? null,
         proxy_allowed: deck.proxy_allowed,
         archived_at: deck.archived_at,
+        vdb_deck_id: deck.vdb_deck_id ?? null,
         deleted_at: null,
         created_at: "2026-09-20T12:00:00Z",
         updated_at: "2026-09-20T12:00:00Z",

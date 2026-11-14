@@ -18,6 +18,7 @@ export {
   DuplicateRefError,
   NotRejectedError,
   Outbox,
+  type EnqueueItem,
   type EnqueueOptions,
   type OutboxChange,
   type OutboxCounts,

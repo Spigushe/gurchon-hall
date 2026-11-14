@@ -351,6 +351,21 @@ export function plusDecision(
 }
 
 /**
+ * Une ligne de deck ramenée à `quantity` exemplaires, comme le `−` du
+ * deckbuilder : les proxies sont gardés dans la limite de la nouvelle quantité,
+ * si bien que les exemplaires réels sont rendus d'abord. `null` à 0 ou moins :
+ * la ligne est retirée (P4 du lot Affichage des decks). Repris par la mise à
+ * jour depuis VDB pour une baisse sans conflit (Lot 9, P7).
+ */
+export function lowerLine(
+  line: Pick<LocalDeckCard, "quantity" | "proxyQuantity">,
+  quantity: number,
+): { quantity: number; proxyQuantity: number } | null {
+  if (quantity <= 0) return null;
+  return { quantity, proxyQuantity: Math.min(line.proxyQuantity, quantity) };
+}
+
+/**
  * Colonnes de disciplines de la crypte (P5, d'après l'affichage de VDB) : une
  * colonne par discipline présente, la plus répandue d'abord (en exemplaires),
  * puis par code. Chaque vampire place ses icônes dans ces colonnes, si bien

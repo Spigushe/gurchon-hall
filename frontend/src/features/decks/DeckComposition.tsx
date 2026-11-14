@@ -12,7 +12,13 @@ import {
 } from "../../offline/vtes";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
 import { DeckTables } from "./DeckTables";
-import { buildDeckTables, plusDecision, type DeckTableRow, type StockAvailability } from "./deckTablesModel";
+import {
+  buildDeckTables,
+  lowerLine,
+  plusDecision,
+  type DeckTableRow,
+  type StockAvailability,
+} from "./deckTablesModel";
 import { useDeckCardFacts } from "./useDeckCardFacts";
 import { useDeckStockAvailability } from "./useDeckStockAvailability";
 import { useLastDefined } from "./useLastDefined";
@@ -247,10 +253,12 @@ function LineStepper({ row, line, context }: { row: DeckTableRow; line: LocalDec
       }),
     );
 
-  const minus = () =>
-    line.quantity <= 1
-      ? actions.run(row.cardId, () => offline.removeDeckCard(deck.key, line.cardId, line.languageCode, line.cardSetId))
-      : save(line.quantity - 1, line.proxyQuantity);
+  const minus = () => {
+    const lowered = lowerLine(line, line.quantity - 1);
+    return lowered
+      ? save(lowered.quantity, lowered.proxyQuantity)
+      : actions.run(row.cardId, () => offline.removeDeckCard(deck.key, line.cardId, line.languageCode, line.cardSetId));
+  };
 
   const plus = () => {
     if (decision.kind === "real") void save(line.quantity + 1, line.proxyQuantity);

@@ -1,8 +1,8 @@
 # Lot 9 — Import de decks depuis VDB : plan d'implémentation
 
 Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13 ;
-B1 livrée le 2026-11-14** (cf. « Livré à A1 » et « Livré à B1 » après le
-découpage). Rédigé sur
+B1, C1 et D1 livrées le 2026-11-14** (cf. « Livré à A1 », « Livré à B1 »,
+« Livré à C1 » et « Livré à D1 » après le découpage). Rédigé sur
 `main` à `745c0a5` (Lot 8 clos), proposé puis tranché le même jour. Les
 exports réels de VDB sont versés dans `frontend/tests/fixtures/vdb/` le même
 jour (liste en fin de découpage). Les décisions
@@ -544,8 +544,8 @@ En mobile puis en bureau :
 | A0 | utilisateur, orchestrateur | P1 à P10 tranchées (fait le 2026-11-13) ; exports réels fournis (voir ci-dessous) | rien |
 | A1 | architecte-contrat | contrat (route A7, `VdbDeckRead`, `vdb_deck_id` dans `DeckCreate`, `DeckRead` et `deck.create`), révision R14, motif de l'identifiant, relecture de la table de cas d'appariement (déduction et version supposée), `docs/lot3-sync-contrat.md` — **fait le 2026-11-13** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | `services/vdb_client.py`, route, limite de débit, erreurs, `vdb_deck_id` à la création et en lecture, tests (lecture simulée, matrice d'autorisation, rejeu d'une `deck.create` d'avant le lot) ; relevé de la réponse réelle sur un deck de l'utilisateur — **fait le 2026-11-14** (cf. « Livré à B1 ») | A1 |
-| C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline | A1 |
-| D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas | A1 |
+| C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline — **fait le 2026-11-14** (cf. « Livré à C1 ») | A1 |
+| D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas — **fait le 2026-11-14** (cf. « Livré à D1 ») | A1 |
 | D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels | B1, C1, D1 |
 | D3 | frontend-react | mise à jour depuis VDB, mobile et bureau | D2 |
 | D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version | D1 |
@@ -741,6 +741,128 @@ pures.
   part), `ruff check` propre, contrat inchangé (`export_openapi.py --check`),
   `vdb_client.py` et `routers/vdb.py` couverts à 100 %, aucune régression
   CRAP. Durée du passage complet : 21 min, contre 12 relevées au Lot 7.
+
+### Livré à C1 (2026-11-14)
+
+- **`Outbox.enqueueAll(items)`** (`offline/core/outbox.ts`) : plusieurs
+  opérations, dans l'ordre donné, en **une** transaction IndexedDB (`bulkAdd`),
+  à la suite de la file. Mêmes contrôles qu'`enqueue`, étendus au lot : une clé
+  déjà en file **ou répétée dans le lot**, une référence réservée déjà prise
+  **ou réservée deux fois**, et rien n'est rangé. Une seule annonce, dans
+  l'onglet et aux autres ; un lot vide ne fait rien. `enqueue` n'est plus
+  qu'un lot d'une opération. Type `EnqueueItem` exporté par le cœur.
+- **`actions.importDeck({ deck, lines })`** : `deck.create` sous une
+  `client_ref` neuve, puis un `deck_card.upsert` par ligne qui la désigne,
+  langues résolues comme `saveDeckCard` ; rend `{ clientRef, key, entries }`.
+  **`actions.refreshDeck(deck, { deck, removed, saved })`** : `deck.update` si
+  le patch a un champ défini, puis les `deck_card.delete`, puis les
+  `deck_card.upsert`. **Écart à A4** : les retraits passent avant les
+  écritures, pour qu'une carte en conflit puisse être refaite sous la clé
+  d'une ligne retirée. Lève `DeckNotRefreshableError`, sans rien ranger, pour
+  un deck absent de l'appareil ou archivé (« Désarchivez le deck pour le
+  mettre à jour. ») ; ne range rien s'il n'y a rien à écrire. Types
+  `DeckImportInput`, `DeckRefreshInput` et `DeckCardKey` (`operations.ts`).
+- **Miroir** : `deckCreate` porte `vdb_deck_id` (omis s'il n'est pas
+  fourni) ; `DeckRow.vdbDeckId` facultatif, rempli par `refreshDecks` ;
+  `LocalDeck.vdbDeckId` toujours présent, nul pour une ligne lue avant le lot
+  ou un deck non lié, posé dès la saisie d'une création. Pas de version Dexie.
+- **README du paquet offline** : section « Plusieurs opérations pour une
+  saisie (Lot 9) », dont le rejeu qui reste opération par opération (la
+  transaction protège la saisie, pas l'application côté serveur), et `/vdb`
+  dans la section du service worker. Le préfixe lui-même était pris à A1.
+- **Serveur factice des tests** (`tests/unit/offline/fakeServer.ts`) : il
+  gère désormais `deck.update` et `deck_card.delete`, garde statut, notes et
+  `vdb_deck_id` d'un deck, refuse un proxy dans un deck qui ne les autorise
+  pas et accepte une ligne tout en proxy sans entrée de stock, comme le vrai
+  serveur depuis `f3a91c47b2de`. Quatre tests de l'écran Synchronisation se
+  servaient de son refus de `deck.update` pour obtenir un refus sans champ à
+  corriger : ils le demandent par `state.refusedTypes`.
+- **Tests** : `outboxEnqueueAll.test.ts` (ordre, rang, refus en bloc sur une
+  clé ou une référence déjà prise ou répétée, lot vide, une annonce dans
+  l'onglet et une dans l'autre, `enqueue` inchangé) et
+  `vtesDeckImport.test.ts` (lecture hors ligne aussitôt, `client_ref`
+  partagée, lien jusqu'au miroir, liste non liée, langue résolue ; mise à jour
+  dans l'ordre, ligne refaite sous la même clé, patch vide, deck créé hors
+  ligne, refus d'un deck archivé ou inconnu).
+
+### Livré à D1 (2026-11-14)
+
+Module `frontend/src/features/decks/import/`, fonctions pures sans React ni
+réseau, exportées par `index.ts` :
+
+- **`cardIndex.ts`** : `minifyName` (la clé de la table de cas, table des
+  lettres réduite à ł, ø, œ et aux tirets longs), `buildCardIndex` (par
+  identifiant VEKN, par clé de nom, par identifiant du catalogue),
+  `cryptGroup` et `cryptGroupsLegal`, jumeaux de `crypt_group` et
+  `group_issues`. Le libellé d'une carte reprend `cardLabel` de `labels.ts`
+  (qui écrit « (Any) », contrairement au serveur).
+- **`parseDecklist.ts`** : `parseDecklist(text)` rend un format (`text`,
+  `twd`, `jol`, `lackey`, `list`), l'en-tête, les lignes lues (numéro, texte
+  d'origine, quantité, nom, *advanced*, groupe, section) et les lignes
+  **illisibles** (`unreadable` : un chiffre en tête, mais quantité nulle ou
+  au-delà de 999, ou pas de nom). Les lignes qui précèdent le premier
+  `Crypt (` ou `Library (` forment l'en-tête et ne sont jamais lues comme des
+  cartes : « 13 players » et « 3R+F » de `TWD_HINTS` ne finissent pas au
+  rapport. La description y court sur plusieurs lignes ; les commentaires de
+  `TWD_HINTS` (`#` précédé de deux espaces), une ligne d'exemple entre
+  crochets (`[Description]` de `TWD`) et l'auteur d'exemple « Author Name »
+  sont retirés. Le `x` de la quantité n'est pris que collé aux chiffres ou
+  suivi d'une espace (« 1       Xaviar » de `LACKEY` garde son nom) ; le
+  groupe en fin de ligne (`Brujah:4`, `Caitiff:ANY`) n'est lu qu'après des
+  colonnes, si bien que « Trophy: Domain » reste un nom. `parseVdbUrl` lit
+  l'adresse avec la liste (en-tête et identifiants, entrée illisible
+  rapportée) et l'adresse d'un deck (identifiant décodé puis validé par le
+  motif du serveur), et rend « invalide » une autre adresse de VDB ;
+  `parseImportInput` aiguille un texte d'un seul mot vers les adresses ;
+  `decklistFromVdbDeck` met la réponse de `GET /vdb/decks/{id}` sous la même
+  forme. L'adresse avec la liste reste lue dans le navigateur (P1).
+- **`matchDecklist.ts`** : `matchDecklist(lines, index)` suit la table de cas
+  telle quelle, règles en table (`MATCHERS`) ; `resolveReprintedVampires`
+  énumère les combinaisons, nom par nom, plafonnées à 4096 (au-delà, tout est
+  supposé). Chaque ligne rendue garde son texte, et une ligne déduite ou
+  supposée porte les autres versions du nom, pour le rapport (« écrire (G6)
+  pour l'autre »).
+- **`deckImportPlan.ts`** : `planDeckImport({ header, unreadable, match },
+  choices)` rend le deck (nom saisi, sinon celui de la liste, sinon « Deck
+  importé » ; notes ; archétype ; brouillon ; proxies autorisés ;
+  `vdbDeckId` seulement pour un deck lié), une ligne tout en proxy par carte
+  (langue choisie, EN par défaut, `latestCardSetId`), un résumé (cartes,
+  crypte, bibliothèque, proxies) et le rapport (illisibles, non reconnues,
+  déduites, supposées). Le plan se passe tel quel à `actions.importDeck`.
+  Notes : « Auteur : … », la description, puis « Importé de VDB le 13
+  novembre 2026 » pour un deck non lié, en paragraphes ; leur pertinence sur
+  les exports réels reste à juger à D2.
+- **`deckRefreshPlan.ts`** : `planDeckRefresh(deckLines, vdbCards, choices)`
+  classe chaque carte par une table de règles (inchangée, ajoutée, retirée,
+  refaite, augmentée, diminuée) et écrit chaque cas par une table de
+  fonctions ; il rend le patch, les retraits, les écritures (à passer tels
+  quels à `actions.refreshDeck`), les changements par carte avec leur message
+  de conflit, le nombre de cartes inchangées et `empty`. Le passage en
+  brouillon n'a lieu que s'il y a quelque chose à écrire. **Écart à P7**
+  (« garde `proxy_allowed` ») : si le deck n'autorise plus les proxies (tous
+  convertis puis l'autorisation retirée) et que la mise à jour en écrit, le
+  patch la rend (`allowsProxies`), sans quoi le serveur refuserait les lignes
+  au rejeu ; l'écran de D3 devra le dire.
+- **`lowerLine`** (`deckTablesModel.ts`) : le calcul du `−` du deckbuilder,
+  sorti en fonction pure et repris par le stepper de `DeckComposition.tsx`
+  et par la baisse sans conflit.
+- **Fixture** : `frontend/tests/fixtures/vdb/catalog-extract.json`, 134
+  cartes lues en lecture seule dans la base de développement : toutes celles
+  que citent les `*-api.json`, avec toutes les versions de leurs noms.
+- **Tests** (`tests/unit/features/decks/import/`) : `matchDecklist.test.ts`
+  (les 16 clés et les 30 cas de la table commune, règle des groupes,
+  déduction nom par nom sur des cartes synthétiques, plafond),
+  `parseDecklist.test.ts` (les **dix exports texte réels**, `TEXT`, `TWD`,
+  `TWD_HINTS`, `JOL` et `LACKEY` des deux decks, lus sans ligne illisible et
+  appariés **exactement** à la liste de leur `*-api.json` ; en-têtes ; formes
+  de ligne ; les deux adresses de chaque `*-urls.txt`, la liste de
+  `difficile` retrouvant celle de l'API ; identifiants refusés ; réponses de
+  l'API) et `deckPlans.test.ts` (plan d'import, notes, `lowerLine`, un cas
+  par règle de P7, et la mise à jour réelle `maj-avant` → `maj-apres` : les
+  cinq changements relevés à A0, puis la liste de VDB retrouvée et une
+  seconde lecture vide). **1333 tests vitest verts sur 78 fichiers** sous
+  couverture, lint et `tsc` propres, aucune fonction au-dessus de 30 ni
+  régression CRAP.
 
 ## Tests attendus (E)
 
