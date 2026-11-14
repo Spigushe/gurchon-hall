@@ -6737,11 +6737,16 @@ fieldset:disabled .chip {
   min-height: 16rem;
 }
 
+/* Bureau : « Importer depuis VDB » et « Nouveau » sur une ligne ; la colonne maître
+   (360px) étant étroite, ils passent sous le titre plutôt que de l'écraser. */
+.decks-header {
+  flex-wrap: wrap;
+}
+
 .decks-header__actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 8px;
-  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .deck-import__text {
@@ -6751,11 +6756,11 @@ fieldset:disabled .chip {
   overflow-x: auto;
 }
 
-.deck-import__footer {
+.deck-import__file {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 8px 12px;
 }
 
 .deck-import__report summary {

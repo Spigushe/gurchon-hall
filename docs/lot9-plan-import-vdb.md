@@ -916,7 +916,7 @@ réseau, exportées par `index.ts` :
   pre-line`), et « Modifier le deck » éditait les notes dans un champ d'une
   ligne, qui perdait ces sauts à la première frappe (zone de texte désormais).
 - **Lien vers VDB** (pris sur l'écran 4) : le détail d'un deck lié montre
-  « Importé de VDB : vdb.im/decks/<id> » (`vdbDeckUrl`, `import/vdbLinks.ts`).
+  « Importé de VDB : `vdb.im/decks/<id>` » (`vdbDeckUrl`, `import/vdbLinks.ts`).
 - **Banc d'essai de l'interface** : `tests/unit/ui/harness.tsx` sert
   `GET /vdb/decks/{id}` depuis `ui.vdbDecks` (corps, réponse d'erreur avec
   `Retry-After`, ou panne réseau).
@@ -986,8 +986,28 @@ Module `frontend/src/features/decks/export/` :
 État après D2 et D4 : **1402 tests vitest verts sur 84 fichiers** sous
 couverture, `tsc` et lint propres, aucune fonction au-dessus de 30 ni
 régression CRAP (`DeckView` monte à 27), aucun `data-testid` disparu par
-rapport à la référence de clôture du Lot 8. Les captures à 390 et 1440px de
-P10 **ne sont pas faites** : à prendre avec D3 ou à l'étape E.
+rapport à la référence de clôture du Lot 8.
+
+**Captures à 390 et 1440px (P10), le 2026-11-14**, sur le build `dist-real`
+contre un back lancé sur une copie de `backend/vtes.db` (catalogue complet,
+4212 cartes), avec un compte de capture et la lecture VDB simulée
+(`VDB_STUB_DIR`) : liste des decks, feuille « Nouveau deck », import d'un
+texte, aperçu, rapport, deck créé, export et copie, lien hors ligne au
+mobile ; liste, lien lu par le serveur, aperçu d'un deck lié, deckbuilder
+avec son lien VDB, export, lien déjà lié et rapport au bureau. Elles sont
+versées dans `docs/qa-baselines/lot9-mobile-390x844/` (11 captures, prises
+en densité 2, soit 780 × 1688 px) et `docs/qa-baselines/lot9-desktop-1440x900/`
+(8 captures), après les retouches ci-dessous. Trois retouches
+en sont sorties : le sélecteur de fichier natif (« Choose File », en anglais)
+devient un bouton « Choisir un fichier .txt » ; les deux étapes prennent le
+pied des autres feuilles (`ImportFooter` : pilule et légende au mobile,
+« Annuler » et l'action principale au bureau) ; l'en-tête de la liste des
+decks au bureau laisse ses deux boutons passer sous le titre, qu'ils
+écrasaient dans la colonne de 360px. Relevé hors du lot : juste après la
+première connexion d'un appareil, la liste et l'aperçu des decks montrent
+quelques secondes des comptes « 0 / 0 » et des cartes « Hors catalogue
+local », le temps que le catalogue finisse de s'écrire ; tout est juste
+ensuite.
 
 ## Tests attendus (E)
 

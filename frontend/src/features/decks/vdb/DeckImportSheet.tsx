@@ -33,7 +33,7 @@ export function DeckImportSheet({ onClose }: { onClose: () => void }) {
       {index === null ? (
         <LoadingState caption="Lecture du catalogue — aucun appel réseau." />
       ) : selection ? (
-        <ImportPreviewStep selection={selection} index={index} onBack={() => setSelection(null)} />
+        <ImportPreviewStep selection={selection} index={index} onBack={() => setSelection(null)} onCancel={onClose} />
       ) : (
         <ImportInputStep
           index={index}
@@ -41,6 +41,7 @@ export function DeckImportSheet({ onClose }: { onClose: () => void }) {
           text={text}
           onTextChange={setText}
           onContinue={setSelection}
+          onCancel={onClose}
         />
       )}
     </Sheet>

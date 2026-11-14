@@ -19,6 +19,7 @@ import {
 } from "../import";
 import { FORMAT_LABELS, localDay } from "../import/importLabels";
 import { useLanguageOptions } from "../../stock/useLanguageOptions";
+import { ImportFooter } from "./ImportFooter";
 import { ImportReportDetails } from "./ImportReportDetails";
 import { importEffectText, previewLines, type ImportSelection } from "./importSheetModel";
 
@@ -40,10 +41,12 @@ export function ImportPreviewStep({
   selection,
   index,
   onBack,
+  onCancel,
 }: {
   selection: ImportSelection;
   index: CardIndex;
   onBack: () => void;
+  onCancel: () => void;
 }) {
   const id = useId();
   const { actions } = useVtesOffline();
@@ -117,18 +120,14 @@ export function ImportPreviewStep({
           {action.error}
         </p>
       )}
-      <div className="sheet-form__footer deck-import__footer">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={action.pending || plan.lines.length === 0}
-          data-testid="deck-import-create"
-          onClick={() => void create()}
-        >
-          Créer le deck
-        </button>
-        <p className="floating-hint">Créé sur cet appareil, envoyé au prochain réseau</p>
-      </div>
+      <ImportFooter
+        label="Créer le deck"
+        disabled={action.pending || plan.lines.length === 0}
+        onClick={() => void create()}
+        onCancel={onCancel}
+        hint="Créé sur cet appareil, envoyé au prochain réseau"
+        testId="deck-import-create"
+      />
     </div>
   );
 }

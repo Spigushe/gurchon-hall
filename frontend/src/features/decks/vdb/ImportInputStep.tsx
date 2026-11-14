@@ -1,4 +1,5 @@
-import { useId, useMemo, useState, type ChangeEvent } from "react";
+import { useId, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { FileTextIcon } from "@phosphor-icons/react";
 import { Link } from "../../../app/Link";
 import { useConnectivity } from "../../../offline/react";
 import { readDecks, useLocalDecks, useVtesOffline, type LocalDeck } from "../../../offline/vtes";
@@ -11,6 +12,7 @@ import {
 } from "../import";
 import { VDB_OFFLINE_MESSAGE, recognitionText } from "../import/importLabels";
 import { continueBlocked, linkedDeckOf, type ImportSelection } from "./importSheetModel";
+import { ImportFooter } from "./ImportFooter";
 import { useReadVdbDeck } from "./useReadVdbDeck";
 
 const MAX_FILE_BYTES = 512 * 1024;
@@ -89,6 +91,7 @@ export function ImportInputStep({
   text,
   onTextChange,
   onContinue,
+  onCancel,
 }: {
   index: CardIndex;
   catalogEmpty: boolean;
@@ -96,12 +99,14 @@ export function ImportInputStep({
   text: string;
   onTextChange: (text: string) => void;
   onContinue: (selection: ImportSelection) => void;
+  onCancel: () => void;
 }) {
   const id = useId();
   const online = useConnectivity();
   const { db } = useVtesOffline();
   const decks = useLocalDecks({ state: "all" });
   const reader = useReadVdbDeck();
+  const fileInput = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [fetchedLinked, setFetchedLinked] = useState<LocalDeck | null>(null);
   const source = useMemo(() => parseImportInput(text), [text]);
@@ -160,21 +165,31 @@ export function ImportInputStep({
           data-testid="deck-import-text"
         />
       </div>
-      <div className="field">
-        <label htmlFor={`${id}-file`}>Ou un fichier .txt exporté de VDB</label>
+      <div className="deck-import__file">
         <input
-          id={`${id}-file`}
+          ref={fileInput}
           type="file"
           accept=".txt,text/plain"
+          hidden
           onChange={(event) => void chooseFile(event)}
           data-testid="deck-import-file"
         />
-        {fileError && (
-          <p className="error-text" role="alert">
-            {fileError}
-          </p>
-        )}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          data-testid="deck-import-file-choose"
+          onClick={() => fileInput.current?.click()}
+        >
+          <FileTextIcon size={16} />
+          Choisir un fichier .txt
+        </button>
+        <span className="hint">exporté de VDB (Exporter, puis Texte)</span>
       </div>
+      {fileError && (
+        <p className="error-text" role="alert">
+          {fileError}
+        </p>
+      )}
 
       {catalogEmpty ? (
         <p className="quote-block" data-testid="deck-import-no-catalog">
@@ -189,18 +204,14 @@ export function ImportInputStep({
         </p>
       )}
 
-      <div className="sheet-form__footer deck-import__footer">
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={blocked}
-          aria-busy={reader.state.kind === "loading"}
-          data-testid="deck-import-continue"
-          onClick={() => void proceed()}
-        >
-          {source.kind === "vdb-deck" ? "Lire chez VDB" : "Voir l'aperçu"}
-        </button>
-      </div>
+      <ImportFooter
+        label={source.kind === "vdb-deck" ? "Lire chez VDB" : "Voir l'aperçu"}
+        disabled={blocked}
+        busy={reader.state.kind === "loading"}
+        onClick={() => void proceed()}
+        onCancel={onCancel}
+        testId="deck-import-continue"
+      />
     </div>
   );
 }
