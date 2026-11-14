@@ -51,7 +51,8 @@ PRACTICE_REVISION = "783b24f9e769"  # pratique de jeu (Lot 7, R10)
 IDS_REVISION = "e2a7819dd4a2"  # identifiants jamais réattribués (Lot 7, R11)
 REQUIREMENT_REVISION = "8ab23342a26f"  # exigence des cartes (lot Chercher, R12)
 VERSIONS_REVISION = "ac6cda5ad252"  # versions jouées et deck adverse (Lot 8, R13)
-HEAD_REVISION = VERSIONS_REVISION
+VDB_LINK_REVISION = "5f2b8e9d0c41"  # lien VDB sur le deck (Lot 9, R14)
+HEAD_REVISION = VDB_LINK_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -66,6 +67,7 @@ REVISIONS = [
     IDS_REVISION,
     REQUIREMENT_REVISION,
     VERSIONS_REVISION,
+    VDB_LINK_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -2979,7 +2981,10 @@ def test_a_populated_lot6_database_crosses_r10_and_r11_without_loss(empty_db):
 
     alembic(empty_db, "upgrade", "head")
 
-    assert rows(empty_db, "SELECT * FROM deck ORDER BY id") == decks_before
+    # R14 (Lot 9) ajoute `vdb_deck_id` en fin de `deck`, vide.
+    decks_at_head = rows(empty_db, "SELECT * FROM deck ORDER BY id")
+    assert [deck[:-1] for deck in decks_at_head] == decks_before
+    assert [deck[-1] for deck in decks_at_head] == [None]
     assert journal(empty_db) == journal_before
     assert rows(empty_db, "SELECT user_id, is_me FROM player") == [(1, 1)]
     assert foreign_key_violations(empty_db) == []
@@ -3561,6 +3566,185 @@ def test_the_versions_revision_downgrade_does_not_render_offline(empty_db):
         empty_db,
         "downgrade",
         f"{VERSIONS_REVISION}:{REQUIREMENT_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot 9 : lien VDB sur le deck (R14)
+# --------------------------------------------------------------------------
+
+
+def every_row(db_path: Path) -> dict[str, list[tuple]]:
+    """Toutes les lignes de toutes les tables, triées par leur représentation
+    (des NULL voisinent avec des entiers, et certaines tables n'ont pas de
+    `rowid`)."""
+    return {
+        table: sorted(rows(db_path, f"SELECT * FROM {table}"), key=repr)
+        for table in sorted(table_names(db_path) - {"alembic_version"})
+    }
+
+
+def deck_column_names(db_path: Path) -> list[str]:
+    return [row[1] for row in rows(db_path, "PRAGMA table_info(deck)")]
+
+
+def populated_at_r13(db_path: Path) -> None:
+    """La base peuplée des tests de R13 (pratique, decks de deux comptes),
+    montée à R13."""
+    migrated_r12_with_practice(db_path)
+    alembic(db_path, "upgrade", VERSIONS_REVISION)
+
+
+def test_head_adds_a_nullable_vdb_deck_id_to_the_deck(migrated):
+    column = next(
+        row for row in rows(migrated, "PRAGMA table_info(deck)")
+        if row[1] == "vdb_deck_id"
+    )
+    # (cid, name, type, notnull, dflt_value, pk)
+    assert column[2:] == ("VARCHAR(64)", 0, None, 0)
+
+
+def test_the_vdb_link_revision_adds_no_table_and_no_index(empty_db):
+    """Ni index ni unicité (A6) : le serveur ne cherche jamais un deck par ce
+    champ, et deux decks liés au même deck VDB restent possibles."""
+    alembic(empty_db, "upgrade", VERSIONS_REVISION)
+    tables = table_names(empty_db)
+    indexes = rows(empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+
+    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert rows(
+        empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
+    ) == indexes
+    execute(
+        empty_db,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, vdb_deck_id)"
+        " VALUES (1, 1, 'A', '0001', 'draft', '4fc0ee5e9'),"
+        " (2, 1, 'B', '0001', 'draft', '4fc0ee5e9')",
+    )
+    linked = "SELECT COUNT(*) FROM deck WHERE vdb_deck_id IS NOT NULL"
+    assert scalar(empty_db, linked) == 2
+
+
+def test_upgrade_keeps_every_row_of_a_populated_base(empty_db):
+    """Aucune conversion : toutes les tables ressortent identiques, et la
+    colonne naît vide sur chaque deck."""
+    populated_at_r13(empty_db)
+    before = every_row(empty_db)
+    columns_before = deck_column_names(empty_db)
+
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+
+    assert deck_column_names(empty_db) == [*columns_before, "vdb_deck_id"]
+    after = every_row(empty_db)
+    assert {table: lines for table, lines in after.items() if table != "deck"} == {
+        table: lines for table, lines in before.items() if table != "deck"
+    }
+    assert sorted((line[:-1] for line in after["deck"]), key=repr) == before["deck"]
+    assert {line[-1] for line in after["deck"]} == {None}
+    assert len(before["deck"]) >= 4
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_downgrade_without_a_linked_deck_drops_the_column_and_keeps_every_row(
+    empty_db,
+):
+    populated_at_r13(empty_db)
+    before = every_row(empty_db)
+    columns_before = deck_column_names(empty_db)
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+
+    alembic(empty_db, "downgrade", VERSIONS_REVISION)
+
+    assert deck_column_names(empty_db) == columns_before
+    assert every_row(empty_db) == before
+    assert foreign_key_violations(empty_db) == []
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == VERSIONS_REVISION
+    )
+
+
+def test_downgrade_refuses_a_linked_deck_before_any_change(empty_db):
+    """Le lien est une donnée de l'utilisateur : rien ne le reconstruirait
+    après une nouvelle montée. La descente s'arrête et nomme les decks liés,
+    et eux seuls."""
+    populated_at_r13(empty_db)
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+    execute(empty_db, "UPDATE deck SET vdb_deck_id = 'SV5:PCaine' WHERE id = 3")
+    ddl_before = schema_text(empty_db)
+    data_before = every_row(empty_db)
+
+    result = alembic(empty_db, "downgrade", VERSIONS_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "1 deck(s) lié(s) à VDB" in output
+    assert "Vote Tremere#0001 (deck 3, VDB SV5:PCaine)" in output
+    assert "Wall Ventrue" not in output
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == VDB_LINK_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+    assert every_row(empty_db) == data_before
+
+
+def test_the_vdb_link_refusal_lists_ten_decks_then_counts_the_rest(empty_db):
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+    values = ", ".join(
+        f"({n}, 1, 'Deck {n:02d}', '0001', 'draft', 'id{n:02d}')" for n in range(1, 13)
+    )
+    execute(
+        empty_db,
+        "INSERT INTO deck (id, user_id, name, discriminator, status, vdb_deck_id)"
+        f" VALUES {values}",
+    )
+
+    result = alembic(empty_db, "downgrade", VERSIONS_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert "12 deck(s) lié(s) à VDB" in output
+    assert "Deck 10#0001 (deck 10, VDB id10)" in output
+    assert "Deck 11#0001" not in output
+    assert "et 2 de plus" in output
+
+
+def test_the_vdb_link_revision_round_trip_keeps_the_ddl_and_the_rows(empty_db):
+    populated_at_r13(empty_db)
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+    ddl = schema_text(empty_db)
+    data = every_row(empty_db)
+
+    alembic(empty_db, "downgrade", VERSIONS_REVISION)
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert every_row(empty_db) == data
+
+
+def test_the_vdb_link_revision_upgrade_renders_offline(empty_db):
+    up = alembic(
+        empty_db, "upgrade", f"{VERSIONS_REVISION}:{VDB_LINK_REVISION}", "--sql"
+    )
+    assert "ALTER TABLE deck ADD COLUMN vdb_deck_id VARCHAR(64)" in up.stdout
+    assert "CREATE TABLE" not in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_vdb_link_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{VDB_LINK_REVISION}:{VERSIONS_REVISION}",
         "--sql",
         check=False,
     )

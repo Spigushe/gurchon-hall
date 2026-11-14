@@ -1,0 +1,537 @@
+{
+  "description": "Table de cas de l'appariement d'une decklist VDB avec le catalogue (Lot 9, P4, A2), écrite et relue par l'architecte-contrat à l'étape A1 (docs/lot9-plan-import-vdb.md). Elle porte sur des lignes déjà lues par l'analyseur (parseDecklist, D1) et sur la fonction matchDecklist(lines, buildCardIndex(catalog)) ; un jumeau Python pourra s'y tester au lot Inventaires. Ce sont des conventions de l'outil, reprises de VDB (importDeck.js), pas des règles VEKN.\n\n`catalog` : un extrait du catalogue (vekn_id, nom krcg, catégorie, groupe au format des cartes, advanced) qui contient toutes les versions de chaque nom employé ; chaque cas donne le même résultat sur cet extrait et sur le catalogue complet (4212 cartes au 2026-11-13, vérifié à A1). `minify` : la clé de nom, des deux côtés (ligne lue et catalogue) : foldText (NFKD, marques retirées, minuscules), puis la table des lettres qui ne se décomposent pas (ł → l, ø → o, œ → oe, tiret cadratin et demi-cadratin → --), coupure au premier `--` (on garde ce qui précède), « the » de tête passé en fin, puis retrait de tout caractère hors [a-z0-9]. Sur le catalogue complet, aucune collision : le triplet clé + groupe + advanced est unique en crypte, la clé est unique en bibliothèque, et aucune clé n'est à la fois de crypte et de bibliothèque.\n\nUne ligne lue porte `line` (numéro dans le texte), `quantity`, puis soit `vekn_id` (URL avec la liste, API de VDB), soit `name`, `advanced` et `group` (`G1` à `G7`, `Any`, ou null ; l'analyseur ramène `(G6)`, `Clan:6` et `Clan:ANY` à cette forme). Règles, dans l'ordre : (1) un identifiant désigne la carte de même vekn_id, sinon `unknown_vekn_id` ; (2) un nom dont la clé n'existe pas est `unknown_name` ; (3) un nom de bibliothèque désigne sa carte, unique, sauf s'il porte advanced ou un groupe (`no_such_version`) ; (4) en crypte, advanced et groupe filtrent les versions du nom : aucune restante, `no_such_version` ; une seule, elle est retenue (`by: name`) ; (5) deux restantes (un des 15 vampires réimprimés, nom seul, sans groupe) : la ligne est ambiguë. Les lignes ambiguës d'un même nom partagent un seul choix. On énumère les choix de version qui rendent la crypte légale (au plus deux groupes adjacents, `Any` neutre) avec les groupes des lignes de crypte déjà déterminées (identifiant, nom, advanced compris ; lignes non reconnues et bibliothèque exclues). Si toutes les combinaisons légales donnent la même version à un nom, elle est retenue (`by: deduced`) ; sinon, aucune combinaison légale ou plusieurs qui se contredisent, la version d'origine, au plus petit vekn_id (`by: assumed`), comme VDB.\n\n`expected.resolved` : une entrée par ligne reconnue, dans l'ordre des lignes (`line`, `vekn_id`, `by` parmi `vekn_id`, `name`, `deduced`, `assumed`). `expected.cards` : la liste du deck, carte × quantité, les lignes qui désignent la même carte additionnées, par vekn_id croissant. `expected.unmatched` : les lignes non reconnues, dans l'ordre, avec leur motif.",
+  "catalog": [
+    { "vekn_id": 100038, "name": "Alastor", "category": "library", "group": null, "advanced": false },
+    { "vekn_id": 100130, "name": "Bang Nakh — Tiger's Claws", "category": "library", "group": null, "advanced": false },
+    { "vekn_id": 101670, "name": "Sacré-Cœur Cathedral, France", "category": "library", "group": null, "advanced": false },
+    { "vekn_id": 101681, "name": "The Sargon Fragment", "category": "library", "group": null, "advanced": false },
+    { "vekn_id": 101945, "name": "Taste of Vitae", "category": "library", "group": null, "advanced": false },
+    { "vekn_id": 200076, "name": "Anarch Convert", "category": "crypt", "group": "Any", "advanced": false },
+    { "vekn_id": 200101, "name": "The Ankou", "category": "crypt", "group": "G5", "advanced": false },
+    { "vekn_id": 200103, "name": "Annabelle Triabell", "category": "crypt", "group": "G3", "advanced": false },
+    { "vekn_id": 200107, "name": "Anson", "category": "crypt", "group": "G1", "advanced": false },
+    { "vekn_id": 200179, "name": "Beast, The Leatherface of Detroit", "category": "crypt", "group": "G2", "advanced": false },
+    { "vekn_id": 200292, "name": "Count Germaine", "category": "crypt", "group": "G4", "advanced": false },
+    { "vekn_id": 200293, "name": "Count Germaine", "category": "crypt", "group": "G4", "advanced": true },
+    { "vekn_id": 200364, "name": "Dónal O'Connor", "category": "crypt", "group": "G2", "advanced": false },
+    { "vekn_id": 200517, "name": "Gilbert Duane", "category": "crypt", "group": "G1", "advanced": false },
+    { "vekn_id": 200675, "name": "Jann Berger", "category": "crypt", "group": "G4", "advanced": false },
+    { "vekn_id": 200745, "name": "Kalinda", "category": "crypt", "group": "G2", "advanced": false },
+    { "vekn_id": 200873, "name": "Lucinde, Alastor", "category": "crypt", "group": "G3", "advanced": false },
+    { "vekn_id": 201362, "name": "Theo Bell", "category": "crypt", "group": "G2", "advanced": false },
+    { "vekn_id": 201363, "name": "Theo Bell", "category": "crypt", "group": "G2", "advanced": true },
+    { "vekn_id": 201375, "name": "Tobias Smith", "category": "crypt", "group": "G3", "advanced": false },
+    { "vekn_id": 201528, "name": "Bolesław Gutowski", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201596, "name": "Kalinda", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201613, "name": "Theo Bell", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201617, "name": "Gilbert Duane", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201669, "name": "Clara Hjortshøj", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201693, "name": "Annabelle Triabell", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201695, "name": "Dónal O'Connor", "category": "crypt", "group": "G6", "advanced": false },
+    { "vekn_id": 201700, "name": "Lucinde, Alastor", "category": "crypt", "group": "G7", "advanced": false },
+    { "vekn_id": 201768, "name": "Przemysław, War Beast", "category": "crypt", "group": "G6", "advanced": false }
+  ],
+  "minify": [
+    { "input": "Theo Bell", "expected": "theobell" },
+    { "input": "THEO   BELL", "expected": "theobell" },
+    { "input": "Dónal O'Connor", "expected": "donaloconnor" },
+    { "input": "Bolesław Gutowski", "expected": "boleslawgutowski" },
+    { "input": "Clara Hjortshøj", "expected": "clarahjortshoj" },
+    { "input": "Przemysław, War Beast", "expected": "przemyslawwarbeast" },
+    { "input": "Sacré-Cœur Cathedral, France", "expected": "sacrecoeurcathedralfrance" },
+    { "input": "Sacre-Coeur Cathedral, France", "expected": "sacrecoeurcathedralfrance" },
+    { "input": "Bang Nakh — Tiger's Claws", "expected": "bangnakh" },
+    { "input": "Bang Nakh -- Tiger's Claws", "expected": "bangnakh" },
+    { "input": "The Sargon Fragment", "expected": "sargonfragmentthe" },
+    { "input": "Sargon Fragment, The", "expected": "sargonfragmentthe" },
+    { "input": "Beast, The Leatherface of Detroit", "expected": "beasttheleatherfaceofdetroit" },
+    { "input": "Psyche!", "expected": "psyche" },
+    { "input": "Trophy: Domain", "expected": "trophydomain" },
+    { "input": ".44 Magnum", "expected": "44magnum" }
+  ],
+  "cases": [
+    {
+      "name": "identifiants connus, crypte et bibliothèque",
+      "lines": [
+        { "line": 1, "quantity": 3, "vekn_id": 101945 },
+        { "line": 2, "quantity": 2, "vekn_id": 201613 }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 101945, "by": "vekn_id" },
+          { "line": 2, "vekn_id": 201613, "by": "vekn_id" }
+        ],
+        "cards": [{ "vekn_id": 101945, "quantity": 3 }, { "vekn_id": 201613, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "identifiant inconnu du catalogue",
+      "lines": [
+        { "line": 1, "quantity": 1, "vekn_id": 999999 },
+        { "line": 2, "quantity": 1, "vekn_id": 101945 }
+      ],
+      "expected": {
+        "resolved": [{ "line": 2, "vekn_id": 101945, "by": "vekn_id" }],
+        "cards": [{ "vekn_id": 101945, "quantity": 1 }],
+        "unmatched": [{ "line": 1, "reason": "unknown_vekn_id" }]
+      }
+    },
+    {
+      "name": "un identifiant n'est jamais ambigu, même sur une crypte illégale",
+      "lines": [
+        { "line": 1, "quantity": 1, "vekn_id": 201362 },
+        { "line": 2, "quantity": 1, "vekn_id": 201528 }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201362, "by": "vekn_id" },
+          { "line": 2, "vekn_id": 201528, "by": "vekn_id" }
+        ],
+        "cards": [{ "vekn_id": 201362, "quantity": 1 }, { "vekn_id": 201528, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "advanced et version de base du même nom",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Count Germaine", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Count Germaine", "advanced": true, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200292, "by": "name" },
+          { "line": 2, "vekn_id": 200293, "by": "name" }
+        ],
+        "cards": [{ "vekn_id": 200292, "quantity": 2 }, { "vekn_id": 200293, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "advanced d'un vampire réimprimé : une seule version advanced",
+      "lines": [{ "line": 1, "quantity": 1, "name": "Theo Bell", "advanced": true, "group": null }],
+      "expected": {
+        "resolved": [{ "line": 1, "vekn_id": 201363, "by": "name" }],
+        "cards": [{ "vekn_id": 201363, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "advanced et groupe en fin de ligne, comme l'export TEXT",
+      "lines": [{ "line": 1, "quantity": 1, "name": "Count Germaine", "advanced": true, "group": "G4" }],
+      "expected": {
+        "resolved": [{ "line": 1, "vekn_id": 200293, "by": "name" }],
+        "cards": [{ "vekn_id": 200293, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "advanced qui n'existe pas",
+      "lines": [{ "line": 1, "quantity": 1, "name": "Anson", "advanced": true, "group": null }],
+      "expected": {
+        "resolved": [],
+        "cards": [],
+        "unmatched": [{ "line": 1, "reason": "no_such_version" }]
+      }
+    },
+    {
+      "name": "groupe écrit : version nouvelle (G6) et version d'origine",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Theo Bell", "advanced": false, "group": "G6" },
+        { "line": 2, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": "G2" }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201613, "by": "name" },
+          { "line": 2, "vekn_id": 201362, "by": "name" }
+        ],
+        "cards": [{ "vekn_id": 201362, "quantity": 1 }, { "vekn_id": 201613, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "groupe écrit qui ne correspond à aucune version",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": "G4" },
+        { "line": 2, "quantity": 3, "name": "Jann Berger", "advanced": false, "group": "G4" },
+        { "line": 3, "quantity": 1, "name": "Jann Berger", "advanced": false, "group": "G5" }
+      ],
+      "expected": {
+        "resolved": [{ "line": 2, "vekn_id": 200675, "by": "name" }],
+        "cards": [{ "vekn_id": 200675, "quantity": 3 }],
+        "unmatched": [
+          { "line": 1, "reason": "no_such_version" },
+          { "line": 3, "reason": "no_such_version" }
+        ]
+      }
+    },
+    {
+      "name": "groupe Any écrit (Caitiff:ANY)",
+      "lines": [{ "line": 1, "quantity": 1, "name": "Anarch Convert", "advanced": false, "group": "Any" }],
+      "expected": {
+        "resolved": [{ "line": 1, "vekn_id": 200076, "by": "name" }],
+        "cards": [{ "vekn_id": 200076, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "« The » de tête, aux deux écritures, lignes additionnées",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Sargon Fragment, The", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "The Sargon Fragment", "advanced": false, "group": null },
+        { "line": 3, "quantity": 2, "name": "Ankou, The", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 101681, "by": "name" },
+          { "line": 2, "vekn_id": 101681, "by": "name" },
+          { "line": 3, "vekn_id": 200101, "by": "name" }
+        ],
+        "cards": [{ "vekn_id": 101681, "quantity": 2 }, { "vekn_id": 200101, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "lettres spéciales, écriture du catalogue",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Bolesław Gutowski", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Clara Hjortshøj", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Przemysław, War Beast", "advanced": false, "group": null },
+        { "line": 4, "quantity": 1, "name": "Sacré-Cœur Cathedral, France", "advanced": false, "group": null },
+        { "line": 5, "quantity": 1, "name": "Bang Nakh — Tiger's Claws", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201528, "by": "name" },
+          { "line": 2, "vekn_id": 201669, "by": "name" },
+          { "line": 3, "vekn_id": 201768, "by": "name" },
+          { "line": 4, "vekn_id": 101670, "by": "name" },
+          { "line": 5, "vekn_id": 100130, "by": "name" }
+        ],
+        "cards": [
+          { "vekn_id": 100130, "quantity": 1 },
+          { "vekn_id": 101670, "quantity": 1 },
+          { "vekn_id": 201528, "quantity": 1 },
+          { "vekn_id": 201669, "quantity": 1 },
+          { "vekn_id": 201768, "quantity": 1 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "lettres spéciales, écriture ASCII de l'export LACKEY",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Boleslaw Gutowski", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Clara Hjortshoj", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Przemyslaw, War Beast", "advanced": false, "group": null },
+        { "line": 4, "quantity": 1, "name": "Sacre-Coeur Cathedral, France", "advanced": false, "group": null },
+        { "line": 5, "quantity": 1, "name": "Bang Nakh -- Tiger's Claws", "advanced": false, "group": null },
+        { "line": 6, "quantity": 1, "name": "Donal O'Connor", "advanced": false, "group": "G6" }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201528, "by": "name" },
+          { "line": 2, "vekn_id": 201669, "by": "name" },
+          { "line": 3, "vekn_id": 201768, "by": "name" },
+          { "line": 4, "vekn_id": 101670, "by": "name" },
+          { "line": 5, "vekn_id": 100130, "by": "name" },
+          { "line": 6, "vekn_id": 201695, "by": "name" }
+        ],
+        "cards": [
+          { "vekn_id": 100130, "quantity": 1 },
+          { "vekn_id": 101670, "quantity": 1 },
+          { "vekn_id": 201528, "quantity": 1 },
+          { "vekn_id": 201669, "quantity": 1 },
+          { "vekn_id": 201695, "quantity": 1 },
+          { "vekn_id": 201768, "quantity": 1 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "casse et espaces ne comptent pas",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "THEO BELL", "advanced": true, "group": null },
+        { "line": 2, "quantity": 2, "name": "taste  of  VITAE", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201363, "by": "name" },
+          { "line": 2, "vekn_id": 101945, "by": "name" }
+        ],
+        "cards": [{ "vekn_id": 101945, "quantity": 2 }, { "vekn_id": 201363, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "lignes doublées additionnées, non reconnues gardées à leur place",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Taste of Vitae", "advanced": false, "group": null },
+        { "line": 2, "quantity": 3, "name": "Jann Berger", "advanced": false, "group": null },
+        { "line": 3, "quantity": 4, "name": "Carte inventée", "advanced": false, "group": null },
+        { "line": 4, "quantity": 1, "name": "Taste of Vitae", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 101945, "by": "name" },
+          { "line": 2, "vekn_id": 200675, "by": "name" },
+          { "line": 4, "vekn_id": 101945, "by": "name" }
+        ],
+        "cards": [{ "vekn_id": 101945, "quantity": 3 }, { "vekn_id": 200675, "quantity": 3 }],
+        "unmatched": [{ "line": 3, "reason": "unknown_name" }]
+      }
+    },
+    {
+      "name": "une carte de bibliothèque n'a ni advanced ni groupe",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Taste of Vitae", "advanced": true, "group": null },
+        { "line": 2, "quantity": 1, "name": "Taste of Vitae", "advanced": false, "group": "G2" }
+      ],
+      "expected": {
+        "resolved": [],
+        "cards": [],
+        "unmatched": [
+          { "line": 1, "reason": "no_such_version" },
+          { "line": 2, "reason": "no_such_version" }
+        ]
+      }
+    },
+    {
+      "name": "« Alastor » seul est la carte de bibliothèque, pas Lucinde",
+      "lines": [{ "line": 1, "quantity": 1, "name": "Alastor", "advanced": false, "group": null }],
+      "expected": {
+        "resolved": [{ "line": 1, "vekn_id": 100038, "by": "name" }],
+        "cards": [{ "vekn_id": 100038, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : la crypte tranche pour G2",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Beast, The Leatherface of Detroit", "advanced": false, "group": null },
+        { "line": 2, "quantity": 3, "name": "Tobias Smith", "advanced": false, "group": null },
+        { "line": 3, "quantity": 2, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200179, "by": "name" },
+          { "line": 2, "vekn_id": 201375, "by": "name" },
+          { "line": 3, "vekn_id": 201362, "by": "deduced" }
+        ],
+        "cards": [
+          { "vekn_id": 200179, "quantity": 2 },
+          { "vekn_id": 201362, "quantity": 2 },
+          { "vekn_id": 201375, "quantity": 3 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : la crypte tranche pour G6",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Bolesław Gutowski", "advanced": false, "group": null },
+        { "line": 2, "quantity": 2, "name": "Clara Hjortshøj", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201528, "by": "name" },
+          { "line": 2, "vekn_id": 201669, "by": "name" },
+          { "line": 3, "vekn_id": 201613, "by": "deduced" }
+        ],
+        "cards": [
+          { "vekn_id": 201528, "quantity": 2 },
+          { "vekn_id": 201613, "quantity": 1 },
+          { "vekn_id": 201669, "quantity": 2 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "version supposée : vampire réimprimé seul en crypte",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Taste of Vitae", "advanced": false, "group": null },
+        { "line": 2, "quantity": 4, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 101945, "by": "name" },
+          { "line": 2, "vekn_id": 201362, "by": "assumed" }
+        ],
+        "cards": [{ "vekn_id": 101945, "quantity": 1 }, { "vekn_id": 201362, "quantity": 4 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "version supposée : crypte faite seulement de vampires réimprimés",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Theo Bell", "advanced": false, "group": null },
+        { "line": 2, "quantity": 2, "name": "Kalinda", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201362, "by": "assumed" },
+          { "line": 2, "vekn_id": 200745, "by": "assumed" }
+        ],
+        "cards": [{ "vekn_id": 200745, "quantity": 2 }, { "vekn_id": 201362, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "version supposée : crypte déjà illégale",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Anson", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Count Germaine", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200107, "by": "name" },
+          { "line": 2, "vekn_id": 200292, "by": "name" },
+          { "line": 3, "vekn_id": 201362, "by": "assumed" }
+        ],
+        "cards": [
+          { "vekn_id": 200107, "quantity": 1 },
+          { "vekn_id": 200292, "quantity": 1 },
+          { "vekn_id": 201362, "quantity": 1 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : deux lignes ambiguës que la crypte tranche",
+      "lines": [
+        { "line": 1, "quantity": 3, "name": "Tobias Smith", "advanced": false, "group": null },
+        { "line": 2, "quantity": 2, "name": "Theo Bell", "advanced": false, "group": null },
+        { "line": 3, "quantity": 2, "name": "Annabelle Triabell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201375, "by": "name" },
+          { "line": 2, "vekn_id": 201362, "by": "deduced" },
+          { "line": 3, "vekn_id": 200103, "by": "deduced" }
+        ],
+        "cards": [
+          { "vekn_id": 200103, "quantity": 2 },
+          { "vekn_id": 201362, "quantity": 2 },
+          { "vekn_id": 201375, "quantity": 3 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : un vampire réimprimé au groupe écrit fixe la crypte",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Theo Bell", "advanced": false, "group": "G6" },
+        { "line": 2, "quantity": 2, "name": "Kalinda", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201613, "by": "name" },
+          { "line": 2, "vekn_id": 201596, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 201596, "quantity": 2 }, { "vekn_id": 201613, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : une version advanced compte dans la crypte connue",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Theo Bell", "advanced": true, "group": null },
+        { "line": 2, "quantity": 2, "name": "Kalinda", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201363, "by": "name" },
+          { "line": 2, "vekn_id": 200745, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 200745, "quantity": 2 }, { "vekn_id": 201363, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : un vampire de groupe Any est neutre",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Anarch Convert", "advanced": false, "group": null },
+        { "line": 2, "quantity": 2, "name": "Bolesław Gutowski", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200076, "by": "name" },
+          { "line": 2, "vekn_id": 201528, "by": "name" },
+          { "line": 3, "vekn_id": 201613, "by": "deduced" }
+        ],
+        "cards": [
+          { "vekn_id": 200076, "quantity": 1 },
+          { "vekn_id": 201528, "quantity": 2 },
+          { "vekn_id": 201613, "quantity": 1 }
+        ],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : un même vampire sur deux lignes, un seul choix",
+      "lines": [
+        { "line": 1, "quantity": 3, "name": "Tobias Smith", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": null },
+        { "line": 3, "quantity": 2, "name": "theo bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 201375, "by": "name" },
+          { "line": 2, "vekn_id": 201362, "by": "deduced" },
+          { "line": 3, "vekn_id": 201362, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 201362, "quantity": 3 }, { "vekn_id": 201375, "quantity": 3 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : G1 et G6, Gilbert Duane",
+      "lines": [
+        { "line": 1, "quantity": 2, "name": "Anson", "advanced": false, "group": null },
+        { "line": 2, "quantity": 2, "name": "Gilbert Duane", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200107, "by": "name" },
+          { "line": 2, "vekn_id": 200517, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 200107, "quantity": 2 }, { "vekn_id": 200517, "quantity": 2 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : G3 et G7, Lucinde, avec un groupe 4",
+      "lines": [
+        { "line": 1, "quantity": 3, "name": "Jann Berger", "advanced": false, "group": null },
+        { "line": 2, "quantity": 1, "name": "Lucinde, Alastor", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 1, "vekn_id": 200675, "by": "name" },
+          { "line": 2, "vekn_id": 200873, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 200675, "quantity": 3 }, { "vekn_id": 200873, "quantity": 1 }],
+        "unmatched": []
+      }
+    },
+    {
+      "name": "déduction : une ligne non reconnue n'entre pas dans le calcul",
+      "lines": [
+        { "line": 1, "quantity": 1, "name": "Vampire inventé", "advanced": false, "group": "G2" },
+        { "line": 2, "quantity": 2, "name": "Bolesław Gutowski", "advanced": false, "group": null },
+        { "line": 3, "quantity": 1, "name": "Theo Bell", "advanced": false, "group": null }
+      ],
+      "expected": {
+        "resolved": [
+          { "line": 2, "vekn_id": 201528, "by": "name" },
+          { "line": 3, "vekn_id": 201613, "by": "deduced" }
+        ],
+        "cards": [{ "vekn_id": 201528, "quantity": 2 }, { "vekn_id": 201613, "quantity": 1 }],
+        "unmatched": [{ "line": 1, "reason": "unknown_name" }]
+      }
+    }
+  ]
+}

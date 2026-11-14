@@ -1,6 +1,7 @@
 # Lot 9 — Import de decks depuis VDB : plan d'implémentation
 
-Statut : **A0 tranché le 2026-11-13 (P1 à P10), avant tout code.** Rédigé sur
+Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13**
+(cf. « Livré à A1 » après le découpage). Rédigé sur
 `main` à `745c0a5` (Lot 8 clos), proposé puis tranché le même jour. Les
 exports réels de VDB sont versés dans `frontend/tests/fixtures/vdb/` le même
 jour (liste en fin de découpage). Les décisions
@@ -540,7 +541,7 @@ En mobile puis en bureau :
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | P1 à P10 tranchées (fait le 2026-11-13) ; exports réels fournis (voir ci-dessous) | rien |
-| A1 | architecte-contrat | contrat (route A7, `VdbDeckRead`, `vdb_deck_id` dans `DeckCreate`, `DeckRead` et `deck.create`), révision R14, motif de l'identifiant, relecture de la table de cas d'appariement (déduction et version supposée), `docs/lot3-sync-contrat.md` | A0 |
+| A1 | architecte-contrat | contrat (route A7, `VdbDeckRead`, `vdb_deck_id` dans `DeckCreate`, `DeckRead` et `deck.create`), révision R14, motif de l'identifiant, relecture de la table de cas d'appariement (déduction et version supposée), `docs/lot3-sync-contrat.md` — **fait le 2026-11-13** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | `services/vdb_client.py`, route, limite de débit, erreurs, `vdb_deck_id` à la création et en lecture, tests (lecture simulée, matrice d'autorisation, rejeu d'une `deck.create` d'avant le lot) ; relevé de la réponse réelle sur un deck de l'utilisateur | A1 |
 | C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline | A1 |
 | D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas | A1 |
@@ -590,6 +591,92 @@ description y figureront.
 
 B1, C1 et D1 avancent en parallèle après A1 ; D4 ne dépend que des fonctions
 pures.
+
+### Livré à A1 (2026-11-13)
+
+- **Modèle et R14** : `deck.vdb_deck_id`, `VARCHAR(64)` nullable, sans index,
+  sans unicité ni CHECK (`app/models/collection.py`). Révision `5f2b8e9d0c41`
+  (`migrations/versions/20261113_5f2b8e9d0c41_lien_vdb_sur_le_deck.py`) : un
+  `ADD COLUMN` sur le patron de R12, sans conversion ; montée hors ligne
+  possible. Écart à A6 : le motif n'est pas un CHECK en base, qui aurait
+  obligé à recréer `deck` (quatre clés étrangères la visent) ; il est tenu par
+  le schéma, seul chemin d'entrée. La descente refuse de tourner dès qu'un deck
+  est lié, en citant les dix premiers (nom#discriminant, identifiant, deck
+  VDB) et le nombre des autres ; comme celles de R10 et R13, **elle ne se rend
+  pas hors ligne**, sa garde lisant la base. 28 tables, quatorze révisions.
+- **Motif de l'identifiant** : `^[A-Za-z0-9:_-]{1,64}$`
+  (`app/schemas/vdb.py`, `VDB_DECK_ID_PATTERN`), confirmé sur les identifiants
+  réels des fixtures (`4fc0ee5e9`, `b4a7ee6d5`, `31203cb9e`, `6cd179ff5`,
+  `12761`, `SV5:PCaine`). Ni rognage ni repli : `/`, `.`, `?`, `#`, `%`, une
+  espace ou une adresse entière sont refusés, si bien que la route ne peut
+  joindre que `https://vdb.im/api/deck/<id>`.
+- **Schémas et contrat** : `vdb_deck_id` facultatif dans `DeckCreate` (donc
+  dans `deck.create`), obligatoire et nullable dans `DeckRead`, absent de
+  `DeckUpdate` ; `VdbDeckRead` (`vdb_deck_id`, `name`, `author` et
+  `description` nullables, `cards` en `VdbDeckCardRead` — `vekn_id`,
+  `quantity` ≥ 1 —, `fetched_at`). Route `GET /vdb/decks/{vdb_deck_id}`
+  (`readVdbDeck`, `app/routers/vdb.py`) déclarée avec 401, 404, 422, 429
+  (`Retry-After`) et 502 (`BAD_GATEWAY`, `app/routers/common.py`). Contrat à
+  **52 opérations sur 32 chemins**, client TS régénéré. Comme `Deck(**data)`
+  recopie le schéma, le lien est déjà enregistré à la création et rendu en
+  lecture, en ligne comme par `/sync` : il ne reste à B1 que la lecture chez
+  VDB.
+- **Garde provisoire** : le corps de la route rend **501** (« Lecture d'un
+  deck VDB pas encore livrée (Lot 9, étape B1). »), après le contrôle de
+  session et du motif. **À retirer à B1**, avec son test
+  (`test_the_route_is_a_provisional_501_until_b1`).
+- **`/vdb` dans `API_ROUTE_PREFIXES`** (`frontend/src/offline/apiRoutes.ts`),
+  pris à C1 pour garder vert le test vitest qui compare la liste au contrat ;
+  le README du paquet offline reste à C1. `tsc` propre après régénération du
+  client.
+- **Table de cas d'appariement** : `frontend/tests/fixtures/vdb-import-cases.json`,
+  écrite à A1 plutôt que relue, faute d'exister encore. Elle fixe la forme
+  d'une ligne lue (`line`, `quantity`, puis `vekn_id`, ou `name`, `advanced`
+  et `group` en `G1`…`G7`/`Any`), la clé de nom (`minify`, 16 cas), et 30 cas
+  d'appariement : identifiant, *advanced*, groupe écrit, `Any`, « The » de
+  tête aux deux écritures, cinq noms à lettres spéciales sous leurs deux
+  écritures, casse, lignes doublées, motifs `unknown_vekn_id`,
+  `unknown_name`, `no_such_version`, et douze cas de la règle 6 (déduction
+  pour G2, G6, G1/G6, G3/G7, Any neutre, groupe écrit ou *advanced* qui fixe
+  la crypte, deux lignes ambiguës, un même vampire sur deux lignes ; version
+  supposée pour un vampire seul, une crypte de seuls réimprimés, une crypte
+  déjà illégale). Elle porte un extrait du catalogue avec toutes les versions
+  des noms employés.
+- **Relecture des conventions** (déduction et version supposée), tranchée
+  sur une implémentation de référence jetable, contre le catalogue complet de
+  la base de développement (4212 cartes) : les 30 cas donnent le même
+  résultat sur l'extrait et sur le catalogue ; la clé de nom ne fait **aucune
+  collision** (triplet clé + groupe + *advanced* unique en crypte, clé unique
+  en bibliothèque, aucune clé partagée entre crypte et bibliothèque), et la
+  table des lettres se réduit à ł, ø, œ et aux tirets longs, seul « Bang Nakh
+  — Tiger's Claws » portant un tiret. Précisions apportées à P4 : la
+  déduction se tranche **nom par nom** (un nom peut être déduit pendant qu'un
+  autre est supposé) ; les lignes d'un même nom ambigu partagent un choix ;
+  les lignes non reconnues et la bibliothèque n'entrent pas dans le calcul ;
+  un nom de bibliothèque qui porte *advanced* ou un groupe est
+  `no_such_version`. Les exports `JOL` et `LACKEY` des decks de référence et
+  difficile, lus sommairement, retrouvent **exactement** la liste de leur
+  `*-api.json`, sans ligne non reconnue : aucune divergence de nom entre VDB
+  et krcg sur ces deux decks (dont « Sargon Fragment, The » contre « The
+  Sargon Fragment » de krcg).
+- **Tests** : `backend/tests/test_lot9_contract.py` (motif sur les
+  identifiants réels et 13 refus, lien en ligne et par `/sync`, `PATCH`
+  refusé, lien partagé par deux decks, lot refusé en 422, empreinte et rejeu
+  d'une `deck.create` d'avant le lot, forme du contrat, garde provisoire) ;
+  section « Lot 9 » de `test_migrations.py` (colonne, ni table ni index,
+  base peuplée conservée, descente sans lien, descente refusée et message
+  borné à dix decks, aller-retour, rendu hors ligne de la montée seulement) ;
+  matrice d'autorisation, opérations attendues et compte du contrat portés à
+  52 ; `test_a_populated_lot6_database_crosses_r10_and_r11_without_loss`
+  compare désormais `deck` à la tête sans sa colonne nouvelle. **2732 tests
+  backend verts et les 2 `xfail` connus**, `ruff check` propre, aucune
+  régression CRAP ; `tsc`, lint et les vitest du contrat et des préfixes verts
+  (suite vitest complète et e2e non relancés : aucun code du front ne change
+  hors `apiRoutes.ts` et du client généré).
+- **Base de développement** : `backend/vtes.db` n'a pas été migrée. L'API
+  refuse de démarrer tant qu'elle n'est pas à `5f2b8e9d0c41`
+  (`schema_check.py`) : `uv run alembic upgrade head` depuis `backend/`, après
+  avoir vérifié `DATABASE_URL`.
 
 ## Tests attendus (E)
 

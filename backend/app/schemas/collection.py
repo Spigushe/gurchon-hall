@@ -26,6 +26,7 @@ from app.schemas.base import (
     WriteModel,
 )
 from app.schemas.catalog import CardSummary
+from app.schemas.vdb import VDB_DECK_ID_DESCRIPTION, VdbDeckId
 
 CardSetId = Annotated[
     int,
@@ -279,6 +280,14 @@ class DeckRead(ReadModel):
             "lisible par identifiant et n'est plus modifiable."
         ),
     )
+    vdb_deck_id: str | None = Field(
+        default=None,
+        description=(
+            "Deck VDB dont ce deck a été importé par son adresse (Lot 9), nul "
+            "sinon. Posé à la création, jamais modifié : il permet de mettre le "
+            "deck à jour depuis VDB. " + VDB_DECK_ID_DESCRIPTION
+        ),
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -311,6 +320,15 @@ class DeckCreate(WriteModel):
             "(certains les refusent, d'autres les acceptent). Le nombre de "
             "proxies est porté par chaque ligne (`proxy_quantity`)."
             " Interdit par défaut."
+        ),
+    )
+    vdb_deck_id: VdbDeckId | None = Field(
+        default=None,
+        description=(
+            "Deck VDB dont ce deck est importé par son adresse (Lot 9, P7), à "
+            "reprendre de `VdbDeckRead.vdb_deck_id` ; omis ou nul pour un deck "
+            "créé autrement, ou importé d'une liste. Ne se modifie plus ensuite "
+            "(absent de `DeckUpdate`). " + VDB_DECK_ID_DESCRIPTION
         ),
     )
 

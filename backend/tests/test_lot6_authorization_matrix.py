@@ -157,6 +157,8 @@ _PROTECTED_ROUTES = [
         {"participations": [{"player": {"me": True}}]},
     ),
     ("DELETE", "/parties/1", None),
+    # Lot 9, étape A1 : lecture d'un deck VDB par le serveur (A7).
+    ("GET", "/vdb/decks/4fc0ee5e9", None),
 ]
 
 
