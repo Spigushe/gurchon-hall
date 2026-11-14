@@ -26,6 +26,8 @@ import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
 import { DeckResults } from "./DeckResults";
 import { DeckLegalityBadge } from "./DeckLegalityBadge";
+import { LiveDeckExport } from "./export/DeckExport";
+import { vdbDeckUrl } from "./import/vdbLinks";
 
 /** Feuille « Modifier le deck » (handoff Nocturne) : nom, archétype, notes, autorisation de proxy. */
 function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void }) {
@@ -79,7 +81,8 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
         <ArchetypeChips legend="Archétype" value={archetype} onChange={setArchetype} testIdPrefix="deck-edit-archetype" />
         <div className="field">
           <label htmlFor={`${formId}-notes`}>Notes</label>
-          <input
+          {/* Zone de texte : les notes d'un deck importé de VDB courent sur plusieurs lignes (Lot 9). */}
+          <textarea
             id={`${formId}-notes`}
             className="underline-field"
             value={notes}
@@ -143,6 +146,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [legalityRefreshToken, setLegalityRefreshToken] = useState(0);
   const [pickerOpen, setPickerOpen] = usePickerOpen();
   const archived = deck.archivedAt !== null;
@@ -202,6 +206,15 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             Archiver
           </button>
         )}
+        {/* L'export ne modifie rien : il reste possible pour un deck archivé (Lot 9, P9). */}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          data-testid="deck-export"
+          onClick={() => setExporting(true)}
+        >
+          Exporter
+        </button>
       </div>
       {!archived && deck.status === "draft" && (
         <p className="hint">Le serveur n'accepte l'activation que d'un deck légal.</p>
@@ -267,7 +280,15 @@ function DeckView({ deck }: { deck: LocalDeck }) {
           En attente de synchronisation
         </p>
       )}
-      {deck.notes && <p className="hint">{deck.notes}</p>}
+      {deck.notes && <p className="hint deck-notes">{deck.notes}</p>}
+      {deck.vdbDeckId && (
+        <p className="hint" data-testid="deck-vdb-link">
+          Importé de VDB :{" "}
+          <a href={vdbDeckUrl(deck.vdbDeckId)} target="_blank" rel="noopener noreferrer">
+            {vdbDeckUrl(deck.vdbDeckId).replace(/^https:\/\//, "")}
+          </a>
+        </p>
+      )}
 
       {archived && (
         <p className="hint" data-testid="deck-archived-note">
@@ -390,6 +411,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       )}
 
       {editing && <DeckEditForm deck={deck} onClose={() => setEditing(false)} />}
+      {exporting && <LiveDeckExport deck={deck} lines={lines} onClose={() => setExporting(false)} />}
       {!isDesktop && adding && <AddDeckCardForm deck={deck} onClose={() => setAdding(false)} />}
     </div>
   );

@@ -15,6 +15,7 @@ import {
 import { dayLabel, gamesCount, localDayOf } from "../analysis/bilanModel";
 import { buildDeckTables } from "./deckTablesModel";
 import { DeckTables } from "./DeckTables";
+import { VersionExport } from "./export/DeckExport";
 import { noChanges, versionChanges, versionLines, type VersionChange, type VersionChanges } from "./deckVersionModel";
 import { useDeckCardFacts } from "./useDeckCardFacts";
 
@@ -176,6 +177,7 @@ export function DeckVersionPage({ deckKey, number }: { deckKey: DeckKey; number:
   const versions = useLocalDeckVersions(deckKey);
   const games = useLocalGames({ deckKey });
   const [now] = useState(() => new Date());
+  const [exporting, setExporting] = useState(false);
 
   if (deck === undefined || versions === undefined || games === undefined) {
     return (
@@ -203,6 +205,18 @@ export function DeckVersionPage({ deckKey, number }: { deckKey: DeckKey; number:
             {meta}
           </p>
         )}
+        {version && (
+          <p>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              data-testid="deck-version-export"
+              onClick={() => setExporting(true)}
+            >
+              Exporter
+            </button>
+          </p>
+        )}
       </div>
       {isDesktop && versions.length > 1 && <VersionTabs deckKey={deckKey} versions={versions} current={number} />}
       {version ? (
@@ -210,6 +224,7 @@ export function DeckVersionPage({ deckKey, number }: { deckKey: DeckKey; number:
       ) : (
         <Unavailable deckName={deckName} number={number} />
       )}
+      {exporting && version && <VersionExport deck={deck} version={version} onClose={() => setExporting(false)} />}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 # Lot 9 — Import de decks depuis VDB : plan d'implémentation
 
 Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13 ;
-B1, C1 et D1 livrées le 2026-11-14** (cf. « Livré à A1 », « Livré à B1 »,
-« Livré à C1 » et « Livré à D1 » après le découpage). Rédigé sur
+B1, C1, D1, D2 et D4 livrées le 2026-11-14** (cf. « Livré à A1 » à « Livré à
+D4 » après le découpage). Rédigé sur
 `main` à `745c0a5` (Lot 8 clos), proposé puis tranché le même jour. Les
 exports réels de VDB sont versés dans `frontend/tests/fixtures/vdb/` le même
 jour (liste en fin de découpage). Les décisions
@@ -546,9 +546,9 @@ En mobile puis en bureau :
 | B1 | backend-fastapi | `services/vdb_client.py`, route, limite de débit, erreurs, `vdb_deck_id` à la création et en lecture, tests (lecture simulée, matrice d'autorisation, rejeu d'une `deck.create` d'avant le lot) ; relevé de la réponse réelle sur un deck de l'utilisateur — **fait le 2026-11-14** (cf. « Livré à B1 ») | A1 |
 | C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline — **fait le 2026-11-14** (cf. « Livré à C1 ») | A1 |
 | D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas — **fait le 2026-11-14** (cf. « Livré à D1 ») | A1 |
-| D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels | B1, C1, D1 |
+| D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels — **fait le 2026-11-14** (cf. « Livré à D2 ») | B1, C1, D1 |
 | D3 | frontend-react | mise à jour depuis VDB, mobile et bureau | D2 |
-| D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version | D1 |
+| D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version — **fait le 2026-11-14** (cf. « Livré à D4 ») | D1 |
 | E | qa-tests | tests, e2e aux deux largeurs, CRAP, recensement des `data-testid` | D2, D3, D4 |
 | F | orchestrateur | vérification sur téléphone, CLAUDE.md, pistes | E |
 
@@ -863,6 +863,131 @@ réseau, exportées par `index.ts` :
   seconde lecture vide). **1333 tests vitest verts sur 78 fichiers** sous
   couverture, lint et `tsc` propres, aucune fonction au-dessus de 30 ni
   régression CRAP.
+
+### Livré à D2 (2026-11-14)
+
+Écrans dans `frontend/src/features/decks/vdb/`, libellés purs dans
+`import/importLabels.ts` et `vdb/importSheetModel.ts` :
+
+- **Entrées** : « Importer depuis VDB » à côté de « Nouveau » dans l'en-tête de
+  la liste au bureau ; au mobile, un lien dans la feuille « Nouveau deck », qui
+  la ferme et ouvre l'import ; un second bouton dans l'état vide, aux deux
+  largeurs ; intention `#/decks?action=importer` (`DecksIntent` `import`),
+  consommée comme celles du Lot 5c. Pas de raccourci clavier.
+- **Étape 1** (`ImportInputStep`) : une zone de texte pour une liste ou une
+  adresse, un sélecteur de fichier `.txt` (512 Ko au plus) qui remplit la même
+  zone, et ce qui a été reconnu, dit en clair et apparié à la frappe contre le
+  catalogue en mémoire de Chercher (`useSearchCatalog`) : « Format texte de VDB
+  · 12 cartes de crypte, 80 de bibliothèque · 1 ligne non reconnue », « Lien
+  VDB qui porte la liste », « Lien vers un deck VDB (4fc0ee5e9), lu par le
+  serveur ». Hors ligne, un lien de deck montre le message de P1 et le bouton
+  est grisé ; en ligne, « Lire chez VDB » appelle `GET /vdb/decks/{id}`
+  (`useReadVdbDeck`), et chaque refus est dit selon son statut (404, 422, 429
+  avec son `Retry-After`, 502 avec le motif du serveur, 401, serveur
+  injoignable). Le texte saisi est gardé par la feuille : « changer la liste »
+  depuis l'aperçu le retrouve. Sans catalogue sur l'appareil, l'import attend
+  et le dit.
+- **Lien déjà lié (P8)** : un deck du compte, archivé compris, qui porte le
+  même `vdbDeckId` est signalé avant toute lecture (« Ce deck VDB est déjà lié
+  à « … » »), avec un lien vers lui, et rien ne s'importe. La vérification se
+  refait **après** la lecture, sur l'identifiant que rend VDB, relu dans la
+  base plutôt que dans la liste du rendu, qui pouvait être périmée (défaut
+  trouvé par les tests). S'il y en a deux, le plus récemment créé, un deck pas
+  encore synchronisé en tête (A6). La mise à jour reste à D3 : d'ici là, la
+  notice mène au deck.
+- **Étape 2** (`ImportPreviewStep`) : nom (celui de la liste, modifiable),
+  archétype (six puces), langue des proxies (puces du Lot 5, EN par défaut),
+  notes **modifiables**, l'effet écrit (« 92 cartes en proxy : le deck
+  autorisera les proxies. Il est créé en brouillon, sans rien prendre à la
+  collection. »), le rapport replié (`ImportReportDetails` : « Ligne 8 1x Theo
+  Bell — groupe déduit de la crypte : G6 », « version supposée : G2 ; écrire
+  (G6) pour l'autre », motif de chaque ligne non reconnue, « Entrée n » pour
+  une adresse), puis la composition dans `DeckTables` en lecture seule.
+  « Créer le deck » passe le plan à `actions.importDeck` et ouvre le
+  deckbuilder du deck créé ; il est grisé si aucune carte n'est reconnue.
+- **Pertinence des notes, jugée sur les exports réels** : la forme de D1 est
+  gardée (« Auteur : … », la description, la date d'import pour un deck non
+  lié). La description d'un deck de la TWDA (date, joueurs, événement, lieu)
+  est l'information utile du deck et non une répétition ; le Markdown reste
+  brut, l'application n'en affichant nulle part. Une description pouvant être
+  longue, les notes se **modifient dans l'aperçu** avant d'écrire, ce qui règle
+  le cas sans règle de coupe. Deux défauts corrigés en passant : le détail d'un
+  deck écrasait les sauts de ligne des notes (`.deck-notes`, `white-space:
+  pre-line`), et « Modifier le deck » éditait les notes dans un champ d'une
+  ligne, qui perdait ces sauts à la première frappe (zone de texte désormais).
+- **Lien vers VDB** (pris sur l'écran 4) : le détail d'un deck lié montre
+  « Importé de VDB : vdb.im/decks/<id> » (`vdbDeckUrl`, `import/vdbLinks.ts`).
+- **Banc d'essai de l'interface** : `tests/unit/ui/harness.tsx` sert
+  `GET /vdb/decks/{id}` depuis `ui.vdbDecks` (corps, réponse d'erreur avec
+  `Retry-After`, ou panne réseau).
+- **Tests** : `tests/unit/ui/deckImport.test.tsx` (liste collée hors ligne
+  jusqu'à la file, en une transaction, tout en proxy, langue choisie, dernière
+  extension ; groupe déduit et version supposée ; adresse qui porte la liste,
+  sans appel au serveur ; fichier ; adresse invalide ; lien hors ligne ; lien
+  lu en ligne puis deck lié ; deck déjà lié, avant et après la lecture ; six
+  refus ; entrées bureau, mobile et état vide ; catalogue absent),
+  `tests/unit/features/decks/import/importLabels.test.ts` (rapport, refus,
+  deck lié, bouton « Continuer ») et l'intention dans `routes.test.ts`.
+
+### Livré à D4 (2026-11-14)
+
+Module `frontend/src/features/decks/export/` :
+
+- **`exportVdbText`** (pur) : le format `TEXT` de VDB, mis en page d'après les
+  exports réels. Vérifié **à l'octet près** contre `ref-text.txt`, ligne
+  d'auteur exceptée, et contre la crypte de `difficile-text.txt` (*advanced*,
+  titres, clan en deux mots, capacité à deux chiffres). Chaque colonne de
+  crypte a la largeur de sa plus longue valeur plus trois espaces, la capacité
+  calée à droite ; `Crypt (n cards, min=… max=… avg=…)` se calcule sur les
+  quatre plus faibles et les quatre plus fortes capacités, en exemplaires ;
+  disciplines supérieures en capitales d'abord ; titre en minuscules ;
+  `Clan:groupe`, `ANY` pour un groupe neutre ; `(ADV)`, et `(G6)` pour la
+  version récente d'un vampire réimprimé (`reprintedCardIds`, d'après les
+  autres versions du nom, lues par l'index `foldedName` du miroir), la version
+  d'origine restant sans marque ; « The X » écrit « X, The », comme VDB.
+  Bibliothèque par type **dans l'ordre de VDB**, relevé sur les exports réels
+  et différent de celui des tableaux (Reaction avant Combat, Action Modifier
+  après Retainer : `VDB_LIBRARY_TYPE_ORDER`), une combinaison de types
+  (`Action Modifier/Reaction`) au rang de son premier type, titres soulignés
+  d'un caractère de plus, *trifles* comptés comme dans les tableaux.
+- **Écarts** : pas de ligne `Author:`, le deck n'ayant pas d'auteur ; les
+  notes partent en `Description:` ; une crypte sans aucun titre garde une
+  colonne de titre de trois espaces (forme de VDB inconnue dans ce cas) ; une
+  carte sans détails au miroir s'exporte dans un groupe `Unknown`, que les deux
+  imports ignorent comme tout titre. Une version jouée s'exporte sous le nom
+  « Banu Princes v2 », sans les notes, qui décrivent la liste vivante.
+- **Aller-retour** : exporter puis réimporter retrouve exactement la liste des
+  cinq réponses d'API réelles (référence, cas difficiles, mise à jour, TWDA,
+  précon), sans ligne illisible, non reconnue ni version supposée.
+- **Feuille** (`DeckExportSheet`) : le texte en lecture seule, « Copier » et
+  « Télécharger (.txt) », le nom du fichier annoncé et le résultat dit dans une
+  zone `aria-live` (pas de `role="status"`, réservé à la coquille).
+  `copyText` (pur) se replie hors contexte sécurisé, sans presse-papiers ou sur
+  refus : le texte est alors sélectionné et le message de A5 s'affiche.
+  `exportFileName` : `Banu Princes#1234.txt`, `… v2.txt`, sans discriminant
+  avant la synchronisation, caractères interdits et de contrôle remplacés par
+  `_`. Le téléchargement passe par un lien `blob:` temporaire.
+- **Entrées** : « Exporter » dans les actions du deck (sous la composition au
+  mobile, dans l'en-tête du deckbuilder au bureau), y compris pour un deck
+  archivé ; « Exporter » sous le titre de la liste d'une version jouée, quand
+  la version est lue sur l'appareil. Tout se lit dans le miroir, hors ligne.
+  Les faits des cartes et les versions de noms se lisent en une requête
+  attachée aux identifiants demandés (`useDeckExportText`) : une première
+  écriture réutilisait un instant la lecture d'une liste précédente et montrait
+  des cartes « Unknown » (défaut trouvé par les tests).
+- **Tests** : `tests/unit/features/decks/export/exportVdbText.test.ts`
+  (exports réels, marques, combinaisons de types, en-tête de crypte,
+  `reprintedCardIds`, aller-retour sur cinq réponses réelles),
+  `exportFile.test.ts` (noms de fichier, trois replis de la copie) et
+  `tests/unit/ui/deckExport.test.tsx` (texte exact hors ligne, copie en
+  contexte sécurisé, repli avec sélection, téléchargement, deck archivé,
+  version jouée).
+
+État après D2 et D4 : **1402 tests vitest verts sur 84 fichiers** sous
+couverture, `tsc` et lint propres, aucune fonction au-dessus de 30 ni
+régression CRAP (`DeckView` monte à 27), aucun `data-testid` disparu par
+rapport à la référence de clôture du Lot 8. Les captures à 390 et 1440px de
+P10 **ne sont pas faites** : à prendre avec D3 ou à l'étape E.
 
 ## Tests attendus (E)
 

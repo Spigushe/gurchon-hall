@@ -20,7 +20,7 @@ import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
  * retour arrière retombe donc sur l'adresse nue, sans rouvrir la feuille.
  */
 export type StockIntent = "add" | "bundle";
-export type DecksIntent = "new";
+export type DecksIntent = "new" | "import";
 export type GamesIntent = "new";
 
 export type Route =
@@ -45,7 +45,8 @@ const RESOURCE_KEY = DECK_KEY;
 
 const STOCK_ACTIONS: Record<string, StockIntent> = { ajouter: "add", verser: "bundle" };
 const STOCK_ACTION_PARAMS: Record<StockIntent, string> = { add: "ajouter", bundle: "verser" };
-const DECKS_ACTIONS: Record<string, DecksIntent> = { nouveau: "new" };
+const DECKS_ACTIONS: Record<string, DecksIntent> = { nouveau: "new", importer: "import" };
+const DECKS_ACTION_PARAMS: Record<DecksIntent, string> = { new: "nouveau", import: "importer" };
 const GAMES_ACTIONS: Record<string, GamesIntent> = { nouvelle: "new" };
 
 /** Valeur du paramètre `action` du hash, `null` s'il est absent ou inconnu de la table. */
@@ -152,7 +153,7 @@ export function hrefFor(route: Route): string {
     case "stock":
       return route.intent ? `#/collection?action=${STOCK_ACTION_PARAMS[route.intent]}` : "#/collection";
     case "decks":
-      return route.intent ? "#/decks?action=nouveau" : "#/decks";
+      return route.intent ? `#/decks?action=${DECKS_ACTION_PARAMS[route.intent]}` : "#/decks";
     case "deck":
       return `#/decks/${keySegment(route.key)}`;
     case "deckVersion":

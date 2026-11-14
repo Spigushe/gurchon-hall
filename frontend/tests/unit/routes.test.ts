@@ -53,6 +53,8 @@ describe("routes clientes", () => {
     }
     expect(hrefFor({ name: "stock", intent: "add" })).toBe("#/collection?action=ajouter");
     expect(hrefFor({ name: "decks", intent: "new" })).toBe("#/decks?action=nouveau");
+    expect(hrefFor({ name: "decks", intent: "import" })).toBe("#/decks?action=importer");
+    expect(parseHash("#/decks?action=importer")).toEqual({ name: "decks", intent: "import" });
     expect(hrefFor({ name: "games", intent: "new" })).toBe("#/parties?action=nouvelle");
     // Une action inconnue ou posée sur le mauvais écran est ignorée.
     expect(parseHash("#/parties?action=nouveau")).toEqual({ name: "games" });
