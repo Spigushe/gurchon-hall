@@ -10,15 +10,20 @@ dans le code et l'identifiant suit un motif fermé (`VDB_DECK_ID_PATTERN`) :
 la route ne peut joindre aucune autre adresse. Un identifiant hors motif rend
 422 sans qu'aucun appel ne parte.
 
-**Étape A1 : contrat seulement.** La route est déclarée avec ses réponses,
-pour que le contrat et le client TypeScript existent dès maintenant ; la
-lecture chez VDB (`services/vdb_client.py`, délai, limite de débit, bornes de
-la réponse) arrive à l'étape B1. D'ici là, le corps rend 501.
+La lecture elle-même (délai, taille bornée, forme vérifiée, aucune
+redirection suivie) est dans `app.services.vdb_client` ; la route traduit ses
+deux erreurs, 404 pour un deck que VDB ne connaît pas, 502 pour tout le reste.
+Elle est limitée en débit par adresse IP (`VDB_RATE_LIMIT`, 20 par minute par
+défaut) : le contrôle de slowapi passe après la session et le motif, si bien
+qu'un appel refusé en 401 ou en 422 ne compte pas. La lecture réseau est une
+dépendance (`get_vdb_fetcher`) que les tests remplacent. `request` et
+`response` ne servent qu'à slowapi, qui lit l'une et pose ses en-têtes
+`X-RateLimit-*` sur l'autre.
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
 
 from app.routers.common import (
     BAD_GATEWAY,
@@ -33,6 +38,14 @@ from app.schemas.vdb import (
     VDB_DECK_ID_PATTERN,
     VdbDeckRead,
 )
+from app.services.rate_limit import limiter, vdb_rate_limit
+from app.services.vdb_client import (
+    VdbDeckNotFoundError,
+    VdbFetcher,
+    VdbUnavailableError,
+    default_fetcher,
+    read_vdb_deck,
+)
 
 router = APIRouter(prefix="/vdb", tags=["vdb"], responses=UNAUTHENTICATED)
 
@@ -45,8 +58,16 @@ VdbDeckIdPath = Annotated[
     ),
 ]
 
-# Garde provisoire, à retirer à l'étape B1 avec la lecture réelle.
-PENDING_B1 = "Lecture d'un deck VDB pas encore livrée (Lot 9, étape B1)."
+VDB_DECK_NOT_FOUND = "Deck VDB introuvable."
+
+
+def get_vdb_fetcher() -> VdbFetcher:
+    """Lecture réseau de la route : réelle, ou simulée sous `VDB_STUB_DIR`.
+    Les tests la remplacent par `app.dependency_overrides`."""
+    return default_fetcher()
+
+
+VdbFetch = Annotated[VdbFetcher, Depends(get_vdb_fetcher)]
 
 
 @router.get(
@@ -66,5 +87,17 @@ PENDING_B1 = "Lecture d'un deck VDB pas encore livrée (Lot 9, étape B1)."
     ),
     responses={**NOT_FOUND, **TOO_MANY_REQUESTS, **BAD_GATEWAY},
 )
-def read_vdb_deck(vdb_deck_id: VdbDeckIdPath, user: CurrentUser) -> VdbDeckRead:
-    raise HTTPException(status_code=501, detail=PENDING_B1)
+@limiter.limit(vdb_rate_limit)
+def read_vdb_deck_route(
+    request: Request,
+    response: Response,
+    vdb_deck_id: VdbDeckIdPath,
+    user: CurrentUser,
+    fetch: VdbFetch,
+) -> VdbDeckRead:
+    try:
+        return read_vdb_deck(vdb_deck_id, fetch=fetch)
+    except VdbDeckNotFoundError as error:
+        raise HTTPException(status_code=404, detail=VDB_DECK_NOT_FOUND) from error
+    except VdbUnavailableError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error

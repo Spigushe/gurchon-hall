@@ -7,8 +7,9 @@ Ce que ce fichier fige (`docs/lot9-plan-import-vdb.md`, A6 et A7) :
 * `vdb_deck_id` à la création d'un deck, en ligne comme par `/sync`, et en
   lecture ; jamais en modification ;
 * l'empreinte inchangée d'une `deck.create` écrite avant le lot ;
-* la déclaration de `GET /vdb/decks/{vdb_deck_id}` au contrat, et la garde
-  provisoire qui rend 501 jusqu'à l'étape B1.
+* la déclaration de `GET /vdb/decks/{vdb_deck_id}` au contrat, et le refus
+  en 422 d'un identifiant hors motif. Le corps de la route (étape B1) est
+  éprouvé dans `test_lot9_vdb_route.py`.
 """
 
 import json
@@ -19,7 +20,6 @@ import pytest
 from pydantic import ValidationError
 
 from app.main import app
-from app.routers.vdb import PENDING_B1
 from app.schemas.collection import DeckCreate, DeckUpdate
 from app.schemas.sync import DeckCreateOperation, fingerprint
 from app.schemas.vdb import VdbDeckRead
@@ -307,18 +307,10 @@ def test_vdb_deck_read_serializes_with_explicit_utc():
 
 
 # --------------------------------------------------------------------------
-# Route : motif contrôlé, corps livré à B1
+# Route : motif contrôlé (corps de la route : `test_lot9_vdb_route.py`)
 # --------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("value", ["a.b", "a%3Fb", "x" * 65])
 def test_the_route_refuses_an_id_outside_the_pattern(me_api, value):
     assert me_api.get(f"/vdb/decks/{value}").status_code == 422
-
-
-def test_the_route_is_a_provisional_501_until_b1(me_api):
-    """Garde provisoire de A1, à retirer à B1 avec la lecture réelle."""
-    for value in ("4fc0ee5e9", "12761", "SV5:PCaine"):
-        response = me_api.get(f"/vdb/decks/{value}")
-        assert response.status_code == 501
-        assert response.json() == {"detail": PENDING_B1}

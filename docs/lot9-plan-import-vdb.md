@@ -1,7 +1,8 @@
 # Lot 9 — Import de decks depuis VDB : plan d'implémentation
 
-Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13**
-(cf. « Livré à A1 » après le découpage). Rédigé sur
+Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13 ;
+B1 livrée le 2026-11-14** (cf. « Livré à A1 » et « Livré à B1 » après le
+découpage). Rédigé sur
 `main` à `745c0a5` (Lot 8 clos), proposé puis tranché le même jour. Les
 exports réels de VDB sont versés dans `frontend/tests/fixtures/vdb/` le même
 jour (liste en fin de découpage). Les décisions
@@ -542,7 +543,7 @@ En mobile puis en bureau :
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | P1 à P10 tranchées (fait le 2026-11-13) ; exports réels fournis (voir ci-dessous) | rien |
 | A1 | architecte-contrat | contrat (route A7, `VdbDeckRead`, `vdb_deck_id` dans `DeckCreate`, `DeckRead` et `deck.create`), révision R14, motif de l'identifiant, relecture de la table de cas d'appariement (déduction et version supposée), `docs/lot3-sync-contrat.md` — **fait le 2026-11-13** (cf. « Livré à A1 ») | A0 |
-| B1 | backend-fastapi | `services/vdb_client.py`, route, limite de débit, erreurs, `vdb_deck_id` à la création et en lecture, tests (lecture simulée, matrice d'autorisation, rejeu d'une `deck.create` d'avant le lot) ; relevé de la réponse réelle sur un deck de l'utilisateur | A1 |
+| B1 | backend-fastapi | `services/vdb_client.py`, route, limite de débit, erreurs, `vdb_deck_id` à la création et en lecture, tests (lecture simulée, matrice d'autorisation, rejeu d'une `deck.create` d'avant le lot) ; relevé de la réponse réelle sur un deck de l'utilisateur — **fait le 2026-11-14** (cf. « Livré à B1 ») | A1 |
 | C1 | pwa-offline | `Outbox.enqueueAll`, `actions.importDeck` et `refreshDeck`, `vdbDeckId` au miroir, préfixe `/vdb`, README du paquet offline | A1 |
 | D1 | frontend-react | analyseur, appariement avec déduction, plans d'import et de mise à jour (A1 à A3), en fonctions pures sur les tables de cas | A1 |
 | D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels | B1, C1, D1 |
@@ -677,6 +678,69 @@ pures.
   refuse de démarrer tant qu'elle n'est pas à `5f2b8e9d0c41`
   (`schema_check.py`) : `uv run alembic upgrade head` depuis `backend/`, après
   avoir vérifié `DATABASE_URL`.
+
+### Livré à B1 (2026-11-14)
+
+- **Client** (`app/services/vdb_client.py`) : `read_vdb_deck(id, fetch=…)`
+  lit `https://vdb.im/api/deck/<id>` et rend `VdbDeckRead`, ou lève
+  `VdbDeckNotFoundError` (VDB répond 400 ou 404) ou `VdbUnavailableError`
+  (tout le reste, avec un motif en français qui ne cite jamais le corps reçu).
+  Le motif de l'identifiant est revérifié avant tout appel (`ValueError`),
+  second filet derrière la route. La lecture réseau (`fetch_from_vdb`) passe
+  par `urllib`, délai de 10 s, réponse lue jusqu'à 256 Ko au plus (un deck en
+  pèse 1 à 2), et **aucune redirection suivie** : un 3xx est un statut
+  inattendu. Toute panne de transport (`URLError`, délai, `OSError`,
+  `http.client.HTTPException`) devient un 502.
+- **Forme vérifiée**, en petites fonctions : `deckid` au motif fermé (celui que
+  rend VDB est gardé, pas celui demandé), `name` texte (vide permis, le
+  navigateur met « Deck importé »), `author` et `description` texte ou nul,
+  un texte fait d'espaces valant nul, la description relayée telle quelle ;
+  `cards` objet dont les clés sont des identifiants VEKN écrits en chiffres
+  (sans zéro de tête, au plus `MAX_DB_INT`) et les valeurs des entiers
+  (`true`, `2.0` et `"2"` refusés), triés par identifiant. Les autres champs
+  sont ignorés quelle que soit leur forme (`tags` est une liste pour un deck
+  d'utilisateur, un objet pour la TWDA). **Écart à A7** : une quantité **nulle**
+  est omise au lieu de faire rendre 502, VDB pouvant laisser une carte retirée
+  à 0 dans son dictionnaire ; une quantité négative ou démesurée reste un 502.
+- **Route** : le corps provisoire 501 et son test sont retirés. 404 « Deck VDB
+  introuvable. », 502 avec le motif, 429 avec `Retry-After` au-delà de
+  `VDB_RATE_LIMIT` (20 par minute par défaut, par adresse IP, comme la
+  connexion). Ordre vérifié : 401 d'abord, puis 422 du motif, puis la limite ;
+  un 401 ou un 422 ne consomme pas la limite, un 404 ou un 502 si (VDB a été
+  joint). Une barre, même encodée (`%2F`), sort du chemin : 404 du routage,
+  sans appel. La lecture réseau est une dépendance (`get_vdb_fetcher`) que les
+  tests remplacent par `app.dependency_overrides`. Contrat inchangé.
+- **Lecture simulée pour les e2e** : `VDB_STUB_DIR` fait lire
+  `<dossier>/<id>.json` (`:` écrit `_`), un fichier absent valant un deck
+  inconnu. Pris à B1 pour que l'étape E n'ait qu'à poser la variable au
+  lancement du back (`frontend/tests/e2e-real/support/backend.ts`). Documenté
+  dans `backend/.env.example` avec `VDB_RATE_LIMIT`. Le dossier se remplit par
+  `uv run python scripts/vdb_stub.py <dossier> [--etat avant|apres]`, depuis
+  les réponses réelles des fixtures, chacune rangée sous son `deckid` et
+  relue par `parse_vdb_deck` : `4fc0ee5e9` (référence), `12761` (TWDA),
+  `SV5:PCaine` (précon) et `31203cb9e`, le deck des cas difficiles, dans
+  l'état `avant` (`maj-avant-api.json`, mêmes cartes que
+  `difficile-api.json`) ou `apres` (`maj-apres-api.json`). Relancer le script
+  avec `--etat apres` bascule le deck back en marche (écriture par
+  renommage, relue à chaque appel) : c'est le parcours de la mise à jour de
+  P7, à la main hors connexion comme dans l'e2e de E, qui pourra appeler le
+  script comme `backend.ts` appelle déjà Alembic. `backend/.vdb-stub/` est
+  ignoré par git. Tests dans `backend/tests/test_vdb_stub_script.py`.
+- **Relevé réel** (2026-11-14) : un appel de `read_vdb_deck("4fc0ee5e9")`
+  depuis le poste, avec l'en-tête `User-Agent` par défaut d'`urllib`, rend
+  exactement la liste de `ref-api.json` (30 cartes, 92 exemplaires) ; un
+  identifiant inconnu rend bien « introuvable ». Aucun test ne joint vdb.im.
+- **Tests** : `backend/tests/test_lot9_vdb_route.py` (les six réponses réelles
+  lues sans perte, tolérances, 25 réponses hors forme, statuts de VDB, lecture
+  réseau sur un faux `urllib` : adresse, en-tête, délai, borne de taille,
+  pannes, redirection refusée ; lecture simulée ; route : 200, 404, 502 sous
+  cinq formes, 401 et 422 sans appel, barre encodée, 429 et ordre des
+  contrôles), 109 tests ; `test_vdb_stub_script.py`, 8 tests. Suite complète
+  sous couverture : **2848 tests verts et les 2 `xfail` connus** (2840 au
+  passage complet, les 8 du script de stub ajoutés ensuite et passés à
+  part), `ruff check` propre, contrat inchangé (`export_openapi.py --check`),
+  `vdb_client.py` et `routers/vdb.py` couverts à 100 %, aucune régression
+  CRAP. Durée du passage complet : 21 min, contre 12 relevées au Lot 7.
 
 ## Tests attendus (E)
 

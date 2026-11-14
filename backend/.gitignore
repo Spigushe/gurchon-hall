@@ -14,3 +14,6 @@ dist/
 # couverture du score CRAP (docs/qa-crap.md)
 .coverage
 coverage.json
+
+# lecture simulée de VDB (scripts/vdb_stub.py, Lot 9)
+.vdb-stub/
