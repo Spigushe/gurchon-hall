@@ -12,8 +12,8 @@ PostgreSQL.
 
 | | Production | Staging (`-e deploy_env=staging`) |
 | --- | --- | --- |
-| PWA | `https://gurchon.spigushe.org` | `https://gurchon-staging.spigushe.org` |
-| API | `https://api-gurchon.spigushe.org` | `https://api-gurchon-staging.spigushe.org` |
+| PWA | `https://gurchon.spigushe.com` | `https://gurchon-staging.spigushe.com` |
+| API | `https://api-gurchon.spigushe.com` | `https://api-gurchon-staging.spigushe.com` |
 | Port local d'uvicorn | 8031 | 8531 |
 | Service systemd | `gurchon-api` | `gurchon-api-staging` |
 | Code déployé | dernière release GitHub | branche `main` |
@@ -24,14 +24,14 @@ Deux domaines parce que les rôles de Barrin écrivent chacun leur vhost nginx :
 uvicorn. C'est la disposition du développement (front sur 5173, API sur 8000),
 déjà couverte par les e2e : le front appelle l'API avec
 `credentials: "include"`, et les deux hôtes étant du même site
-(`spigushe.org`), le cookie `SameSite=Lax` part bien.
+(`spigushe.com`), le cookie `SameSite=Lax` part bien.
 
-Sur le serveur, l'API vit dans `~/projects/api-gurchon.spigushe.org/backend`,
+Sur le serveur, l'API vit dans `~/projects/api-gurchon.spigushe.com/backend`,
 la base dans `backend/vtes.db` de ce clone (le chemin par défaut, celui que
 vise la migration lancée par `fastapi_backend`), en mode `0600`. Le fichier est
 ignoré par git, et le rôle met le clone à jour par `git reset` sans jamais le
 nettoyer : la base survit aux déploiements. Le front est cloné à part, dans
-`~/projects/gurchon.spigushe.org`, et construit sur place avec Node 22.
+`~/projects/gurchon.spigushe.com`, et construit sur place avec Node 22.
 
 L'API ne reçoit que deux variables, écrites dans l'unité systemd :
 `BACKEND_CORS_ORIGINS` (l'origine de la PWA) et `FORWARDED_ALLOW_IPS`
@@ -52,7 +52,7 @@ une IP glissée par le client dans l'en-tête est ignorée.
 ## Avant le premier déploiement
 
 1. **DNS.** Deux enregistrements A vers le VPS (146.59.146.57) :
-   `gurchon.spigushe.org` et `api-gurchon.spigushe.org`, plus les deux
+   `gurchon.spigushe.com` et `api-gurchon.spigushe.com`, plus les deux
    `-staging` si on veut un staging. certbot les vérifie par HTTP au premier
    passage.
 2. **Ansible.** Celui de WSL suffit (ansible-core 2.20, avec les collections
@@ -127,7 +127,7 @@ rôle `admin`) avec un mot de passe inutilisable. L'inscription étant ouverte,
 le réclamer **avant** de donner l'adresse à qui que ce soit, en SSH :
 
 ```bash
-cd ~/projects/api-gurchon.spigushe.org/backend
+cd ~/projects/api-gurchon.spigushe.com/backend
 uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>
 ```
 
@@ -147,14 +147,14 @@ le VPS : en cas de perte du serveur, elles partent avec lui. À recopier
 ailleurs de temps en temps, par exemple :
 
 ```bash
-scp spigushe.org:backups/gurchon-hall/vtes-<date>.db .
+scp spigushe.com:backups/gurchon-hall/vtes-<date>.db .
 ```
 
 Restaurer une copie :
 
 ```bash
 sudo systemctl stop gurchon-api
-cd ~/projects/api-gurchon.spigushe.org/backend
+cd ~/projects/api-gurchon.spigushe.com/backend
 cp vtes.db vtes.db.avant-restauration
 cp ~/backups/gurchon-hall/vtes-<date>.db vtes.db && chmod 600 vtes.db
 sudo systemctl start gurchon-api

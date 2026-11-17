@@ -80,7 +80,7 @@ saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan d
 `docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 est devenu facultatif.
 Lot 11, **écrit, pas encore appliqué** : playbook Ansible `ops/gurchon_hall.yml`, qui
 réutilise les rôles et l'inventaire de barrins-project pour mettre gurchon-hall en
-ligne sur son VPS (`gurchon.spigushe.org`, API sur `api-gurchon.spigushe.org`), avec
+ligne sur son VPS (`gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`), avec
 sauvegarde avant chaque déploiement et chaque nuit (guide dans `docs/deploiement.md`,
 décisions au §11). Le modèle compte **28 tables** et
 quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
@@ -2149,8 +2149,8 @@ Tranchées pendant le Lot 11 (2026-11-17 ; guide complet dans `docs/deploiement.
   de barrins-project n'est modifié ; les deux dépôts doivent être côte à côte.
 - **Rôles de Barrin repris tels quels**, plus un rôle local,
   `gurchon_sqlite_backup` (script, service et minuteur systemd), Barrin ne
-  sauvegardant que du PostgreSQL. Deux domaines, `gurchon.spigushe.org` et
-  `api-gurchon.spigushe.org` (choix de l'utilisateur), parce que `react_frontend`
+  sauvegardant que du PostgreSQL. Deux domaines, `gurchon.spigushe.com` et
+  `api-gurchon.spigushe.com` (choix de l'utilisateur), parce que `react_frontend`
   et `backend_website` écrivent chacun leur vhost ; c'est la disposition du
   développement, cookie `SameSite=Lax` compris, les deux hôtes étant du même site.
   Ports 8031 et 8531 (staging), à la suite de ceux de Barrin.
@@ -2403,7 +2403,7 @@ Limites connues à l'écriture du Lot 11 :
 14. **Lot 11 — Playbook Ansible de déploiement** — *écrit le 2026-11-17, pas encore
     appliqué.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS de
     barrins-project avec les rôles de Barrin (HTTPS obligatoire pour la PWA, §2) :
-    PWA sur `gurchon.spigushe.org`, API sur `api-gurchon.spigushe.org`, staging en
+    PWA sur `gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`, staging en
     `-staging`, production sur la dernière release GitHub, migration et import du
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
     nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. Restent les

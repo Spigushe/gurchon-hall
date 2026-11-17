@@ -18,8 +18,8 @@
 
     env_suffix: "{{ '-staging' if deploy_env == 'staging' else '' }}"
     backend_port: "{{ 8531 if deploy_env == 'staging' else 8031 }}"
-    frontend_domain: "gurchon{{ env_suffix }}.spigushe.org"
-    backend_domain: "api-gurchon{{ env_suffix }}.spigushe.org"
+    frontend_domain: "gurchon{{ env_suffix }}.spigushe.com"
+    backend_domain: "api-gurchon{{ env_suffix }}.spigushe.com"
     backend_work_dir: "/home/{{ username }}/projects/{{ backend_domain }}/backend"
     database_path: "{{ backend_work_dir }}/vtes.db"
     backup_dir: "/home/{{ username }}/backups/gurchon-hall{{ env_suffix }}"
