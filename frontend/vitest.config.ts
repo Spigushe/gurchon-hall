@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
@@ -8,6 +9,15 @@ import react from "@vitejs/plugin-react";
 // couvert par ces tests — voir tests/e2e pour le service worker réel).
 export default defineConfig({
   plugins: [react()],
+  // `virtual:pwa-register` n'existe que sous le plugin PWA : sans ce
+  // remplaçant, `src/offline/registerServiceWorker.ts` ne se transforme pas, et
+  // la couverture v8 l'écartait (« Failed to parse … Excluding it from
+  // coverage »), hors du score CRAP.
+  resolve: {
+    alias: {
+      "virtual:pwa-register": fileURLToPath(new URL("./tests/stubs/virtualPwaRegister.ts", import.meta.url)),
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],

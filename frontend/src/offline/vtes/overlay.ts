@@ -53,6 +53,8 @@ export interface LocalDeck {
   /** Autorisation de proxy du deck (Lot 4) : plus une propriété de l'entrée de collection. */
   proxyAllowed: boolean;
   archivedAt: string | null;
+  /** Deck VDB dont ce deck est importé par son adresse (Lot 9), nul sinon : il se met à jour depuis VDB. */
+  vdbDeckId: string | null;
   pending: boolean;
 }
 
@@ -161,6 +163,7 @@ export function project(
       notes: row.notes,
       proxyAllowed: row.proxyAllowed,
       archivedAt: row.archivedAt,
+      vdbDeckId: row.vdbDeckId ?? null,
       pending: false,
     });
     keyByDeckId.set(row.id, key);
@@ -252,6 +255,7 @@ export function project(
       notes: data.notes ?? null,
       proxyAllowed: data.proxy_allowed ?? false,
       archivedAt: null,
+      vdbDeckId: data.vdb_deck_id ?? null,
       pending,
     });
     keyByRef.set(operation.client_ref, key);

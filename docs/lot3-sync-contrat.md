@@ -753,3 +753,51 @@ lecture.
   refigé pour ce deck.
 - Ne pas mettre de champ adverse sur ma ligne ni sur une ligne qui joue un de
   mes decks.
+
+## Lot 9 : un deck importé de VDB
+
+Le Lot 9 (`docs/lot9-plan-import-vdb.md`, A4 et A6) n'ajoute **aucun type
+d'opération** : `/sync` en garde vingt. Un import et une mise à jour depuis VDB
+s'écrivent avec les opérations de deck existantes, rangées par le client en
+une seule transaction de la file (`Outbox.enqueueAll`, étape C1). Rédigé à
+l'étape A1 ; les tests du contrat sont dans `backend/tests/test_lot9_contract.py`.
+
+**Un champ nouveau, à la création seulement.**
+
+| Charge utile | Champ | Rôle |
+| --- | --- | --- |
+| `data` de `deck.create` (`DeckCreate`) | `vdb_deck_id`, facultatif, nul par défaut | identifiant du deck VDB dont le deck est importé par son adresse (P7) |
+
+Le champ suit le motif fermé `^[A-Za-z0-9:_-]{1,64}$` (identifiants relevés :
+`4fc0ee5e9` pour un deck d'utilisateur, `12761` pour la TWDA, `SV5:PCaine`
+pour un précon). Un identifiant hors motif fait refuser **le lot entier** en
+422, comme toute borne de schéma, et la bissection du client isole
+l'opération. Le client reprend l'identifiant tel que `GET /vdb/decks/{id}` l'a
+rendu (`VdbDeckRead.vdb_deck_id`), sans le retaper.
+
+`deck.update` ne l'accepte pas (`extra="forbid"`, donc 422) : dans ce lot, on
+ne lie pas après coup un deck créé autrement, et on ne délie pas un deck
+importé. Le lien se lit dans `DeckRead.vdb_deck_id`, toujours présent, nul pour
+un deck non lié. Deux decks peuvent porter le même lien (deux appareils hors
+ligne) : le serveur ne l'interdit pas, et l'écran d'import propose le plus
+récent.
+
+**Empreinte et rejeu.** L'empreinte suit `exclude_unset` : une `deck.create`
+écrite avant le lot, sans le champ, garde son empreinte et se rejoue en
+`replayed`, son deck restant non lié.
+
+**Ce que le client doit faire.**
+
+- Créer un deck importé par une `deck.create` (avec `proxy_allowed: true`,
+  statut brouillon, P5 et P7) puis une `deck_card.upsert` par carte, toutes
+  les lignes entièrement en proxy, reliées par la `client_ref` du deck, et
+  ranger le tout d'un bloc. Une ligne tout en proxy ne demande rien à la
+  collection : un import ne peut pas être refusé au rejeu pour exemplaires
+  insuffisants.
+- Ne mettre `vdb_deck_id` que sur un deck importé par l'adresse d'un deck VDB ;
+  jamais pour une liste collée, un fichier ou une URL qui porte la liste.
+- Mettre à jour un deck lié par une `deck.update` (retour en brouillon), puis
+  les `deck_card.upsert` et `deck_card.delete` du plan de mise à jour, rangées
+  d'un bloc, le plan recalculé sur le miroir au moment d'« Appliquer » (A3).
+- La lecture d'un deck VDB (`GET /vdb/decks/{vdb_deck_id}`) est une route en
+  ligne, hors `/sync`, comme toute lecture : elle ne crée rien.

@@ -233,6 +233,15 @@ class Deck(Base, TimestampMixin):
     )
     archived_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     deleted_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # Identifiant du deck VDB dont ce deck a été importé (Lot 9, P7, A6), ou
+    # rien. Posé à la création seulement, jamais modifié : il sert à mettre le
+    # deck à jour depuis VDB, l'adresse se reconstruisant à partir de lui. Ni
+    # index ni unicité : le serveur ne cherche jamais un deck par ce champ, et
+    # deux decks liés au même deck VDB restent possibles (deux appareils hors
+    # ligne). Le motif de l'identifiant est vérifié par le schéma
+    # (`app.schemas.vdb.VDB_DECK_ID_PATTERN`), pas par un CHECK : R14 ajoute la
+    # colonne en place, sans recréer `deck`.
+    vdb_deck_id: Mapped[str | None] = mapped_column(String(64))
 
     cards: Mapped[list[DeckCard]] = relationship(
         back_populates="deck",

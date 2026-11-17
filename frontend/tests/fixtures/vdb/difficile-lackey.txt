@@ -1,0 +1,36 @@
+1       Archon Investigation
+2       Blur
+3       Burning Wrath
+5       Decapitate
+1       Direct Intervention
+4       Disarm
+3       Fists of Death
+3       Flash
+2       Fleetness
+2       Fortitude
+1       Heart of the City
+3       Heroic Might
+6       Immortal Grapple
+3       Majesty
+2       Perfectionist
+2       Preternatural Strength
+3       Psyche!
+6       Pursuit
+8       Red List
+1       Sargon Fragment, The
+5       Second Tradition: Domain
+5       Skin of Steel
+2       Sudden Reversal
+1       Superior Mettle
+3       Taste of Vitae
+1       Torn Signpost
+4       Trophy: Domain
+2       Trophy: Hunting Ground
+6       Vessel
+Crypt:
+2       Count Germaine
+1       Count Germaine (ADV)
+3       Dmitra Ilyanova
+3       Hektor
+3       Jann Berger
+1       Themistocles

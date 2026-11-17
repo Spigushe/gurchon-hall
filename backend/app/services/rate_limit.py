@@ -38,3 +38,15 @@ def signup_rate_limit() -> str:
     valeur par défaut que la connexion : l'inscription est ouverte (P2), donc
     tout aussi exposée à un essai en boucle."""
     return os.getenv("SIGNUP_RATE_LIMIT", _DEFAULT_RATE_LIMIT)
+
+
+_DEFAULT_VDB_RATE_LIMIT = "20/minute"
+
+
+def vdb_rate_limit() -> str:
+    """Débit autorisé pour `GET /vdb/decks/{vdb_deck_id}` (`VDB_RATE_LIMIT`,
+    Lot 9, A7) : chaque appel en déclenche un chez VDB, service tiers dont
+    l'API n'est pas documentée. Vingt par minute couvrent largement un import
+    ou une mise à jour à la main, et empêchent la route de servir de relais
+    en boucle."""
+    return os.getenv("VDB_RATE_LIMIT", _DEFAULT_VDB_RATE_LIMIT)

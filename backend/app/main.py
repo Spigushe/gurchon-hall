@@ -30,6 +30,7 @@ from app.routers.players import router as players_router
 from app.routers.stock import router as stock_router
 from app.routers.sync import router as sync_router
 from app.routers.tournaments import router as tournaments_router
+from app.routers.vdb import router as vdb_router
 from app.routers.venues import router as venues_router
 from app.services.errors import DomainError, InvalidRequestError
 from app.services.rate_limit import limiter
@@ -178,6 +179,7 @@ app.include_router(venues_router)
 app.include_router(tournaments_router)
 app.include_router(games_router)
 app.include_router(sync_router)
+app.include_router(vdb_router)
 
 
 @app.exception_handler(DomainError)

@@ -31,6 +31,7 @@ import { DeckTables } from "./DeckTables";
 import { buildDeckTables, deckListSummary, type DeckListSummary } from "./deckTablesModel";
 import { useDeckCardFacts } from "./useDeckCardFacts";
 import { useLastDefined } from "./useLastDefined";
+import { DeckImportSheet } from "./vdb/DeckImportSheet";
 
 const STATES: Array<{ value: DeckListState; label: string }> = [
   { value: "active", label: "En cours" },
@@ -57,7 +58,7 @@ const STATES: Array<{ value: DeckListState; label: string }> = [
  * — `Sheet.tsx` ne conditionne ses raccourcis à aucun seuil, seul le kbd visible
  * l'est).
  */
-function DeckCreateForm({ onClose }: { onClose: () => void }) {
+function DeckCreateForm({ onClose, onImport }: { onClose: () => void; onImport: () => void }) {
   const { actions } = useVtesOffline();
   const action = useGuardedAction();
   const formId = useId();
@@ -136,6 +137,12 @@ function DeckCreateForm({ onClose }: { onClose: () => void }) {
           hint="Deck compatible avec un tournoi qui les accepte"
           data-testid="deck-form-proxy-allowed"
         />
+        <p className="hint">
+          Une liste existe déjà chez VDB ?{" "}
+          <button type="button" className="btn-text" data-testid="deck-form-import" onClick={onImport}>
+            Importer depuis VDB
+          </button>
+        </p>
         <p className="quote-block">
           Le deck est créé en brouillon. Le serveur lui attribuera son numéro (« #0001 ») à la
           synchronisation.
@@ -360,6 +367,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   const [state, setState] = useState<DeckListState>("active");
   const [term, setTerm] = useState("");
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selectedKey, setSelectedKey] = useState<DeckKey | null>(null);
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ state, q: deferred || undefined });
@@ -375,6 +383,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   if (intent !== seenIntent) {
     setSeenIntent(intent);
     if (intent === "new") setCreating(true);
+    if (intent === "import") setImporting(true);
   }
   useEffect(() => {
     if (intent) consumeIntent({ name: "decks", intent });
@@ -402,7 +411,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   // l'active au lieu d'être confisquée par ce raccourci (qui appelait
   // `preventDefault`). `ignoreTarget` est propre à ce binding, l'ordre
   // `preventDefault` / `onTrigger` du hook reste le même pour tous les autres.
-  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], { enabled: !creating });
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], { enabled: !creating && !importing });
   useKeyboardShortcuts(
     [
       {
@@ -413,7 +422,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
         },
       },
     ],
-    { enabled: isDesktop && !creating },
+    { enabled: isDesktop && !creating && !importing },
   );
 
   return (
@@ -435,16 +444,26 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
               <p className="page-meta">{decks ? plural(decks.length, "deck") : "…"} · lecture locale</p>
             </div>
             {isDesktop && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                data-testid="decks-new-desktop"
-                aria-keyshortcuts="n"
-                onClick={() => setCreating(true)}
-              >
-                Nouveau
-                <Kbd>N</Kbd>
-              </button>
+              <div className="decks-header__actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  data-testid="decks-import-desktop"
+                  onClick={() => setImporting(true)}
+                >
+                  Importer depuis VDB
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  data-testid="decks-new-desktop"
+                  aria-keyshortcuts="n"
+                  onClick={() => setCreating(true)}
+                >
+                  Nouveau
+                  <Kbd>N</Kbd>
+                </button>
+              </div>
             )}
           </div>
 
@@ -501,6 +520,14 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
                     <PlusIcon size={18} />
                     Nouveau deck
                   </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn--pill"
+                    data-testid="decks-empty-import"
+                    onClick={() => setImporting(true)}
+                  >
+                    Importer depuis VDB
+                  </button>
                 </div>
               </div>
             )
@@ -540,7 +567,16 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
         </Pill>
       </div>
 
-      {creating && <DeckCreateForm onClose={() => setCreating(false)} />}
+      {creating && (
+        <DeckCreateForm
+          onClose={() => setCreating(false)}
+          onImport={() => {
+            setCreating(false);
+            setImporting(true);
+          }}
+        />
+      )}
+      {importing && <DeckImportSheet onClose={() => setImporting(false)} />}
     </div>
   );
 }

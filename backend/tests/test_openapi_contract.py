@@ -141,6 +141,8 @@ EXPECTED_OPERATIONS = {
     ("patch", "/parties/{game_id}"): "updateGame",
     ("put", "/parties/{game_id}/participations"): "replaceGameParticipations",
     ("delete", "/parties/{game_id}"): "deleteGame",
+    # Lot 9 : lecture d'un deck VDB par le serveur (A7).
+    ("get", "/vdb/decks/{vdb_deck_id}"): "readVdbDeck",
 }
 
 

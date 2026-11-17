@@ -1,10 +1,10 @@
 import { test as base, expect } from "@playwright/test";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { API_PORT, API_URL, BACKEND_DIR, CORS_ORIGINS } from "./env";
+import { API_PORT, API_URL, BACKEND_DIR, CORS_ORIGINS, FRONTEND_DIR } from "./env";
 
 const execFileAsync = promisify(execFile);
 
@@ -132,6 +132,20 @@ export interface Api {
    * 503 au bout du délai d'attente du pilote (5 s).
    */
   holdWriteLock(): Promise<WriteLock>;
+  /**
+   * Bascule la lecture simulée de VDB (`VDB_STUB_DIR`, Lot 9) : réécrit le dossier avec les
+   * réponses réelles relevées, le deck `31203cb9e` dans l'état « avant » ou « apres » sa
+   * modification chez VDB. Le back relit le fichier à chaque appel, sans redémarrer.
+   */
+  setVdbState(state: "avant" | "apres"): Promise<void>;
+  /**
+   * Ajoute au catalogue de la base du test les 65 cartes des exports VDB de référence
+   * (`tests/fixtures/vdb/e2e-krcg-extra.json`, même forme que krcg, dérivé des exports
+   * réels), en rejouant l'import sur la base : à appeler **avant d'ouvrir l'application**.
+   * Pas dans la base modèle, dont les autres scénarios attendent les dix cartes de
+   * l'échantillon (comptes, recherches).
+   */
+  importVdbCatalog(): Promise<void>;
 }
 
 /**
@@ -247,6 +261,16 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
     }
     copyFileSync(templateDb, dbFile);
 
+    // Lecture simulée de VDB (Lot 9) : dossier jetable à côté de la base, rempli avant le
+    // démarrage du back, qui ne joint jamais vdb.im sous `VDB_STUB_DIR`.
+    const vdbStubDir = `${dbFile}.vdb-stub`;
+    const writeVdbStub = (state: "avant" | "apres") =>
+      execFileAsync(python, [path.join("scripts", "vdb_stub.py"), vdbStubDir, "--etat", state], {
+        cwd: BACKEND_DIR,
+        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+      }).then(() => undefined);
+    await writeVdbStub("avant");
+
     const server = spawn(
       python,
       ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(API_PORT), "--log-level", "warning"],
@@ -262,6 +286,7 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
           // sans quoi un cookie `Secure` refusé rendrait toute connexion
           // silencieusement muette (pas de cookie posé, 401 ensuite).
           SESSION_COOKIE_SECURE: "false",
+          VDB_STUB_DIR: vdbStubDir,
           PYTHONUNBUFFERED: "1",
           PYTHONIOENCODING: "utf-8",
         },
@@ -308,6 +333,30 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
         get: (route) => call("GET", route),
         post: (route, body, expected) => call("POST", route, body, expected),
         patch: (route, body, expected) => call("PATCH", route, body, expected),
+        setVdbState: writeVdbStub,
+        async importVdbCatalog() {
+          const dir = `${dbFile}.vdb-catalog`;
+          mkdirSync(dir, { recursive: true });
+          const sample = JSON.parse(readFileSync(path.join(FIXTURES_DIR, "krcg_vtes.json"), "utf-8")) as { id: number }[];
+          const known = new Set(sample.map((card) => card.id));
+          const extra = JSON.parse(
+            readFileSync(path.join(FRONTEND_DIR, "tests", "fixtures", "vdb", "e2e-krcg-extra.json"), "utf-8"),
+          ) as { id: number }[];
+          writeFileSync(
+            path.join(dir, "vtes.json"),
+            JSON.stringify([...sample, ...extra.filter((card) => !known.has(card.id))]),
+            "utf-8",
+          );
+          copyFileSync(path.join(FIXTURES_DIR, "krcg_expansions.json"), path.join(dir, "expansions.json"));
+          try {
+            await execFileAsync(python, [path.join("scripts", "import_catalog.py"), "--from-dir", dir], {
+              cwd: BACKEND_DIR,
+              env: { ...process.env, DATABASE_URL: sqliteUrl(dbFile), PYTHONIOENCODING: "utf-8" },
+            });
+          } finally {
+            rmSync(dir, { recursive: true, force: true });
+          }
+        },
         async holdWriteLock() {
           const holder = spawn(python, ["-c", LOCK_HOLDER, dbFile], {
             stdio: ["pipe", "pipe", "inherit"],
@@ -336,6 +385,7 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
       for (const holder of holders) await killTree(holder);
       await killTree(server);
       for (const suffix of ["", "-journal", "-wal", "-shm"]) rmSync(dbFile + suffix, { force: true });
+      rmSync(vdbStubDir, { recursive: true, force: true });
       if (testInfo.status !== testInfo.expectedStatus && log.trim()) {
         await testInfo.attach("back-log", { body: log, contentType: "text/plain" });
       }

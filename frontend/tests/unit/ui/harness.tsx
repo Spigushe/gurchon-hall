@@ -46,6 +46,11 @@ export interface UiServer {
   bundles: unknown[];
   /** Fiches servies par `GET /cartes/{id}` (lot Chercher, D3 : lecture à la demande). */
   cards: Map<number, unknown>;
+  /**
+   * Decks servis par `GET /vdb/decks/{id}` (Lot 9, D2), par identifiant : un
+   * corps (200), ou une réponse d'erreur. Un identifiant absent rend 404.
+   */
+  vdbDecks: Map<string, unknown | { status: number; body: unknown; retryAfter?: string }>;
   requests: Array<{ method: string; path: string; search: string }>;
   client: ReturnType<typeof createClient<paths>>;
 }
@@ -56,6 +61,7 @@ function createUiServer(): UiServer {
     versionLegality: new Map(),
     bundles: [],
     cards: new Map(),
+    vdbDecks: new Map(),
     requests: [],
     client: null as unknown as UiServer["client"],
   };
@@ -76,12 +82,27 @@ function createUiServer(): UiServer {
         return body === undefined ? json({ detail: "Version introuvable." }, 404) : json(body);
       }
       if (url.pathname === "/bundles") return json(ui.bundles);
+      const vdb = /^\/vdb\/decks\/([^/]+)$/.exec(url.pathname);
+      if (vdb) return vdbResponse(ui.vdbDecks.get(decodeURIComponent(vdb[1])));
       const card = /^\/cartes\/(\d+)$/.exec(url.pathname);
       if (card && ui.cards.has(Number(card[1]))) return json(ui.cards.get(Number(card[1])));
       return json({ detail: `route non prévue : ${url.pathname}` }, 404);
     },
   });
   return ui;
+}
+
+/** Réponse simulée de la lecture d'un deck VDB par le serveur. */
+function vdbResponse(entry: unknown): Response {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  if (entry === undefined) return new Response(JSON.stringify({ detail: "Deck VDB introuvable." }), { status: 404, headers });
+  if (entry === "network") throw new TypeError("Failed to fetch");
+  if (entry && typeof entry === "object" && "status" in entry) {
+    const failure = entry as { status: number; body: unknown; retryAfter?: string };
+    if (failure.retryAfter) headers["Retry-After"] = failure.retryAfter;
+    return new Response(JSON.stringify(failure.body), { status: failure.status, headers });
+  }
+  return new Response(JSON.stringify(entry), { status: 200, headers });
 }
 
 const runtimes: VtesOfflineRuntime[] = [];

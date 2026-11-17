@@ -1,5 +1,10 @@
 // Adaptateur VtES de la couche offline : c'est la seule partie propre au domaine.
-export { AcquisitionBoundError, GameTableUnknownError, createVtesOffline } from "./runtime";
+export {
+  AcquisitionBoundError,
+  DeckNotRefreshableError,
+  GameTableUnknownError,
+  createVtesOffline,
+} from "./runtime";
 export type {
   CreatedResource,
   EnsuredResource,
@@ -94,8 +99,11 @@ export {
 export * as operations from "./operations";
 export type {
   DeckCardInput,
+  DeckCardKey,
+  DeckImportInput,
   DeckInput,
   DeckPatch,
+  DeckRefreshInput,
   GameInput,
   GamePatch,
   GameUpdate,

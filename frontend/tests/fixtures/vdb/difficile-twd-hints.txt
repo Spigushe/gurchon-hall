@@ -1,0 +1,69 @@
+# REPLACE BELOW LINES WITH YOUR EVENT DATA
+# REMOVE EVERYTHING STARTING FROM "#" ON EACH LINE (FIRST LINE WILL BE EVENT NAME)
+6th Great Symposium                                # Event Name
+Mikkeli, Finland                                   # Event Location
+March 25th 2023                                    # Event Date
+3R+F                                               # Number of Rounds
+13 players                                         # Number of Players
+Otso Saariluoma                                    # Winner
+https://www.vekn.net/event-calendar/event/10546    # Event Link
+
+Deck Name: Brujah Trophy Hunter (29-08-2009)       # OPTIONAL
+Created by: Author Name                            # OPTIONAL, only if different from Winner
+Description:                                       # OPTIONAL
+Date: 2009-08-29
+Players: 22
+Event: Du Hast - Rammstein
+Location: Santiago, Chile
+
+Description: Trophy hunter deck
+
+
+Crypt (13 cards, min=32 max=39 avg=8.92)
+----------------------------------------
+3x Dmitra Ilyanova         9 CEL FOR POT PRE obf   justicar   Brujah:5
+3x Hektor                  9 CEL POT PRE QUI for   priscus    Brujah antitribu:4
+3x Jann Berger            10 CEL POT PRE dem for   prince     Brujah:4
+2x Count Germaine          8 CEL FOR POT PRE obf              Brujah:4
+1x Count Germaine (ADV)    8 CEL FOR POT PRE obf              Brujah:4
+1x Themistocles            8 AUS CEL FOR POT pre              Brujah:5
+
+Library (90 cards)
+Master (20; 6 trifle)
+1x Archon Investigation
+1x Direct Intervention
+2x Fortitude
+2x Perfectionist
+2x Sudden Reversal
+4x Trophy: Domain
+2x Trophy: Hunting Ground
+6x Vessel
+
+Action (16)
+2x Fleetness
+1x Heart of the City
+3x Heroic Might
+2x Preternatural Strength
+8x Red List
+
+Equipment (1)
+1x Sargon Fragment, The
+
+Reaction (5)
+5x Second Tradition: Domain
+
+Combat (48)
+2x Blur
+3x Burning Wrath
+5x Decapitate
+4x Disarm
+3x Fists of Death
+3x Flash
+6x Immortal Grapple
+3x Majesty
+3x Psyche!
+6x Pursuit
+5x Skin of Steel
+1x Superior Mettle
+3x Taste of Vitae
+1x Torn Signpost

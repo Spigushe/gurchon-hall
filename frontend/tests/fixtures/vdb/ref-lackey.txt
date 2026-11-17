@@ -1,0 +1,31 @@
+7       .44 Magnum
+1       Anarch Free Press, The
+7       Bait and Switch
+4       Bollix
+1       Carfax Abbey
+1       Club Illusion
+6       Concealed Weapon
+1       Direct Intervention
+10      Diversion
+1       Dreams of the Sphinx
+1       Fame
+1       Garibaldi-Meucci Museum
+1       Heart of Nizchetus
+4       Hell-for-Leather
+5       Line Brawl
+1       New Carthage
+1       Open War
+14      Organized Resistance
+1       Papillon
+1       Powerbase: Los Angeles
+1       Powerbase: Montreal
+3       Taste of Vitae
+7       Villein
+Crypt:
+2       Aline Gadeke
+1       Anita Wainwright
+2       Atiena
+1       Laura Goldman
+2       Leumeah
+2       Saku Pihlajamaki
+2       Valeriya Zinovieva

@@ -216,6 +216,17 @@ TOO_MANY_REQUESTS = {
     }
 }
 
+BAD_GATEWAY = {
+    502: {
+        "model": ErrorResponse,
+        "description": (
+            "Le service tiers que la route relaie (VDB, Lot 9) est injoignable, "
+            "a dépassé le délai, ou a rendu une réponse inattendue. Rien n'a été "
+            "enregistré ; la requête peut se renvoyer plus tard."
+        ),
+    }
+}
+
 SET_SESSION_COOKIE = {
     "Set-Cookie": {
         "description": (

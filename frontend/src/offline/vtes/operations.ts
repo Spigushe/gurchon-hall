@@ -110,6 +110,12 @@ export interface DeckInput {
    * de l'entrée de collection. Interdit par défaut si omis.
    */
   proxyAllowed?: boolean;
+  /**
+   * Deck VDB dont ce deck est importé par son adresse (Lot 9, P7) : l'identifiant
+   * rendu par `GET /vdb/decks/{id}`. Omis pour un deck créé autrement ; ne se
+   * modifie plus ensuite (absent de `DeckPatch`).
+   */
+  vdbDeckId?: string | null;
 }
 
 export function deckCreate(
@@ -129,6 +135,7 @@ export function deckCreate(
       archetype: input.archetype,
       notes: input.notes,
       proxy_allowed: input.proxyAllowed,
+      vdb_deck_id: input.vdbDeckId,
     }),
   };
 }
@@ -233,6 +240,35 @@ export function deckCardDelete(
     language_code: languageCode,
     card_set_id: cardSetId,
   };
+}
+
+/** Une ligne de deck désignée par sa clé carte × langue × extension. */
+export interface DeckCardKey {
+  cardId: number;
+  languageCode: string;
+  cardSetId: number;
+}
+
+/**
+ * Import d'un deck (Lot 9, A4) : le deck, puis ses lignes, rangés en une seule
+ * transaction de la file. Les lignes sont des états complets voulus, comme
+ * `saveDeckCard` ; l'appelant (le plan d'import) les veut toutes en proxy et
+ * pose `proxyAllowed` sur le deck, sans quoi le serveur les refuse.
+ */
+export interface DeckImportInput {
+  deck: DeckInput;
+  lines: readonly DeckCardInput[];
+}
+
+/**
+ * Mise à jour d'un deck depuis VDB (Lot 9, A4) : un patch du deck (le passage en
+ * brouillon), des lignes retirées, puis des lignes écrites, en une seule
+ * transaction de la file. Un patch vide n'envoie pas de `deck.update`.
+ */
+export interface DeckRefreshInput {
+  deck?: DeckPatch;
+  removed?: readonly DeckCardKey[];
+  saved?: readonly DeckCardInput[];
 }
 
 export function bundleDeposit(

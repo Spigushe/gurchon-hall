@@ -29,7 +29,8 @@ d'API généré. `vtes/runtime.ts` est le seul fichier qui assemble le tout.
 - `core/db.ts` : `OfflineCoreDb`, une base Dexie avec quatre tables (`outbox`,
   `refs`, `meta`, et `settled` depuis la version 2). Une base d'application en
   hérite et ajoute ses tables.
-- `core/outbox.ts` : la file. `enqueue`, `list`, `counts`, `reissue`, `discard`.
+- `core/outbox.ts` : la file. `enqueue`, `enqueueAll` (Lot 9), `list`, `counts`,
+  `reissue`, `discard`.
   Option `retainSettled` : voir « Entre le verdict et le rafraîchissement ».
 - `core/settled.ts` : les opérations tranchées en attente de rafraîchissement
   (`lastSettledSeq`, `readSettled`, `pruneSettled`).
@@ -558,6 +559,63 @@ date de début décroissante, les joueurs avec le « Moi » en tête.
 et `PlayCorrectionFields.tsx`. L'écran Synchronisation range les refus en cascade sous
 leur racine (`groupCascades` + `referencesOf`).
 
+## Plusieurs opérations pour une saisie (Lot 9)
+
+Une saisie produit parfois plusieurs opérations : importer un deck de VDB, c'est un
+`deck.create` puis 40 à 70 `deck_card.upsert`. Rangées une par une, une fermeture
+d'onglet au milieu laisserait un deck à moitié monté dans la file, et le serveur
+l'appliquerait tel quel. `Outbox.enqueueAll(items)` range le lot **en une seule
+transaction IndexedDB** : tout ou rien.
+
+```ts
+await outbox.enqueueAll([
+  { operation: creation, createsRef: clientRef },
+  { operation: premiereLigne },
+  { operation: secondeLigne },
+]);
+```
+
+- L'ordre du tableau est l'ordre de la file, à la suite de ce qui y est déjà : le
+  moteur enverra la création avant les lignes qui la désignent par sa référence.
+- Mêmes contrôles qu'`enqueue`, opération par opération et **dans le lot** : une clé
+  déjà en file ou répétée lève `DuplicateOperationError`, une référence réservée déjà
+  prise ou réservée deux fois lève `DuplicateRefError`. Un seul refus annule le lot
+  entier.
+- Une seule annonce (`enqueued` dans l'onglet, `updated` dans les autres) après la
+  transaction ; un lot vide ne fait rien. `enqueue` n'est plus qu'un lot d'une
+  opération.
+- Le **rejeu**, lui, reste opération par opération : la transaction protège la saisie,
+  pas l'application côté serveur. Une ligne refusée au rejeu ne défait pas le deck,
+  conformément à « la file fait foi, les invariants font loi » (Lot 3). Le lot n'est pas
+  non plus un découpage pour le moteur : il peut partir en plusieurs envois de 200.
+
+Rien n'y nomme un deck : c'est le geste à reprendre dans Barrin dès qu'une saisie
+produit plusieurs opérations.
+
+Côté VtES, deux actions s'en servent :
+
+- `actions.importDeck({ deck, lines })` : un `deck.create` sous une `client_ref`
+  neuve, puis un `deck_card.upsert` par ligne qui la désigne. Rend `{ clientRef, key,
+  entries }` ; le deck se lit aussitôt sous `key`. `deck.vdbDeckId` (`vdb_deck_id`) lie
+  le deck au deck VDB lu par son adresse, il n'est jamais modifié ensuite.
+- `actions.refreshDeck(deck, { deck, removed, saved })` : `deck.update` si le patch a un
+  champ défini (le passage en brouillon), puis un `deck_card.delete` par ligne retirée,
+  puis un `deck_card.upsert` par ligne écrite. Les retraits passent avant les écritures,
+  pour qu'une carte en conflit (plusieurs lignes refaites en une ligne de proxies) puisse
+  reprendre la clé d'une ligne retirée. Lève `DeckNotRefreshableError`, sans rien
+  ranger, pour un deck absent de l'appareil ou archivé ; ne range rien s'il n'y a rien
+  à écrire.
+
+Les deux reçoivent des écritures déjà calculées (les plans d'import et de mise à jour
+vivent dans `features/decks/import/`, en fonctions pures) : la couche offline ne
+décide ni des proxies ni des quantités, elle garantit seulement que le lot est rangé
+d'un bloc.
+
+Le miroir des decks porte `vdbDeckId` depuis ce lot (`DeckRow.vdbDeckId`, rempli par
+`refreshDecks`). Le champ n'est pas indexé, donc **sans version Dexie** : une ligne lue
+avant le lot ne l'a pas et se lit « non lié » (`LocalDeck.vdbDeckId === null`) jusqu'au
+rafraîchissement suivant.
+
 ## Entre le verdict et le rafraîchissement
 
 Une opération tranchée sort de la file, mais l'instantané du serveur n'est relu que
@@ -743,7 +801,7 @@ sous vitest). L'appli l'importe directement : `import { registerServiceWorker } 
 Les routes de l'API n'ont pas de préfixe `/api`, donc rien ne les distingue d'une
 route de l'app. `apiRoutes.ts` les liste, et `vite.config.ts` en fait la
 `navigateFallbackDenylist` : une navigation vers `/sync` ne reçoit jamais la coquille
-HTML. Les appels `fetch` de la file ne sont pas interceptés (pas de `runtimeCaching`),
+HTML. `/vdb` (Lot 9, lecture d'un deck VDB par le serveur) y est entré avec sa route. Les appels `fetch` de la file ne sont pas interceptés (pas de `runtimeCaching`),
 et le precache ne porte que les fichiers du build. Un test compare la liste à
 `contracts/openapi.json` : une nouvelle ressource au contrat sans entrée ici fait
 échouer la suite.

@@ -1,0 +1,8 @@
+# j'ai du dupliquer le deck TWD en deck personnel pour ces données,
+# cela ne change pas le contenu de la liste, les métadata seront différentes
+[url_courte]
+https://vdb.im/decks/31203cb9e
+[snapshot_url]
+https://vdb.im/decks/6cd179ff5
+[deck_in_url]
+https://vdb.im/decks/deck?name=Brujah%20Trophy%20Hunter%20(29-08-2009)%20%5Bby%20Guillermo%20Gutierrez%5D&author=Guillermo%20Gutierrez&description=Date:%202009-08-29%0APlayers:%2022%0AEvent:%20Du%20Hast%20-%20Rammstein%0ALocation:%20Santiago%2C%20Chile%0A%0ADescription:%20Trophy%20hunter%20deck%0A#200292=2;200293=1;200349=3;200584=3;200675=3;201361=1;100085=1;100227=2;100271=3;100511=5;100545=1;100549=4;100738=3;100744=3;100747=2;100774=2;100904=1;100913=3;100959=6;101144=3;101388=2;101483=2;101507=3;101523=6;101574=8;101681=1;101706=5;101792=5;101896=2;101905=1;101945=3;101993=1;102031=4;102032=2;102113=6

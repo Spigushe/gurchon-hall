@@ -1,7 +1,7 @@
 import { apiClient } from "../../api-client/client";
 import { foldText } from "../core/foldText";
 import { newUuid } from "../core/ids";
-import { Outbox, type EnqueueOptions } from "../core/outbox";
+import { Outbox, type EnqueueItem, type EnqueueOptions } from "../core/outbox";
 import { SyncEngine, type SyncEngineOptions } from "../core/syncEngine";
 import type { OutboxEntry } from "../core/types";
 import type { OfflineRuntime } from "../react/context";
@@ -33,8 +33,10 @@ import {
   venueDelete,
   venueUpdate,
   type DeckCardInput,
+  type DeckImportInput,
   type DeckInput,
   type DeckPatch,
+  type DeckRefreshInput,
   type GameInput,
   type GameUpdate,
   type OperationClock,
@@ -119,6 +121,28 @@ export interface VtesActions {
     cardSetId: number,
   ): Promise<Entry>;
   depositBundle(bundleId: number, languageCode: string, count?: number): Promise<Entry>;
+
+  // --- Import de decks (Lot 9) ---------------------------------------------
+
+  /**
+   * Crée un deck et ses lignes (A4) : un `deck.create` puis un
+   * `deck_card.upsert` par ligne, reliés par la `client_ref` du deck, rangés
+   * **en une seule transaction** de la file (`Outbox.enqueueAll`). Rien n'est
+   * rangé si une opération est refusée à l'entrée. Le deck se lit aussitôt sous
+   * la clé rendue.
+   */
+  importDeck(input: DeckImportInput): Promise<{ clientRef: string; key: DeckKey; entries: Entry[] }>;
+  /**
+   * Met un deck à jour depuis VDB (A4) : `deck.update` si le patch n'est pas
+   * vide, puis un `deck_card.delete` par ligne retirée, puis un
+   * `deck_card.upsert` par ligne écrite, en une seule transaction de la file.
+   * Les retraits passent avant les écritures : une carte en conflit (P7) voit
+   * ses lignes retirées puis refaite en une ligne de proxies, même si celle-ci
+   * a la clé d'une ligne retirée. Lève `DeckNotRefreshableError`, sans rien
+   * mettre en file, pour un deck inconnu de l'appareil ou archivé. Rend la
+   * liste vide sans rien ranger s'il n'y a rien à écrire.
+   */
+  refreshDeck(deck: DeckTarget, input: DeckRefreshInput): Promise<Entry[]>;
 
   // --- Pratique de jeu (Lot 7) ---------------------------------------------
   //
@@ -257,6 +281,14 @@ export class GameTableUnknownError extends Error {
   ) {
     super(message);
     this.name = "GameTableUnknownError";
+  }
+}
+
+/** Mise à jour depuis VDB d'un deck absent de l'appareil ou archivé (Lot 9) : rien n'a été mis en file. */
+export class DeckNotRefreshableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DeckNotRefreshableError";
   }
 }
 
@@ -468,6 +500,8 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
   const enqueue = (operation: VtesOperation, enqueueOptions?: EnqueueOptions) =>
     outbox.enqueue(operation, enqueueOptions);
 
+  const enqueueAll = (items: EnqueueItem<VtesOperation>[]) => outbox.enqueueAll(items);
+
   const language = async (code: string) =>
     resolveLanguageCode(code, await knownLanguageCodes(db));
 
@@ -477,6 +511,26 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
   };
 
   const sameName = (a: string, b: string) => foldText(a.trim()) === foldText(b.trim());
+
+  /** Les lignes d'un lot avec leur langue résolue, comme `saveDeckCard`. */
+  const withLanguages = async <T extends { languageCode: string }>(lines: readonly T[]): Promise<T[]> => {
+    const known = await knownLanguageCodes(db);
+    return lines.map((line) => ({ ...line, languageCode: resolveLanguageCode(line.languageCode, known) }));
+  };
+
+  /** Le deck à mettre à jour depuis VDB : connu de l'appareil (file comprise) et pas archivé. */
+  const refreshableDeck = async (deck: DeckTarget) => {
+    const key = typeof deck === "string" ? deck : deckKeyOf(deck);
+    const { decks } = await readProjection(db);
+    const known = decks.find((item) => item.key === key);
+    if (!known) throw new DeckNotRefreshableError("Ce deck n'est pas sur cet appareil.");
+    if (known.archivedAt !== null) {
+      throw new DeckNotRefreshableError("Désarchivez le deck pour le mettre à jour.");
+    }
+  };
+
+  const hasFields = (patch: DeckPatch | undefined): patch is DeckPatch =>
+    patch !== undefined && Object.values(patch).some((value) => value !== undefined);
 
   const actions: VtesActions = {
     async saveStock(input) {
@@ -561,6 +615,28 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
     },
     async depositBundle(bundleId, languageCode, count) {
       return enqueue(bundleDeposit(clock, bundleId, await language(languageCode), count));
+    },
+
+    async importDeck(input) {
+      const clientRef = newUuid();
+      const lines = await withLanguages(input.lines);
+      const entries = await enqueueAll([
+        { operation: deckCreate(clock, clientRef, input.deck), createsRef: clientRef },
+        ...lines.map((line) => ({ operation: deckCardUpsert(clock, { clientRef }, line) })),
+      ]);
+      return { clientRef, key: `ref:${clientRef}`, entries };
+    },
+    async refreshDeck(deck, input) {
+      await refreshableDeck(deck);
+      const removed = await withLanguages(input.removed ?? []);
+      const saved = await withLanguages(input.saved ?? []);
+      const operations: VtesOperation[] = [
+        ...(hasFields(input.deck) ? [deckUpdate(clock, deck, input.deck)] : []),
+        ...removed.map((line) => deckCardDelete(clock, deck, line.cardId, line.languageCode, line.cardSetId)),
+        ...saved.map((line) => deckCardUpsert(clock, deck, line)),
+      ];
+      if (operations.length === 0) return [];
+      return enqueueAll(operations.map((operation) => ({ operation })));
     },
 
     async createPlayer(input) {

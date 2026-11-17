@@ -266,7 +266,8 @@ describe("opérations refusées", () => {
   it("ne propose pas de correction pour une opération sans champ à corriger, seulement renvoyer ou abandonner", async () => {
     const app = await renderApp({ online: false, catalog: true });
     const { key } = await app.runtime.actions.createDeck({ name: "Tzimisce" });
-    // Le serveur factice ne gère pas `deck.update` : il le refuse, ce qui donne un refus sans champ éditable.
+    // Le serveur factice refuse `deck.update` : un refus sans champ éditable.
+    app.server.state.refusedTypes.add("deck.update");
     await app.runtime.actions.archiveDeck(key);
     act(() => setOnline(true));
     await openSyncPage();
@@ -312,6 +313,7 @@ describe("opérations refusées", () => {
   it("un refus n'a aucun effet local : la lecture retombe sur l'instantané du serveur", async () => {
     const app = await renderApp({ online: false, catalog: true, hash: "#/decks" });
     const { key } = await app.runtime.actions.createDeck({ name: "Lasombra" });
+    app.server.state.refusedTypes.add("deck.update");
     await app.runtime.actions.archiveDeck(key);
     // Avant l'envoi, la lecture locale montre l'archivage saisi (le deck quitte la liste des decks en cours).
     await waitFor(() => expect(screen.queryAllByTestId("deck-item")).toHaveLength(0));
@@ -395,6 +397,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
   it("une opération sans champ à corriger montre le résumé et les deux actions, sans formulaire de correction", async () => {
     const app = await renderApp({ online: false, catalog: true });
     const { key } = await app.runtime.actions.createDeck({ name: "Tzimisce" });
+    app.server.state.refusedTypes.add("deck.update");
     await app.runtime.actions.archiveDeck(key);
     act(() => setOnline(true));
     await openSyncPage();
@@ -425,6 +428,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
   it("clic sur une ligne change la sélection ; l'abandon retombe sur la première entrée restante", async () => {
     const app = await renderApp({ online: false, catalog: true });
     const first = await app.runtime.actions.createDeck({ name: "Ventrue" });
+    app.server.state.refusedTypes.add("deck.update");
     await app.runtime.actions.archiveDeck(first.key);
     const second = await app.runtime.actions.createDeck({ name: "Nosferatu" });
     await app.runtime.actions.archiveDeck(second.key);

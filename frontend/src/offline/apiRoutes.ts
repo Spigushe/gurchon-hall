@@ -44,6 +44,9 @@ export const API_ROUTE_PREFIXES: readonly string[] = [
   "/tournois",
   "/parties",
   "/sync",
+  // Lot 9 : lecture d'un deck VDB par le serveur (`GET /vdb/decks/{id}`),
+  // en ligne seulement.
+  "/vdb",
   // Documentation générée par FastAPI.
   "/docs",
   "/redoc",

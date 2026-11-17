@@ -9,6 +9,7 @@ import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
+import { useConnectivity } from "../../offline/react";
 import { DECK_STATUS_LABELS } from "../../labels";
 import {
   DECK_ARCHETYPE_LABELS,
@@ -26,6 +27,10 @@ import { SearchForDeckLink } from "./SearchForDeckLink";
 import { DeckLegalityPanel } from "./DeckLegalityPanel";
 import { DeckResults } from "./DeckResults";
 import { DeckLegalityBadge } from "./DeckLegalityBadge";
+import { LiveDeckExport } from "./export/DeckExport";
+import { vdbDeckUrl } from "./import/vdbLinks";
+import { DeckRefreshSheet } from "./vdb/DeckRefreshSheet";
+import { refreshBlockedReason } from "./vdb/deckRefreshModel";
 
 /** Feuille « Modifier le deck » (handoff Nocturne) : nom, archétype, notes, autorisation de proxy. */
 function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void }) {
@@ -79,7 +84,8 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
         <ArchetypeChips legend="Archétype" value={archetype} onChange={setArchetype} testIdPrefix="deck-edit-archetype" />
         <div className="field">
           <label htmlFor={`${formId}-notes`}>Notes</label>
-          <input
+          {/* Zone de texte : les notes d'un deck importé de VDB courent sur plusieurs lignes (Lot 9). */}
+          <textarea
             id={`${formId}-notes`}
             className="underline-field"
             value={notes}
@@ -115,48 +121,55 @@ function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void 
   );
 }
 
+/** « Mettre à jour depuis VDB » d'un deck lié (Lot 9, D3) : grisée hors connexion ou archivé, la raison dite dessous. */
+function VdbRefreshButton({ deck, pending, onRefresh }: { deck: LocalDeck; pending: boolean; onRefresh: () => void }) {
+  const online = useConnectivity();
+  const blocked = refreshBlockedReason(deck, online);
+  return (
+    <button
+      type="button"
+      className="btn btn-secondary"
+      disabled={blocked !== null || pending}
+      title={blocked ?? undefined}
+      data-testid="deck-vdb-refresh"
+      onClick={onRefresh}
+    >
+      Mettre à jour depuis VDB
+    </button>
+  );
+}
+
+/** Raison affichée sous les actions quand la mise à jour depuis VDB est grisée hors connexion. */
+function VdbRefreshHint({ deck }: { deck: LocalDeck }) {
+  const online = useConnectivity();
+  if (deck.archivedAt !== null || online) return null;
+  return (
+    <p className="hint" data-testid="deck-vdb-refresh-offline">
+      {refreshBlockedReason(deck, online)}
+    </p>
+  );
+}
+
 /**
- * Détail d'un deck (handoff Nocturne §4) : kicker + nom, verdict de légalité en
- * règle verticale accent, composition, actions.
- *
- * Écart au handoff : le menu overflow (48px, `ph-dots-three`) qui devait porter
- * statut / archivage / renommage est disproportionné pour la portée de ce lot
- * (un seul niveau d'actions, pas de sous-menu) ; ces actions restent des
- * boutons explicites sous la composition, comme au Lot 3 (CLAUDE.md § 11, Lot 5).
- * Seule l'action principale (« Ajouter des cartes ») est une pilule flottante.
- *
- * Bureau (≥ 1024px, Lot 5bis étape 11, `docs/design-handoff/DESKTOP.md`
- * « d01 ») : même page, même logique, deux différences de présentation
- * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 »), et
- * la composition rejoint le picker d'`AddDeckCardForm` (repliable depuis le
- * lot Affichage des decks) au lieu de la pilule flottante + feuille pleine du
- * mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
- * bureau, la légalité est une pastille à côté de la méta (`DeckLegalityBadge`,
- * `DECKS.md` d23), dont l'infobulle porte le détail du Lot 5c (motifs, cartes
- * bannies, alertes) ; un clic ou `R` recalcule.
+ * Statut, archivage, modification, export et mise à jour depuis VDB : dans
+ * l'en-tête au bureau (handoff `DECKS.md` d23), sous la composition au mobile.
  */
-function DeckView({ deck }: { deck: LocalDeck }) {
+function DeckActions({
+  deck,
+  action,
+  onEdit,
+  onExport,
+  onRefresh,
+}: {
+  deck: LocalDeck;
+  action: ReturnType<typeof useGuardedAction>;
+  onEdit: () => void;
+  onExport: () => void;
+  onRefresh: () => void;
+}) {
   const { actions } = useVtesOffline();
-  const lines = useLocalDeckCards(deck.key);
-  const action = useGuardedAction();
-  const isDesktop = useIsDesktop();
-  const [editing, setEditing] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [legalityRefreshToken, setLegalityRefreshToken] = useState(0);
-  const [pickerOpen, setPickerOpen] = usePickerOpen();
   const archived = deck.archivedAt !== null;
-
-  // `R` recalcule le verdict de la pastille de l'en-tête bureau (DESKTOP.md
-  // « d01 », `DECKS.md` d23) ; sans équivalent mobile (le bouton « recalculer » de
-  // `DeckLegalityPanel` a déjà son propre raccourci-clic, pas de kbd dédié).
-  useKeyboardShortcuts([{ keys: ["r"], onTrigger: () => setLegalityRefreshToken((token) => token + 1) }], {
-    enabled: isDesktop,
-  });
-
-  // Statut, archivage, modification : dans l'en-tête au bureau (handoff
-  // `DECKS.md` d23), sous la composition au mobile, comme avant.
-  const actionsBlock = (
+  return (
     <div className="deck-actions">
       <div className="confirm-row" role="group" aria-label="Actions sur le deck">
         <button
@@ -164,7 +177,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
           className="btn btn-secondary"
           disabled={archived || action.pending}
           data-testid="deck-edit"
-          onClick={() => setEditing(true)}
+          onClick={onEdit}
         >
           Modifier
         </button>
@@ -202,11 +215,69 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             Archiver
           </button>
         )}
+        {/* L'export ne modifie rien : il reste possible pour un deck archivé (Lot 9, P9). */}
+        <button type="button" className="btn btn-secondary" data-testid="deck-export" onClick={onExport}>
+          Exporter
+        </button>
+        {deck.vdbDeckId && <VdbRefreshButton deck={deck} pending={action.pending} onRefresh={onRefresh} />}
       </div>
+      {deck.vdbDeckId && <VdbRefreshHint deck={deck} />}
       {!archived && deck.status === "draft" && (
         <p className="hint">Le serveur n'accepte l'activation que d'un deck légal.</p>
       )}
     </div>
+  );
+}
+
+/**
+ * Détail d'un deck (handoff Nocturne §4) : kicker + nom, verdict de légalité en
+ * règle verticale accent, composition, actions.
+ *
+ * Écart au handoff : le menu overflow (48px, `ph-dots-three`) qui devait porter
+ * statut / archivage / renommage est disproportionné pour la portée de ce lot
+ * (un seul niveau d'actions, pas de sous-menu) ; ces actions restent des
+ * boutons explicites sous la composition, comme au Lot 3 (CLAUDE.md § 11, Lot 5).
+ * Seule l'action principale (« Ajouter des cartes ») est une pilule flottante.
+ *
+ * Bureau (≥ 1024px, Lot 5bis étape 11, `docs/design-handoff/DESKTOP.md`
+ * « d01 ») : même page, même logique, deux différences de présentation
+ * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 »), et
+ * la composition rejoint le picker d'`AddDeckCardForm` (repliable depuis le
+ * lot Affichage des decks) au lieu de la pilule flottante + feuille pleine du
+ * mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
+ * bureau, la légalité est une pastille à côté de la méta (`DeckLegalityBadge`,
+ * `DECKS.md` d23), dont l'infobulle porte le détail du Lot 5c (motifs, cartes
+ * bannies, alertes) ; un clic ou `R` recalcule.
+ */
+function DeckView({ deck }: { deck: LocalDeck }) {
+  const { actions } = useVtesOffline();
+  const lines = useLocalDeckCards(deck.key);
+  const action = useGuardedAction();
+  const isDesktop = useIsDesktop();
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [legalityRefreshToken, setLegalityRefreshToken] = useState(0);
+  const [pickerOpen, setPickerOpen] = usePickerOpen();
+  const archived = deck.archivedAt !== null;
+
+  // `R` recalcule le verdict de la pastille de l'en-tête bureau (DESKTOP.md
+  // « d01 », `DECKS.md` d23) ; sans équivalent mobile (le bouton « recalculer » de
+  // `DeckLegalityPanel` a déjà son propre raccourci-clic, pas de kbd dédié).
+  useKeyboardShortcuts([{ keys: ["r"], onTrigger: () => setLegalityRefreshToken((token) => token + 1) }], {
+    enabled: isDesktop,
+  });
+
+  const actionsBlock = (
+    <DeckActions
+      deck={deck}
+      action={action}
+      onEdit={() => setEditing(true)}
+      onExport={() => setExporting(true)}
+      onRefresh={() => setRefreshing(true)}
+    />
   );
 
   return (
@@ -267,7 +338,15 @@ function DeckView({ deck }: { deck: LocalDeck }) {
           En attente de synchronisation
         </p>
       )}
-      {deck.notes && <p className="hint">{deck.notes}</p>}
+      {deck.notes && <p className="hint deck-notes">{deck.notes}</p>}
+      {deck.vdbDeckId && (
+        <p className="hint" data-testid="deck-vdb-link">
+          Importé de VDB :{" "}
+          <a href={vdbDeckUrl(deck.vdbDeckId)} target="_blank" rel="noopener noreferrer">
+            {vdbDeckUrl(deck.vdbDeckId).replace(/^https:\/\//, "")}
+          </a>
+        </p>
+      )}
 
       {archived && (
         <p className="hint" data-testid="deck-archived-note">
@@ -390,6 +469,8 @@ function DeckView({ deck }: { deck: LocalDeck }) {
       )}
 
       {editing && <DeckEditForm deck={deck} onClose={() => setEditing(false)} />}
+      {exporting && <LiveDeckExport deck={deck} lines={lines} onClose={() => setExporting(false)} />}
+      {refreshing && <DeckRefreshSheet deck={deck} onClose={() => setRefreshing(false)} />}
       {!isDesktop && adding && <AddDeckCardForm deck={deck} onClose={() => setAdding(false)} />}
     </div>
   );

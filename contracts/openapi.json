@@ -4265,6 +4265,108 @@
           }
         ]
       }
+    },
+    "/vdb/decks/{vdb_deck_id}": {
+      "get": {
+        "tags": [
+          "vdb"
+        ],
+        "summary": "Lit un deck VDB par son identifiant",
+        "description": "Va chercher le deck `vdb_deck_id` chez VDB (`https://vdb.im/api/deck/<id>`, adresse fixée par le serveur) et rend son nom, son auteur, sa description et ses cartes par identifiant VEKN, sans rien enregistrer ni apparier. En ligne seulement : hors connexion, une liste exportée de VDB s'importe dans le navigateur. 404 quand VDB ne connaît pas le deck ; 502 quand VDB est injoignable, dépasse le délai ou rend une réponse inattendue ; 429 au-delà de la limite de débit ; 422 pour un identifiant hors motif, sans appel sortant.",
+        "operationId": "readVdbDeck",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vdb_deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[A-Za-z0-9:_-]{1,64}$",
+              "description": "Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus.",
+              "title": "Vdb Deck Id"
+            },
+            "description": "Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VdbDeckRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai avant une nouvelle tentative, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Le service tiers que la route relaie (VDB, Lot 9) est injoignable, a dépassé le délai, ou a rendu une réponse inattendue. Rien n'a été enregistré ; la requête peut se renvoyer plus tard.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6013,6 +6115,21 @@
             "title": "Proxy Allowed",
             "description": "Autorise à jouer des proxies dans ce deck, selon le tournoi visé (certains les refusent, d'autres les acceptent). Le nombre de proxies est porté par chaque ligne (`proxy_quantity`). Interdit par défaut.",
             "default": false
+          },
+          "vdb_deck_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9:_-]{1,64}$",
+                "description": "Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdb Deck Id",
+            "description": "Deck VDB dont ce deck est importé par son adresse (Lot 9, P7), à reprendre de `VdbDeckRead.vdb_deck_id` ; omis ou nul pour un deck créé autrement, ou importé d'une liste. Ne se modifie plus ensuite (absent de `DeckUpdate`). Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
           }
         },
         "additionalProperties": false,
@@ -6182,6 +6299,18 @@
             "title": "Deleted At",
             "description": "Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable."
           },
+          "vdb_deck_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdb Deck Id",
+            "description": "Deck VDB dont ce deck a été importé par son adresse (Lot 9), nul sinon. Posé à la création, jamais modifié : il permet de mettre le deck à jour depuis VDB. Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -6213,6 +6342,7 @@
           "proxy_allowed",
           "archived_at",
           "deleted_at",
+          "vdb_deck_id",
           "created_at",
           "updated_at",
           "cards"
@@ -6412,6 +6542,18 @@
             "title": "Deleted At",
             "description": "Instant de suppression logique (UTC), nul si le deck n'est pas supprimé. Un deck supprimé n'apparaît dans aucune liste, reste lisible par identifiant et n'est plus modifiable."
           },
+          "vdb_deck_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdb Deck Id",
+            "description": "Deck VDB dont ce deck a été importé par son adresse (Lot 9), nul sinon. Posé à la création, jamais modifié : il permet de mettre le deck à jour depuis VDB. Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -6435,6 +6577,7 @@
           "proxy_allowed",
           "archived_at",
           "deleted_at",
+          "vdb_deck_id",
           "created_at",
           "updated_at"
         ],
@@ -9604,6 +9747,95 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VdbDeckCardRead": {
+        "properties": {
+          "vekn_id": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Vekn Id",
+            "description": "Identifiant VEKN (`CardRead.vekn_id`)."
+          },
+          "quantity": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Quantity",
+            "description": "Nombre d'exemplaires dans le deck."
+          }
+        },
+        "type": "object",
+        "required": [
+          "vekn_id",
+          "quantity"
+        ],
+        "title": "VdbDeckCardRead",
+        "description": "Une carte d'un deck VDB : identifiant VEKN et nombre d'exemplaires.\n\nCrypte et bibliothèque mêlées, comme VDB les rend. Un identifiant inconnu\ndu catalogue est relayé tel quel : c'est le navigateur qui le signale à\nl'appariement (règle 1 de P4)."
+      },
+      "VdbDeckRead": {
+        "properties": {
+          "vdb_deck_id": {
+            "type": "string",
+            "title": "Vdb Deck Id",
+            "description": "Identifiant du deck tel que VDB le rend (`deckid`), à garder dans `DeckCreate.vdb_deck_id`. Identifiant d'un deck VDB, celui de son adresse `https://vdb.im/decks/<id>` (neuf caractères pour un deck d'utilisateur, un nombre pour un deck de la TWDA, `extension:précon` pour un précon). Lettres, chiffres, `:`, `-` et `_`, 64 caractères au plus."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nom du deck chez VDB."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Auteur déclaré chez VDB, nul s'il est vide."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description du deck, telle quelle (plusieurs lignes, Markdown possible), nulle si elle est vide. Pour un deck de la TWDA, VDB y compose la date, le nombre de joueurs, l'événement et le lieu."
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/VdbDeckCardRead"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Les cartes du deck, par identifiant VEKN croissant.",
+            "default": []
+          },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fetched At",
+            "description": "Instant (UTC) où le serveur a lu le deck chez VDB."
+          }
+        },
+        "type": "object",
+        "required": [
+          "vdb_deck_id",
+          "name",
+          "author",
+          "description",
+          "cards",
+          "fetched_at"
+        ],
+        "title": "VdbDeckRead",
+        "description": "Un deck tel que l'API de VDB le rend, réduit aux champs communs aux\ntrois genres de deck (d'utilisateur, de la TWDA, précon).\n\nLes étiquettes de VDB (`tags`) ne sont pas reprises : l'archétype se\nchoisit à l'import (P7). Rien n'est stocké : la route relaie une lecture."
       },
       "VenueCreate": {
         "properties": {

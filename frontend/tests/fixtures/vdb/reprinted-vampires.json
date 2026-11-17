@@ -1,0 +1,212 @@
+[
+ {
+  "name": "Aisling Sturbridge",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200031,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201788,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Annabelle Triabell",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200103,
+    "group": "G3"
+   },
+   {
+    "vekn_id": 201693,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Dónal O'Connor",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200364,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201695,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Evan Klein",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200444,
+    "group": "G3"
+   },
+   {
+    "vekn_id": 201627,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "François Villon",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200478,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201696,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Gilbert Duane",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200517,
+    "group": "G1"
+   },
+   {
+    "vekn_id": 201617,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Hesha Ruhadze",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200594,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201591,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Kalinda",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200745,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201596,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Lucinde, Alastor",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 200873,
+    "group": "G3"
+   },
+   {
+    "vekn_id": 201700,
+    "group": "G7"
+   }
+  ]
+ },
+ {
+  "name": "Mithras",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201001,
+    "group": "G3"
+   },
+   {
+    "vekn_id": 201645,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Nikolaus Vermeulen",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201060,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201705,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Queen Anne",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201139,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201647,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Tegyrius, Vizier",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201352,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201654,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Theo Bell",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201362,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201613,
+    "group": "G6"
+   }
+  ]
+ },
+ {
+  "name": "Victoria Ash",
+  "advanced": false,
+  "versions": [
+   {
+    "vekn_id": 201444,
+    "group": "G2"
+   },
+   {
+    "vekn_id": 201619,
+    "group": "G7"
+   }
+  ]
+ }
+]

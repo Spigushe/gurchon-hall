@@ -1,0 +1,3346 @@
+[
+ {
+  "id": 100001,
+  "printed_name": ".44 Magnum",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Equipment"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100052,
+  "printed_name": "The Anarch Free Press",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100085,
+  "printed_name": "Archon Investigation",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100227,
+  "printed_name": "Blur",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100232,
+  "printed_name": "Bollix",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100271,
+  "printed_name": "Burning Wrath",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100297,
+  "printed_name": "Carfax Abbey",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100366,
+  "printed_name": "Club Illusion",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100392,
+  "printed_name": "Concealed Weapon",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100511,
+  "printed_name": "Decapitate",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100545,
+  "printed_name": "Direct Intervention",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100549,
+  "printed_name": "Disarm",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100563,
+  "printed_name": "Diversion",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100588,
+  "printed_name": "Dreams of the Sphinx",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100698,
+  "printed_name": "Fame",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100738,
+  "printed_name": "Fists of Death",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100744,
+  "printed_name": "Flash",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100747,
+  "printed_name": "Fleetness",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100774,
+  "printed_name": "Fortitude",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100809,
+  "printed_name": "Garibaldi-Meucci Museum",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100903,
+  "printed_name": "Heart of Nizchetus",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Equipment"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100904,
+  "printed_name": "Heart of the City",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100910,
+  "printed_name": "Hell-for-Leather",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100913,
+  "printed_name": "Heroic Might",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 100959,
+  "printed_name": "Immortal Grapple",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101144,
+  "printed_name": "Majesty",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101277,
+  "printed_name": "New Carthage",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101324,
+  "printed_name": "Open War",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101350,
+  "printed_name": "Papillon",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101388,
+  "printed_name": "Perfectionist",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101435,
+  "printed_name": "Powerbase: Los Angeles",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101439,
+  "printed_name": "Powerbase: Montreal",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101483,
+  "printed_name": "Preternatural Strength",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101507,
+  "printed_name": "Psyche!",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101523,
+  "printed_name": "Pursuit",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101574,
+  "printed_name": "Red List",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101670,
+  "printed_name": "Sacré-Cœur Cathedral, France",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101681,
+  "printed_name": "The Sargon Fragment",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Equipment"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101706,
+  "printed_name": "Second Tradition: Domain",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Reaction"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101792,
+  "printed_name": "Skin of Steel",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101896,
+  "printed_name": "Sudden Reversal",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101905,
+  "printed_name": "Superior Mettle",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101945,
+  "printed_name": "Taste of Vitae",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 101993,
+  "printed_name": "Torn Signpost",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Combat"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102031,
+  "printed_name": "Trophy: Domain",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102032,
+  "printed_name": "Trophy: Hunting Ground",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102113,
+  "printed_name": "Vessel",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "[trifle] Fixture.",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": true,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102121,
+  "printed_name": "Villein",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "[trifle] Fixture.",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Master"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": true,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102218,
+  "printed_name": "Bait and Switch",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Reaction"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102229,
+  "printed_name": "Line Brawl",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Action"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 102230,
+  "printed_name": "Organized Resistance",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Library",
+  "types": [
+   "Reaction"
+  ],
+  "cost": null,
+  "burn_option": false,
+  "trifle": false,
+  "clan_requirement": [],
+  "path_requirement": [],
+  "discipline_requirement": {
+   "type": "Mono",
+   "disciplines": []
+  }
+ },
+ {
+  "id": 200292,
+  "printed_name": "Count Germaine",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 8,
+  "group": "G4",
+  "disciplines": [
+   "CEL",
+   "FOR",
+   "POT",
+   "PRE",
+   "obf"
+  ],
+  "title": null
+ },
+ {
+  "id": 200293,
+  "printed_name": "Count Germaine",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": true,
+  "capacity": 8,
+  "group": "G4",
+  "disciplines": [
+   "CEL",
+   "FOR",
+   "POT",
+   "PRE",
+   "obf"
+  ],
+  "title": null
+ },
+ {
+  "id": 200349,
+  "printed_name": "Dmitra Ilyanova",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 9,
+  "group": "G5",
+  "disciplines": [
+   "CEL",
+   "FOR",
+   "POT",
+   "PRE",
+   "obf"
+  ],
+  "title": "justicar"
+ },
+ {
+  "id": 200584,
+  "printed_name": "Hektor",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah antitribu",
+  "advanced": false,
+  "capacity": 9,
+  "group": "G4",
+  "disciplines": [
+   "CEL",
+   "POT",
+   "PRE",
+   "QUI",
+   "for"
+  ],
+  "title": "priscus"
+ },
+ {
+  "id": 200675,
+  "printed_name": "Jann Berger",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 10,
+  "group": "G4",
+  "disciplines": [
+   "CEL",
+   "POT",
+   "PRE",
+   "dem",
+   "for"
+  ],
+  "title": "prince"
+ },
+ {
+  "id": 200816,
+  "printed_name": "Laura Goldman",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 3,
+  "group": "G5",
+  "disciplines": [
+   "cel",
+   "pre"
+  ],
+  "title": null
+ },
+ {
+  "id": 201361,
+  "printed_name": "Themistocles",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 8,
+  "group": "G5",
+  "disciplines": [
+   "AUS",
+   "CEL",
+   "FOR",
+   "POT",
+   "pre"
+  ],
+  "title": null
+ },
+ {
+  "id": 201526,
+  "printed_name": "Leumeah",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 6,
+  "group": "G6",
+  "disciplines": [
+   "PRE",
+   "cel",
+   "for",
+   "pot"
+  ],
+  "title": "baron"
+ },
+ {
+  "id": 201576,
+  "printed_name": "Aline Gädeke",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 7,
+  "group": "G6",
+  "disciplines": [
+   "POT",
+   "PRE",
+   "cel"
+  ],
+  "title": "baron"
+ },
+ {
+  "id": 201579,
+  "printed_name": "Atiena",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 6,
+  "group": "G6",
+  "disciplines": [
+   "CEL",
+   "obf",
+   "pot",
+   "pre"
+  ],
+  "title": "baron"
+ },
+ {
+  "id": 201613,
+  "printed_name": "Theo Bell",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 4,
+  "group": "G6",
+  "disciplines": [
+   "cel",
+   "pre",
+   "pro"
+  ],
+  "title": null
+ },
+ {
+  "id": 201614,
+  "printed_name": "Valeriya Zinovieva",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 7,
+  "group": "G6",
+  "disciplines": [
+   "POT",
+   "cel",
+   "pre",
+   "pro"
+  ],
+  "title": "baron"
+ },
+ {
+  "id": 201657,
+  "printed_name": "Anita Wainwright",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 3,
+  "group": "G6",
+  "disciplines": [
+   "cel",
+   "pre"
+  ],
+  "title": null
+ },
+ {
+  "id": 201658,
+  "printed_name": "Saku Pihlajamäki",
+  "unicity_suffix": "",
+  "suffix": "",
+  "name_variants": [],
+  "prints": [
+   {
+    "set": {
+     "id": 300007,
+     "code": "FN"
+    },
+    "occurrences": [
+     {
+      "type": "Rarity",
+      "frequency": "U",
+      "multiplier": 1.0,
+      "bundle": "",
+      "copies": 0,
+      "date": null
+     }
+    ],
+    "url": null
+   }
+  ],
+  "i18n": {},
+  "url": null,
+  "formats": [],
+  "artists": [],
+  "variants": [],
+  "rulings": [],
+  "cards": [],
+  "text": "",
+  "draft": "",
+  "flavor": "",
+  "legal": "1996-01-01",
+  "banned": null,
+  "kind": "Crypt",
+  "types": [
+   "Vampire"
+  ],
+  "clan": "Brujah",
+  "advanced": false,
+  "capacity": 8,
+  "group": "G6",
+  "disciplines": [
+   "CEL",
+   "POT",
+   "PRE",
+   "for",
+   "pro"
+  ],
+  "title": "baron"
+ }
+]

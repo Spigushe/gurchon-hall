@@ -6721,3 +6721,100 @@ fieldset:disabled .chip {
     font-size: 13px;
   }
 }
+
+/* — Lot 9 : notes sur plusieurs lignes, feuilles d'import et d'export VDB — */
+.deck-notes {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.deck-export__text {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow-x: auto;
+  min-height: 16rem;
+}
+
+/* Bureau : « Importer depuis VDB » et « Nouveau » sur une ligne ; la colonne maître
+   (360px) étant étroite, ils passent sous le titre plutôt que de l'écraser. */
+.decks-header {
+  flex-wrap: wrap;
+}
+
+.decks-header__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.deck-import__text {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.deck-import__file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.deck-import__report summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.deck-import__report-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.deck-import__report-where {
+  color: var(--color-neutral-400);
+}
+
+.deck-import__report-text {
+  overflow-wrap: anywhere;
+}
+
+.deck-import__report-item--unreadable .deck-import__report-message,
+.deck-import__report-item--unmatched .deck-import__report-message {
+  color: var(--color-accent-200);
+}
+
+/* Lot 9, D3 : mise à jour depuis VDB, les changements carte par carte. */
+.deck-refresh__changes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.deck-refresh__kind {
+  display: inline-block;
+  min-width: 9.5em;
+  color: var(--color-neutral-400);
+  font-size: 13px;
+}
+
+.deck-refresh__detail {
+  color: var(--color-neutral-300);
+}
+
+.deck-refresh__change--remade .deck-refresh__detail,
+.deck-refresh__change--removed .deck-refresh__kind {
+  color: var(--color-accent-200);
+}

@@ -45,7 +45,10 @@ navigateur, sans dépendance nouvelle.
 | Emplacement fin dans un classeur | page et pochette d'un exemplaire | seulement si le besoin apparaît à l'usage |
 | Export de la collection | sauvegarde, et retour vers l'inventaire de VDB ; l'import, lui, est au lot Inventaires | avec le lot Inventaires ou après |
 | Suggestions à partir des decks des adversaires | proposer les listes que jouent les gens du club, une fois le Lot 8 livré | extension du lot Inventaires |
-| Export texte d'un deck | partager une liste au format VDB ou au format texte des listes de tournoi | Lot 9, sens inverse de l'import |
+| Export d'un deck aux autres formats de VDB | `TWD` (listes de tournoi), `JOL`, `LACKEY` ; le Lot 9 a livré le format `TEXT`, copié ou téléchargé en `.txt`, depuis un deck et depuis une version jouée (P9 de `docs/lot9-plan-import-vdb.md`) | si un usage le demande (soumission d'une liste à la TWDA, jeu en ligne) |
+| Import VDB : stock, achat ou carte laissée | à l'import d'un deck, prendre d'abord les exemplaires libres de la collection, puis acheter le manque, le jouer en proxy ou le laisser hors du deck ; le Lot 9 importe tout en proxy (P5) | seconde passe après la mise en ligne, selon les premiers retours |
+| Lier ou délier un deck VDB | lier après coup à un deck VDB un deck créé autrement, ou couper le lien ; le Lot 9 ne lie qu'à l'import par l'URL d'un deck (P7, P8) | quand le besoin apparaît |
+| Mettre à jour un deck depuis une liste texte | appliquer les règles de mise à jour de P7 à un texte collé, pour un deck que VDB ne connaît pas par son identifiant ; le Lot 9 ne met à jour que par le lien gardé (P8) | quand le besoin apparaît, le plan de mise à jour (`planDeckRefresh`) prend déjà une liste quelconque |
 | Statistiques de deck | répartition des disciplines de la bibliothèque et courbe des coûts ; le compte par type, les totaux de sang et de pool, les groupes et la capacité moyenne de la crypte sont livrés par le lot Affichage des decks | quand le besoin apparaît, le miroir a déjà tout |
 | Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
 | Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
@@ -220,3 +223,8 @@ Collection de toute façon.
   livrée (reliquat du Lot 5bis).
 - Une flakiness vitest résiduelle, vue aux Lots 5c et 6, reste à attribuer à un
   test.
+- Juste après la première connexion d'un appareil, la liste et l'aperçu des
+  decks montrent quelques secondes des comptes « 0 / 0 » et des cartes « Hors
+  catalogue local », le temps que le catalogue finisse de s'écrire (relevé aux
+  captures du Lot 9, antérieur au lot). Un état « catalogue en cours de
+  chargement » à la place suffirait.
