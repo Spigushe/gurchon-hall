@@ -367,7 +367,7 @@ describe("collection : saisie hors ligne", () => {
     fireEvent.change(within(panel).getByLabelText("Nombre de produits"), { target: { value: "2" } });
     fireEvent.click(within(panel).getByTestId("bundle-submit"));
 
-    await waitFor(() => expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("mis en file"));
+    await waitFor(() => expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("enregistré"));
     await runtime.engine.whenIdle();
     // Rejoué par le moteur sous une clé d'idempotence, jamais par un appel direct.
     expect(ui.requests.filter((request) => request.method === "POST")).toEqual([]);
@@ -470,7 +470,7 @@ describe("bundle : verser un produit, pied bureau/mobile (Lot 5bis)", () => {
     fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
 
     await waitFor(() =>
-      expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("mis en file"),
+      expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("enregistré"),
     );
     await runtime.engine.whenIdle();
     // Rejoué par le moteur sous une clé d'idempotence, jamais par un appel direct.

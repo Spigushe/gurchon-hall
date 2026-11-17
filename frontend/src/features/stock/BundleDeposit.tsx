@@ -77,7 +77,7 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
     const done = await action.run(() => actions.depositBundle(chosen.id, languageCode, count));
     if (!done) return;
     setSaved(
-      `Versement de ${bundleLabel(chosen)} mis en file. Les cartes apparaîtront dans la collection après la synchronisation.`,
+      `Versement de ${bundleLabel(chosen)} enregistré. Les cartes apparaîtront dans la collection après la synchronisation.`,
     );
     setChosen(null);
     setCount(1);

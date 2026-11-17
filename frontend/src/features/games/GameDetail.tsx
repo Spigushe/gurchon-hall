@@ -182,8 +182,7 @@ export function GameDetail({
         <p className="kicker">{dense ? "Table par siège" : `Table · ${game.playerCount} joueurs`}</p>
         {game.table === null ? (
           <p className="hint" data-testid="game-table-unknown">
-            La table de cette partie n'a pas encore été lue sur cet appareil : elle s'affichera après le
-            prochain rafraîchissement.
+            La table de cette partie s'affichera à la prochaine connexion.
           </p>
         ) : (
           <ul className="seat-list" data-testid="game-table">

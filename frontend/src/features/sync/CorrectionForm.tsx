@@ -169,10 +169,6 @@ export function CorrectionForm({ entry, onDone }: { entry: Entry; onDone: () => 
           />
         )}
 
-        <p className="hint">
-          Renvoyer crée une nouvelle opération : la clé refusée n'est jamais rejouée telle quelle.
-        </p>
-
         {invalid && (
           <p className="error-text" role="alert">
             {invalid}

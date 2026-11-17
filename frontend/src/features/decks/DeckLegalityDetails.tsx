@@ -31,15 +31,13 @@ export function DeckLegalityDetails({
   if (deck.id === null) {
     body = (
       <p className="hint" data-testid="legality-unavailable">
-        Verdict indisponible : ce deck n'existe pas encore côté serveur (création en attente de
-        synchronisation).
+        Légalité disponible une fois le deck synchronisé.
       </p>
     );
   } else if (!online) {
     body = (
       <p className="hint" data-testid="legality-unavailable">
-        Verdict indisponible hors ligne : il est calculé par le serveur. Il sera consultable au
-        retour du réseau.
+        Légalité indisponible hors ligne : elle sera consultable au retour du réseau.
         {deck.status === "active" &&
           " Un deck actif peut devenir illégal (bannissement, sortie de légalité) : vérifiez-le dès que vous êtes en ligne."}
       </p>
@@ -89,8 +87,7 @@ export function DeckLegalityDetails({
     <div className="deck-legality-details" data-testid="legality-details">
       {deck.pending && deck.id !== null && online && (
         <p className="hint" data-testid="legality-stale">
-          Des modifications de ce deck ne sont pas encore synchronisées : le verdict porte sur la
-          version du serveur.
+          Des modifications de ce deck ne sont pas encore synchronisées : le verdict porte sur sa dernière version synchronisée.
         </p>
       )}
       {body}

@@ -40,7 +40,7 @@ export function DeckImportSheet({ onClose }: { onClose: () => void }) {
         onClose={onClose}
       />
       {index === null ? (
-        <LoadingState caption="Lecture du catalogue — aucun appel réseau." />
+        <LoadingState caption="Lecture du catalogue…" />
       ) : refresh ? (
         <DeckRefreshStep
           deckKey={refresh.deck.key}

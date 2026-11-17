@@ -27,7 +27,7 @@ function PreviewTables({ plan }: { plan: DeckImportPlan }) {
   const lines = useMemo(() => previewLines(plan), [plan]);
   const ids = useMemo(() => lines.map((line) => line.cardId), [lines]);
   const facts = useDeckCardFacts(ids);
-  if (!facts) return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+  if (!facts) return <LoadingState groups={2} caption="Lecture de la composition…" />;
   return <DeckTables tables={buildDeckTables(lines, facts)} showProxies={false} />;
 }
 

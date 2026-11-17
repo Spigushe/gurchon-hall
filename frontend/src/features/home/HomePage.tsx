@@ -280,7 +280,7 @@ export function HomePage() {
           <div>
             <p className="kicker">Gurchon Hall</p>
             <h2 className="page-title">Atelier</h2>
-            <p className="page-meta">{TODAY.charAt(0).toUpperCase() + TODAY.slice(1)} · tout est local</p>
+            <p className="page-meta">{TODAY.charAt(0).toUpperCase() + TODAY.slice(1)}</p>
           </div>
 
           {!isDesktop && tournamentCard}

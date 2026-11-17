@@ -75,7 +75,7 @@ export function FreezeDialog({ game, onClose }: { game: LocalGame; onClose: () =
           <h2 id={titleId} ref={titleRef} tabIndex={-1} className="sheet__title">
             Figer sur la liste actuelle ?
           </h2>
-          <LoadingState groups={1} caption="Lecture locale — aucun appel réseau." />
+          <LoadingState groups={1} caption="Chargement…" />
         </>
       )}
     </Sheet>

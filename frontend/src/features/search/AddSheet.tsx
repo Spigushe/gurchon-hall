@@ -259,7 +259,7 @@ export function AddSheet({
         <EffectBlock plan={plan} error={action.error} />
       ) : (
         <p className="hint" aria-busy="true">
-          Lecture de la collection locale…
+          Lecture de la collection…
         </p>
       )}
       <div className="sheet-form__footer add-sheet__footer">

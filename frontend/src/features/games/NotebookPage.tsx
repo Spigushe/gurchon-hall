@@ -325,7 +325,7 @@ export function NotebookPage() {
       </div>
 
       {!ready ? (
-        <LoadingState caption="Lecture du carnet — aucun appel réseau." />
+        <LoadingState caption="Lecture du carnet…" />
       ) : isDesktop ? (
         <div className="notebook-grid" data-testid="notebook-columns">
           <section aria-label="Adversaires">

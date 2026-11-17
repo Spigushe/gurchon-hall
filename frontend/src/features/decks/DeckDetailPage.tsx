@@ -223,7 +223,7 @@ function DeckActions({
       </div>
       {deck.vdbDeckId && <VdbRefreshHint deck={deck} />}
       {!archived && deck.status === "draft" && (
-        <p className="hint">Le serveur n'accepte l'activation que d'un deck légal.</p>
+        <p className="hint">Seul un deck légal peut être activé.</p>
       )}
     </div>
   );
@@ -532,7 +532,7 @@ export function DeckDetailPage({ deckKey }: { deckKey: DeckKey }) {
   if (deck === undefined) {
     return (
       <div className="page">
-        <LoadingState caption="Lecture du deck — aucun appel réseau." />
+        <LoadingState caption="Lecture du deck…" />
       </div>
     );
   }

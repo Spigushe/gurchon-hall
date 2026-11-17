@@ -188,11 +188,7 @@ export function StockForm({
             options={languageOptions}
             disabled={editing !== null}
           />
-          <p className="hint">
-            {editing
-              ? "Une ligne par carte, langue et extension : pour changer l'une des trois, ajoutez une autre entrée."
-              : "Une ligne par carte, langue et extension : changer l'une des trois crée une autre entrée."}
-          </p>
+          {editing && <p className="hint">Pour changer de langue ou d'extension, ajoutez une autre entrée.</p>}
         </div>
 
         <ExtensionField

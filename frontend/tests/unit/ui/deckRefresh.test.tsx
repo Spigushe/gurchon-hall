@@ -204,7 +204,7 @@ describe("mise à jour depuis le détail d'un deck lié", () => {
     await openDeck(app.key);
     const button = screen.getByTestId("deck-vdb-refresh");
     expect(button).toBeDisabled();
-    expect(screen.getByTestId("deck-vdb-refresh-offline")).toHaveTextContent("elle se fait en ligne");
+    expect(screen.getByTestId("deck-vdb-refresh-offline")).toHaveTextContent("demande le réseau");
     expect(vdbReads(app)).toEqual([]);
   });
 

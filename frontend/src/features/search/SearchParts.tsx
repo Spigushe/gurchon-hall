@@ -22,7 +22,7 @@ export function PageHead({ page, desktop = false }: { page: SearchPageModel; des
       <div>
         <h2 className="page-title">Chercher</h2>
         <p className="page-meta" data-testid="search-meta">
-          Catalogue local{count ? ` · ${formatCount(count)} ${unit}` : ""}
+          Catalogue{count ? ` · ${formatCount(count)} ${unit}` : ""}
           {desktop && !online && <span data-testid="search-offline"> · hors ligne, images indisponibles</span>}
         </p>
       </div>
@@ -185,7 +185,7 @@ export function Loading({ page }: { page: SearchPageModel }) {
   if (page.results !== undefined || page.catalogCount === 0) return null;
   return (
     <p className="hint" data-testid="search-loading" aria-busy="true">
-      Lecture du miroir local — aucun appel réseau.
+      Chargement…
     </p>
   );
 }

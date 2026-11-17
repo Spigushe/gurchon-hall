@@ -236,9 +236,7 @@ export function RejectedOperations({
           {plural(entries.length, "opération refusée", "opérations refusées")}
         </h2>
         <p className="accent-block__detail">
-          Le serveur n'a pas appliqué ces saisies. Elles n'ont aucun effet sur vos données : corrigez
-          puis renvoyez, ou abandonnez. Une création refusée (deck, joueur, lieu, tournoi, partie)
-          entraîne le refus de ce qui la désigne : renvoyez d'abord la création.
+          Ces saisies n'ont pas été enregistrées : corrigez puis renvoyez, ou abandonnez. Si une création (deck, joueur, lieu, tournoi, partie) a été refusée, renvoyez-la d'abord : ce qui en dépend a été refusé avec elle.
         </p>
       </div>
       <ul className="list">

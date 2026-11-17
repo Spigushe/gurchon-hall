@@ -94,12 +94,12 @@ describe("export d'un deck", () => {
     expect(writeText).toHaveBeenCalledWith(text.value);
   });
 
-  it("sans HTTPS, sélectionne le texte et le dit", async () => {
+  it("hors contexte sécurisé, sélectionne le texte et le dit", async () => {
     Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
     const { sheet, text } = await openExport();
     fireEvent.click(within(sheet).getByTestId("deck-export-copy"));
     await waitFor(() =>
-      expect(within(sheet).getByTestId("deck-export-outcome")).toHaveTextContent("Copie impossible sans HTTPS"),
+      expect(within(sheet).getByTestId("deck-export-outcome")).toHaveTextContent("Copie automatique impossible"),
     );
     expect(document.activeElement).toBe(text);
     expect(text.selectionStart).toBe(0);

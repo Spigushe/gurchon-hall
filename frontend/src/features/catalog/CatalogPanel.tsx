@@ -35,7 +35,7 @@ export function CatalogPanel({ compact = false }: { compact?: boolean }) {
 
   const stateText =
     count === undefined
-      ? "Lecture du catalogue local…"
+      ? "Lecture du catalogue…"
       : missing
         ? "Le catalogue n'est pas encore téléchargé sur cet appareil."
         : `Catalogue à jour — ${plural(count, "carte")}`;

@@ -406,7 +406,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
               <h2 className="page-title">Parties</h2>
               <p className="page-meta" data-testid="games-count">
                 {games ? plural(games.length, "partie") : "…"}
-                {isDesktop && tournaments ? ` · ${plural(tournaments.length, "tournoi")}` : ""} · lecture locale
+                {isDesktop && tournaments ? ` · ${plural(tournaments.length, "tournoi")}` : ""}
               </p>
             </div>
             <div className="play-header__actions">
@@ -451,7 +451,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
           )}
 
           {sorted === undefined ? (
-            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des parties — aucun appel réseau." />
+            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des parties…" />
           ) : emptyAll ? (
             <div className="empty-state" data-testid="games-empty">
               <h3 className="empty-state__title">Aucune partie</h3>

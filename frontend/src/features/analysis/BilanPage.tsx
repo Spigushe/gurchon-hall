@@ -266,7 +266,7 @@ export function BilanPage({ initialDeck }: { initialDeck: DeckKey | null }) {
           <div className="decks-header play-header">
             <div>
               <h2 className="page-title">Parties</h2>
-              <p className="page-meta">Bilan · lecture locale</p>
+              <p className="page-meta">Bilan</p>
             </div>
             <div className="play-header__actions">
               <Link to={{ name: "notebook" }} className="btn btn-secondary" data-testid="notebook-open">
@@ -280,7 +280,7 @@ export function BilanPage({ initialDeck }: { initialDeck: DeckKey | null }) {
           </div>
 
           {!data || !axesProps ? (
-            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des parties — aucun appel réseau." />
+            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des parties…" />
           ) : data.facts.length === 0 ? (
             <NoGames />
           ) : (

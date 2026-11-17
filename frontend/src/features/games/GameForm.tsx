@@ -198,7 +198,7 @@ function deckOptions(deckChoices: LocalDeck[], restrictedKeys: DeckKey[] | null,
 /** Avertissement quand le deck choisi n'est pas celui que le mono-deck impose. */
 function monoDeckWarning(monoDeckKey: DeckKey | null, deckKey: DeckKey | null, monoDeck: LocalDeck | undefined) {
   if (monoDeckKey === null || deckKey === null || deckKey === monoDeckKey) return null;
-  return `Tournoi mono-deck : vos rondes ont été jouées avec ${monoDeck?.name ?? "un autre deck"}. Le serveur refusera un autre deck.`;
+  return `Tournoi mono-deck : vos rondes ont été jouées avec ${monoDeck?.name ?? "un autre deck"}. Un autre deck sera refusé.`;
 }
 
 /** Surtitre, titre et libellé d'envoi du formulaire. */
@@ -349,7 +349,7 @@ export function GameForm({
           titleRef={loadingRef}
           onClose={onClose}
         />
-        <LoadingState groups={3} caption="Lecture locale — aucun appel réseau." />
+        <LoadingState groups={3} caption="Chargement…" />
       </Sheet>
     );
   }
@@ -791,8 +791,7 @@ function GameFormBody({
           </>
         ) : (
           <p className="hint" data-testid="game-form-table-unknown">
-            La table de cette partie n'est pas connue sur cet appareil : le résultat et les adversaires
-            ne sont pas modifiables ici. Ils le seront après le prochain rafraîchissement.
+            Le résultat et les adversaires de cette partie seront modifiables à la prochaine connexion.
           </p>
         )}
 
@@ -893,7 +892,6 @@ function GameChoiceSheet({
           }}
           create={venueCreation(data.venues, venueTerm, onCreateVenue)}
           error={setupError}
-          note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
         />
       )}
       {view === "tournament" && (
@@ -945,7 +943,7 @@ function GameChoiceSheet({
             onChoosePlayerCount(Number(value));
             setView("form");
           }}
-          note="En tournoi, une table compte quatre ou cinq joueurs ; l'outil accepte de deux à six."
+          note="En tournoi, une table compte quatre ou cinq joueurs."
         />
       )}
       {view === "clan" && clanLine && (

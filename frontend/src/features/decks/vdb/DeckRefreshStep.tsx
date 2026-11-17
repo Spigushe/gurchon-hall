@@ -181,7 +181,7 @@ export function DeckRefreshStep({
   const vdbDeckId = deck?.vdbDeckId ?? null;
   const vdb = useVdbDeckOnce(vdbDeckId, online && !archived, preloaded);
 
-  if (deck === undefined || lines === undefined) return <LoadingState caption="Lecture du deck — aucun appel réseau." />;
+  if (deck === undefined || lines === undefined) return <LoadingState caption="Lecture du deck…" />;
 
   return (
     <div className="sheet-form deck-import" data-testid="deck-refresh">
@@ -249,5 +249,5 @@ function RefreshContent({
       </>
     );
   }
-  return <LoadingState caption="Lecture du deck chez VDB, par le serveur." />;
+  return <LoadingState caption="Lecture du deck chez VDB…" />;
 }

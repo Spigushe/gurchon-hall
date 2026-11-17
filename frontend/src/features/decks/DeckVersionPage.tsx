@@ -128,7 +128,7 @@ function VersionBody({
     [version, previous],
   );
   const facts = useDeckCardFacts(ids);
-  if (!facts) return <LoadingState caption="Lecture de la liste — aucun appel réseau." />;
+  if (!facts) return <LoadingState caption="Lecture de la liste…" />;
   const tables = buildDeckTables(versionLines(version.cards), facts);
   const nameOf = (cardId: number) => facts.get(cardId)?.card.name ?? `Carte n° ${cardId}`;
   const changes = previous ? versionChanges(previous.cards, version.cards, nameOf) : null;

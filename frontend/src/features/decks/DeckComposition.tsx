@@ -478,7 +478,7 @@ export function DeckComposition({
   const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
 
   if (lines === undefined || tables === null || stock === undefined) {
-    return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+    return <LoadingState groups={2} caption="Lecture de la composition…" />;
   }
   if (lines.length === 0) {
     return (

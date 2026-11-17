@@ -6,7 +6,7 @@ import type { CardChange, CardChangeKind, DeckRefreshPlan, DecklistMatch, Import
 
 /** Message de l'action grisée hors connexion (P1) : la mise à jour lit le deck chez VDB. */
 export const VDB_REFRESH_OFFLINE_MESSAGE =
-  "La mise à jour lit le deck chez VDB : elle se fait en ligne. Hors connexion, le deck reste tel quel.";
+  "La mise à jour depuis VDB demande le réseau. Hors connexion, le deck reste tel quel.";
 
 /** Refus d'une mise à jour pour un deck archivé (P7), même texte que `DeckNotRefreshableError`. */
 export const VDB_REFRESH_ARCHIVED_MESSAGE = "Désarchivez le deck pour le mettre à jour.";

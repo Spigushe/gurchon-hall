@@ -54,7 +54,7 @@ function Recognition({
   return (
     <>
       <p className="hint" data-testid="deck-import-recognized" data-format="vdb-deck">
-        Lien vers un deck VDB ({source.vdbDeckId}), lu par le serveur.
+        Lien vers un deck VDB ({source.vdbDeckId}).
       </p>
       {!online && (
         <p className="quote-block" data-testid="deck-import-offline">

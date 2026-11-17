@@ -100,7 +100,7 @@ export function SignUpForm({ onSuccess }: { onSuccess: (user: UserRead) => void 
 
       {!online && (
         <p className="hint" data-testid="signup-offline-hint">
-          L'inscription demande le réseau : le compte est créé par le serveur.
+          Hors ligne : l'inscription demande le réseau.
         </p>
       )}
       {error && (

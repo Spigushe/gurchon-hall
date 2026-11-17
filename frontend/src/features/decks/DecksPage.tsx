@@ -144,8 +144,7 @@ function DeckCreateForm({ onClose, onImport }: { onClose: () => void; onImport: 
           </button>
         </p>
         <p className="quote-block">
-          Le deck est créé en brouillon. Le serveur lui attribuera son numéro (« #0001 ») à la
-          synchronisation.
+          Le deck est créé en brouillon.
         </p>
         {action.error && (
           <p className="error-text" role="alert" data-testid="deck-form-error">
@@ -276,7 +275,7 @@ function DeckPreviewTables({ deck }: { deck: LocalDeck }) {
   const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
 
   if (lines === undefined || tables === null) {
-    return <LoadingState groups={2} caption="Lecture de la composition — aucun appel réseau." />;
+    return <LoadingState groups={2} caption="Lecture de la composition…" />;
   }
   if (lines.length === 0) {
     return (
@@ -441,7 +440,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
           <div className="decks-header">
             <div>
               <h2 className="page-title">Decks</h2>
-              <p className="page-meta">{decks ? plural(decks.length, "deck") : "…"} · lecture locale</p>
+              <p className="page-meta">{decks ? plural(decks.length, "deck") : "…"}</p>
             </div>
             {isDesktop && (
               <div className="decks-header__actions">

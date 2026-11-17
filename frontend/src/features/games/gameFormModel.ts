@@ -98,7 +98,7 @@ export function gameWinAdvice(
       locked: true,
       checked: true,
       help: lockAttempt
-        ? "Victoire certaine : le serveur refusera une partie sans Game Win."
+        ? "Victoire certaine : le Game Win ne peut pas être retiré."
         : `Coché d'office : ${formatVp(vp)} VP à ${playerCount} joueurs, vous êtes seul en tête.`,
       error: null,
     };

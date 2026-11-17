@@ -878,7 +878,7 @@ describe("decks : légalité", () => {
   it("dit que le verdict n'existe pas encore pour un deck créé hors ligne", async () => {
     await withDeck();
     expect(screen.getByTestId("legality-unavailable")).toHaveTextContent(
-      "n'existe pas encore côté serveur",
+      "une fois le deck synchronisé",
     );
   });
 
@@ -996,7 +996,7 @@ describe("decks : légalité détaillée au bureau (Lot 5c, étape 1 ; pastille 
   it("dit que le verdict n'existe pas encore pour un deck créé hors ligne (bureau)", async () => {
     await withDeck();
     expect(screen.getByTestId("legality-unavailable")).toHaveTextContent(
-      "n'existe pas encore côté serveur",
+      "une fois le deck synchronisé",
     );
   });
 });

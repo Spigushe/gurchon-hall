@@ -13,7 +13,7 @@ export function GameDetailPage({ gameKey }: { gameKey: GameKey }) {
   if (game === undefined) {
     return (
       <div className="page" data-testid="game-loading">
-        <LoadingState caption="Lecture de la partie — aucun appel réseau." />
+        <LoadingState caption="Lecture de la partie…" />
       </div>
     );
   }

@@ -13,7 +13,7 @@ export function TournamentDetailPage({ tournamentKey }: { tournamentKey: Resourc
   if (tournament === undefined) {
     return (
       <div className="page" data-testid="tournament-loading">
-        <LoadingState caption="Lecture du tournoi — aucun appel réseau." />
+        <LoadingState caption="Lecture du tournoi…" />
       </div>
     );
   }

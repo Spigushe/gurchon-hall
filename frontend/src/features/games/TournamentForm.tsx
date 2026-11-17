@@ -73,7 +73,7 @@ export function TournamentForm({
           titleRef={loadingRef}
           onClose={onClose}
         />
-        <LoadingState caption="Lecture des lieux — aucun appel réseau." />
+        <LoadingState caption="Lecture des lieux…" />
       </Sheet>
     );
   }
@@ -572,7 +572,6 @@ function TournamentVenueSheet({
             : null
         }
         error={setup.error}
-        note="Un lieu créé ici attend le réseau comme le reste. S'il existe déjà sous le même nom, le serveur les réunit."
       />
     </Sheet>
   );

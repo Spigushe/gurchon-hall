@@ -7,7 +7,7 @@ import { browserClipboard, copyText, downloadText, type CopyOutcome } from "./ex
 const COPY_MESSAGES: Record<CopyOutcome, string> = {
   copied: "Liste copiée dans le presse-papiers.",
   fallback:
-    "Copie impossible sans HTTPS : texte sélectionné, copiez-le à la main ou téléchargez le fichier.",
+    "Copie automatique impossible : le texte est sélectionné, copiez-le à la main ou téléchargez le fichier.",
 };
 
 /**
@@ -58,7 +58,7 @@ export function DeckExportSheet({
           <span data-testid="deck-export-filename">{fileName}</span>.
         </p>
         {text === undefined ? (
-          <LoadingState caption="Lecture de la liste — aucun appel réseau." />
+          <LoadingState caption="Lecture de la liste…" />
         ) : (
           <>
             <label htmlFor={`${id}-text`} className="sr-only">

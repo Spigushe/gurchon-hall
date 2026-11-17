@@ -1,7 +1,7 @@
 /** Squelettes de chargement (handoff Nocturne) : lecture du miroir local, aucun appel réseau. */
 export function LoadingState({
   groups = 3,
-  caption = "Lecture du miroir local — aucun appel réseau.",
+  caption = "Chargement…",
   variant = "list",
 }: {
   groups?: number;

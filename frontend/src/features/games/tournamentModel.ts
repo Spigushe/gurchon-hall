@@ -63,7 +63,7 @@ export const MULTI_FORBIDDEN_HELP =
 export function finalRuleHelp(rule: FinalDeckRule | null): string {
   if (rule === "best_performing") return "En finale, le deck de votre meilleure ronde préliminaire (GW, puis VP).";
   if (rule === "free_choice") return "En finale, n'importe quel deck joué en préliminaires.";
-  return "L'organisateur l'annonce avant la ronde 1 ; rien n'est contrôlé tant qu'elle n'est pas saisie.";
+  return "L'organisateur l'annonce avant la ronde 1.";
 }
 
 /** Les parties d'un tournoi, rangées : préliminaires par numéro de ronde, la finale à part. */
@@ -408,7 +408,7 @@ export function finalDeckInfo(
   if (admitted === null || admitted.length === 0) {
     return {
       title: "En finale : le deck de votre meilleure ronde",
-      help: "Règle « meilleur deck » : GW, puis VP. Le deck exact se lit au prochain rafraîchissement.",
+      help: "Règle « meilleur deck » : GW, puis VP.",
     };
   }
   const best = bestRoundOf(played, admitted);

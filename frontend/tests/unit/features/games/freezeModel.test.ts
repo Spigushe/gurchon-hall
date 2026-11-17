@@ -192,7 +192,7 @@ describe("freezeOutcome", () => {
     expect(freezeSentence({ kind: "reuse", number: 3 }, 2, false)).toBe(
       "La liste actuelle est celle de la v3 : la partie passera de la v2 à la v3.",
     );
-    expect(freezeSentence({ kind: "unknown" }, 2, false)).toContain("le serveur dira");
+    expect(freezeSentence({ kind: "unknown" }, 2, false)).toContain("la synchronisation dira");
   });
 });
 

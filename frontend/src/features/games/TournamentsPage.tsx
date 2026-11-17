@@ -136,7 +136,7 @@ export function TournamentsPage() {
             <div>
               <h2 className="page-title">Parties</h2>
               <p className="page-meta" data-testid="tournaments-count">
-                {tournaments ? plural(tournaments.length, "tournoi") : "…"} · lecture locale
+                {tournaments ? plural(tournaments.length, "tournoi") : "…"}
               </p>
             </div>
             <div className="play-header__actions">
@@ -165,7 +165,7 @@ export function TournamentsPage() {
           </div>
 
           {tournaments === undefined ? (
-            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des tournois — aucun appel réseau." />
+            <LoadingState variant={isDesktop ? "table" : "list"} caption="Lecture des tournois…" />
           ) : tournaments.length === 0 ? (
             <div className="empty-state" data-testid="tournaments-empty">
               <h3 className="empty-state__title">Aucun tournoi</h3>

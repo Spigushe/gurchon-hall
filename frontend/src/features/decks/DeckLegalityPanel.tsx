@@ -35,15 +35,13 @@ export function DeckLegalityPanel({ deck }: { deck: LocalDeck }) {
   if (deck.id === null) {
     body = (
       <p className="hint" data-testid="legality-unavailable">
-        Verdict indisponible : ce deck n'existe pas encore côté serveur (création en attente de
-        synchronisation).
+        Légalité disponible une fois le deck synchronisé.
       </p>
     );
   } else if (!online) {
     body = (
       <p className="hint" data-testid="legality-unavailable">
-        Verdict indisponible hors ligne : il est calculé par le serveur. Il sera consultable au
-        retour du réseau.
+        Légalité indisponible hors ligne : elle sera consultable au retour du réseau.
         {deck.status === "active" &&
           " Un deck actif peut devenir illégal (bannissement, sortie de légalité) : vérifiez-le dès que vous êtes en ligne."}
       </p>
@@ -65,7 +63,7 @@ export function DeckLegalityPanel({ deck }: { deck: LocalDeck }) {
             {legality.is_legal ? "Deck légal" : "Deck illégal"}
           </p>
           <p className="accent-block__detail">
-            Verdict du serveur, {legality.evaluated_on} · {refresh("recalculer")}
+            Verdict du {legality.evaluated_on} · {refresh("recalculer")}
           </p>
         </div>
         {deck.status === "active" && !legality.is_legal && (
@@ -130,8 +128,7 @@ export function DeckLegalityPanel({ deck }: { deck: LocalDeck }) {
     <section aria-label="Légalité" data-testid="legality-panel">
       {deck.pending && deck.id !== null && online && (
         <p className="hint" data-testid="legality-stale">
-          Des modifications de ce deck ne sont pas encore synchronisées : le verdict porte sur la
-          version du serveur.
+          Des modifications de ce deck ne sont pas encore synchronisées : le verdict porte sur sa dernière version synchronisée.
         </p>
       )}
       {body}

@@ -96,7 +96,7 @@ export function freezeSentence(outcome: FreezeOutcome, playedNumber: number, plu
   if (outcome.kind === "new") {
     return `La liste actuelle diffère de la v${playedNumber} : elle deviendra la v${outcome.number}.`;
   }
-  return `La v${playedNumber} n'a pas été lue sur cet appareil : le serveur dira si la liste a changé.`;
+  return `La v${playedNumber} n'est pas encore sur cet appareil : la synchronisation dira si la liste a changé.`;
 }
 
 /** Les decks joués à la table d'une partie (ma ligne, puis les decks prêtés), sans doublon. */

@@ -26,7 +26,7 @@ export function DeckRefreshSheet({ deck, onClose }: { deck: LocalDeck; onClose: 
         onClose={onClose}
       />
       {index === null ? (
-        <LoadingState caption="Lecture du catalogue — aucun appel réseau." />
+        <LoadingState caption="Lecture du catalogue…" />
       ) : catalogEmpty ? (
         <p className="quote-block" data-testid="deck-refresh-no-catalog">
           Le catalogue n'est pas encore sur cet appareil : il se charge à la première connexion au réseau.

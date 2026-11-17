@@ -59,7 +59,7 @@ test("réponse de /sync perdue deux fois : le rejeu ne double rien, versement de
 
   await context.setOffline(true);
   await deposit.getByTestId("bundle-submit").click();
-  await expect(deposit.getByTestId("bundle-feedback")).toContainText("mis en file");
+  await expect(deposit.getByTestId("bundle-feedback")).toContainText("enregistré");
   await addStock(page, { search: "awe", card: CARDS.awe, quantity: 2, language: "EN" });
   await goToDecks(page);
   await createDeck(page, "Idempotence");

@@ -90,7 +90,7 @@ export function LoginForm({
 
       {!online && (
         <p className="hint" data-testid="login-offline-hint">
-          La connexion demande le réseau : le mot de passe est vérifié par le serveur.
+          Hors ligne : la connexion demande le réseau.
         </p>
       )}
       {error && (

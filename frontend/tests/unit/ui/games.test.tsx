@@ -124,7 +124,7 @@ describe("règles de la saisie (fonctions pures)", () => {
       error: null,
     });
     expect(gameWinAdvice(5, 3, false, true).help).toBe(
-      "Victoire certaine : le serveur refusera une partie sans Game Win.",
+      "Victoire certaine : le Game Win ne peut pas être retiré.",
     );
     expect(gameWinAdvice(4, 2.5, false).locked).toBe(true);
     // Correction du 2026-11-02 : 2,5 VP à cinq rendent le GW certain, pas à six.
@@ -338,7 +338,7 @@ describe("saisie d'une partie", () => {
     fireEvent.click(screen.getByTestId("game-form-gw"));
     expect(screen.getByTestId("game-form-gw")).toBeChecked();
     expect(screen.getByTestId("game-form-gw-help")).toHaveTextContent(
-      "Victoire certaine : le serveur refusera une partie sans Game Win.",
+      "Victoire certaine : le Game Win ne peut pas être retiré.",
     );
 
     // Adversaire nommé, avec un de mes decks prêté.
@@ -497,7 +497,7 @@ describe("saisie d'une partie", () => {
     pick("game-deck-picker", "Toreador Mass Vote");
     const warning = await screen.findByTestId("game-form-mono-warning");
     expect(warning).toHaveTextContent(
-      "Tournoi mono-deck : vos rondes ont été jouées avec Banu Princes. Le serveur refusera un autre deck.",
+      "Tournoi mono-deck : vos rondes ont été jouées avec Banu Princes. Un autre deck sera refusé.",
     );
     fireEvent.click(within(warning).getByTestId("game-form-mono-resume"));
     expect(screen.getByTestId("game-form-deck")).toHaveTextContent("Banu Princes");
