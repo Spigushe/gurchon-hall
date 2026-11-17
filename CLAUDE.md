@@ -4,12 +4,14 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8 et 9 livrés**
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9 et 11 livrés,
+v1.0.0 en ligne depuis le 2026-11-17**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
 vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphone le
-2026-11-17, §12). Lot 0 : squelette
+2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17,
+§12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -78,11 +80,11 @@ crypte et des versions supposées ; un deck importé par son adresse garde le li
 jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt` ; la file range une
 saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan dans
 `docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 est devenu facultatif.
-Lot 11, **écrit, pas encore appliqué** : playbook Ansible `ops/gurchon_hall.yml`, qui
+Lot 11, **appliqué le 2026-11-17** : playbook Ansible `ops/gurchon_hall.yml`, qui
 réutilise les rôles et l'inventaire de barrins-project pour mettre gurchon-hall en
 ligne sur son VPS (`gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`), avec
-sauvegarde avant chaque déploiement et chaque nuit (guide dans `docs/deploiement.md`,
-décisions au §11). Le modèle compte **28 tables** et
+sauvegarde avant chaque déploiement et chaque nuit ; la release v1.0.0 y tourne en
+production (guide dans `docs/deploiement.md`, décisions au §11). Le modèle compte **28 tables** et
 quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot), `docs/` (briefs de lot) et `ops/` (playbook du Lot 11).
 
@@ -2170,12 +2172,26 @@ Tranchées pendant le Lot 11 (2026-11-17 ; guide complet dans `docs/deploiement.
 - **`ops/**` en LF** (`.gitattributes`), le poste ayant `core.autocrlf=true` : un
   gabarit de script en CRLF ne tournerait pas sur le serveur.
 
-Limites connues à l'écriture du Lot 11 :
+Appliqué le 2026-11-17 (première mise en ligne, v1.0.0) :
 
-- **Jamais exécuté contre le serveur** : syntaxe vérifiée dans WSL, gabarits rendus
-  et passés à `bash -n` et `systemd-analyze verify`, installation de production
-  (`uv sync` sans l'extra `dev`, migration, démarrage, sauvegarde) éprouvée sur une
-  copie locale. DNS, release v1 et premier passage restent à faire.
+- **Le domaine est `spigushe.com`**, pas `spigushe.org` comme l'écrivait d'abord le
+  playbook. `spigushe` est aussi le nom de l'hôte dans l'inventaire de Barrin et de
+  l'utilisateur SSH, d'où la confusion ; `spigushe.org` n'est même pas enregistré, et
+  certbot a échoué en NXDOMAIN au premier passage. Les quatre enregistrements A
+  (`gurchon`, `api-gurchon` et leurs `-staging`) pointent vers 146.59.146.57.
+- **Une pré-release ne compte pas** : le rôle `fastapi_backend` lit
+  `GET /releases/latest`, que GitHub ne fait jamais pointer vers une pré-release, et
+  s'arrête sur « has no GitHub release yet » alors qu'une release existe. La v1.0.0,
+  publiée d'abord en pré-release, a été passée en release complète.
+- **Vérifié sur téléphone** : application en ligne en HTTPS, PWA fonctionnelle.
+
+Limites connues après la première mise en ligne :
+
+- **Vérifications HTTPS encore à relever** : la copie par le presse-papiers à
+  l'export VDB (Lot 9) et la réponse de `persist()` (lot Chercher).
+- **Tag et release à réaligner** : la v1.0.0 a été coupée avant la correction du
+  domaine dans `ops/` et la doc ; le code déployé n'en dépend pas (le playbook
+  tourne depuis le poste), mais la release ne reflète pas l'état du dépôt.
 - **`--tags deploy` ne marche pas** avec les rôles de Barrin (le choix de la
   release n'a pas ce tag) : utiliser `--tags backend` ou `--tags frontend`.
 - **Sauvegardes sur le VPS seulement**, quatorze jours : à recopier ailleurs à la
@@ -2400,15 +2416,15 @@ Limites connues à l'écriture du Lot 11 :
    Lot 11, ci-dessous). Le **Lot 10** vient ensuite.
 13. **Lot 10 — Portage** — *facultatif depuis le 2026-11-17* : packager le socle
   offline pour barrins-project, côté code. Le Lot 11 n'en dépend plus.
-14. **Lot 11 — Playbook Ansible de déploiement** — *écrit le 2026-11-17, pas encore
-    appliqué.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS de
+14. **Lot 11 — Playbook Ansible de déploiement** — *livré, appliqué le 2026-11-17 :
+    v1.0.0 en ligne, PWA vérifiée sur téléphone en HTTPS.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS de
     barrins-project avec les rôles de Barrin (HTTPS obligatoire pour la PWA, §2) :
     PWA sur `gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`, staging en
     `-staging`, production sur la dernière release GitHub, migration et import du
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
-    nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. Restent les
-    DNS, la release v1, le premier passage, la réclamation du compte historique et les
-    vérifications à la main en HTTPS : ce sera la **première mise en ligne** (v1).
+    nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. C'est la
+    **première mise en ligne** (v1) ; restent à relever en HTTPS la copie par le
+    presse-papiers et `persist()`, et à réaligner tag et release sur l'état du dépôt.
 15. **Lot Inventaires** — *proposé le 2026-11-03, placé d'abord après le Lot 9,
    reporté par l'utilisateur le 2026-11-13 après la première mise en ligne
    (Lot 11).* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
