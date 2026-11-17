@@ -6,6 +6,13 @@ base IndexedDB, une file d'attente d'écritures, le rejeu de cette file vers
 écrit pour être copié dans barrins-project ; seul le dossier `vtes/` est propre à
 ce dépôt.
 
+> Depuis le 2026-11-17, aucun portage n'est prévu : gurchon-hall et
+> barrins-project sont décorrélés (CLAUDE.md §1) et le Lot 10 est retiré. La
+> séparation entre `core/`, `react/` et `vtes/` reste comme organisation du code.
+> Les sections « Pour Barrin » et les notes qui s'adressent à Barrin décrivent
+> l'intention d'origine ; leur contenu technique (montée de version sur une base
+> en service, magasin de détails) vaut toujours pour gurchon.
+
 Le contrat côté serveur est décrit dans `docs/lot3-sync-contrat.md`. Ce fichier
 ne le répète pas : il dit comment la couche client le tient.
 

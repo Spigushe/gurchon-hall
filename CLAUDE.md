@@ -79,12 +79,16 @@ crypte et des versions supposées ; un deck importé par son adresse garde le li
 (`deck.vdb_deck_id`) et se met à jour depuis VDB ; export d'un deck et d'une version
 jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt` ; la file range une
 saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan dans
-`docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 est devenu facultatif.
+`docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 (portage vers
+barrins-project), devenu facultatif, a été retiré le 2026-11-17 : le produit est
+décorrélé de Barrin (§1).
 Lot 11, **appliqué le 2026-11-17** : playbook Ansible `ops/gurchon_hall.yml`, qui
 met gurchon-hall en ligne sur le VPS qu'il partage avec barrins-project, avec des
 rôles copiés de ce dépôt dans `ops/roles/` depuis le 2026-11-17 (`gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`), avec
 sauvegarde avant chaque déploiement et chaque nuit ; la release v1.0.0 y tourne en
-production (guide dans `docs/deploiement.md`, décisions au §11). Le modèle compte **28 tables** et
+production (guide dans `docs/deploiement.md`, décisions au §11). **Feuille de route de
+la v2 arrêtée le 2026-11-17** : Lots 12 à 17, puis les suggestions de decklists et
+Archon (§12, décisions dans `docs/roadmap-v2-proposition.md`). Le modèle compte **28 tables** et
 quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot), `docs/` (briefs de lot) et `ops/` (playbook du Lot 11).
 
@@ -205,20 +209,28 @@ compte, déconnexion), mobile et bureau.
 
 ## 1. Objectif du projet
 
-Deux objectifs, dans cet ordre de priorité :
+**Outil VtES** : suivre la pratique de *Vampire: The Eternal Struggle*, soit la
+collection (stock **compté séparément par langue**), les decks et leur composition,
+les parties (quand / où / quel deck / quel résultat) et les **tournois** qui
+regroupent des parties consécutives (mono-deck ou multi-deck). L'outil est en
+production depuis la v1.0.0 (2026-11-17), et c'est son seul objectif : à chaque
+arbitrage, privilégier ce qui sert cette pratique et la sûreté des données de ses
+utilisateurs.
 
-1. **Pilote PWA** — servir de projet-test à faible enjeu pour dérisquer une
-   **PWA offline-first** avant de porter l'approche sur **barrins-project**
-   (déjà en React/FastAPI). La mécanique validée ici (service worker, stockage
-   local, synchronisation) doit être **directement réutilisable** sur Barrin.
-2. **Outil VtES** — suivre la pratique de *Vampire: The Eternal Struggle* :
-   collection (stock **compté séparément par langue**), decks, composition des decks,
-   parties (quand / où / quel deck / quel résultat) et **tournois** regroupant
-   des parties consécutives (mono-deck ou multi-deck).
+L'**offline-first** est une exigence de l'outil, pas un objet d'expérience : on
+saisit une partie au club, sans réseau fiable. Ses quatre garanties sont des
+acquis de la v1, à ne pas faire régresser (§3, §10).
 
-Le domaine VtES est un support réel mais **secondaire** au regard de l'objectif
-pilote : à chaque arbitrage, privilégier ce qui rend le transfert vers Barrin
-plus fiable.
+Historique : jusqu'à la v1, le projet avait un objectif premier, servir de pilote
+à faible enjeu pour dérisquer une PWA offline-first avant de porter l'approche sur
+**barrins-project**, le domaine VtES n'étant qu'un support. Ce pilote est validé
+(§3), et l'utilisateur a **décorrélé les deux projets le 2026-11-17** (V1 de
+`docs/roadmap-v2-proposition.md`) : plus de portage prévu (le Lot 10 est retiré),
+plus de critère « transfert vers Barrin ». Les mentions de Barrin au §11 décrivent
+les décisions de leur époque. La séparation de la couche offline entre un cœur
+générique (`core/`, `react/`) et l'adaptateur `vtes/` reste une organisation du
+code, sans contrainte de portage à défendre. Les deux projets ne partagent plus
+que le VPS (§11, Lot 11).
 
 ---
 
@@ -244,9 +256,11 @@ worker gère cache et hors-ligne côté navigateur. **HTTPS est requis** (sauf
 
 ---
 
-## 3. Objectif pilote : ce qui doit être dérisqué
+## 3. Offline-first : les acquis de la v1
 
-La partie difficile (et la vraie raison du projet) est l'**offline-first** :
+Ces quatre points étaient l'objet du pilote (§1, historique). Ils sont tenus en
+production depuis la v1.0.0 et servent désormais de **critères de
+non-régression** :
 
 1. **App shell en cache** — l'appli s'ouvre et s'affiche sans réseau (precache Workbox).
 2. **Saisie hors-ligne** — enregistrer une partie / un tournoi au club sans
@@ -258,9 +272,12 @@ La partie difficile (et la vraie raison du projet) est l'**offline-first** :
    DevTools : la catégorie PWA de Lighthouse a été retirée en v12, donc pas de
    « score PWA » à viser.
 
-Critère de réussite du pilote : ces 4 points passent des tests automatisés et la
-validation d'installabilité (critères manifest + service worker + HTTPS), et le
-code offline est packagé de façon réutilisable pour Barrin.
+Ils passent des tests automatisés (vitest, e2e Playwright hors ligne contre un
+vrai back) et la validation d'installabilité (`scripts/check-pwa-installability.mjs`),
+et ont été vérifiés à la main sur téléphone en HTTPS le 2026-11-17. Toute évolution
+qui touche le service worker, le miroir Dexie ou la forme des opérations `/sync`
+les revérifie, en particulier qu'une file en attente sur un appareil se rejoue
+sans perte après une mise à jour.
 
 ---
 
@@ -787,7 +804,7 @@ Chaque agent est défini dans `.claude/agents/<nom>.md` (frontmatter YAML
 | **Frontend React** | `frontend-react.md` | UI, composants, formulaires, vues, client typé | sonnet |
 | **PWA & Offline** | `pwa-offline.md` | manifest, service worker, IndexedDB, sync, installabilité | sonnet |
 | **QA & Tests** | `qa-tests.md` | stratégie de test, pytest, vitest, e2e Playwright (offline) | sonnet |
-| **DevOps & Déploiement** | `devops-deploiement.md` | monorepo, CI/CD, HTTPS, audit Lighthouse, portage Barrin | sonnet |
+| **DevOps & Déploiement** | `devops-deploiement.md` | monorepo, CI/CD, HTTPS, installabilité, playbook de déploiement (`ops/`) | sonnet |
 
 Total : 1 chef d'orchestre + 6 agents spécialisés.
 
@@ -2144,7 +2161,8 @@ Limites connues à la clôture du Lot 9 :
 Tranchées pendant le Lot 11 (2026-11-17 ; guide complet dans `docs/deploiement.md`) :
 
 - **Le Lot 10 devient facultatif**, décision de l'utilisateur : le Lot 11 ne dépend
-  plus du portage.
+  plus du portage. *Retiré le même jour, après la mise en ligne*, avec la
+  décorrélation de gurchon-hall et de barrins-project (§1).
 - **Le playbook vit dans ce dépôt** (`ops/`), décision de l'utilisateur : son
   `ansible.cfg` pointe vers `../../barrins-project/ops/my-server` pour les rôles,
   l'inventaire et le coffre, et le jeton GitHub est celui de Barrin. Aucun fichier
@@ -2419,10 +2437,11 @@ Limites connues après la première mise en ligne :
    lot Inventaires reprendra pour importer l'export de collection de VDB. La
    synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02, en est
    sortie le 2026-11-12 : elle attend la mise en production de la v1 (après le
-   Lot 11, ci-dessous). Le **Lot 10** vient ensuite.
-13. **Lot 10 — Portage** — *facultatif depuis le 2026-11-17* : packager le socle
-  offline pour barrins-project, côté code. Le Lot 11 n'en dépend plus.
-14. **Lot 11 — Playbook Ansible de déploiement** — *livré, appliqué le 2026-11-17 :
+   Lot 11, ci-dessous). Le **Lot 11** vient ensuite : le **Lot 10** (packager le
+   socle offline pour barrins-project), devenu facultatif le 2026-11-17, a été
+   **retiré** le même jour, le produit étant décorrélé de Barrin (§1). Son numéro
+   n'est pas réattribué.
+13. **Lot 11 — Playbook Ansible de déploiement** — *livré, appliqué le 2026-11-17 :
     v1.0.0 en ligne, PWA vérifiée sur téléphone en HTTPS.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS qu'il
     partage avec barrins-project (HTTPS obligatoire pour la PWA, §2), avec des rôles
     copiés de ce dépôt dans `ops/roles/` depuis le 2026-11-17 :
@@ -2431,46 +2450,91 @@ Limites connues après la première mise en ligne :
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
     nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. C'est la
     **première mise en ligne** (v1) ; restent à relever en HTTPS la copie par le
-    presse-papiers et `persist()`, et à réaligner tag et release sur l'état du dépôt.
-15. **Lot Inventaires** — *proposé le 2026-11-03, placé d'abord après le Lot 9,
-   reporté par l'utilisateur le 2026-11-13 après la première mise en ligne
-   (Lot 11).* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49
-   (« utiliser un inventaire spécifique pour builder un deck »). La finalité,
-   précisée par l'utilisateur, est de **suggérer des decklists viables** à partir
-   d'un inventaire ou d'un classeur. Plusieurs inventaires par compte, dont un
-   principal qui existe toujours, un classeur étant un inventaire d'un genre
-   particulier ; l'inventaire entre dans l'identité d'une entrée de stock ; un deck
-   puise dans un inventaire, et la comptabilité du stock se lit par inventaire ;
-   transfert d'exemplaires entre inventaires, hors ligne comme en ligne ; import
-   d'un inventaire depuis l'export de collection de VDB, avec l'appariement du
-   Lot 9 ; suggestions classées par cartes manquantes, tirées de la TWDA publiée
-   par krcg (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03) et des
-   decks du compte, puis construction d'un deck depuis une suggestion. Import et
-   suggestions sont des gestes en ligne, comme la légalité. Une révision convertit
-   les données existantes vers l'inventaire principal, et les références
-   d'inventaire restent facultatives dans `/sync`, pour qu'une file en attente se
-   rejoue sans perte. Conséquences du report : cette révision sera la première à
-   convertir des données **de production**, avec des files peut-être en attente sur
-   des téléphones, ce qui rend les références d'inventaire facultatives
-   indispensables et impose l'essai sur copie puis la comparaison par
-   `scripts/compare_db.py` ; l'appariement du Lot 9 étant écrit côté client, l'import
-   serveur prévu ici demandera un jumeau Python sur la même table de cas, ou passera
-   lui aussi côté client ; l'ordre entre ce lot et la synchronisation Archon reste à
-   trancher. Lecture des issues, propositions P1 à P9 à trancher, conception et
-   découpage dans `docs/lot-inventaires-plan.md`.
-16. **Synchronisation Archon** — *renvoyée le 2026-11-12 après la mise en
-    production de la v1*, qui suit le Lot 11 ; souhait du 2026-11-02, d'abord
-    rangé au Lot 9. **Synchroniser un tournoi depuis Archon** (archon.vekn.net) :
-    le numéro VEKN du compte se saisit dans l'Atelier ou ailleurs, la fiche d'un
-    tournoi reçoit son lien Archon, et un bouton, grisé hors connexion, lance
-    l'import. L'API publique d'Archon est en lecture seule et ne publie aucun nom,
-    seulement des identifiants. Elle exige un client OAuth2, donc le rôle DEV
-    accordé par un IC. Faisabilité à évaluer à l'ouverture ; l'import d'un deck
+    presse-papiers et `persist()`, et à réaligner tag et release sur l'état du dépôt
+    (Lot 12).
+
+**Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 (décisions
+V1 à V6, O1 et O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le
+détail). Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v2.0.0 avec
+le Lot 14, l'identité d'une entrée de collection y changeant ; les lots suivants
+donnent des v2.x.
+
+14. **Lot 12 — Consolidation (v1.1)** — *à ouvrir.* Ce qui manque à une
+    application en production, sans fonctionnalité métier nouvelle. Mise en
+    service : tag et release réalignés (v1.0.1), copie par le presse-papiers et
+    `persist()` relevés en HTTPS, sauvegardes recopiées hors du VPS. Comptes :
+    changement de mot de passe dans l'application, liste de ses sessions et
+    révocation (`auth_session` n'a ni appareil ni dernière utilisation : une
+    révision si on veut les montrer), export complet du compte. Observabilité
+    minimale (journaux structurés, refus `/sync` comptés par motif). Service worker
+    en mode `prompt`, avec une mise à jour qui attend une file vide : les Lots 14
+    et suivants changeront Dexie et `/sync` en production. Dettes : tris sur
+    `fold_text`, état « catalogue en cours de chargement » à la première
+    connexion, légende des raccourcis `?`, flakiness vitest si elle revient.
+15. **Lot 13 — Partage (v1.2).** Lien public vers une decklist, vivant ou figé
+    (première route publique sur une donnée privée ; conception et cinq points à
+    trancher dans `docs/pistes-evolution.md`) ; export aux formats `TWD`, `JOL` et
+    `LACKEY` de VDB, à côté du `TEXT` du Lot 9 ; art de l'extension dans la
+    Collection (front seul, sur le patron `ChosenCardImage` du lot Chercher).
+    Indépendant des inventaires, il passe avant eux (V4).
+
+    **Période de retours d'usage** (V5), après le Lot 12 et avant le Lot 14 : vivre
+    avec la v1.1 en production avant la première conversion de données réelles,
+    recueillir les retours qu'attendent plusieurs pistes du Lot 9, tenir une
+    collection réelle dans l'outil. Elle se termine sur une décision de
+    l'utilisateur, pas sur une date.
+16. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
+    Inventaires, proposé le 2026-11-03 et reporté après la mise en ligne le
+    2026-11-13, est **découpé** en quatre lots et une suite (V3, classeurs avant
+    suggestions) ; `docs/lot-inventaires-plan.md` reste la référence de conception
+    (P1 à P9, A1 à A11, à trancher à l'ouverture). Ce lot-ci : ressource
+    inventaire privée au compte, un principal toujours présent (patron du « Moi »),
+    genres `collection`, `binder`, `box`, `other` ; l'inventaire dans la clé de
+    `card_copy` et `deck.inventory_id` posé par la même révision, fixé au principal
+    pour tous les decks ; comptabilité du stock par inventaire ; Collection avec
+    sélecteur et vue « Tout », masqué tant qu'il n'y a qu'un inventaire ; gestion
+    des inventaires et transfert d'exemplaires hors ligne. Première révision à
+    **convertir des données de production** : essai sur une copie de la base
+    servie, sauvegarde datée, comparaison par `scripts/compare_db.py`, références
+    d'inventaire facultatives dans `/sync` pour les files en attente.
+17. **Lot 15 — Decks par inventaire.** Ferme l'issue #49. Choisir l'inventaire
+    d'un deck et le changer (A5, `carry_copies`) ; picker, `+` des tableaux et
+    disponibilités lus dans l'inventaire du deck ; l'import d'un deck VDB prend
+    d'abord les exemplaires libres de cet inventaire au lieu de tout mettre en
+    proxy (piste du Lot 9, à confirmer par les retours d'usage).
+18. **Lot 16 — Import d'une collection VDB.** Bloqué par un vrai export de
+    collection fourni par l'utilisateur, à verser dans les fixtures avant toute
+    ligne de code (les relevés du 2026-11-03 divergent : CSV à identifiant VEKN ou
+    Excel par nom) ; appariement côté client comme au Lot 9, ou jumeau Python sur
+    la même table de cas ; export de la collection en complément. Ne dépend que du
+    Lot 14 et peut passer avant le Lot 15.
+19. **Lot 17 — Manques et assemblage.** Liste des manques (ce que mes decks jouent
+    en proxy, moins ce qui dort dans mes inventaires), exportable pour une commande
+    en impression à la demande ; checklist d'assemblage imprimable, une case par
+    exemplaire, qui dit dans quel inventaire prendre chaque carte. Lectures
+    dérivées, sans table prévue ; elles remplacent deux skills Claude que
+    l'utilisateur emploie aujourd'hui hors de l'application.
+20. **Suggestions de decklists** — *fin de v2 ou v3, numéro attribué à
+    l'ouverture.* Import rejouable de la TWDA de krcg
+    (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03), suggestions
+    classées par cartes manquantes pour un ou plusieurs inventaires, à partir de la
+    TWDA et des decks du compte, handoff de l'écran, construction d'un deck depuis
+    une suggestion (P6, P8, P9, A11 du plan Inventaires). C'est la finalité donnée
+    au lot Inventaires par l'utilisateur le 2026-11-03.
+21. **Synchronisation Archon** — *conditionnelle, numéro attribué à l'ouverture.*
+    Renvoyée le 2026-11-12 après la mise en production de la v1 ; souhait du
+    2026-11-02, d'abord rangé au Lot 9. **Synchroniser un tournoi depuis Archon**
+    (archon.vekn.net) : le numéro VEKN du compte se saisit dans l'Atelier ou
+    ailleurs, la fiche d'un tournoi reçoit son lien Archon, et un bouton, grisé
+    hors connexion, lance l'import. L'API publique d'Archon est en lecture seule et
+    ne publie aucun nom, seulement des identifiants. Elle exige un client OAuth2,
+    donc le rôle DEV accordé par un IC, dont la demande reste à confirmer par
+    l'utilisateur (V6). Faisabilité à évaluer à l'ouverture ; l'import d'un deck
     joué réutilisera l'appariement des cartes du Lot 9. Relevé de l'API, limites
     et points à trancher dans `docs/brief-archon.md`.
 
-Hors feuille de route, une réserve d'idées non décidées (instantané de decklist,
-légalité à la date d'un tournoi, liste des manques, checklist d'assemblage, garde
-optimiste de `/sync`, gestion des sessions par l'utilisateur, dettes connues) est
-tenue dans `docs/pistes-evolution.md`. Une piste n'entre ici que par décision de
+Hors feuille de route, une réserve d'idées non décidées (filtres de VDB restants,
+inventaire partagé, prêt de cartes, historique des versions, statistiques de deck,
+garde optimiste et verrou par compte de `/sync`, cache des images) est tenue dans
+`docs/pistes-evolution.md`. Une piste n'entre ici que par décision de
 l'utilisateur.

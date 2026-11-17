@@ -1,6 +1,6 @@
 ---
 name: ci-cd-deploiement
-description: Pipeline monorepo — lint + tests + build pour back et front, HTTPS requis par la PWA, validation d'installabilité (par les critères réels, la catégorie Lighthouse PWA ayant été retirée), déploiement et préparation du portage vers barrins-project. À utiliser pour tout ce qui touche build, intégration continue et déploiement.
+description: Pipeline monorepo — lint + tests + build pour back et front, HTTPS requis par la PWA, validation d'installabilité (par les critères réels, la catégorie Lighthouse PWA ayant été retirée), déploiement par le playbook Ansible de `ops/`. À utiliser pour tout ce qui touche build, intégration continue et déploiement.
 ---
 
 # CI/CD & déploiement
@@ -43,12 +43,12 @@ et `build`.
   `docs/deploiement.md`. Migrer, réclamer le compte historique par CLI, puis
   seulement ouvrir l'application.
 - Le cookie de session `__Host-` exige HTTPS hors `localhost`, comme la PWA.
-- Hébergement : Lot 11, playbook Ansible sur l'infrastructure de barrins-project.
-
-## Portage Barrin
-Documenter comment transplanter la couche offline (SW + module outbox/sync) sur
-barrins-project, et les points d'adaptation (contrat, HTTPS, config Vite). Point
-de départ : `frontend/src/offline/README.md`. Le portage est le Lot 10.
+- Hébergement : Lot 11, playbook Ansible `ops/gurchon_hall.yml`, autonome depuis
+  le 2026-11-17 (rôles, inventaire et modèle du jeton GitHub dans `ops/`), sur le
+  VPS que gurchon partage avec barrins-project. Les rôles copiés de Barrin ne
+  suivent plus ses évolutions.
+- Une release par version (v1.1 à la fin du Lot 12, etc., CLAUDE.md §12) : la
+  production déploie la dernière release GitHub, jamais une pré-release.
 
 ## Ne pas faire
 Concevoir la logique métier, les endpoints ou le service worker (tu builds et

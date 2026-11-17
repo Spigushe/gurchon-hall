@@ -6,56 +6,48 @@ une piste n'entre dans la feuille de route (CLAUDE.md §12) que par une décisio
 de l'utilisateur. Chaque piste dit d'où elle vient, ce qu'elle apporterait, et
 où elle trouverait sa place.
 
-Deux critères ont servi au tri, dans l'ordre du §1 de CLAUDE.md : ce qui rend le
-socle hors ligne plus fiable pour Barrin, puis ce qui sert la pratique de VtES.
+Le tri suivait d'abord deux critères, dans l'ordre de l'ancien §1 de CLAUDE.md :
+ce qui rend le socle hors ligne plus fiable pour Barrin, puis ce qui sert la
+pratique de VtES. Depuis le 2026-11-17, gurchon-hall est décorrélé de
+barrins-project : il ne reste que le second critère.
 
-## À regarder en premier
+## Pistes entrées dans la feuille de route de la v2 (2026-11-17)
 
-Les deux pistes qui ouvraient cette section, « figer la decklist jouée à
-chaque partie » et « la légalité d'un deck à la date d'un tournoi », ont été
-livrées par le Lot 8 (versions de deck figées au jeu, légalité d'une version à
-la date du tournoi) et retirées le 2026-11-13.
+La feuille de route de la v2 (CLAUDE.md §12, `docs/roadmap-v2-proposition.md`) a
+repris les pistes suivantes. Celles qui portaient une conception écrite la gardent
+plus bas, marquée du lot qui la reprend ; les autres ont quitté ce fichier.
 
-### La liste des manques (après Inventaires)
-
-Depuis la correction du 2026-09-29 (piste A1), une carte jouée en proxy n'a
-plus d'entrée de collection, et CLAUDE.md note qu'il n'existe plus de vue
-« les cartes que je joue en proxy ». Une lecture dérivée la reconstruirait :
-pour chaque carte, ce que mes decks jouent en proxy, moins ce qui dort dans
-mes inventaires. Elle servirait de liste d'achats, et son export texte
-alimenterait directement une commande en impression à la demande (POD), ce
-que l'utilisateur fait aujourd'hui à la main depuis une checklist cochée.
-
-### La checklist d'assemblage d'un deck (après Inventaires)
-
-Une page imprimable, une case par exemplaire, pour rassembler physiquement un
-deck. L'utilisateur la produit aujourd'hui hors de l'application à partir
-d'une decklist VDB. Dans l'application, elle saurait en plus **où** prendre
-chaque carte (« 2 dans Classeur Échanges, 1 dans Collection »), ce que seul le
-lot Inventaires rend possible. Rendu par la feuille de style d'impression du
-navigateur, sans dépendance nouvelle.
+| Piste | Lot |
+| --- | --- |
+| Changement de mot de passe, liste des sessions et révocation, export complet du compte, observabilité minimale | Lot 12 |
+| Mode `prompt` du service worker | Lot 12 |
+| Tris sur `fold_text`, légende des raccourcis `?`, état « catalogue en cours de chargement », flakiness vitest | Lot 12 |
+| Lien public vers une decklist, vivant ou figé | Lot 13 (conception plus bas) |
+| Export d'un deck aux formats `TWD`, `JOL`, `LACKEY` | Lot 13 |
+| L'art de l'extension dans la Collection | Lot 13 (conception plus bas) |
+| Import VDB : prendre au stock avant de mettre en proxy | Lot 15 |
+| Export de la collection | Lot 16, avec l'import d'une collection VDB |
+| La liste des manques, la checklist d'assemblage | Lot 17 |
+| Not in TWD (filtre de Chercher), suggestions à partir des decks des adversaires | avec les suggestions de decklists, fin de v2 ou v3 |
 
 ## Collection et decks
 
 | Piste | Ce qu'elle apporterait | Place proposée |
 | --- | --- | --- |
-| Inventaire partagé entre comptes | la boîte du club, utilisée par plusieurs membres (P5 du lot Inventaires) | après le Lot 11, quand plusieurs comptes réels existent |
-| Prêt de cartes à un ami | savoir ce qui est sorti, chez qui, depuis quand ; un genre d'inventaire ou un mouvement daté | extension du lot Inventaires |
-| Classeur d'échange et liste de souhaits | marquer des exemplaires proposés à l'échange, noter des cartes voulues sans les posséder | après Inventaires, si P2 ne les absorbe pas |
+| Inventaire partagé entre comptes | la boîte du club, utilisée par plusieurs membres (P5 du lot Inventaires) | après les Lots 14 et 15, quand plusieurs comptes réels existent |
+| Prêt de cartes à un ami | savoir ce qui est sorti, chez qui, depuis quand ; un genre d'inventaire ou un mouvement daté | après les Lots 14 et 15 |
+| Classeur d'échange et liste de souhaits | marquer des exemplaires proposés à l'échange, noter des cartes voulues sans les posséder | après le Lot 14, si P2 ne les absorbe pas |
 | Emplacement fin dans un classeur | page et pochette d'un exemplaire | seulement si le besoin apparaît à l'usage |
-| Export de la collection | sauvegarde, et retour vers l'inventaire de VDB ; l'import, lui, est au lot Inventaires | avec le lot Inventaires ou après |
-| Suggestions à partir des decks des adversaires | proposer les listes que jouent les gens du club, une fois le Lot 8 livré | extension du lot Inventaires |
-| Export d'un deck aux autres formats de VDB | `TWD` (listes de tournoi), `JOL`, `LACKEY` ; le Lot 9 a livré le format `TEXT`, copié ou téléchargé en `.txt`, depuis un deck et depuis une version jouée (P9 de `docs/lot9-plan-import-vdb.md`) | si un usage le demande (soumission d'une liste à la TWDA, jeu en ligne) |
-| Import VDB : stock, achat ou carte laissée | à l'import d'un deck, prendre d'abord les exemplaires libres de la collection, puis acheter le manque, le jouer en proxy ou le laisser hors du deck ; le Lot 9 importe tout en proxy (P5) | seconde passe après la mise en ligne, selon les premiers retours |
 | Lier ou délier un deck VDB | lier après coup à un deck VDB un deck créé autrement, ou couper le lien ; le Lot 9 ne lie qu'à l'import par l'URL d'un deck (P7, P8) | quand le besoin apparaît |
 | Mettre à jour un deck depuis une liste texte | appliquer les règles de mise à jour de P7 à un texte collé, pour un deck que VDB ne connaît pas par son identifiant ; le Lot 9 ne met à jour que par le lien gardé (P8) | quand le besoin apparaît, le plan de mise à jour (`planDeckRefresh`) prend déjà une liste quelconque |
 | Statistiques de deck | répartition des disciplines de la bibliothèque et courbe des coûts ; le compte par type, les totaux de sang et de pool, les groupes et la capacité moyenne de la crypte sont livrés par le lot Affichage des decks | quand le besoin apparaît, le miroir a déjà tout |
 | Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
 | Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
 
-### Lien public vers une decklist, vivant ou figé
+### Lien public vers une decklist, vivant ou figé (→ Lot 13)
 
-Demandée par l'utilisateur le 2026-11-08. Il s'agit de partager un deck avec
+Demandée par l'utilisateur le 2026-11-08, entrée au Lot 13 le 2026-11-17 ; les
+points à trancher ci-dessous se tranchent à l'ouverture du lot. Il s'agit de partager un deck avec
 quelqu'un qui n'a pas de compte : un lien qu'on colle dans un message, qui
 s'ouvre sans session et affiche la decklist en lecture seule. On choisit
 l'option à la création du lien.
@@ -104,10 +96,8 @@ Points à trancher, relevés en écrivant la piste :
    connexion. Une route à hash `#/liste/<jeton>` devrait s'afficher sans compte
    et sans ouvrir de base IndexedDB.
 
-Le lien ne sert qu'une fois l'application joignable depuis Internet, donc au
-Lot 11 (HTTPS) ; avant, il ne marche que sur le réseau local. Place proposée :
-après le Lot 8, dont il reprendrait les versions, à côté de l'export texte du
-Lot 9 qui répond au même besoin de partage.
+Le lien ne servait qu'une fois l'application joignable depuis Internet, ce qui
+est le cas depuis le Lot 11 (HTTPS, 2026-11-17).
 
 ## Recherche dans le catalogue (après le lot Chercher)
 
@@ -132,7 +122,7 @@ sur des fichiers générés depuis les CSV de vtescsv
 | Capacité exigée (bibliothèque) | `≤` ou `≥` suivi de 1 à 11, par expression régulière sur le texte | à faire avec les exigences brutes de `vteslibmeta.csv` (« capacity 7 or … »), mieux qu'en lisant le texte |
 | Artiste | égalité exacte | une seule colonne `card.artist`, artistes joints par une virgule |
 | Précon | OU entre produits, avec Only In, First Print, Reprint | les occurrences `precon` sont en base ; demande une lecture par produit dans le miroir |
-| Not in TWD | cartes jamais jouées dans un deck de la TWDA (nombre `twd` calculé depuis l'archive) | dépend de l'import de la TWDA, prévu au lot Inventaires |
+| Not in TWD | cartes jamais jouées dans un deck de la TWDA (nombre `twd` calculé depuis l'archive) | dépend de l'import de la TWDA, prévu avec les suggestions de decklists (fin de v2 ou v3) |
 | Options d'extension | pour une extension seule : Or Newer, Or Older, Not Newer, Not Older ; Only In, First Print, Reprint ; « ANY BCP (incl. Promo) », extensions datées du 2018-01-01 ou après | Or Newer serait bon marché (dates d'extension dans le miroir) ; First Print et Reprint demandent une chronologie des impressions par carte |
 | Alias de nom | `aka` chez VDB | krcg publie `name_variants`, non importé (§11, décision 1) |
 | Titre fusionné | un *advanced* répond aussi par un titre nommé après `[MERGED]` | le lot Chercher prend le titre de la face ; 52 textes `[MERGED]` |
@@ -160,9 +150,9 @@ lit l'exigence `mono` / `choice` / `combo` de krcg).
 | Images par impression dans le miroir | environ 0,8 Mo par base de compte | si la lecture à la demande se révèle trop lente |
 | Black Hand et Seraph exigés par une carte de bibliothèque | ce sont des traits du Sabbat : une carte qui exige un vampire Black Hand ou Seraph exige de fait un vampire Sabbat. Le lot Chercher les laisse dans les autres valeurs de l'exigence (`other_requirements`), sans impliquer le Sabbat ni les rendre filtrables (décision de l'utilisateur du 2026-11-03, après A1). Les traiter demanderait de décider s'ils impliquent le Sabbat, comme un titre implique sa secte, et d'en faire une valeur de filtre, côté bibliothèque comme côté crypte (où VDB les range parmi les traits) | avec les traits de VDB ci-dessus, ou dès qu'un deck Black Hand le demande |
 
-### L'art de l'extension dans la Collection
+### L'art de l'extension dans la Collection (→ Lot 13)
 
-Demandée par l'utilisateur le 2026-11-12. Une entrée de collection désigne un
+Demandée par l'utilisateur le 2026-11-12, entrée au Lot 13 le 2026-11-17. Une entrée de collection désigne un
 exemplaire précis (carte × langue × extension), mais la Collection montre
 encore l'image générique de la carte : l'aperçu au survol du tableau bureau
 lit `CardRow.imageUrl` du miroir (`StockList.tsx`), et le mobile n'affiche
@@ -188,43 +178,13 @@ La piste revient si une source publie l'image par extension et par langue.
 
 En ligne seulement, comme toutes les images (P7 du lot Chercher) : hors ligne,
 la Collection garde son pictogramme. Front seul, sans route, champ de contrat,
-type d'opération `/sync`, migration ni version Dexie. Place proposée : un
-petit lot à part, ou en passant avec le lot Inventaires, qui retouche la
-Collection de toute façon.
+type d'opération `/sync`, migration ni version Dexie.
 
-## Socle hors ligne (valeur pour Barrin)
+## Socle hors ligne
 
 | Piste | Ce qu'elle apporterait | Place proposée |
 | --- | --- | --- |
-| Garde optimiste par version | refuser une écriture faite sur un état périmé, au lieu de « dernière écriture gagnante » ; extension notée au Lot 3, plus utile depuis que plusieurs appareils saisissent des parties | Lot 10, avant le portage |
-| Mode `prompt` du service worker | proposer « nouvelle version disponible » au lieu de l'`autoUpdate` ; point d'extension documenté au Lot 0 | Lot 10, si Barrin en a besoin |
-| Verrou `/sync` par compte | limite connue du Lot 6 ; sous Postgres, `pg_advisory_xact_lock(user_id)` | si la migration Postgres a lieu (Lot 11 ou après) |
+| Garde optimiste par version | refuser une écriture faite sur un état périmé, au lieu de « dernière écriture gagnante » ; extension notée au Lot 3, plus utile depuis que plusieurs appareils saisissent des parties | si des conflits entre appareils apparaissent à l'usage |
+| Verrou `/sync` par compte | limite connue du Lot 6 ; sous Postgres, `pg_advisory_xact_lock(user_id)` | si la migration Postgres a lieu (le Lot 11 est resté sur SQLite) |
 | Background Sync du service worker | rejouer la file même application fermée ; Chromium seulement, le moteur actuel couvre déjà retour réseau et premier plan | faible priorité |
 | Fermer la course entre `/sync` et une écriture en ligne | dernier `xfail` lié au Lot 3 | si une écriture en ligne gagne en usage |
-
-## Comptes et mise en service
-
-| Piste | Ce qu'elle apporterait | Place proposée |
-| --- | --- | --- |
-| Changement de mot de passe dans l'application | aujourd'hui seulement par `manage_accounts.py` (Lot 6) | avant le Lot 11, l'inscription étant ouverte |
-| Liste des sessions et révocation par l'utilisateur | voir ses appareils connectés, en fermer un perdu | avant le Lot 11 |
-| Export complet du compte | une sauvegarde lisible de toutes ses données | avant le Lot 11 |
-| Observabilité minimale | journaux structurés, compte des refus `/sync` par motif | Lot 11 |
-
-## Dettes connues à solder en passant
-
-- Les tris restent sensibles à la casse et aux accents (limite n°5 du Lot 2) :
-  « Élan » se range après « Zoé ». Le repli `fold_text` existe déjà, il
-  suffirait de trier dessus. Chercher, les tableaux de deck et, côté API, les
-  listes de joueurs et de lieux le font déjà. Restent les cartes, la
-  collection et les decks côté API (`ORDER BY name`), et toutes les listes du
-  miroir, que `reads.ts` trie par comparaison brute.
-- La légende des raccourcis `?`, annoncée par le handoff bureau, n'a jamais été
-  livrée (reliquat du Lot 5bis).
-- Une flakiness vitest résiduelle, vue aux Lots 5c et 6, reste à attribuer à un
-  test.
-- Juste après la première connexion d'un appareil, la liste et l'aperçu des
-  decks montrent quelques secondes des comptes « 0 / 0 » et des cartes « Hors
-  catalogue local », le temps que le catalogue finisse de s'écrire (relevé aux
-  captures du Lot 9, antérieur au lot). Un état « catalogue en cours de
-  chargement » à la place suffirait.

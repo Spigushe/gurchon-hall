@@ -132,6 +132,27 @@ v1, reste à trancher. Ce que le report change, à reprendre à l'ouverture :
 - les pistes « liste des manques » et « checklist d'assemblage », rangées
   « après Inventaires » dans `docs/pistes-evolution.md`, suivent le report.
 
+**Révisé le 2026-11-17, par l'utilisateur : découpé en plusieurs lots, les
+classeurs avant les suggestions** (V3 de `docs/roadmap-v2-proposition.md`,
+CLAUDE.md §12). Le lot n'existe plus sous ce nom ; ce document reste la
+référence de conception de ses successeurs, et ses propositions P1 à P9 se
+tranchent à l'ouverture de chacun :
+
+| Lot | Contenu | Étapes reprises | Ferme |
+| --- | --- | --- | --- |
+| 14, inventaires et classeurs (v2.0.0) | ressource inventaire, inventaire dans la clé de `card_copy`, `deck.inventory_id` posé et fixé au principal, comptabilité par inventaire, Collection avec sélecteur, transfert, migration de production | A1, B1, une partie de B2 (A4, A8), C1, D1, E, F | #48 |
+| 15, decks par inventaire | choisir et changer l'inventaire d'un deck (A3, A5), picker et disponibilités par inventaire, import d'un deck VDB qui prend au stock | le reste de B2, D2 | #49 |
+| 16, import d'une collection VDB | import (A10, P7) et export d'une collection | B3 sans la TWDA | |
+| 17, manques et assemblage | liste des manques, checklist d'assemblage (pistes de `docs/pistes-evolution.md`) | aucune, lot nouveau | |
+| suggestions (fin de v2 ou v3) | TWDA, suggestions, construction depuis une suggestion (P6, P8, P9, A11) | B3 pour la TWDA, B4, D0, D3 | |
+
+Conséquences pour la conception : `deck.inventory_id` entre au Lot 14, dans la
+même révision que la clé de `card_copy`, puisque la comptabilité par inventaire
+n'a pas de sens sans lui ; le Lot 15 n'a donc pas de migration à prévoir, mais
+un type d'opération `/sync` pour changer l'inventaire d'un deck. Le numérotage
+R12 et R13 de A9 est faux depuis les Lots 8 et 9 (R12 à R14 existent déjà) et
+se refait à l'ouverture du Lot 14.
+
 ### P1. Qu'est-ce qu'un inventaire ?
 
 **Proposition : un ensemble physique de cartes, à un seul niveau.** Chaque

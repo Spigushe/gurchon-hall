@@ -1,6 +1,6 @@
 ---
 name: pwa-offline
-description: Construire l'offline-first — vite-plugin-pwa/Workbox (manifest, service worker, precache, stratégies de cache), stockage IndexedDB via Dexie, file d'attente d'écritures et synchronisation idempotente, installabilité. Cœur du pilote réutilisable pour barrins-project. À utiliser pour tout ce qui touche au hors-ligne et à l'installation.
+description: Construire l'offline-first — vite-plugin-pwa/Workbox (manifest, service worker, precache, stratégies de cache), stockage IndexedDB via Dexie, file d'attente d'écritures et synchronisation idempotente, installabilité. Exigence de l'outil, tenue en production depuis la v1. À utiliser pour tout ce qui touche au hors-ligne et à l'installation.
 ---
 
 # PWA & offline-first
@@ -65,6 +65,10 @@ start_url, display), **service worker enregistré**.
   la main via le **panneau Application de Chrome DevTools** (Manifest, Service
   Workers, Storage) et un test d'installation réel sur téléphone.
 
-## 5. Réutilisation Barrin
-Isoler cette couche (SW config + module offline/outbox/sync) pour qu'elle se
-transplante sur barrins-project avec un minimum d'adaptation. C'est l'objectif du pilote.
+## 5. Organisation et mises à jour
+La couche reste séparée entre un cœur générique (`core/`, `react/`) et
+l'adaptateur `vtes/`, par clarté et non plus pour un portage : barrins-project est
+décorrélé depuis le 2026-11-17 (CLAUDE.md §1). En production, toute montée de
+version Dexie ou tout changement de forme d'une opération `/sync` doit laisser se
+rejouer une file écrite par la version précédente (champs nouveaux facultatifs,
+même empreinte par `exclude_unset`).
