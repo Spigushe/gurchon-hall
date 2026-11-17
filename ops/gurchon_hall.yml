@@ -1,0 +1,167 @@
+---
+- name: Déployer gurchon-hall (API et PWA)
+  hosts: spigushe
+  become: true
+  gather_facts: false
+  vars:
+    username: spigushe
+    deploy_env: production
+    barrin_ops_dir: "{{ playbook_dir }}/../../barrins-project/ops/my-server"
+    github_token_file: "{{ barrin_ops_dir }}/secrets/github/token.txt"
+    letsencrypt_contact: "{{ lookup('ansible.builtin.env', 'LETSENCRYPT_CONTACT') }}"
+
+    gurchon_repo: Spigushe/gurchon-hall
+    gurchon_git_branch: main
+    gurchon_release_tag: ""
+    gurchon_import_catalog: true
+    gurchon_backup_keep_days: 14
+
+    env_suffix: "{{ '-staging' if deploy_env == 'staging' else '' }}"
+    backend_port: "{{ 8531 if deploy_env == 'staging' else 8031 }}"
+    frontend_domain: "gurchon{{ env_suffix }}.spigushe.org"
+    backend_domain: "api-gurchon{{ env_suffix }}.spigushe.org"
+    backend_work_dir: "/home/{{ username }}/projects/{{ backend_domain }}/backend"
+    database_path: "{{ backend_work_dir }}/vtes.db"
+    backup_dir: "/home/{{ username }}/backups/gurchon-hall{{ env_suffix }}"
+
+  pre_tasks:
+    - name: Vérifier l'environnement demandé
+      ansible.builtin.assert:
+        that: deploy_env in ['production', 'staging']
+        fail_msg: "deploy_env vaut production (défaut) ou staging, pas « {{ deploy_env }} »."
+      tags: [always]
+
+    - name: Chercher les certificats déjà émis
+      ansible.builtin.stat:
+        path: "/etc/letsencrypt/live/{{ item }}/fullchain.pem"
+      loop:
+        - "{{ backend_domain }}"
+        - "{{ frontend_domain }}"
+      register: gurchon_certificates
+      tags: [backend, frontend, certs]
+
+    - name: Exiger une adresse de contact pour Let's Encrypt si un certificat manque
+      ansible.builtin.assert:
+        that: letsencrypt_contact | length > 0
+        fail_msg: >-
+          Un certificat reste à émettre pour {{ gurchon_certificates.results
+          | rejectattr('stat.exists') | map(attribute='item') | join(', ') }}.
+          Passer l'adresse de contact de Let's Encrypt par LETSENCRYPT_CONTACT=<adresse>
+          ou -e letsencrypt_contact=<adresse>.
+      when: gurchon_certificates.results | rejectattr('stat.exists') | list | length > 0
+      tags: [backend, frontend, certs]
+
+    - name: Préparer le dossier des sauvegardes
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        owner: "{{ username }}"
+        mode: "0700"
+      tags: [backend, deploy]
+
+    - name: Chercher une base déjà en service
+      ansible.builtin.stat:
+        path: "{{ database_path }}"
+      register: gurchon_database_before
+      tags: [backend, deploy]
+
+    - name: Sauvegarder la base avant de déployer
+      become: false
+      ansible.builtin.command:
+        argv:
+          - "{{ backend_work_dir }}/.venv/bin/python"
+          - scripts/compare_db.py
+          - backup
+          - "{{ database_path }}"
+          - "{{ backup_dir }}/vtes-avant-deploiement-{{ now(utc=true, fmt='%Y%m%dT%H%M%SZ') }}.db"
+        chdir: "{{ backend_work_dir }}"
+      when: gurchon_database_before.stat.exists
+      changed_when: true
+      tags: [backend, deploy]
+
+  roles:
+    - role: github_token
+      tags: [always]
+
+    - role: register_ssl
+      tags: [backend, certs]
+      register_ssl_server_name: "{{ backend_domain }}"
+      register_ssl_contact_name: "{{ letsencrypt_contact }}"
+
+    - role: fastapi_backend
+      tags: [backend]
+      fastapi_backend_repo: "{{ gurchon_repo }}"
+      fastapi_backend_repo_subdir: backend
+      fastapi_backend_server_name: "{{ backend_domain }}"
+      fastapi_backend_app_name: "gurchon-api{{ env_suffix }}"
+      fastapi_backend_port: "{{ backend_port }}"
+      fastapi_backend_use_release_tag: "{{ deploy_env == 'production' }}"
+      fastapi_backend_release_tag: "{{ gurchon_release_tag }}"
+      fastapi_backend_git_branch: "{{ gurchon_git_branch }}"
+      fastapi_backend_entrypoint: "app.main:app"
+      fastapi_backend_env:
+        BACKEND_CORS_ORIGINS: "https://{{ frontend_domain }}"
+        FORWARDED_ALLOW_IPS: "127.0.0.1"
+
+    - role: backend_website
+      tags: [backend]
+      backend_website_server_name: "{{ backend_domain }}"
+      backend_website_port: "{{ backend_port }}"
+      backend_website_rate_limited_paths: []
+
+    - role: gurchon_sqlite_backup
+      tags: [backend]
+      when: deploy_env == 'production'
+      gurchon_sqlite_backup_name: "gurchon-hall{{ env_suffix }}-backup"
+      gurchon_sqlite_backup_work_dir: "{{ backend_work_dir }}"
+      gurchon_sqlite_backup_database: "{{ database_path }}"
+      gurchon_sqlite_backup_dir: "{{ backup_dir }}"
+      gurchon_sqlite_backup_keep_days: "{{ gurchon_backup_keep_days }}"
+
+    - role: register_ssl
+      tags: [frontend, certs]
+      register_ssl_server_name: "{{ frontend_domain }}"
+      register_ssl_contact_name: "{{ letsencrypt_contact }}"
+
+    - role: react_frontend
+      tags: [frontend]
+      react_frontend_repo: "{{ gurchon_repo }}"
+      react_frontend_repo_subdir: frontend
+      react_frontend_server_name: "{{ frontend_domain }}"
+      react_frontend_app_name: "gurchon{{ env_suffix }}"
+      react_frontend_use_release_tag: "{{ deploy_env == 'production' }}"
+      react_frontend_release_tag: "{{ gurchon_release_tag }}"
+      react_frontend_git_branch: "{{ gurchon_git_branch }}"
+      react_frontend_node_version: "22"
+      react_frontend_build_env:
+        VITE_API_BASE_URL: "https://{{ backend_domain }}"
+
+  post_tasks:
+    - name: Réserver la base au compte de service
+      ansible.builtin.file:
+        path: "{{ database_path }}"
+        owner: "{{ username }}"
+        mode: "0600"
+      tags: [backend, deploy]
+
+    - name: Importer ou mettre à jour le catalogue krcg
+      become: false
+      ansible.builtin.command:
+        argv:
+          - "/home/{{ username }}/.local/bin/uv"
+          - run
+          - python
+          - scripts/import_catalog.py
+        chdir: "{{ backend_work_dir }}"
+      when: gurchon_import_catalog | bool
+      changed_when: true
+      tags: [backend, deploy, catalog]
+
+    - name: Rappel, premier compte
+      ansible.builtin.debug:
+        msg:
+          - "Sur une base neuve, le compte historique (id 1, admin) existe sans mot de passe."
+          - "Pour le réclamer, en SSH depuis {{ backend_work_dir }} :"
+          - "uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>"
+          - "(saisie du mot de passe au clavier, il faut un terminal)."
+      tags: [backend, deploy]

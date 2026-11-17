@@ -1,99 +1,187 @@
-# Déploiement — notes pour le Lot 11
+# Mise en service
 
-Note courte, écrite par l'agent DevOps pendant le Lot 6 (comptes et
-multi-utilisateur, `docs/lot6-plan-comptes.md`), en préparation du Lot 11
-(playbook Ansible, CLAUDE.md §12). Elle ne remplace pas ce futur playbook :
-elle fixe l'ordre à respecter et les variables à positionner, pour qu'elles ne
-se perdent pas d'ici là.
+gurchon-hall est hébergé, pour l'instant, sur le VPS de barrins-project. Le
+déploiement passe par un playbook Ansible rangé dans ce dépôt
+(`ops/gurchon_hall.yml`) qui assemble les rôles de Barrin sans les modifier :
+`github_token`, `register_ssl`, `fastapi_backend`, `backend_website`,
+`react_frontend`. Seul un petit rôle local s'y ajoute, la sauvegarde de la base
+SQLite (`ops/roles/gurchon_sqlite_backup`), Barrin ne sauvegardant que du
+PostgreSQL.
 
-**Ce que le Lot 6 modélise pour Barrin.** Ce n'est pas seulement un réglage de
-configuration : c'est le premier passage du mono- au multi-utilisateur sur une
-base en service, avec de vraies données à reprendre (D5 de
-`docs/lot6-plan-comptes.md`, point 3). barrins-project connaîtra le même
-passage. Ce que ce lot établit et que le Lot 11 (ou un lot d'intégration côté
-Barrin) peut reprendre tel quel : un compte historique d'identifiant fixe,
-créé par migration avec un mot de passe inutilisable (personne ne peut s'y
-connecter tant qu'il n'a pas été réclamé), réclamé ensuite par une commande CLI
-dédiée plutôt que par la première inscription venue — qui hériterait sinon par
-erreur des données existantes.
+## Ce qui tourne où
 
-## Ordre de mise en service (Lot 6)
+| | Production | Staging (`-e deploy_env=staging`) |
+| --- | --- | --- |
+| PWA | `https://gurchon.spigushe.org` | `https://gurchon-staging.spigushe.org` |
+| API | `https://api-gurchon.spigushe.org` | `https://api-gurchon-staging.spigushe.org` |
+| Port local d'uvicorn | 8031 | 8531 |
+| Service systemd | `gurchon-api` | `gurchon-api-staging` |
+| Code déployé | dernière release GitHub | branche `main` |
+| Sauvegarde quotidienne | oui, 03:30 UTC | non |
 
-Trois étapes, dans cet ordre, **avant** d'ouvrir l'application aux
-utilisateurs :
+Deux domaines parce que les rôles de Barrin écrivent chacun leur vhost nginx :
+`react_frontend` sert le build de la PWA, `backend_website` relaie l'API vers
+uvicorn. C'est la disposition du développement (front sur 5173, API sur 8000),
+déjà couverte par les e2e : le front appelle l'API avec
+`credentials: "include"`, et les deux hôtes étant du même site
+(`spigushe.org`), le cookie `SameSite=Lax` part bien.
 
-1. **Migrer** (`uv run alembic upgrade head`). La révision R8 insère le compte
-   historique (`id = 1`, D6 de `docs/lot6-plan-comptes.md`) avec un mot de
-   passe inutilisable : personne ne peut encore s'y connecter à ce stade, ce
-   qui est volontaire.
-2. **Réclamer le compte historique par CLI**, avant tout accès réel :
+Sur le serveur, l'API vit dans `~/projects/api-gurchon.spigushe.org/backend`,
+la base dans `backend/vtes.db` de ce clone (le chemin par défaut, celui que
+vise la migration lancée par `fastapi_backend`), en mode `0600`. Le fichier est
+ignoré par git, et le rôle met le clone à jour par `git reset` sans jamais le
+nettoyer : la base survit aux déploiements. Le front est cloné à part, dans
+`~/projects/gurchon.spigushe.org`, et construit sur place avec Node 22.
 
-   ```bash
-   uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>
-   ```
+L'API ne reçoit que deux variables, écrites dans l'unité systemd :
+`BACKEND_CORS_ORIGINS` (l'origine de la PWA) et `FORWARDED_ALLOW_IPS`
+(`127.0.0.1`). Pas de fichier `.env` : l'application lit son environnement
+par `os.getenv` et n'a aucun secret à recevoir, les sessions étant des jetons
+tirés au hasard dont seule l'empreinte est en base. Tout le reste garde sa
+valeur par défaut, en particulier `SESSION_COOKIE_SECURE` (vrai) et les coûts
+Argon2.
 
-   Tant que cette commande n'a pas été lancée, personne ne peut se connecter —
-   y compris sur les appareils qui ont déjà des saisies hors ligne en attente.
-   C'est sans dommage : leur file patiente dans leur base locale jusqu'à la
-   première reconnexion réussie, et rien ne se perd. Lancer cette commande
-   avant d'ouvrir l'accès évite qu'une autre personne s'inscrive la première et
-   que la première inscription récupère par erreur la collection existante
-   (l'inscription est ouverte, cf. P2 du brief).
-3. **Ouvrir l'application** seulement une fois les deux étapes ci-dessus
-   faites.
+La limitation de débit n'a pas eu à être reconfigurée derrière nginx, contre
+ce que prévoyait le Lot 6. uvicorn 0.53 lit `X-Forwarded-For` quand la requête
+vient d'une adresse de `FORWARDED_ALLOW_IPS`, et garde l'adresse la plus à
+droite qui n'en fait pas partie, c'est-à-dire celle que nginx ajoute. Vérifié
+le 2026-11-17 sur une installation de production locale : six connexions
+depuis une même IP donnent cinq 401 puis un 429, six IP distinctes passent, et
+une IP glissée par le client dans l'en-tête est ignorée.
 
-## Session
+## Avant le premier déploiement
 
-- Une session dure **14 jours fixes** à compter de la connexion
-  (`SESSION_LIFETIME`, `backend/app/models/account.py`) : une seule échéance,
-  posée une fois et jamais repoussée, pas une expiration glissante qui
-  reculerait à chaque requête. Passé ce délai, le jeton ne résout plus rien
-  (401) et la session est purgée. Révoquer une session avant son terme (CLI
-  `revoke-sessions` / `set-password`, ou une future route de déconnexion de
-  tous les appareils) supprime directement sa ligne : effet immédiat, sans
-  liste de révocation à consulter.
-- Aucune requête authentifiée n'écrit dans la table des sessions (pas de
-  `last_used_at` à tenir à jour) : seules la connexion et la déconnexion
-  touchent `auth_session`.
+1. **DNS.** Deux enregistrements A vers le VPS (146.59.146.57) :
+   `gurchon.spigushe.org` et `api-gurchon.spigushe.org`, plus les deux
+   `-staging` si on veut un staging. certbot les vérifie par HTTP au premier
+   passage.
+2. **Ansible.** Celui de WSL suffit (ansible-core 2.20, avec les collections
+   de `barrins-project/ops/my-server/requirements.yml`). Les deux dépôts
+   doivent être côte à côte, `ops/ansible.cfg` allant chercher les rôles,
+   l'inventaire et le fichier de mot de passe du coffre dans
+   `../../barrins-project/ops/my-server`.
+3. **Jeton GitHub.** Celui de Barrin
+   (`barrins-project/ops/my-server/secrets/github/token.txt`). Un jeton
+   classique de portée `repo` lit tous les dépôts du compte ; un jeton à
+   grain fin doit nommer `Spigushe/gurchon-hall` en plus de barrins-project.
+4. **Une release.** La production déploie la dernière release GitHub du dépôt,
+   comme chez Barrin. Sans release, le rôle s'arrête avec un message. La
+   première sera la v1 : la publier depuis le commit à mettre en ligne.
 
-## HTTPS et cookie de session
+## Commandes
 
-- Le cookie de session utilise par défaut le préfixe `__Host-`
-  (`SESSION_COOKIE_SECURE` vrai, valeur par défaut, voir
-  `backend/.env.example`), ce qui **exige** `Secure` : sans HTTPS, le
-  navigateur refuse de poser ou de renvoyer ce cookie, et aucune connexion ne
-  peut fonctionner.
-- HTTPS est déjà une exigence du projet pour la PWA elle-même (CLAUDE.md §2 :
-  service worker, installabilité), indépendamment des comptes. Les deux
-  contraintes pointent donc dans le même sens : **tout déploiement hors
-  `localhost` doit être servi en HTTPS**, sans quoi ni la PWA ni les comptes ne
-  fonctionnent.
-- Ne jamais positionner `SESSION_COOKIE_SECURE=false` en production : c'est un
-  repli de développement local uniquement (voir `backend/.env.example` pour le
-  détail, y compris le comportement des navigateurs en `http://localhost`).
+Toujours depuis `ops/`, dans WSL :
 
-## Variables à positionner en production
+```bash
+cd /mnt/c/Users/Martin/Desktop/gurchon-hall/ops
 
-Voir `backend/.env.example` pour le détail de chacune. En particulier :
+# premier passage : certbot a besoin d'une adresse de contact
+LETSENCRYPT_CONTACT=<adresse> ansible-playbook gurchon_hall.yml
 
-- `BACKEND_CORS_ORIGINS` : l'origine réelle du frontend déployé, jamais `*`
-  (obligatoire dès lors que les cookies de session sont utilisés,
-  `allow_credentials=True`).
-- `DATABASE_URL` : chemin de la base réelle (pas le défaut de développement
-  `backend/vtes.db`).
-- `SESSION_COOKIE_SECURE` : laisser la valeur par défaut (vrai).
-- `ARGON2_MEMORY_COST_KIB` / `ARGON2_TIME_COST` / `ARGON2_PARALLELISM` :
-  laisser les défauts (65536 / 3 / 4) en production — ils ne sont abaissés
-  qu'en CI (`.github/workflows/ci.yml`), jamais en service réel.
-- `LOGIN_RATE_LIMIT` / `SIGNUP_RATE_LIMIT` : les défauts (`5/minute`)
-  conviennent au pilote. Derrière le reverse proxy de l'infrastructure Barrin,
-  l'adresse IP vue par `slowapi` viendra de `X-Forwarded-For` : à reconfigurer
-  à ce moment-là (`backend/app/services/rate_limit.py`), pas avant.
+# les suivants
+ansible-playbook gurchon_hall.yml
 
-## Hors périmètre de cette note
+# l'API seule, ou la PWA seule
+ansible-playbook gurchon_hall.yml --tags backend
+ansible-playbook gurchon_hall.yml --tags frontend
 
-L'hébergement effectif (reverse proxy TLS, process manager, playbook Ansible)
-est le sujet du Lot 11 lui-même, qui réutilisera l'infrastructure de
-déploiement de barrins-project plutôt que d'en monter une propre à
-gurchon-hall (CLAUDE.md §12). Cette note ne fixe que l'ordre des opérations et
-les variables liées aux comptes et à la PWA, pas la mécanique de déploiement.
+# sans relire le catalogue krcg
+ansible-playbook gurchon_hall.yml -e gurchon_import_catalog=false
+
+# staging, sur main ou sur une autre branche
+ansible-playbook gurchon_hall.yml -e deploy_env=staging
+ansible-playbook gurchon_hall.yml -e deploy_env=staging -e gurchon_git_branch=ma-branche
+
+# revenir à une release précise (front et API ensemble)
+ansible-playbook gurchon_hall.yml -e gurchon_release_tag=v1.0.0
+```
+
+L'adresse de contact n'est demandée que s'il manque un certificat ; le
+playbook s'arrête avant certbot sinon. Elle ne figure dans aucun fichier du
+dépôt.
+
+`--tags deploy`, que le README de Barrin propose pour un redéploiement rapide,
+ne marche pas ici : dans les rôles de Barrin, la tâche qui choisit la release
+ou la branche n'a pas ce tag, si bien que le clone partirait sans référence.
+`--tags backend` et `--tags frontend` font le même travail sans ce piège.
+
+## Ce que fait un passage
+
+Dans l'ordre : sauvegarde de la base en place (s'il y en a une) sous
+`~/backups/gurchon-hall/vtes-avant-deploiement-<date>.db`, certificat de l'API,
+clone, `uv sync`, Python 3.14 par uv, `alembic upgrade head`, unité systemd et
+redémarrage, vhost de l'API, minuteur de sauvegarde, certificat du front,
+clone et build du front, vhost du front ; puis la base repassée en `0600` et
+le catalogue krcg importé ou mis à jour (`scripts/import_catalog.py`, rejouable
+sans effet quand rien n'a changé).
+
+L'API refuse de démarrer contre une base qui n'est pas à la tête des
+migrations (`app/db/schema_check.py`). Comme la migration précède le
+redémarrage, ce garde-fou ne se déclenche qu'en cas d'échec de la migration :
+c'est voulu.
+
+## Premier compte
+
+Sur une base neuve, la révision R8 a créé le compte historique (`id = 1`,
+rôle `admin`) avec un mot de passe inutilisable. L'inscription étant ouverte,
+le réclamer **avant** de donner l'adresse à qui que ce soit, en SSH :
+
+```bash
+cd ~/projects/api-gurchon.spigushe.org/backend
+uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>
+```
+
+Le mot de passe se saisit au clavier (il faut un vrai terminal, pas une tâche
+Ansible). C'est ce compte qui peut ajouter une langue (`POST /langues`).
+Les autres commandes de `manage_accounts.py` (`set-password`, `set-role`,
+`revoke-sessions`…) se lancent de la même façon.
+
+## Sauvegardes et restauration
+
+Deux sources de copies, toutes deux faites par l'API de sauvegarde de SQLite
+(`scripts/compare_db.py backup`), cohérentes même service en marche : une
+avant chaque déploiement, une chaque nuit à 03:30 UTC
+(`gurchon-hall-backup.timer`). Les copies de plus de quatorze jours sont
+effacées (`-e gurchon_backup_keep_days=<n>` pour changer). Elles restent sur
+le VPS : en cas de perte du serveur, elles partent avec lui. À recopier
+ailleurs de temps en temps, par exemple :
+
+```bash
+scp spigushe.org:backups/gurchon-hall/vtes-<date>.db .
+```
+
+Restaurer une copie :
+
+```bash
+sudo systemctl stop gurchon-api
+cd ~/projects/api-gurchon.spigushe.org/backend
+cp vtes.db vtes.db.avant-restauration
+cp ~/backups/gurchon-hall/vtes-<date>.db vtes.db && chmod 600 vtes.db
+sudo systemctl start gurchon-api
+```
+
+Une copie plus ancienne que la release déployée sera refusée au démarrage si
+une migration les sépare : remonter la base (`uv run alembic upgrade head`)
+ou revenir à la release de l'époque.
+
+## Retour arrière
+
+`-e gurchon_release_tag=<tag>` redéploie une release antérieure. Les
+migrations, elles, ne redescendent pas toutes seules : si la release fautive
+en apportait une, l'ancienne refusera de démarrer contre la base migrée.
+Dans ce cas, restaurer la copie `vtes-avant-deploiement-…` prise juste avant
+le déploiement fautif, puis redéployer l'ancienne release. Plusieurs descentes
+refusent de tourner sur une base peuplée (CLAUDE.md §6), et la restauration
+est de toute façon plus sûre.
+
+## À vérifier à la main après la première mise en ligne
+
+Ce que le réseau local en `http://` n'a jamais permis de relever (lots Chercher,
+8 et 9) :
+
+- le panneau Application de Chrome : manifeste, service worker *activated* ;
+- l'installation sur téléphone, puis l'ouverture en mode avion ;
+- la réponse de `navigator.storage.persist()` ;
+- « Copier » à l'export VDB, qui doit écrire dans le presse-papiers au lieu de
+  sélectionner le texte ;
+- la montée de la base IndexedDB d'un appareil déjà utilisé, s'il y en a un.

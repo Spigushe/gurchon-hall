@@ -1,0 +1,7 @@
+[Unit]
+Description=Sauvegarde de la base SQLite de gurchon-hall
+
+[Service]
+Type=oneshot
+User={{ username }}
+ExecStart=/usr/local/bin/{{ gurchon_sqlite_backup_name }}.sh

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "{{ gurchon_sqlite_backup_work_dir }}"
+target="{{ gurchon_sqlite_backup_dir }}/vtes-$(date -u +%Y%m%dT%H%M%SZ).db"
+.venv/bin/python scripts/compare_db.py backup "{{ gurchon_sqlite_backup_database }}" "$target"
+chmod 600 "$target"
+find "{{ gurchon_sqlite_backup_dir }}" -maxdepth 1 -name 'vtes-*.db' -mtime +{{ gurchon_sqlite_backup_keep_days }} -delete

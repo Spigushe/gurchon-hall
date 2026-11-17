@@ -77,9 +77,14 @@ crypte et des versions supposées ; un deck importé par son adresse garde le li
 (`deck.vdb_deck_id`) et se met à jour depuis VDB ; export d'un deck et d'une version
 jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt` ; la file range une
 saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan dans
-`docs/lot9-plan-import-vdb.md`, décisions au §11). Le modèle compte **28 tables** et
+`docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 est devenu facultatif.
+Lot 11, **écrit, pas encore appliqué** : playbook Ansible `ops/gurchon_hall.yml`, qui
+réutilise les rôles et l'inventaire de barrins-project pour mettre gurchon-hall en
+ligne sur son VPS (`gurchon.spigushe.org`, API sur `api-gurchon.spigushe.org`), avec
+sauvegarde avant chaque déploiement et chaque nuit (guide dans `docs/deploiement.md`,
+décisions au §11). Le modèle compte **28 tables** et
 quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
-`.github/` (CI, Dependabot) et `docs/` (briefs de lot).
+`.github/` (CI, Dependabot), `docs/` (briefs de lot) et `ops/` (playbook du Lot 11).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
@@ -276,6 +281,8 @@ code offline est packagé de façon réutilisable pour Barrin.
 │                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
+├─ ops/                       ← playbook Ansible de mise en ligne (Lot 11), sur les
+│                               rôles de barrins-project/ops/my-server
 ├─ .github/                   ← workflow CI + Dependabot
 └─ .claude/
    ├─ agents/                 ← 1 fichier .md par agent (voir §8)
@@ -2132,6 +2139,50 @@ Limites connues à la clôture du Lot 9 :
   mise à jour d'un deck lié sur la lecture simulée, export d'une version jouée
   identique à l'export réel de VDB).
 
+Tranchées pendant le Lot 11 (2026-11-17 ; guide complet dans `docs/deploiement.md`) :
+
+- **Le Lot 10 devient facultatif**, décision de l'utilisateur : le Lot 11 ne dépend
+  plus du portage.
+- **Le playbook vit dans ce dépôt** (`ops/`), décision de l'utilisateur : son
+  `ansible.cfg` pointe vers `../../barrins-project/ops/my-server` pour les rôles,
+  l'inventaire et le coffre, et le jeton GitHub est celui de Barrin. Aucun fichier
+  de barrins-project n'est modifié ; les deux dépôts doivent être côte à côte.
+- **Rôles de Barrin repris tels quels**, plus un rôle local,
+  `gurchon_sqlite_backup` (script, service et minuteur systemd), Barrin ne
+  sauvegardant que du PostgreSQL. Deux domaines, `gurchon.spigushe.org` et
+  `api-gurchon.spigushe.org` (choix de l'utilisateur), parce que `react_frontend`
+  et `backend_website` écrivent chacun leur vhost ; c'est la disposition du
+  développement, cookie `SameSite=Lax` compris, les deux hôtes étant du même site.
+  Ports 8031 et 8531 (staging), à la suite de ceux de Barrin.
+- **Production sur release, staging sur branche**, comme chez Barrin ; une seule
+  variable, `gurchon_release_tag`, fixe la release du front et de l'API ensemble.
+- **Base SQLite au chemin par défaut** (`backend/vtes.db` du clone de l'API, en
+  `0600`), celui que vise la migration lancée par `fastapi_backend` ; ignorée par
+  git, elle survit aux mises à jour du clone. Pas de `.env` : deux variables dans
+  l'unité systemd, `BACKEND_CORS_ORIGINS` et `FORWARDED_ALLOW_IPS`.
+- **Rien à reconfigurer pour la limitation de débit** derrière nginx, contre ce que
+  le Lot 6 prévoyait : uvicorn lit `X-Forwarded-For` depuis 127.0.0.1 et garde
+  l'adresse ajoutée par nginx. Vérifié sur une installation de production locale.
+- **Le catalogue krcg se réimporte à chaque passage**, l'import étant rejouable
+  (`-e gurchon_import_catalog=false` pour s'en passer).
+- **L'adresse de contact de Let's Encrypt n'est dans aucun fichier** : elle se passe
+  par `LETSENCRYPT_CONTACT` et n'est exigée que s'il manque un certificat.
+- **`ops/**` en LF** (`.gitattributes`), le poste ayant `core.autocrlf=true` : un
+  gabarit de script en CRLF ne tournerait pas sur le serveur.
+
+Limites connues à l'écriture du Lot 11 :
+
+- **Jamais exécuté contre le serveur** : syntaxe vérifiée dans WSL, gabarits rendus
+  et passés à `bash -n` et `systemd-analyze verify`, installation de production
+  (`uv sync` sans l'extra `dev`, migration, démarrage, sauvegarde) éprouvée sur une
+  copie locale. DNS, release v1 et premier passage restent à faire.
+- **`--tags deploy` ne marche pas** avec les rôles de Barrin (le choix de la
+  release n'a pas ce tag) : utiliser `--tags backend` ou `--tags frontend`.
+- **Sauvegardes sur le VPS seulement**, quatorze jours : à recopier ailleurs à la
+  main.
+- **Build du front sur le serveur**, par `npm install` et non `npm ci` (rôle de
+  Barrin).
+
 ---
 
 ## 12. Roadmap
@@ -2347,15 +2398,17 @@ Limites connues à la clôture du Lot 9 :
    synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02, en est
    sortie le 2026-11-12 : elle attend la mise en production de la v1 (après le
    Lot 11, ci-dessous). Le **Lot 10** vient ensuite.
-13. **Lot 10 — Portage** — *prochain lot* : packager le socle offline pour
-  barrins-project, côté code — le déploiement de gurchon-hall lui-même est traité au
-  Lot 11.
-14. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
-    l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
-    hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.
-    Dépend du Lot 10 : le portage prépare le terrain côté code, ce lot met gurchon-hall
-    en ligne par les moyens de Barrin (HTTPS obligatoire pour la PWA, §2). C'est
-    la **première mise en ligne** (v1).
+13. **Lot 10 — Portage** — *facultatif depuis le 2026-11-17* : packager le socle
+  offline pour barrins-project, côté code. Le Lot 11 n'en dépend plus.
+14. **Lot 11 — Playbook Ansible de déploiement** — *écrit le 2026-11-17, pas encore
+    appliqué.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS de
+    barrins-project avec les rôles de Barrin (HTTPS obligatoire pour la PWA, §2) :
+    PWA sur `gurchon.spigushe.org`, API sur `api-gurchon.spigushe.org`, staging en
+    `-staging`, production sur la dernière release GitHub, migration et import du
+    catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
+    nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. Restent les
+    DNS, la release v1, le premier passage, la réclamation du compte historique et les
+    vérifications à la main en HTTPS : ce sera la **première mise en ligne** (v1).
 15. **Lot Inventaires** — *proposé le 2026-11-03, placé d'abord après le Lot 9,
    reporté par l'utilisateur le 2026-11-13 après la première mise en ligne
    (Lot 11).* Répond aux issues #48 (« Multiples inventaires », « Et binders ») et #49

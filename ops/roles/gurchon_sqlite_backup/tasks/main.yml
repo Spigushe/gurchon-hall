@@ -1,0 +1,35 @@
+---
+- name: Préparer le dossier des sauvegardes
+  ansible.builtin.file:
+    path: "{{ gurchon_sqlite_backup_dir }}"
+    state: directory
+    owner: "{{ username }}"
+    mode: "0700"
+
+- name: Installer le script de sauvegarde
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: "/usr/local/bin/{{ gurchon_sqlite_backup_name }}.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Installer le service de sauvegarde
+  ansible.builtin.template:
+    src: backup.service.j2
+    dest: "/etc/systemd/system/{{ gurchon_sqlite_backup_name }}.service"
+    mode: "0644"
+
+- name: Installer le minuteur de sauvegarde
+  ansible.builtin.template:
+    src: backup.timer.j2
+    dest: "/etc/systemd/system/{{ gurchon_sqlite_backup_name }}.timer"
+    mode: "0644"
+
+- name: Activer le minuteur de sauvegarde
+  tags: [deploy]
+  ansible.builtin.systemd:
+    name: "{{ gurchon_sqlite_backup_name }}.timer"
+    daemon_reload: true
+    enabled: true
+    state: started

@@ -1,0 +1,9 @@
+[Unit]
+Description=Sauvegarde quotidienne de la base SQLite de gurchon-hall
+
+[Timer]
+OnCalendar=*-*-* {{ gurchon_sqlite_backup_hour }}:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
