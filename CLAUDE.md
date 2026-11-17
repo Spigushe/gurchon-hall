@@ -4,11 +4,12 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks et 8 livrés**
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8 et 9 livrés**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
-vérifié sur téléphone le 2026-11-13, §12). Lot 0 : squelette
+vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphone le
+2026-11-17, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -66,15 +67,25 @@ bilan hors ligne (`#/bilan`) par deck et version, lieu, mois, position à la tab
 (proie, prédateur, puis grande proie et grand prédateur) et adversaire, sans aucun
 pourcentage ; liste d'une version, résultats d'un deck, légalité d'une version à la
 date du tournoi (plan dans `docs/lot8-plan-analyse.md`, handoff
-`docs/design-handoff/LOT8.md`, décisions au §11). Le modèle compte **28 tables** et
-treize révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+`docs/design-handoff/LOT8.md`, décisions au §11). Lot 9 : import d'un deck depuis
+VDB, par un texte collé (`TEXT`, `TWD`, `JOL`, `LACKEY`), un fichier `.txt` ou une
+adresse qui porte la liste, lus et appariés au catalogue dans le navigateur, hors
+ligne, ou par l'adresse d'un deck VDB, lue en ligne par le serveur
+(`GET /vdb/decks/{id}`) ; tout entre en proxy, en anglais et dernière extension, en
+brouillon, avec un rapport des lignes non reconnues, des groupes déduits de la
+crypte et des versions supposées ; un deck importé par son adresse garde le lien
+(`deck.vdb_deck_id`) et se met à jour depuis VDB ; export d'un deck et d'une version
+jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt` ; la file range une
+saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan dans
+`docs/lot9-plan-import-vdb.md`, décisions au §11). Le modèle compte **28 tables** et
+quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot) et `docs/` (briefs de lot).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (2680 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (2848 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -84,18 +95,21 @@ rapport lisible par un script ; à lancer une fois la base migrée),
 l'API de sauvegarde de SQLite, relevé en lecture seule, comparaison ligne à ligne de
 deux relevés : l'outil des mises en service, depuis le lot Chercher),
 `uv run python scripts/manage_accounts.py <claim-legacy|create|set-password|set-role|revoke-sessions|purge-sessions|check-me>`
-(comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1163 tests sur 73 fichiers, à lancer depuis PowerShell en
+(comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument),
+`uv run python scripts/vdb_stub.py <dossier> [--etat avant|apres]` (Lot 9 : remplit
+un dossier de réponses de VDB tirées des fixtures ; avec `VDB_STUB_DIR` pointé dessus,
+le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e).
+Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1569 tests sur 89 fichiers, à lancer depuis PowerShell en
 `C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
-`npm run test:e2e` (Playwright, 82 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 43 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 28 dans
+`npm run test:e2e` (Playwright, 90 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 47 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 32 dans
 `desktop-real-backend` ; si un back de développement tourne et que
 `frontend/.env.local` pointe dessus, comme après `run.ps1 preview`, deux tests du
 projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
 Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
 si le code a changé depuis),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot8-cloture.txt`
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot9-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -115,7 +129,8 @@ scripts (`backend/app/db/schema_check.py`, lecture seule, aucune migration
 automatique ; `SCHEMA_REVISION_CHECK=false` ramène l'arrêt à un avertissement, réservé
 aux tests). Cette base n'est pas versionnée. **Depuis le 2026-11-12 (F0 du Lot 8),
 elle est repartie de zéro** : supprimée, montée par `upgrade head` à `ac6cda5ad252`
-(R13), catalogue réimporté (4212 cartes). Elle ne contient plus que des données de
+(R13), catalogue réimporté (4212 cartes), puis migrée pendant le Lot 9 à
+`5f2b8e9d0c41` (R14, la tête, un `ADD COLUMN` sans conversion). Elle ne contient plus que des données de
 recette et deux comptes, le compte historique (`id = 1`) laissé non réclamé et un
 compte créé par `manage_accounts.py create` (`id = 2`). Ce qui suit, jusqu'à la
 réclamation du 2026-10-02, décrit l'ancienne base, et les sauvegardes `.bak` qu'il
@@ -169,12 +184,13 @@ neuve), puis `upgrade head` avant de relancer l'import.
 `/extensions`, `/sync`, depuis le Lot 6 `/inscription`, `/connexion`, `/deconnexion`,
 `/moi`, et depuis le Lot 7 `/joueurs`, `/lieux`, `/tournois`, `/parties` (dont
 `PUT /parties/{id}/participations`), et depuis le Lot 8 `GET /decks/{id}/versions`
-et `GET /decks/{id}/versions/{number}/legalite` — 51 opérations sur 31 chemins au
-contrat, détail au §7. Hors catalogue et authentification, toute route exige une session. Une UI
+et `GET /decks/{id}/versions/{number}/legalite`, et depuis le Lot 9
+`GET /vdb/decks/{vdb_deck_id}` — 52 opérations sur 32 chemins au contrat, détail au §7. Hors catalogue et authentification, toute route exige une session. Une UI
 métier de consultation et de saisie existe pour la collection, les decks, les parties,
 les tournois, le carnet d'adversaires et de lieux, la recherche dans le catalogue
 (`#/chercher`, depuis le lot Chercher), le bilan (`#/bilan`) et la liste d'une
-version jouée (`#/decks/<clé>/versions/<n>`, depuis le Lot 8) (`frontend/src/features/`, routeur
+version jouée (`#/decks/<clé>/versions/<n>`, depuis le Lot 8), l'import et l'export
+VDB (`#/decks?action=importer`, depuis le Lot 9) (`frontend/src/features/`, routeur
 à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
 compte, déconnexion), mobile et bureau.
 
@@ -408,6 +424,12 @@ Le Lot 8 ne change pas non plus les règles de score ni de tournoi : le contrôl
 mono-deck regarde toujours le deck, pas sa version, et la légalité d'une version
 jouée se lit par les mêmes cinq règles, à la date du tournoi.
 
+Le Lot 9 n'ajoute aucune règle VEKN. La façon dont l'import choisit la version d'un
+vampire réimprimé écrit sans groupe (déduite de la crypte, sinon la version
+d'origine) est une **convention de l'import**, reprise de VDB et décrite au §11, pas
+une règle de jeu ; elle réutilise la règle des groupes adjacents par une jumelle
+TypeScript (`cryptGroupsLegal`).
+
 Ces règles métier sont la responsabilité de l'agent **architecte-contrat** (skill
 `regles-vtes`).
 
@@ -491,15 +513,22 @@ descente rend les archétypes en texte, refuse de tourner dès qu'il existe une 
 ou un champ adverse, et ne se rend pas hors ligne (sa garde lit la base, comme celle
 de R10). Elle n'a été appliquée sur aucune base peuplée réelle, la base de
 développement ayant été reconstruite à neuf (F0) : les tests d'aller-retour sur une
-base peuplée par les fixtures sont sa seule garantie avant la mise en production. Le
-modèle compte **28 tables** et treize révisions.
+base peuplée par les fixtures sont sa seule garantie avant la mise en production.
+Le Lot 9 ajoute la quatorzième révision, `5f2b8e9d0c41` (R14, A6 du plan) : un
+`ADD COLUMN` nullable, `deck.vdb_deck_id` (`VARCHAR(64)`), sur le patron de R12, sans
+recréer `deck` ni convertir de données. Ni index, ni unicité, ni CHECK : le motif de
+l'identifiant est tenu par le schéma, seul chemin d'entrée, un CHECK ayant obligé à
+recréer une table visée par quatre clés étrangères. La montée se rend hors ligne ; la
+descente refuse de tourner dès qu'un deck est lié (le lien est une saisie de
+l'utilisateur, qu'aucun réimport ne rétablirait) et, comme celles de R10 et R13, ne se
+rend pas hors ligne. Le modèle compte **28 tables** et quatorze révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
 | Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé). Révoquer une session, c'est supprimer sa ligne |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; `sect_id` rempli par l'import pour toute carte de crypte (secte dérivée du texte, lot Chercher), nul en bibliothèque ; `library_requirement`, exigence brute de `vteslibmeta.csv`, lue à la sortie par `library_requirement` (R12) ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
-| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme). Depuis le Lot 8 : `deck.archetype` est l'enum `DeckArchetype` (six codes, CHECK `ck_deck_deck_archetype`, nullable) |
+| Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme). Depuis le Lot 8 : `deck.archetype` est l'enum `DeckArchetype` (six codes, CHECK `ck_deck_deck_archetype`, nullable). Depuis le Lot 9 : `deck.vdb_deck_id`, identifiant du deck VDB dont le deck a été importé par son adresse (`^[A-Za-z0-9:_-]{1,64}$`, nullable, sans index ni unicité : deux decks liés au même deck VDB restent possibles), posé à la création seulement |
 | Versions jouées | `deck_version`, `deck_version_card` | Lot 8. `deck_version` : `user_id`, `deck_id`, `number` (≥ 1, unique par deck), `created_at` seul (une version ne se modifie jamais), en `AUTOINCREMENT` ; FK composite (`deck_id`, `user_id`) → `deck`, et unicité (`id`, `deck_id`, `user_id`) qui sert de cible à `participation`. `deck_version_card` : carte × quantité (≥ 1), PK (`deck_version_id`, `card_id`), FK vers `card` seulement, comme `deleted_deck_card` vers `card_set` : une liste figée ne réserve rien. Pas d'empreinte, la comparaison se fait en mémoire. Une version vide existe (deck joué sans carte) |
 | Pratique | `player`, `tournament`, `game`, `participation`, `tournament_deck_version` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table. Depuis le Lot 8 : `participation.player_id` nullable (adversaire non nommé, P6 ; l'unicité (`game_id`, `player_id`) tient, SQLite ne comparant pas les NULL), `deck_version_id` avec une FK composite (`deck_version_id`, `deck_id`, `user_id`) → `deck_version` et le CHECK `ck_participation_version_requires_deck`, et sur une ligne d'adversaire `opponent_deck_name` (120 caractères), `opponent_deck_archetype` (`DeckArchetype`) et `opponent_clan_id` (FK vers `clan`). `tournament_deck_version` (A9) : PK (`tournament_id`, `deck_id`), `deck_version_id` et `frozen_by_game_id`, non nul et sans cascade, si bien que la base refuse de supprimer la partie qui a figé tant que la ligne la désigne ; le service la fait passer à la partie restante au plus petit identifiant, ou la retire |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
@@ -590,8 +619,8 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 à 8 (chemins en français, `operationId` en anglais camelCase),
-51 opérations sur 31 chemins :
+Livré aux Lots 2 à 9 (chemins en français, `operationId` en anglais camelCase),
+52 opérations sur 32 chemins :
 
 | Route | Rôle |
 | --- | --- |
@@ -606,7 +635,7 @@ Livré aux Lots 2 à 8 (chemins en français, `operationId` en anglais camelCase
 | `GET/POST /langues` | liste ouverte des langues ; lecture publique, ajout réservé au rôle `admin` (403 pour un compte `user`, Lot 6) |
 | `GET/POST /stock`, `GET/PATCH/DELETE /stock/{card_id}/{language_code}/{card_set_id}` | collection, une entrée par carte, langue et extension ; filtre `card_set_id` sur la liste ; 404 pour une extension où la carte n'a pas été imprimée |
 | `GET /decks` | liste filtrée par `state` (`active` par défaut, `archived`, `all`), `status` et `q` ; tri nom puis discriminant. Les decks supprimés n'y figurent jamais |
-| `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client ; depuis le Lot 8, `archetype` est un des six codes de `DeckArchetype` ou nul (422 sinon, sans repli de casse), dans `DeckCreate`, `DeckUpdate` et `DeckRead` |
+| `POST /decks` | crée un deck, avec son autorisation de proxy (`proxy_allowed`, faux par défaut) ; le discriminant est tiré par le serveur, jamais fourni par le client ; depuis le Lot 8, `archetype` est un des six codes de `DeckArchetype` ou nul (422 sinon, sans repli de casse), dans `DeckCreate`, `DeckUpdate` et `DeckRead` ; depuis le Lot 9, `vdb_deck_id` facultatif dans `DeckCreate` (même motif que la route VDB, 422 sinon), obligatoire et nullable dans `DeckRead`, absent de `DeckUpdate` (ni lien après coup, ni « délier ») |
 | `GET /decks/{id}` | deck et composition ; un deck supprimé se lit encore, en lecture seule, depuis sa decklist figée |
 | `PATCH /decks/{id}` | modification partielle, `proxy_allowed` compris (409 s'il est retiré à un deck qui joue des proxies), et archivage ou désarchivage par le champ `archived` (`true` / `false`) |
 | `DELETE /decks/{id}` | suppression **logique**, réservée à un deck archivé |
@@ -614,6 +643,7 @@ Livré aux Lots 2 à 8 (chemins en français, `operationId` en anglais camelCase
 | `POST /decks/{id}/cartes`, `PATCH/DELETE /decks/{id}/cartes/{card_id}/{language_code}/{card_set_id}` | composition du deck ; une ligne qui consomme au moins un exemplaire réel est allouée depuis l'entrée de stock du même triplet, une ligne entièrement en proxy n'en exige aucune (`f3a91c47b2de`) |
 | `GET /decks/{id}/versions` (`listDeckVersions`) | Lot 8. Versions jouées par numéro croissant, chacune avec sa date, ses cartes (carte × quantité, par identifiant croissant) et ses comptes crypte et bibliothèque ; liste vide pour un deck jamais joué, lisible pour un deck supprimé |
 | `GET /decks/{id}/versions/{number}/legalite` (`getDeckVersionLegality`) | Lot 8. Les cinq règles du §5 sur la liste figée de la version, à la date `on` (jour UTC par défaut) : `DeckVersionLegality`, soit `DeckLegality` plus `deck_version_id` et `number` ; 404 pour un numéro que le deck n'a pas |
+| `GET /vdb/decks/{vdb_deck_id}` (`readVdbDeck`) | Lot 9. Lit `https://vdb.im/api/deck/<id>` et rend `VdbDeckRead` (`vdb_deck_id` rendu par VDB, `name`, `author`, `description`, `cards` en `{vekn_id, quantity}` par identifiant croissant, `fetched_at`) ; ne stocke rien, n'apparie aucun nom. Identifiant au motif fermé `^[A-Za-z0-9:_-]{1,64}$` (422 sinon), hôte et chemin fixés dans le code, délai de 10 s, réponse bornée à 256 Ko, aucune redirection suivie. 404 « Deck VDB introuvable. » quand VDB répond 400 ou 404, 502 avec un motif pour toute autre panne ou forme inattendue, 429 + `Retry-After` au-delà de `VDB_RATE_LIMIT` (20 par minute et par IP). Ordre : 401, puis 422, puis la limite |
 | `GET/POST /joueurs`, `GET/PATCH/DELETE /joueurs/{id}` | Lot 7. Adversaires du compte, « Moi » en tête de liste (`q`) ; 409 nom déjà pris, et à la suppression du « Moi » ou d'un joueur présent à une table |
 | `GET/POST /lieux`, `GET/PATCH/DELETE /lieux/{id}` | Lot 7. Lieux du compte (`name`, `city`, `notes`), avec leurs compteurs de parties et de tournois ; 409 nom déjà pris ou lieu référencé |
 | `GET/POST /tournois`, `GET/PATCH/DELETE /tournois/{id}` | Lot 7. Liste (`q`, `from`, `to`) avec mon bilan (`my_summary` : GW et VP des préliminaires, rondes jouées, VP et GW de finale) ; détail avec mes parties et `admissible_final_decks` ; 422 multi-deck à un niveau de championnat ou classement contredit, 409 si le passage en mono ou un changement de règle de finale contredit les parties ; suppression refusée (409) tant qu'il contient des parties |
@@ -643,6 +673,18 @@ archétypes, et un archétype libre resté en file fait refuser le lot en 422 (a
 file n'existait hors des postes de recette). Section « Lot 8 » dans
 `docs/lot3-sync-contrat.md`.
 
+Le Lot 9 ajoute une route, `GET /vdb/decks/{vdb_deck_id}` (52 opérations sur 32
+chemins), et `/vdb` rejoint `API_ROUTE_PREFIXES`, sans quoi le service worker
+servirait la coquille à sa place. C'est le **premier appel sortant** du serveur
+pendant une requête ; tout passe par `app/services/vdb_client.py`, dont la lecture
+réseau est une dépendance (`get_vdb_fetcher`) que les tests remplacent, et que
+`VDB_STUB_DIR` détourne vers un dossier de réponses pour les e2e : aucun test ne joint
+vdb.im. Aucun type d'opération `/sync` : un import est un `deck.create` suivi de
+`deck_card.upsert`, une mise à jour un `deck.update` puis des `deck_card.delete` et
+`deck_card.upsert`. `vdb_deck_id` est facultatif dans `deck.create`, si bien qu'une
+opération écrite avant le lot se rejoue avec la même empreinte (`exclude_unset`).
+Section « Lot 9 » dans `docs/lot3-sync-contrat.md`.
+
 Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
 format standard de FastAPI, y compris ceux que le service produit lui-même. `POST /sync`
 n'utilise jamais 404 ni 409 : un refus est un verdict dans le corps d'une 200, et un 503
@@ -654,7 +696,9 @@ lecture (`GET /cartes…`, `/extensions`, `/bundles…`, `GET /langues`) et les 
 routes `POST /inscription`, `/connexion`, `/deconnexion`. **Toute autre route exige une
 session** : `/stock…`, `/decks…`, `POST /bundles/{id}/stock`, `POST /sync`, `GET /moi`,
 `POST /langues`, et depuis le Lot 7 `/joueurs…`, `/lieux…`, `/tournois…`, `/parties…`
-(matrice d'autorisation étendue à leurs 21 opérations). La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
+(matrice d'autorisation étendue à leurs 21 opérations), le Lot 8 ses deux routes de
+versions sous `/decks…`, et le Lot 9 `GET /vdb/decks/{id}` (matrice à 52
+opérations). La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
 (`__Host-gurchon_session` ; `gurchon_session` si `SESSION_COOKIE_SECURE` est coupé),
 déclaré au contrat comme schéma de sécurité `apiKey` en cookie ; le jeton n'apparaît
 jamais dans un corps de réponse. Les contrôles se font dans cet ordre et rendent :
@@ -1965,6 +2009,129 @@ Limites connues à la clôture du Lot 8 :
   hors ligne puis deck retouché, liste figée ; bilan filtré sur un deck, avec sa proie et
   son prédateur).
 
+Tranchées pendant le Lot 9 (P1 à P10 tranchées par l'utilisateur le 2026-11-13 à
+l'étape A0, décisions A1 à A8 de conception ; plan, livraisons par étape et écarts dans
+`docs/lot9-plan-import-vdb.md`, qui fait foi pour le détail ; pas de handoff, écrans
+validés sur captures dans `docs/qa-baselines/lot9-mobile-390x844/` et
+`lot9-desktop-1440x900/`) :
+
+- **Une liste se lit dans le navigateur, un lien de deck par le serveur (P1, P3).** Un
+  texte collé, un fichier `.txt` ou une adresse qui porte la liste se lisent et
+  s'apparient contre le miroir, hors ligne. L'adresse d'un deck VDB
+  (`vdb.im/decks/<id>`) se lit par `GET /vdb/decks/{id}`, en ligne, alors que le
+  navigateur aurait pu appeler VDB lui-même (CORS ouvert) : un seul endroit à adapter
+  si l'API non documentée de VDB change, et le lien gardé est de toute façon une
+  donnée du serveur. Hors ligne, un message remplace l'aperçu et invite à coller le
+  texte exporté. Dans tous les cas, le deck s'écrit par la file, jamais par le
+  serveur.
+- **Formats (P2)** : `TEXT`, `TWD` (avec ou sans indications), `JOL`, `LACKEY`, et
+  toute ligne « quantité, puis nom » ; l'adresse avec la liste et l'adresse d'un deck.
+  Écartés : l'`XLSX` et l'adresse d'Amaranth. Les `tags` de VDB ne sont pas repris.
+- **Appariement (P4, A2)**, en fonctions pures sur une table de cas commune
+  (`frontend/tests/fixtures/vdb-import-cases.json`, prête pour un jumeau Python) :
+  identifiant VEKN, puis `(ADV)`, puis groupe écrit (`(G6)` ou `Clan:6`), puis nom
+  seul. La clé de nom reprend la minification de VDB sur `foldText`, plus ł, ø, œ et
+  les tirets longs ; elle ne fait aucune collision sur le catalogue complet. Un nom
+  seul de l'un des **quinze vampires réimprimés** prend la version que le reste de la
+  crypte rend légale (« groupe déduit de la crypte »), tranchée nom par nom ; à défaut,
+  la version d'origine, comme VDB (« version supposée : G2 ; écrire (G6) pour
+  l'autre »). Énumération plafonnée à 4096 combinaisons. Écart volontaire à VDB : une
+  ligne mal formée finit au rapport avec son numéro au lieu de lever une exception, et
+  l'en-tête d'un export (« 13 players » de `TWD`) n'est jamais lu comme une carte.
+- **Tout entre en proxy (P5, P6).** Le deck importé reçoit `proxy_allowed`, chaque
+  carte une seule ligne tout en proxy, dans la langue choisie à l'aperçu (EN par
+  défaut) et sous sa dernière extension (D2a du Lot 4). Rien n'est pris au stock ni
+  acheté ; la conversion se fait ensuite dans le deckbuilder. Effet de bord voulu : un
+  import ne peut pas être refusé au rejeu pour exemplaires insuffisants. Prendre au
+  stock ou acheter attend les retours après la mise en ligne
+  (`docs/pistes-evolution.md`).
+- **Nom, notes, archétype, statut (P7).** Nom de la liste, modifiable, « Deck
+  importé » à défaut ; archétype choisi parmi les six ; toujours en brouillon ; notes
+  « Auteur : … », la description, puis « Importé de VDB le … » pour un deck non lié,
+  **modifiables dans l'aperçu**, ce qui règle les descriptions longues sans règle de
+  coupe. Le Markdown reste brut. En passant, le détail d'un deck garde les sauts de
+  ligne des notes, et « Modifier le deck » les édite dans une zone de texte.
+- **Le lien gardé et la mise à jour depuis VDB (P7, P8, A6).** Un deck importé par
+  l'adresse d'un deck garde `deck.vdb_deck_id` (R14), et son détail montre le lien.
+  « Mettre à jour depuis VDB », en ligne seulement, montre les changements avant
+  d'écrire : le deck repasse en brouillon ; une carte nouvelle entre en proxy (EN,
+  dernière extension) ; une hausse sur une seule ligne s'y ajoute en proxies ; une
+  baisse sur une seule ligne suit le `−` du deckbuilder (`lowerLine`, exemplaires
+  réels rendus d'abord) ; une carte dont la quantité change alors que le deck la joue
+  sur **plusieurs lignes** est refaite en une ligne tout en proxy, avec un message ;
+  une carte retirée chez VDB est retirée ; une carte inchangée n'est pas touchée ;
+  nom, notes et archétype ne bougent pas. Refusée pour un deck archivé ; les versions
+  jouées ne bougent pas. « Appliquer » recalcule le plan sur le deck relu dans la
+  base. Écart à P7 : si le deck n'autorise plus les proxies et que la mise à jour en
+  écrit, elle lui rend l'autorisation, et l'écran le dit, sans quoi le serveur
+  refuserait les lignes. Coller l'adresse d'un deck VDB déjà lié propose de mettre ce
+  deck à jour au lieu d'en créer un second ; un texte crée toujours un deck neuf, non
+  lié.
+- **Une saisie, une transaction de la file (A4).** Le cœur générique gagne
+  `Outbox.enqueueAll`, qui range plusieurs opérations dans l'ordre en une transaction
+  IndexedDB, avec les contrôles d'`enqueue` étendus au lot (clé ou référence réservée
+  répétée) ; rien n'y nomme un deck, et `enqueue` n'en est plus qu'un cas. L'adaptateur
+  gagne `actions.importDeck` et `actions.refreshDeck`, les retraits passant avant les
+  écritures pour qu'une carte refaite reprenne la clé d'une ligne retirée. Le rejeu
+  reste opération par opération : la transaction protège la saisie, pas l'application
+  côté serveur. Écarté : un `deck.import` atomique côté serveur.
+- **Export au format `TEXT` de VDB (P9, A5)**, depuis un deck (archivé compris) et
+  depuis la liste d'une version jouée, lu dans le miroir, hors ligne : « Copier » et
+  « Télécharger (.txt) » (`Banu Princes#1234.txt`, `… v2.txt`). Mise en page vérifiée
+  à l'octet près contre un export réel de VDB, ordre des types de VDB (différent de
+  celui des tableaux : `VDB_LIBRARY_TYPE_ORDER`), `(G6)` pour la version récente d'un
+  vampire réimprimé, « X, The ». Pas de ligne `Author:` ; une version s'exporte sans
+  les notes. Hors contexte sécurisé, « Copier » sélectionne le texte et le dit.
+- **Pas de handoff (P10)** : composants existants, captures à 390 et 1440px.
+- **Aucune version Dexie** : `DeckRow.vdbDeckId` n'est pas indexé ; une ligne lue
+  avant le lot se lit « non lié » jusqu'au rafraîchissement suivant.
+- **Exports réels en fixtures** : `frontend/tests/fixtures/vdb/` (decks de référence,
+  des cas difficiles, mise à jour avant et après, TWDA, précon), avec nom d'auteur et
+  description, commités par décision de l'utilisateur.
+- **`data-testid`** : référence de clôture `docs/qa-baselines/testids-lot9-cloture.txt`
+  (611 littéraux statiques distincts, 563 à l'ouverture), aucun disparu.
+
+Limites connues à la clôture du Lot 9 :
+
+- **L'API de VDB n'est pas documentée** : elle peut changer ou fermer sans prévenir.
+  Une forme inattendue rend un 502 lisible, et l'import par le texte reste possible.
+  Un appel bloque un fil d'uvicorn au plus 10 s, acceptable pour un usage rare.
+- **Decks tout en proxy** : un deck importé n'est jouable que dans un tournoi qui
+  accepte les proxies tant qu'on n'a pas converti ses lignes à la main.
+- **Le presse-papiers exige HTTPS** : en `http://` sur le réseau local, « Copier » se
+  replie sur la sélection ; la copie réelle ne se vérifiera qu'après le Lot 11.
+- **Lien seulement à l'import** : ni lier après coup un deck créé autrement, ni
+  délier, ni mettre à jour depuis un texte (P8). Deux decks liés au même deck VDB
+  restent possibles (deux appareils hors ligne) ; l'import propose le plus récent.
+- **Vérification sur téléphone du 2026-11-17**, en `http://` sur le réseau local
+  comme aux lots précédents : liste collée en mode avion, deck créé puis synchronisé
+  à la sortie du mode avion ; lien VDB d'un vrai deck lu par le serveur, importé, puis
+  mis à jour après une modification dans VDB ; liste exportée puis recollée dans VDB,
+  qui retrouve la même liste. Conforme. La copie par le presse-papiers reste à
+  vérifier en HTTPS (Lot 11).
+- **Mise à jour sur deux appareils** : la file fait foi, le dernier arrivé gagne ligne
+  par ligne ; une ligne refaite en proxy rend ses exemplaires réels à la collection,
+  ce que l'écran annonce avant d'appliquer.
+- **Quinze vampires tous ensemble** dépassent le plafond de l'énumération et sont tous
+  supposés d'origine, ce que dit le rapport ; cas d'école.
+- **Juste après la première connexion d'un appareil**, la liste et l'aperçu des decks
+  montrent quelques secondes des comptes « 0 / 0 » et « Hors catalogue local », le
+  temps que le catalogue s'écrive (relevé aux captures, antérieur au lot).
+- **e2e de mise à jour** : le deck des cas difficiles est illégal (92 cartes de
+  bibliothèque), si bien que le retour en brouillon n'y est pas visible ; il est
+  couvert par les tests purs.
+- **Tests de référence** : `backend/tests/test_lot9_contract.py`,
+  `test_lot9_vdb_route.py`, `test_vdb_stub_script.py`, section « Lot 9 » de
+  `test_migrations.py` ; côté client `outboxEnqueueAll.test.ts`,
+  `vtesDeckImport.test.ts`, `tests/unit/features/decks/import/` (dont
+  `matchDecklist`, `parseDecklist` sur les dix exports réels, `deckPlans`,
+  `deckRefreshCombinations`, `reprintedVampires`), `export/exportVdbText.test.ts` et
+  `exportRoundTripAllTypes.test.ts`, `tests/unit/ui/deckImport.test.tsx`,
+  `deckRefresh.test.tsx`, `deckExport.test.tsx` ; e2e `lot9-import-vdb` aux deux
+  largeurs contre le vrai back (liste collée hors ligne puis rejouée, lien hors ligne,
+  mise à jour d'un deck lié sur la lecture simulée, export d'une version jouée
+  identique à l'export réel de VDB).
+
 ---
 
 ## 12. Roadmap
@@ -2153,34 +2320,36 @@ Limites connues à la clôture du Lot 8 :
    73 fichiers, lint et `tsc` propres ; 82 tests Playwright (8 `chromium`, 43
    `real-backend`, 3 `desktop`, 28 `desktop-real-backend`) ; références CRAP vides des
    deux côtés ; aucun `data-testid` disparu. Le **Lot 9** vient ensuite.
-12. **Lot 9 — Import de decks depuis VDB** — *prochain lot, plan rédigé et A0 tranché
-   le 2026-11-13, exports réels de VDB attendus avant le code* : importer une decklist
-   venue de VDB (`github.com/smeea/vdb`) et en faire un deck du compte, rattaché au
-   modèle du Lot 4 (lignes carte × langue × extension, discriminant). À ne pas
-   confondre avec l'import du catalogue krcg (§11.1), qui alimente les cartes : ici,
-   ce sont des decks. Une liste (texte collé aux formats `TEXT`, `TWD`, `JOL`,
-   `LACKEY` de VDB, fichier `.txt`, URL qui porte la liste) se lit et s'apparie
-   **dans le navigateur, hors ligne** ; l'URL d'un deck VDB (`vdb.im/decks/<id>`)
-   se lit **par le serveur**, en ligne (route `GET /vdb/decks/{id}`, relais de
-   l'API non documentée de VDB), avec un message hors connexion. Le deck s'écrit
-   toujours par les opérations `/sync` existantes, en une transaction de la file.
-   Pour ce lot, **tout entre en proxy**, en anglais et dernière extension par
-   défaut, en brouillon, archétype choisi à l'import ; prendre au stock ou acheter
-   attendra les retours après la mise en ligne. Un vampire réimprimé sans groupe
-   prend le groupe que le reste de la crypte rend légal, à défaut la version
-   d'origine comme chez VDB, et le rapport le dit. Un deck importé par son URL
-   garde l'identifiant VDB au serveur (`deck.vdb_deck_id`, révision R14) et se
-   **met à jour depuis VDB** : retour en brouillon, cartes nouvelles en proxy, une
-   carte jouée sur plusieurs lignes refaite en une ligne de proxies avec un
-   message. Export d'un deck et d'une version jouée au format `TEXT` de VDB, copié
-   (repli sans HTTPS) ou téléchargé en `.txt`. Décisions P1 à P10, conception et découpage dans
-   `docs/lot9-plan-import-vdb.md`. L'appariement s'écrit sur une table de cas
-   commune, que le lot Inventaires reprendra pour importer l'export de collection
-   de VDB. La synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le
-   2026-11-02, en est sortie le 2026-11-12 : elle attend la mise en production de la
-   v1 (après le Lot 11, ci-dessous).
-13. **Lot 10 — Portage** : packager le socle offline pour barrins-project, côté code —
-  le déploiement de gurchon-hall lui-même est traité au Lot 11.
+12. **Lot 9 — Import de decks depuis VDB** — *livré, clos et vérifié sur téléphone le
+   2026-11-17.* Importer une decklist venue de VDB (`github.com/smeea/vdb`)
+   et en faire un deck du compte, rattaché au modèle du Lot 4 (lignes carte × langue ×
+   extension, discriminant) ; à ne pas confondre avec l'import du catalogue krcg
+   (§11.1). Une liste (texte collé aux formats `TEXT`, `TWD`, `JOL`, `LACKEY`, fichier
+   `.txt`, adresse qui porte la liste) se lit et s'apparie **dans le navigateur, hors
+   ligne** ; l'adresse d'un deck VDB se lit **par le serveur**, en ligne
+   (`GET /vdb/decks/{id}`, relais de l'API non documentée de VDB), avec un message
+   hors connexion. Le deck s'écrit par les opérations `/sync` existantes, en une
+   transaction de la file (`Outbox.enqueueAll`). **Tout entre en proxy**, en anglais
+   et dernière extension par défaut, en brouillon, archétype choisi à l'import ; un
+   vampire réimprimé sans groupe prend le groupe que la crypte rend légal, à défaut la
+   version d'origine, et le rapport le dit. Un deck importé par son adresse garde
+   l'identifiant VDB (`deck.vdb_deck_id`) et se **met à jour depuis VDB**. Export d'un
+   deck et d'une version jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt`.
+   Une révision, `5f2b8e9d0c41` (R14) : 28 tables, quatorze révisions. Contrat à 52
+   opérations sur 32 chemins, aucun type `/sync` nouveau, aucune version Dexie. Plan,
+   livraisons par étape (A0 à F) et écarts dans `docs/lot9-plan-import-vdb.md`,
+   décisions et limites au §11. 2848 tests backend (2 `xfail` assumés, `ruff check`
+   propre) ; 1569 tests vitest sur 89 fichiers, lint et `tsc` propres ; 90 tests
+   Playwright (8 `chromium`, 47 `real-backend`, 3 `desktop`, 32
+   `desktop-real-backend`) ; références CRAP vides des deux côtés ; aucun
+   `data-testid` disparu. L'appariement s'écrit sur une table de cas commune, que le
+   lot Inventaires reprendra pour importer l'export de collection de VDB. La
+   synchronisation d'un tournoi depuis Archon, ajoutée à ce lot le 2026-11-02, en est
+   sortie le 2026-11-12 : elle attend la mise en production de la v1 (après le
+   Lot 11, ci-dessous). Le **Lot 10** vient ensuite.
+13. **Lot 10 — Portage** — *prochain lot* : packager le socle offline pour
+  barrins-project, côté code — le déploiement de gurchon-hall lui-même est traité au
+  Lot 11.
 14. **Lot 11 — Playbook Ansible de déploiement** : écrire un playbook qui réutilise
     l'infrastructure de déploiement déjà en place sur barrins-project, où il sera
     hébergé temporairement, plutôt que de monter un déploiement propre à gurchon-hall.

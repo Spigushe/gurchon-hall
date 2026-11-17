@@ -1,8 +1,9 @@
 # Lot 9 — Import de decks depuis VDB : plan d'implémentation
 
 Statut : **A0 tranché le 2026-11-13 (P1 à P10) ; A1 livrée le 2026-11-13 ;
-B1, C1, D1, D2 et D4 livrées le 2026-11-14** (cf. « Livré à A1 » à « Livré à
-D4 » après le découpage). Rédigé sur
+B1, C1, D1, D2, D4 et D3 livrées le 2026-11-14 ; E et F le 2026-11-17, lot
+clos et vérifié sur téléphone** (cf.
+« Livré à A1 » à « Livré à F » après le découpage). Rédigé sur
 `main` à `745c0a5` (Lot 8 clos), proposé puis tranché le même jour. Les
 exports réels de VDB sont versés dans `frontend/tests/fixtures/vdb/` le même
 jour (liste en fin de découpage). Les décisions
@@ -550,7 +551,7 @@ En mobile puis en bureau :
 | D3 | frontend-react | mise à jour depuis VDB, mobile et bureau — **fait le 2026-11-14** (cf. « Livré à D3 ») | D2 |
 | D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version — **fait le 2026-11-14** (cf. « Livré à D4 ») | D1 |
 | E | qa-tests | tests, e2e aux deux largeurs, CRAP, recensement des `data-testid` — **fait le 2026-11-17** (cf. « Livré à E ») | D2, D3, D4 |
-| F | orchestrateur | vérification sur téléphone, CLAUDE.md, pistes | E |
+| F | orchestrateur | vérification sur téléphone, CLAUDE.md, pistes — **fait le 2026-11-17** (cf. « Livré à F ») | E |
 
 Exports à fournir avant D1, depuis le compte VDB de l'utilisateur, copiés
 tels quels (sans retouche, en UTF-8), un fichier par export, versés dans
@@ -1171,6 +1172,28 @@ complètes. Aucun code applicatif touché, aucun défaut trouvé.
     Nouvelle référence de clôture `docs/qa-baselines/testids-lot9-cloture.txt` :
     611 littéraux statiques distincts (563 à la clôture du Lot 8, +48), 709 lignes
     avec les familles `prop` et `dynamic` (657 avant).
+
+### Livré à F (2026-11-17)
+
+- **Mise en service** : rien à faire. `backend/vtes.db` est à la tête
+  (`5f2b8e9d0c41`, R14), relevé en lecture seule le 2026-11-17 : 4212 cartes,
+  deux comptes, trois decks. `backend/.env` ne pose pas `VDB_STUB_DIR` : le back
+  lancé par `run.ps1 preview` lit le vrai vdb.im.
+- **Vérification sur téléphone** par l'utilisateur le 2026-11-17, sur le build
+  de `scripts\run.ps1 preview` en Wifi (`http://` sur l'adresse du réseau
+  local), selon le critère de fin de lot : liste collée en mode avion, deck créé
+  puis synchronisé à la sortie du mode avion ; lien VDB d'un vrai deck lu par le
+  serveur (vdb.im, sans lecture simulée), importé, puis mis à jour après une
+  modification dans VDB ; liste exportée puis recollée dans VDB, qui retrouve la
+  même liste. Conforme, aucun défaut relevé. La copie par le presse-papiers ne
+  se vérifie pas sans HTTPS : elle reste à voir au Lot 11.
+- **Documentation** : CLAUDE.md (en-tête et commandes, §5, §6, §7, §11, §12) ;
+  `docs/pistes-evolution.md` : l'export texte livré devient une piste pour les
+  autres formats (`TWD`, `JOL`, `LACKEY`), « mettre à jour depuis une liste
+  texte » ajoutée (P8), stock ou achat à l'import et lier ou délier gardés tels
+  quels, et les comptes « 0 / 0 » juste après la première connexion versés aux
+  dettes connues.
+- **Vérifications** : aucun code touché depuis E ; suites non relancées.
 
 ## Tests attendus (E)
 
