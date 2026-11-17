@@ -549,7 +549,7 @@ En mobile puis en bureau :
 | D2 | frontend-react | écrans d'import (texte, fichier, URL avec la liste, URL d'un deck), mobile et bureau ; pertinence des notes sur les exports réels — **fait le 2026-11-14** (cf. « Livré à D2 ») | B1, C1, D1 |
 | D3 | frontend-react | mise à jour depuis VDB, mobile et bureau — **fait le 2026-11-14** (cf. « Livré à D3 ») | D2 |
 | D4 | frontend-react | export (A5) et sa feuille, Copier et Télécharger, depuis un deck et depuis une version — **fait le 2026-11-14** (cf. « Livré à D4 ») | D1 |
-| E | qa-tests | tests, e2e aux deux largeurs, CRAP, recensement des `data-testid` | D2, D3, D4 |
+| E | qa-tests | tests, e2e aux deux largeurs, CRAP, recensement des `data-testid` — **fait le 2026-11-17** (cf. « Livré à E ») | D2, D3, D4 |
 | F | orchestrateur | vérification sur téléphone, CLAUDE.md, pistes | E |
 
 Exports à fournir avant D1, depuis le compte VDB de l'utilisateur, copiés
@@ -1061,6 +1061,116 @@ lint propres, aucune fonction au-dessus de 30 ni régression CRAP, aucun
 `data-testid` disparu par rapport à la référence de clôture du Lot 8. Ni
 e2e ni captures à cette étape : ils relèvent de E et de la vérification à
 390 et 1440px.
+
+### Livré à E (2026-11-17)
+
+Revue des trous de couverture, e2e contre le vrai back aux deux largeurs, passes
+complètes. Aucun code applicatif touché, aucun défaut trouvé.
+
+- **Revue, puce par puce.** Back : rien à ajouter. La route (200, 404, 502 sur
+  quatre pannes de transport dont le délai, 24 réponses mal formées dont les
+  quantités hors bornes, statuts de VDB, 429 et l'ordre des contrôles, 422, 401),
+  `vdb_deck_id` en ligne et par `/sync`, le rejeu d'une `deck.create` d'avant le
+  lot, R14 en montée, descente et descente refusée, la matrice et le contrat à
+  52 opérations étaient déjà couverts par A1 et B1. Couche offline : `enqueueAll`,
+  `importDeck` et `refreshDeck` couverts à C1. Trois trous côté fonctions pures,
+  comblés ci-dessous.
+- **Aller-retour sur tous les types**
+  (`tests/unit/features/decks/export/exportRoundTripAllTypes.test.ts`, 6 tests).
+  Celui de D4 passait sans détails de carte : tout partait sous « Unknown », donc
+  il ne prouvait rien sur l'ordre ni sur les en-têtes de type. Celui-ci exporte,
+  avec les faits de carte, une liste de 15 vampires (deux versions de Theo Bell,
+  un *advanced*, un groupe « Any », un *imbued*, un titre) et de 20 cartes de
+  bibliothèque qui couvrent les treize types de `VDB_LIBRARY_TYPE_ORDER` et cinq
+  combinaisons, puis relit et réapparie : même liste, aucune ligne illisible, non
+  reconnue ni supposée, en-têtes dans l'ordre de VDB (combinaison au rang de son
+  premier type), `Master (5; 3 trifle)`, « X, The », lettres spéciales, et un
+  second tour qui rend le même texte.
+- **Plan de mise à jour, les règles combinées**
+  (`tests/unit/features/decks/import/deckRefreshCombinations.test.ts`, 9 tests).
+  `deckPlans.test.ts` avait un cas par règle et la mise à jour réelle, qui n'a
+  pas de carte refaite. Ici un deck où jouent en même temps une carte ajoutée,
+  augmentée, diminuée, refaite, retirée et deux inchangées (dont une sur deux
+  lignes) : ordre des changements, retraits avant écritures, aucune écriture des
+  inchangées, message du conflit, plan appliqué puis relu vide, brouillon et
+  autorisation de proxy rendue (avec et sans proxy écrit), deux conflits à la
+  fois, conflit dont le total ne bouge pas, liste de VDB vide.
+- **Déduction sur les quinze vampires** (`reprintedVampires.test.ts`, 124 tests,
+  relevé `tests/fixtures/vdb/reprinted-vampires.json`). Les quinze noms de crypte
+  non *advanced* à deux versions ont été relevés dans le catalogue de
+  développement le 2026-11-17 (copie lue en lecture seule, base non modifiée).
+  Pour chacun : aucune crypte légale ne réunit ses deux versions ; un groupe
+  écrit, entre parenthèses ou en fin de ligne, désigne exactement la sienne ;
+  avec une carte de chacun des sept groupes dans la crypte, la version est
+  déduite quand une seule tient et supposée d'origine sinon, avec l'autre
+  version au rapport ; seul, il est supposé d'origine. Les quinze ensemble
+  dépassent le plafond de 4096 combinaisons et sont tous supposés d'origine, ce
+  que dit le rapport ; douze restent énumérés.
+- **e2e contre le vrai back**, `tests/e2e-real/lot9-import-vdb.spec.ts` (390 px) et
+  `tests/e2e-desktop-real/lot9-import-vdb.spec.ts` (1440 px), corps partagé dans
+  `tests/e2e-real/support/lot9.ts`, quatre scénarios par largeur :
+  1. `ref-text.txt` collé **hors ligne** : reconnu (12 cartes de crypte, 80 de
+     bibliothèque), aperçu et effet (« 92 cartes en proxy »), deck créé ; 31
+     opérations en file (un deck, trente lignes) ; rechargement hors ligne, le
+     deck et la file sont là ; retour du réseau, tout part sans refus ; au
+     serveur un brouillon non lié, 30 lignes toutes en proxy (92 exemplaires),
+     aucune entrée de stock, légal (crypte 12, bibliothèque 80, groupes G5 et
+     G6) ; la légalité se lit à l'écran (pastille au bureau, panneau au mobile) ;
+  2. lien `vdb.im/decks/4fc0ee5e9` collé hors ligne : message affiché, « Lire
+     chez VDB » grisé, puis permis au retour du réseau sans rien refaire ;
+  3. mise à jour d'un deck lié, lecture de VDB simulée côté serveur : le deck
+     `31203cb9e` importé dans l'état `avant` (lien gardé, 35 lignes), une
+     seconde ligne de Pursuit (FR) posée au serveur, le stub basculé à `apres`,
+     page rechargée, « Mettre à jour depuis VDB » : cinq changements (Theo Bell
+     G6 et Sacré-Cœur ajoutées, Torn Signpost retirée, Blur 2 → 3, Pursuit
+     refaite en « 2 lignes remplacées par 4 proxies »), appliqués ; au serveur
+     36 lignes, 103 exemplaires comme l'état `apres` de VDB, Pursuit en une
+     ligne EN de 4 proxies ;
+  4. version jouée exportée : le deck de référence monté par l'API, joué une
+     fois, `#/decks/<id>/versions/1`, « Exporter », « Télécharger » : fichier
+     `Guns and shit (mostly guns)#<discriminant> v1.txt`, identique au texte de
+     la feuille, première ligne « Deck Name: … v1 » et, de `Crypt (` à la fin,
+     **le même texte que l'export réel `ref-text.txt` de VDB**.
+- **Choix de support.** `backend.ts` pose `VDB_STUB_DIR` (un dossier jetable à
+  côté de la base de chaque test, rempli par `scripts/vdb_stub.py` avant le
+  démarrage du back, supprimé à l'arrêt) et expose
+  `api.setVdbState("avant" | "apres")` ; aucun appel ne part vers vdb.im. Le
+  catalogue de la base modèle (dix cartes) ne connaît pas les cartes des
+  exports ; l'y ajouter aurait changé le décompte attendu par les autres
+  scénarios (`expectCatalogDownloaded`, recherches de Chercher).
+  `api.importVdbCatalog()` rejoue donc l'import du catalogue sur la base du
+  test, avec les 65 cartes de `tests/fixtures/vdb/e2e-krcg-extra.json`, avant
+  d'ouvrir l'application (75 cartes). Ce fichier a la forme de krcg et se déduit
+  des exports réels : types de bibliothèque lus dans les sections de
+  `ref-text.txt` et `difficile-text.txt`, crypte (clan, groupe, capacité,
+  disciplines, titre) lue dans leurs lignes de crypte, identifiants lus dans
+  `catalog-extract.json` ; fiches simplifiées (extension FN, texte vide, mot
+  « trifle » dans le texte de Villein et Vessel) ; Theo Bell G6, absent des
+  exports texte, a une fiche de fortune. Généré une fois par un script jetable,
+  non versionné.
+- **Limite des e2e de mise à jour.** Le deck de `31203cb9e` a 92 cartes de
+  bibliothèque pour un maximum de 90 : il est illégal et reste en brouillon, donc
+  le passage en brouillon par la mise à jour (règle de P7) n'est pas visible en
+  e2e ; il est couvert par les tests purs. Le message d'une carte refaite ne cite
+  les exemplaires réels rendus que si la ligne en portait : ici tout est en proxy
+  (comportement voulu, test pur de D1).
+- **Résultats.**
+  - Back : `ruff check` propre ; **2848 tests verts et les 2 `xfail` connus**,
+    sous couverture, en 14 min 47 s ; CRAP : 387 fonctions, aucune au-dessus de
+    30, pire 21,0 (`admissible_final_decks`), aucune régression, référence vide.
+  - Front : `npm run lint` et `tsc` propres ; **1569 tests vitest verts sur 89
+    fichiers** sous couverture, avec `--maxWorkers=1`, en 9 min 10 s (+139 tests
+    et +3 fichiers par rapport à D3) ; CRAP : 3107 fonctions, aucune au-dessus de
+    30, pire 30,0 (quatre fonctions de complexité 5 sans couverture, au seuil sans
+    le dépasser, déjà là avant l'étape), aucune régression, référence vide.
+  - Playwright : **90 tests verts** en 17 min 30 s, soit 82 + 8 : `chromium` 8,
+    `real-backend` 47 (43 + 4), `desktop` 3, `desktop-real-backend` 32 (28 + 4).
+    Décompte vérifié sur la sortie. Aucun des deux échecs « Reconnexion
+    nécessaire » connus du projet `desktop` ne s'est produit.
+  - `data-testid` : aucun disparu par rapport à `testids-lot8-cloture.txt`.
+    Nouvelle référence de clôture `docs/qa-baselines/testids-lot9-cloture.txt` :
+    611 littéraux statiques distincts (563 à la clôture du Lot 8, +48), 709 lignes
+    avec les familles `prop` et `dynamic` (657 avant).
 
 ## Tests attendus (E)
 
