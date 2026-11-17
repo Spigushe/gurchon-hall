@@ -39,6 +39,11 @@ const clanId = (name: string) => CARDS.find((card) => card.clan?.name === name)!
  */
 function playedServer(): FakeServer {
   const server = createFakeServer();
+  // Le miroir est vide au premier rendu : `CatalogProvider` relit alors le
+  // catalogue du serveur, et cette lecture, si elle finit après le `bulkPut`
+  // d'`openPlayed`, remplacerait les cartes du test par celles du catalogue par
+  // défaut (Brujah et Ministry y manquent, d'où un échec intermittent en CI).
+  server.state.catalog = CARDS;
   server.state.decks.push(
     { id: 1, name: "Banu Princes", discriminator: "1234", client_ref: null, proxy_allowed: false, archived_at: null },
     { id: 2, name: "Toreador Mass Vote", discriminator: "0002", client_ref: null, proxy_allowed: true, archived_at: null },
