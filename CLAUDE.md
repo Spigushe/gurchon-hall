@@ -81,8 +81,8 @@ jouée au format `TEXT` de VDB, copié ou téléchargé en `.txt` ; la file rang
 saisie de plusieurs opérations en une transaction (`Outbox.enqueueAll`) (plan dans
 `docs/lot9-plan-import-vdb.md`, décisions au §11). Le Lot 10 est devenu facultatif.
 Lot 11, **appliqué le 2026-11-17** : playbook Ansible `ops/gurchon_hall.yml`, qui
-réutilise les rôles et l'inventaire de barrins-project pour mettre gurchon-hall en
-ligne sur son VPS (`gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`), avec
+met gurchon-hall en ligne sur le VPS qu'il partage avec barrins-project, avec des
+rôles copiés de ce dépôt dans `ops/roles/` depuis le 2026-11-17 (`gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`), avec
 sauvegarde avant chaque déploiement et chaque nuit ; la release v1.0.0 y tourne en
 production (guide dans `docs/deploiement.md`, décisions au §11). Le modèle compte **28 tables** et
 quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
@@ -283,8 +283,8 @@ code offline est packagé de façon réutilisable pour Barrin.
 │                               et note de mise en service (deploiement.md)
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
-├─ ops/                       ← playbook Ansible de mise en ligne (Lot 11), sur les
-│                               rôles de barrins-project/ops/my-server
+├─ ops/                       ← playbook Ansible de mise en ligne (Lot 11), autonome :
+│                               rôles, inventaire, jeton GitHub (ignoré par git)
 ├─ .github/                   ← workflow CI + Dependabot
 └─ .claude/
    ├─ agents/                 ← 1 fichier .md par agent (voir §8)
@@ -2149,6 +2149,12 @@ Tranchées pendant le Lot 11 (2026-11-17 ; guide complet dans `docs/deploiement.
   `ansible.cfg` pointe vers `../../barrins-project/ops/my-server` pour les rôles,
   l'inventaire et le coffre, et le jeton GitHub est celui de Barrin. Aucun fichier
   de barrins-project n'est modifié ; les deux dépôts doivent être côte à côte.
+  *Remplacé le 2026-11-17, après la mise en ligne* (O1 de
+  `docs/roadmap-v2-proposition.md`) : les cinq rôles utilisés sont copiés tels
+  quels dans `ops/roles/` (commit `3c5b48cd` de barrins-project), avec
+  l'inventaire (`ops/hosts.ini`), la collection requise (`ops/requirements.yml`)
+  et un jeton propre (`ops/secrets/github/token.txt`, ignoré par git). Aucun
+  coffre : aucun rôle n'en lit. Les deux projets ne partagent plus que le VPS.
 - **Rôles de Barrin repris tels quels**, plus un rôle local,
   `gurchon_sqlite_backup` (script, service et minuteur systemd), Barrin ne
   sauvegardant que du PostgreSQL. Deux domaines, `gurchon.spigushe.com` et
@@ -2417,8 +2423,9 @@ Limites connues après la première mise en ligne :
 13. **Lot 10 — Portage** — *facultatif depuis le 2026-11-17* : packager le socle
   offline pour barrins-project, côté code. Le Lot 11 n'en dépend plus.
 14. **Lot 11 — Playbook Ansible de déploiement** — *livré, appliqué le 2026-11-17 :
-    v1.0.0 en ligne, PWA vérifiée sur téléphone en HTTPS.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS de
-    barrins-project avec les rôles de Barrin (HTTPS obligatoire pour la PWA, §2) :
+    v1.0.0 en ligne, PWA vérifiée sur téléphone en HTTPS.* `ops/gurchon_hall.yml` met gurchon-hall en ligne sur le VPS qu'il
+    partage avec barrins-project (HTTPS obligatoire pour la PWA, §2), avec des rôles
+    copiés de ce dépôt dans `ops/roles/` depuis le 2026-11-17 :
     PWA sur `gurchon.spigushe.com`, API sur `api-gurchon.spigushe.com`, staging en
     `-staging`, production sur la dernière release GitHub, migration et import du
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque

@@ -6,8 +6,7 @@
   vars:
     username: spigushe
     deploy_env: production
-    barrin_ops_dir: "{{ playbook_dir }}/../../barrins-project/ops/my-server"
-    github_token_file: "{{ barrin_ops_dir }}/secrets/github/token.txt"
+    github_token_file: "{{ playbook_dir }}/secrets/github/token.txt"
     letsencrypt_contact: "{{ lookup('ansible.builtin.env', 'LETSENCRYPT_CONTACT') }}"
 
     gurchon_repo: Spigushe/gurchon-hall

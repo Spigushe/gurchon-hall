@@ -1,0 +1,16 @@
+[Unit]
+Description={{ fastapi_backend_config.app_name }} service
+After=network-online.target
+
+[Service]
+Type=simple
+User={{ username }}
+Restart=always
+WorkingDirectory={{ fastapi_backend_config.work_dir }}
+{% for key, value in fastapi_backend_config.env_vars.items() %}
+Environment={{ key }}={{ value }}
+{% endfor %}
+ExecStart=/bin/bash -c 'source .venv/bin/activate && uvicorn {{ fastapi_backend_config.entrypoint }} --host 127.0.0.1 --port {{ fastapi_backend_config.port }}'
+
+[Install]
+WantedBy=multi-user.target

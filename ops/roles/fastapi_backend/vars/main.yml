@@ -1,0 +1,18 @@
+---
+fastapi_backend_config:
+  repo: "{{ fastapi_backend_repo }}"
+  repo_subdir: "{{ fastapi_backend_repo_subdir | default('') }}"
+  git_branch: "{{ fastapi_backend_git_branch | default('main') }}"
+  use_release_tag: "{{ fastapi_backend_use_release_tag | default(false) }}"
+  release_tag: "{{ fastapi_backend_release_tag | default('') }}"
+  server_name: "{{ fastapi_backend_server_name }}"
+  app_name: "{{ fastapi_backend_app_name | default(fastapi_backend_server_name) }}"
+  app_root: "/home/{{ username }}/projects/{{ fastapi_backend_server_name }}"
+  work_dir: >-
+    {{ '/home/' + username + '/projects/' + fastapi_backend_server_name
+    + ('/' + fastapi_backend_repo_subdir if (fastapi_backend_repo_subdir | default('')) | length > 0 else '') }}
+  port: "{{ fastapi_backend_port }}"
+  entrypoint: "{{ fastapi_backend_entrypoint }}"
+  env_vars: "{{ fastapi_backend_env | default({}) }}"
+  env_file: "{{ fastapi_backend_env_file | default('') }}"
+  github_token: "{{ fastapi_backend_github_token | default(github_token) }}"

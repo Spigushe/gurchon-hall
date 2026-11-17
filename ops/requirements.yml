@@ -1,0 +1,5 @@
+---
+# Collection appelée par le rôle react_frontend (community.general.git_config).
+collections:
+  - name: community.general
+    version: ">=8.1.0"

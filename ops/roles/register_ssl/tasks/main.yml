@@ -1,0 +1,27 @@
+---
+- name: Template shared TLS parameters snippet
+  ansible.builtin.template:
+    src: ssl-params.conf.j2
+    dest: /etc/nginx/snippets/ssl-params.conf
+    mode: "0644"
+
+- name: Add HTTP site configuration
+  ansible.builtin.template:
+    src: http.conf.j2
+    dest: "/etc/nginx/sites-enabled/{{ register_ssl_config.server_name }}.http.conf"
+    mode: "0644"
+
+- name: Reload nginx
+  tags: nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded
+
+- name: Let certbot generate a certificate and serve it
+  ansible.builtin.command: >-
+    certbot certonly --webroot --email {{ register_ssl_config.contact_name }}
+    --agree-tos --webroot-path=/usr/share/nginx/html
+    -d {{ register_ssl_config.server_name }}
+  args:
+    creates: "/etc/letsencrypt/live/{{ register_ssl_config.server_name }}/fullchain.pem"
+  changed_when: true

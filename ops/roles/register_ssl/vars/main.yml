@@ -1,0 +1,5 @@
+---
+register_ssl_config:
+  server_name: "{{ register_ssl_server_name }}"
+  contact_name: "{{ register_ssl_contact_name }}"
+  site_root: "/home/{{ username }}/projects/{{ register_ssl_server_name }}"

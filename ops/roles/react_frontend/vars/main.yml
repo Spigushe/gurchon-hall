@@ -1,0 +1,19 @@
+---
+react_frontend_config:
+  repo: "{{ react_frontend_repo }}"
+  repo_subdir: "{{ react_frontend_repo_subdir | default('') }}"
+  git_branch: "{{ react_frontend_git_branch | default('main') }}"
+  use_release_tag: "{{ react_frontend_use_release_tag | default(false) }}"
+  release_tag: "{{ react_frontend_release_tag | default('') }}"
+  server_name: "{{ react_frontend_server_name }}"
+  app_name: "{{ react_frontend_app_name | default(react_frontend_server_name) }}"
+  site_root: "/home/{{ username }}/projects/{{ react_frontend_server_name }}"
+  build_root: >-
+    {{ '/home/' + username + '/projects/' + react_frontend_server_name
+    + ('/' + react_frontend_repo_subdir if (react_frontend_repo_subdir | default('')) | length > 0 else '') }}
+  node_version: "{{ react_frontend_node_version | default('22') }}"
+  package_manager: "{{ react_frontend_package_manager | default('npm') }}"
+  build_command: "{{ react_frontend_build_command | default('npm run build') }}"
+  build_dir: "{{ react_frontend_build_dir | default('dist') }}"
+  build_env: "{{ react_frontend_build_env | default({}) }}"
+  github_token: "{{ react_frontend_github_token | default(github_token) }}"

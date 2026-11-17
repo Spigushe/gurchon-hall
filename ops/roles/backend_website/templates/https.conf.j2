@@ -1,0 +1,46 @@
+{% if backend_website_config.alternate_server_name %}
+server {
+  listen 443 ssl;
+  server_name {{ backend_website_config.alternate_server_name }};
+  ssl_certificate         /etc/letsencrypt/live/{{ backend_website_config.alternate_server_name }}/fullchain.pem;
+  ssl_certificate_key     /etc/letsencrypt/live/{{ backend_website_config.alternate_server_name }}/privkey.pem;
+  ssl_trusted_certificate /etc/letsencrypt/live/{{ backend_website_config.alternate_server_name }}/fullchain.pem;
+  return 301 https://{{ backend_website_config.server_name }}$request_uri;
+}
+{% endif %}
+
+server {
+  listen  443 ssl;
+  server_name {{ backend_website_config.server_name }};
+
+  ssl_certificate         /etc/letsencrypt/live/{{ backend_website_config.server_name }}/fullchain.pem;
+  ssl_certificate_key     /etc/letsencrypt/live/{{ backend_website_config.server_name }}/privkey.pem;
+  ssl_trusted_certificate /etc/letsencrypt/live/{{ backend_website_config.server_name }}/fullchain.pem;
+
+  include snippets/ssl-params.conf;
+
+  access_log syslog:server=unix:/dev/log,nohostname;
+  error_log syslog:server=unix:/dev/log,nohostname;
+
+  root {{ backend_website_config.site_root }}/dist;
+  charset utf-8;
+  client_max_body_size 10M;
+
+{% for p in backend_website_config.rate_limited_paths %}
+  location {{ p.path }} {
+    limit_req zone={{ backend_website_config.zone_prefix }}_{{ p.zone }} burst={{ p.burst }} nodelay;
+    limit_req_status 429;
+    try_files $uri @backend;
+  }
+{% endfor %}
+  location / { try_files $uri @backend; }
+  location @backend {
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Forwarded-User $remote_user;
+    proxy_redirect off;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Host $http_host;
+    proxy_pass http://127.0.0.1:{{ backend_website_config.port }};
+  }
+}

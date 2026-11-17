@@ -1,0 +1,14 @@
+---
+backend_website_config:
+  server_name: "{{ backend_website_server_name }}"
+  alternate_server_name: "{{ backend_website_alternate_server_name | default(False) }}"
+  port: "{{ backend_website_port }}"
+  site_root: "/home/{{ username }}/projects/{{ backend_website_server_name }}"
+  is_websocket: "{{ backend_website_is_websocket | default(False) }}"
+  rate_limited_paths: "{{ backend_website_rate_limited_paths | default([]) }}"
+  # limit_req_zone names live in nginx's shared `http` context, so a bare
+  # per-path zone name (e.g. `tolaria_news`) collides the moment a second
+  # vhost or a side-by-side environment (api. vs api-staging.) defines the
+  # same one. Prefix every zone with a slug of this vhost's server_name so
+  # each `<server_name>-ratelimit.conf` owns a private namespace.
+  zone_prefix: "{{ backend_website_server_name | regex_replace('[^a-zA-Z0-9]', '_') }}"

@@ -57,3 +57,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+# --- Secrets du playbook (ops/) : seuls les modèles *.example sont versionnés ---
+ops/secrets/**
+!ops/secrets/*/
+!ops/secrets/**/*.example

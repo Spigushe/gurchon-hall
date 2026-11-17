@@ -1,12 +1,16 @@
 # Mise en service
 
-gurchon-hall est hébergé, pour l'instant, sur le VPS de barrins-project. Le
-déploiement passe par un playbook Ansible rangé dans ce dépôt
-(`ops/gurchon_hall.yml`) qui assemble les rôles de Barrin sans les modifier :
-`github_token`, `register_ssl`, `fastapi_backend`, `backend_website`,
-`react_frontend`. Seul un petit rôle local s'y ajoute, la sauvegarde de la base
-SQLite (`ops/roles/gurchon_sqlite_backup`), Barrin ne sauvegardant que du
-PostgreSQL.
+gurchon-hall est hébergé sur le même VPS que barrins-project, mais son
+déploiement ne dépend plus de ce dépôt depuis le 2026-11-17 (O1 de
+`docs/roadmap-v2-proposition.md`). Le playbook Ansible `ops/gurchon_hall.yml`
+assemble des rôles rangés dans `ops/roles/` : `github_token`, `register_ssl`,
+`fastapi_backend`, `backend_website` et `react_frontend`, copiés de
+barrins-project (`ops/my-server/roles/`, commit `3c5b48cd`) sans modification,
+et `gurchon_sqlite_backup`, propre à gurchon, Barrin ne sauvegardant que du
+PostgreSQL. Les rôles copiés vivent désormais leur vie ici : une évolution chez
+Barrin ne se reporte pas d'elle-même, et une correction faite ici ne remonte
+pas là-bas. L'inventaire (`ops/hosts.ini`) est le seul fichier partagé dans
+les faits, puisqu'il décrit le même serveur.
 
 ## Ce qui tourne où
 
@@ -55,15 +59,15 @@ une IP glissée par le client dans l'en-tête est ignorée.
    `gurchon.spigushe.com` et `api-gurchon.spigushe.com`, plus les deux
    `-staging` si on veut un staging. certbot les vérifie par HTTP au premier
    passage.
-2. **Ansible.** Celui de WSL suffit (ansible-core 2.20, avec les collections
-   de `barrins-project/ops/my-server/requirements.yml`). Les deux dépôts
-   doivent être côte à côte, `ops/ansible.cfg` allant chercher les rôles,
-   l'inventaire et le fichier de mot de passe du coffre dans
-   `../../barrins-project/ops/my-server`.
-3. **Jeton GitHub.** Celui de Barrin
-   (`barrins-project/ops/my-server/secrets/github/token.txt`). Un jeton
-   classique de portée `repo` lit tous les dépôts du compte ; un jeton à
-   grain fin doit nommer `Spigushe/gurchon-hall` en plus de barrins-project.
+2. **Ansible.** Celui de WSL suffit (ansible-core 2.20), avec la collection
+   de `ops/requirements.yml` :
+   `ansible-galaxy collection install -r requirements.yml`. Aucun coffre
+   Ansible : aucun des rôles ne lit de variable chiffrée.
+3. **Jeton GitHub**, dans `ops/secrets/github/token.txt` (ignoré par git, mode
+   `600`), sur le modèle de `token.txt.example`. Un jeton à grain fin limité à
+   `Spigushe/gurchon-hall`, en lecture du contenu, suffit ; on peut aussi
+   recopier celui de Barrin
+   (`barrins-project/ops/my-server/secrets/github/token.txt`).
 4. **Une release.** La production déploie la dernière release GitHub du dépôt,
    comme chez Barrin. Sans release, le rôle s'arrête avec un message. La
    première sera la v1 : la publier depuis le commit à mettre en ligne.
@@ -100,9 +104,10 @@ L'adresse de contact n'est demandée que s'il manque un certificat ; le
 playbook s'arrête avant certbot sinon. Elle ne figure dans aucun fichier du
 dépôt.
 
-`--tags deploy`, que le README de Barrin propose pour un redéploiement rapide,
-ne marche pas ici : dans les rôles de Barrin, la tâche qui choisit la release
-ou la branche n'a pas ce tag, si bien que le clone partirait sans référence.
+`--tags deploy`, que les README des rôles proposent pour un redéploiement
+rapide, ne marche pas ici : dans `fastapi_backend` et `react_frontend`, la
+tâche qui choisit la release ou la branche n'a pas ce tag, si bien que le
+clone partirait sans référence.
 `--tags backend` et `--tags frontend` font le même travail sans ce piège.
 
 ## Ce que fait un passage

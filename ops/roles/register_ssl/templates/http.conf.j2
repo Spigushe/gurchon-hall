@@ -1,0 +1,16 @@
+server {
+  listen 80;
+  server_name {{ register_ssl_config.server_name }};
+
+  access_log syslog:server=unix:/dev/log,nohostname;
+  error_log syslog:server=unix:/dev/log,nohostname;
+
+  root /usr/share/nginx/html;
+  index index.html;
+  location ~ /.well-known {
+    allow all;
+  }
+  location / {
+    return 301 https://$host$request_uri;
+  }
+}

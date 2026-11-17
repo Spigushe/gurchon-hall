@@ -1,0 +1,25 @@
+---
+- name: Add rate-limit zone definitions (http context, conf.d)
+  ansible.builtin.template:
+    src: ratelimit.conf.j2
+    dest: "/etc/nginx/conf.d/{{ backend_website_config.server_name }}-ratelimit.conf"
+    mode: "0644"
+  when: backend_website_config.rate_limited_paths | length > 0
+
+- name: Remove rate-limit zone definitions when none are configured
+  ansible.builtin.file:
+    path: "/etc/nginx/conf.d/{{ backend_website_config.server_name }}-ratelimit.conf"
+    state: absent
+  when: backend_website_config.rate_limited_paths | length == 0
+
+- name: Add HTTPS site configuration
+  ansible.builtin.template:
+    src: https.conf.j2
+    dest: "/etc/nginx/sites-enabled/{{ backend_website_config.server_name }}.https.conf"
+    mode: "0644"
+
+- name: Reload nginx
+  tags: [deploy]
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

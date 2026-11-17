@@ -1,0 +1,159 @@
+---
+# Everything below runs as root (the play's default become user). This keeps
+# every redeploy idempotent: ownership is only ever handed to www-data as the
+# very last step, so root can always re-clone/rebuild on the next run even
+# though the previous run left the folder owned by www-data (nginx needs
+# www-data ownership to traverse into /home/{{username}}/... and serve dist/).
+
+- name: Ensure site root folder is present
+  ansible.builtin.file:
+    state: directory
+    path: "{{ react_frontend_config.site_root }}"
+    mode: "0755"
+
+- name: Resolve the latest release tag
+  when: react_frontend_config.use_release_tag and react_frontend_config.release_tag | length == 0
+  delegate_to: localhost
+  become: false
+  no_log: true
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ react_frontend_config.repo }}/releases/latest"
+    headers:
+      Authorization: "token {{ react_frontend_config.github_token }}"
+      Accept: "application/vnd.github+json"
+    status_code: [200, 404]
+  register: react_frontend_latest_release
+
+- name: Fail if a release-tag deploy was requested but no release exists yet
+  ansible.builtin.fail:
+    msg: >-
+      {{ react_frontend_config.repo }} has no GitHub release yet, but this deploy requires one
+      (react_frontend_use_release_tag=true — see the Constitution's release policy).
+      Cut a release on GitHub first, or pin one explicitly with
+      react_frontend_release_tag=<tag>.
+  when: >-
+    react_frontend_config.use_release_tag and react_frontend_config.release_tag | length == 0 and
+    react_frontend_latest_release.status == 404
+
+- name: Compute the ref to deploy — pinned/latest release tag
+  ansible.builtin.set_fact:
+    react_frontend_deploy_ref: >-
+      {{ react_frontend_config.release_tag if react_frontend_config.release_tag | length > 0
+      else react_frontend_latest_release.json.tag_name }}
+  when: react_frontend_config.use_release_tag
+
+- name: Compute the ref to deploy — branch
+  ansible.builtin.set_fact:
+    react_frontend_deploy_ref: "{{ react_frontend_config.git_branch }}"
+  when: not react_frontend_config.use_release_tag
+
+- name: Mark site root as a safe git directory for root
+  # The "Change file ownership" task below hands the repo to www-data at the
+  # end of each run, so on the next run root (which owns the clone/update
+  # step) no longer owns the directory and git refuses it as "dubious
+  # ownership" (CVE-2022-24765 protection). Whitelisting it in root's global
+  # gitconfig makes root's git calls immune to that ownership check.
+  community.general.git_config:
+    name: safe.directory
+    scope: global
+    value: "{{ react_frontend_config.site_root }}"
+    add_mode: add
+
+- name: Clone/update application repository
+  no_log: true
+  tags:
+    - deploy
+  ansible.builtin.git:
+    repo: "https://{{ react_frontend_config.github_token }}@github.com/{{ react_frontend_config.repo }}.git"
+    dest: "{{ react_frontend_config.site_root }}"
+    version: "{{ react_frontend_deploy_ref }}"
+    update: true
+    # The build step (below) can leave the working tree dirty (e.g. the
+    # package manager rewriting the lockfile), and this checkout only ever
+    # exists to be rebuilt from source control — nothing here is meant to
+    # survive between deploys. Without force, git refuses the next
+    # clone/update outright ("Local modifications exist ... (force=no)").
+    force: true
+
+- name: Ensure /opt/nvm directory exists
+  ansible.builtin.file:
+    state: directory
+    path: /opt/nvm
+    mode: "0755"
+
+- name: Ensure nvm is installed
+  environment:
+    NVM_DIR: /opt/nvm
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+  args:
+    executable: /bin/bash
+    creates: /opt/nvm/nvm.sh
+
+- name: Install Node via nvm — {{ react_frontend_config.node_version }}
+  ansible.builtin.shell: |
+    export NVM_DIR=/opt/nvm
+    source "$NVM_DIR/nvm.sh"
+    nvm install {{ react_frontend_config.node_version }}
+  args:
+    executable: /bin/bash
+  changed_when: true
+
+- name: Write build-time environment file
+  ansible.builtin.copy:
+    dest: "{{ react_frontend_config.build_root }}/.env"
+    mode: "0600"
+    content: |
+      {% for key, value in react_frontend_config.build_env.items() %}
+      {{ key }}={{ value }}
+      {% endfor %}
+  when: react_frontend_config.build_env | length > 0
+
+- name: Install dependencies and build the application
+  tags:
+    - deploy
+  ansible.builtin.shell: |
+    export NVM_DIR=/opt/nvm
+    source "$NVM_DIR/nvm.sh"
+    nvm use {{ react_frontend_config.node_version }}
+    {{ react_frontend_config.package_manager }} install
+    {{ react_frontend_config.build_command }}
+  args:
+    executable: /bin/bash
+    chdir: "{{ react_frontend_config.build_root }}"
+  changed_when: true
+
+- name: Point dist/ to the actual build output folder
+  ansible.builtin.file:
+    src: "{{ react_frontend_config.build_root }}/{{ react_frontend_config.build_dir }}"
+    dest: "{{ react_frontend_config.site_root }}/dist"
+    state: link
+    force: true
+  when: >-
+    (react_frontend_config.build_root + '/' + react_frontend_config.build_dir)
+    != (react_frontend_config.site_root + '/dist')
+
+- name: Change file ownership so nginx (www-data) can serve the build
+  tags:
+    - deploy
+  ansible.builtin.file:
+    state: directory
+    path: "{{ react_frontend_config.site_root }}"
+    owner: www-data
+    group: www-data
+    mode: "u=rwX,g=rX,o=rX"
+    recurse: true
+
+- name: Add HTTPS site configuration
+  ansible.builtin.template:
+    src: https.conf.j2
+    dest: "/etc/nginx/sites-enabled/{{ react_frontend_config.server_name }}.https.conf"
+    mode: "0644"
+
+- name: Reload nginx
+  tags:
+    - deploy
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

@@ -1,0 +1,155 @@
+---
+- name: Ensure app root folder is present
+  ansible.builtin.file:
+    state: directory
+    path: "{{ fastapi_backend_config.app_root }}"
+    owner: "{{ username }}"
+    mode: "0755"
+
+- name: Resolve the latest release tag
+  when: fastapi_backend_config.use_release_tag and fastapi_backend_config.release_tag | length == 0
+  delegate_to: localhost
+  become: false
+  no_log: true
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/{{ fastapi_backend_config.repo }}/releases/latest"
+    headers:
+      Authorization: "token {{ fastapi_backend_config.github_token }}"
+      Accept: "application/vnd.github+json"
+    status_code: [200, 404]
+  register: fastapi_backend_latest_release
+
+- name: Fail if a release-tag deploy was requested but no release exists yet
+  ansible.builtin.fail:
+    msg: >-
+      {{ fastapi_backend_config.repo }} has no GitHub release yet, but this deploy requires one
+      (fastapi_backend_use_release_tag=true — see the Constitution's release policy).
+      Cut a release on GitHub first, or pin one explicitly with
+      fastapi_backend_release_tag=<tag>.
+  when: >-
+    fastapi_backend_config.use_release_tag and fastapi_backend_config.release_tag | length == 0 and
+    fastapi_backend_latest_release.status == 404
+
+- name: Compute the ref to deploy — pinned/latest release tag
+  ansible.builtin.set_fact:
+    fastapi_backend_deploy_ref: >-
+      {{ fastapi_backend_config.release_tag if fastapi_backend_config.release_tag | length > 0
+      else fastapi_backend_latest_release.json.tag_name }}
+  when: fastapi_backend_config.use_release_tag
+
+- name: Compute the ref to deploy — branch
+  ansible.builtin.set_fact:
+    fastapi_backend_deploy_ref: "{{ fastapi_backend_config.git_branch }}"
+  when: not fastapi_backend_config.use_release_tag
+
+- name: Clone/update application repository
+  become: false
+  no_log: true
+  tags:
+    - deploy
+  ansible.builtin.git:
+    repo: "https://{{ fastapi_backend_config.github_token }}@github.com/{{ fastapi_backend_config.repo }}.git"
+    dest: "{{ fastapi_backend_config.app_root }}"
+    version: "{{ fastapi_backend_deploy_ref }}"
+    update: true
+    force: true
+
+- name: Ensure uv is installed
+  become: false
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+  args:
+    executable: /bin/bash
+    creates: "/home/{{ username }}/.local/bin/uv"
+  changed_when: true
+
+- name: Check for a uv/pyproject project
+  ansible.builtin.stat:
+    path: "{{ fastapi_backend_config.work_dir }}/pyproject.toml"
+  register: fastapi_backend_pyproject
+
+- name: Ensure Python 3.14 is installed via uv
+  become: false
+  tags:
+    - deploy
+  ansible.builtin.command: "/home/{{ username }}/.local/bin/uv python install 3.14"
+  register: fastapi_backend_uv_python_install
+  changed_when: "'Already' not in fastapi_backend_uv_python_install.stdout"
+  when: fastapi_backend_pyproject.stat.exists
+
+- name: Install dependencies with uv
+  become: false
+  tags:
+    - deploy
+  ansible.builtin.command: "/home/{{ username }}/.local/bin/uv sync"
+  args:
+    chdir: "{{ fastapi_backend_config.work_dir }}"
+  when: fastapi_backend_pyproject.stat.exists
+  changed_when: true
+
+- name: Install dependencies with pip
+  become: false
+  tags:
+    - deploy
+  ansible.builtin.pip:
+    chdir: "{{ fastapi_backend_config.work_dir }}"
+    requirements: "{{ fastapi_backend_config.work_dir }}/requirements.txt"
+    state: present
+    virtualenv: "{{ fastapi_backend_config.work_dir }}/.venv"
+    virtualenv_command: /usr/bin/python3 -m venv
+  when: not fastapi_backend_pyproject.stat.exists
+
+- name: Check whether a local .env file is available for this deploy
+  when: fastapi_backend_config.env_file | length > 0
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ fastapi_backend_config.env_file }}"
+  register: fastapi_backend_env_file_stat
+
+- name: Deploy the local .env file, if available
+  tags:
+    - deploy
+  ansible.builtin.copy:
+    src: "{{ fastapi_backend_config.env_file }}"
+    dest: "{{ fastapi_backend_config.work_dir }}/.env"
+    owner: "{{ username }}"
+    mode: "0600"
+  when: fastapi_backend_config.env_file | length > 0 and fastapi_backend_env_file_stat.stat.exists
+
+- name: Note — no local .env found, server's existing one (if any) left untouched
+  tags:
+    - deploy
+  ansible.builtin.debug:
+    msg: >-
+      {{ fastapi_backend_config.env_file }} not found locally, skipping — this file is
+      git-ignored on purpose (see secrets/README.md) and only ever lives on
+      operators' machines. {{ fastapi_backend_config.work_dir }}/.env on the server is left
+      as-is.
+  when: fastapi_backend_config.env_file | length > 0 and not fastapi_backend_env_file_stat.stat.exists
+
+- name: Apply database migrations
+  become: false
+  tags:
+    - deploy
+  ansible.builtin.command: "/home/{{ username }}/.local/bin/uv run alembic upgrade head"
+  args:
+    chdir: "{{ fastapi_backend_config.work_dir }}"
+  when: fastapi_backend_pyproject.stat.exists
+  changed_when: true
+
+- name: Add service
+  ansible.builtin.template:
+    src: service.j2
+    dest: "/etc/systemd/system/{{ fastapi_backend_config.app_name }}.service"
+    mode: "0644"
+
+- name: Restart the service
+  tags:
+    - deploy
+  ansible.builtin.systemd:
+    name: "{{ fastapi_backend_config.app_name }}"
+    daemon_reload: true
+    enabled: true
+    state: restarted

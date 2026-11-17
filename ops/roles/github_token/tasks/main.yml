@@ -1,0 +1,37 @@
+---
+# Shared by every playbook that clones a private repo
+# (barrins_api.yml, tamiyo_scroll.yml, tolaria_news.yml, docs.yml) —
+# was a copy-pasted pre_tasks block in each one before this role
+# existed. Sets the play-level `github_token` fact those playbooks'
+# roles (fastapi_backend/react_frontend/docs_site) already fall back
+# to via `<role>_github_token | default(github_token)`.
+
+- name: Resolve the shared GitHub token file path
+  ansible.builtin.set_fact:
+    github_token_file: "{{ github_token_file | default(playbook_dir + '/secrets/github/token.txt') }}"
+
+- name: Check the local GitHub token file exists
+  delegate_to: localhost
+  become: false
+  ansible.builtin.stat:
+    path: "{{ github_token_file }}"
+  register: github_token_stat
+
+- name: Fail fast if it's missing
+  ansible.builtin.fail:
+    msg: >-
+      {{ github_token_file }} does not exist. Create it with:
+      echo -n '<GitHub PAT>' > {{ github_token_file }} &&
+      chmod 600 {{ github_token_file }} — see secrets/README.md.
+  when: not github_token_stat.stat.exists
+
+- name: Read the local GitHub token  # noqa: var-naming[no-role-prefix]
+  # Deliberately unprefixed: this is the whole point of the role — a
+  # shared, playbook-level `github_token` fact that fastapi_backend/
+  # react_frontend/docs_site fall back to via
+  # `<role>_github_token | default(github_token)`. Prefixing it would
+  # break that contract for every playbook using the shared token.
+  become: false
+  no_log: true
+  ansible.builtin.set_fact:
+    github_token: "{{ lookup('ansible.builtin.file', github_token_file) }}"
