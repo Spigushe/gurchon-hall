@@ -286,7 +286,11 @@ l'inventaire (`hosts.ini`). Ajoutés : `requirements.yml` (la collection
 (`.gitignore`). Le coffre n'est pas repris : aucun des rôles ne lit de
 variable chiffrée. `ops/ansible.cfg` ne vise plus que ce dossier ; la syntaxe
 du playbook et la configuration effective ont été vérifiées dans WSL
-(`--syntax-check`, `ansible-config dump`), pas encore par un déploiement réel.
+(`--syntax-check`, `ansible-config dump`), puis par un premier passage complet
+sur le staging le même jour, sans échec (certificats émis, API et PWA servies,
+catalogue importé, `/health` et `/cartes` à 200). La production a suivi le
+même jour, elle aussi sans échec : sauvegarde de la base avant le
+déploiement, migration, catalogue réimporté, v1.0.0 servie.
 Guide à jour dans `docs/deploiement.md`.
 
 **O2. Quand couper la v2.0.0.** *Tranché le 2026-11-17, comme proposé* :
