@@ -124,7 +124,7 @@
           "comptes"
         ],
         "summary": "Ouvrir une session",
-        "description": "Vérifie l'adresse et le mot de passe, puis pose le cookie de session (échéance fixe de 14 jours). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).",
+        "description": "Vérifie l'adresse et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).",
         "operationId": "logIn",
         "requestBody": {
           "content": {
@@ -11362,7 +11362,7 @@
     "securitySchemes": {
       "sessionCookie": {
         "type": "apiKey",
-        "description": "Session ouverte par `POST /connexion` ou `POST /inscription` : jeton opaque dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, posé par le serveur. Le navigateur l'envoie seul (`credentials: \"include\"`) ; le JavaScript n'y a pas accès. Échéance fixe de 14 jours après la connexion.",
+        "description": "Session ouverte par `POST /connexion` ou `POST /inscription` : jeton opaque dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, posé par le serveur. Le navigateur l'envoie seul (`credentials: \"include\"`) ; le JavaScript n'y a pas accès. Expire après 14 jours sans usage et au plus tard 90 jours après la connexion ; l'usage la prolonge, au plus une fois par jour, et le cookie est alors reposé.",
         "in": "cookie",
         "name": "__Host-gurchon_session"
       }

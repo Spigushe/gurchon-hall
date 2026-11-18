@@ -22,13 +22,13 @@ Les adresses sont comparées sous leur forme normalisée
 corps de la route ne s'exécute (429 + `Retry-After`, gérés par le handler
 enregistré dans `app.main`).
 
-**Lot 12, étape A1** (`docs/lot12-plan-consolidation.md`, A1) : cinq routes
-sous `/moi` sont déclarées au contrat, toutes sous session et en ligne
-seulement : changer son mot de passe, lister et fermer ses sessions, exporter
-son compte. Leur corps rend **501** tant que les étapes B1 (mot de passe,
-sessions) et B2 (export) ne sont pas livrées, après le contrôle de session et
-la validation du corps et du chemin. Ces gardes sont à retirer avec leurs
-tests (`test_lot12_contract.py`).
+**Lot 12** (`docs/lot12-plan-consolidation.md`, A1) : cinq routes sous
+`/moi`, toutes sous session et en ligne seulement : changer son mot de passe,
+lister et fermer ses sessions (étape B1), exporter son compte (étape B2).
+L'export rend encore **501** après le contrôle de session, garde à retirer à
+B2 avec son test (`test_lot12_contract.py`). Depuis B1, la connexion et
+l'inscription notent l'appareil (`User-Agent`, A2) sur la session qu'elles
+ouvrent, et le changement de mot de passe est limité en débit comme elles.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -47,6 +47,7 @@ from app.routers.common import (
     PathId,
     SessionToken,
     clear_session_cookie,
+    no_content,
     set_session_cookie,
 )
 from app.schemas.account import (
@@ -59,7 +60,12 @@ from app.schemas.account import (
 from app.schemas.account_export import AccountExport
 from app.schemas.errors import ErrorResponse
 from app.services import auth as auth_service
-from app.services.rate_limit import limiter, login_rate_limit, signup_rate_limit
+from app.services.rate_limit import (
+    limiter,
+    login_rate_limit,
+    password_change_rate_limit,
+    signup_rate_limit,
+)
 
 router = APIRouter(tags=["comptes"])
 
@@ -99,7 +105,9 @@ def sign_up(
         username=payload.username,
         password=payload.password,
     )
-    session, token = auth_service.create_session(db, account)
+    session, token = auth_service.create_session(
+        db, account, user_agent=request.headers.get("user-agent")
+    )
     set_session_cookie(response, token, session.expires_at)
     return account
 
@@ -111,9 +119,9 @@ def sign_up(
     summary="Ouvrir une session",
     description=(
         "Vérifie l'adresse et le mot de passe, puis pose le cookie de session "
-        "(échéance fixe de 14 jours). Une adresse inconnue et un mauvais mot de "
-        "passe rendent le même 401, au même coût. Limité en débit par adresse "
-        "IP (429)."
+        "(14 jours sans usage, 90 jours au plus) et note l'appareil "
+        "(`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent "
+        "le même 401, au même coût. Limité en débit par adresse IP (429)."
     ),
     responses={
         200: {
@@ -137,7 +145,9 @@ def log_in(
     )
     if account is None:
         raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS)
-    session, token = auth_service.create_session(db, account)
+    session, token = auth_service.create_session(
+        db, account, user_agent=request.headers.get("user-agent")
+    )
     set_session_cookie(response, token, session.expires_at)
     return account
 
@@ -199,7 +209,7 @@ def read_current_user(current_user: CurrentUser) -> UserRead:
 
 def _not_yet_delivered(step: str) -> HTTPException:
     """Garde provisoire de l'étape A1 : la route est au contrat, son corps
-    vient à l'étape `step`. À retirer à B1 et B2."""
+    vient à l'étape `step`. Ne sert plus qu'à l'export, à retirer à B2."""
     return HTTPException(
         status_code=501,
         detail=f"Route pas encore livrée (Lot 12, étape {step}).",
@@ -238,10 +248,22 @@ _CONTENT_DISPOSITION = {
         **TOO_MANY_REQUESTS,
     },
 )
+@limiter.limit(password_change_rate_limit)
 def change_password(
-    payload: PasswordChange, session: CurrentSession, db: DbSession
+    request: Request,
+    response: Response,
+    payload: PasswordChange,
+    session: CurrentSession,
+    db: DbSession,
 ) -> Response:
-    raise _not_yet_delivered("B1")
+    auth_service.change_password(
+        db,
+        session.user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+        keep_session_id=session.id,
+    )
+    return no_content(response)
 
 
 @router.get(
@@ -258,7 +280,7 @@ def change_password(
     responses={**UNAUTHENTICATED},
 )
 def list_sessions(session: CurrentSession, db: DbSession) -> list[SessionRead]:
-    raise _not_yet_delivered("B1")
+    return auth_service.list_sessions(db, session)
 
 
 @router.delete(
@@ -277,8 +299,11 @@ def list_sessions(session: CurrentSession, db: DbSession) -> list[SessionRead]:
         **FORBIDDEN_ORIGIN,
     },
 )
-def revoke_other_sessions(session: CurrentSession, db: DbSession) -> Response:
-    raise _not_yet_delivered("B1")
+def revoke_other_sessions(
+    session: CurrentSession, db: DbSession, response: Response
+) -> Response:
+    auth_service.revoke_other_sessions(db, session)
+    return no_content(response)
 
 
 @router.delete(
@@ -303,9 +328,10 @@ def revoke_other_sessions(session: CurrentSession, db: DbSession) -> Response:
     },
 )
 def revoke_session(
-    session_id: PathId, session: CurrentSession, db: DbSession
+    session_id: PathId, session: CurrentSession, db: DbSession, response: Response
 ) -> Response:
-    raise _not_yet_delivered("B1")
+    auth_service.revoke_session(db, session, session_id)
+    return no_content(response)
 
 
 @router.get(

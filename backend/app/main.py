@@ -32,6 +32,7 @@ from app.routers.sync import router as sync_router
 from app.routers.tournaments import router as tournaments_router
 from app.routers.vdb import router as vdb_router
 from app.routers.venues import router as venues_router
+from app.services.auth import check_session_settings
 from app.services.errors import DomainError, InvalidRequestError
 from app.services.rate_limit import limiter
 
@@ -76,7 +77,10 @@ GZIP_LEVEL = 6
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Refuse de démarrer si la base n'est pas à la révision Alembic du code
-    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route."""
+    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route.
+    Refuse aussi des durées de session incohérentes (Lot 12, A10 :
+    `SESSION_IDLE_DAYS` au-delà de `SESSION_MAX_DAYS`, ou illisibles)."""
+    check_session_settings()
     enforce_schema_revision(db_session.engine)
     yield
 

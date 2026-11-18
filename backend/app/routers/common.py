@@ -2,7 +2,7 @@
 
 import os
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path, Query, Response, Security
@@ -78,8 +78,9 @@ session_cookie = APIKeyCookie(
         "Session ouverte par `POST /connexion` ou `POST /inscription` : jeton "
         "opaque dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, posé par "
         "le serveur. Le navigateur l'envoie seul (`credentials: \"include\"`) ; "
-        "le JavaScript n'y a pas accès. Échéance fixe de 14 jours après la "
-        "connexion."
+        "le JavaScript n'y a pas accès. Expire après 14 jours sans usage et au "
+        "plus tard 90 jours après la connexion ; l'usage la prolonge, au plus "
+        "une fois par jour, et le cookie est alors reposé."
     ),
     # Le refus est rendu par la dépendance du projet (401 `ErrorResponse`),
     # jamais par `APIKeyCookie`, dont le code a varié selon les versions.
@@ -114,6 +115,14 @@ def current_session(
     connecté ensuite sur le même poste. `response` est le même objet que celui
     de la route : une dépendance peut lui ajouter des en-têtes avant même que
     le corps de la route ne s'exécute.
+
+    Renouvelle enfin la session au plus une fois par jour (Lot 12, A10) et,
+    s'il l'a fait, repose le cookie avec la nouvelle durée restante. Ce
+    renouvellement est commité ici, avant le corps de la route : il ne passe
+    jamais dans la transaction exclusive d'un lot `/sync`, et ne fait jamais
+    échouer la requête (`auth_service.renew_session`). Une route qui rend un
+    204 doit le faire par `no_content(response)`, sans quoi FastAPI ignorerait
+    les en-têtes posés ici.
     """
     if token is None:
         raise _unauthenticated()
@@ -121,6 +130,8 @@ def current_session(
     if session is None:
         raise _unauthenticated()
     response.headers["Cache-Control"] = "private, no-store"
+    if auth_service.renew_session(db, session):
+        set_session_cookie(response, token, session.expires_at)
     return session
 
 
@@ -246,20 +257,17 @@ CLEAR_SESSION_COOKIE = {
 }
 
 
-def _naive_utcnow() -> datetime:
-    """Même convention que `app.services.auth` : UTC naïf, comparable aux
-    colonnes date-heure du modèle sans lever de `TypeError`."""
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
 def set_session_cookie(response: Response, token: str, expires_at: datetime) -> None:
     """Pose le cookie de session sur `response` (`POST /inscription`,
-    `POST /connexion`). `Max-Age` est la durée **restante** jusqu'à
-    `expires_at`, jamais la durée totale : rejouer la pose d'un cookie sur une
-    session déjà vieille de quelques jours ne doit pas lui redonner 14 jours
-    pleins.
+    `POST /connexion`, et le renouvellement de `current_session`). `Max-Age`
+    est la durée **restante** jusqu'à `expires_at`, jamais une durée fixe :
+    reposer le cookie d'une session renouvelée lui donne exactement son
+    échéance en base. L'horloge est celle des sessions
+    (`auth_service.naive_utcnow`).
     """
-    max_age = max(0, int((expires_at - _naive_utcnow()).total_seconds()))
+    max_age = max(
+        0, int((expires_at - auth_service.naive_utcnow()).total_seconds())
+    )
     response.set_cookie(
         key=ACTIVE_SESSION_COOKIE_NAME,
         value=token,
@@ -269,6 +277,15 @@ def set_session_cookie(response: Response, token: str, expires_at: datetime) -> 
         httponly=True,
         samesite="lax",
     )
+
+
+def no_content(response: Response) -> Response:
+    """Rend le 204 d'une route sur la `Response` injectée, pas sur une
+    nouvelle : FastAPI ne recopie les en-têtes posés par les dépendances
+    (`Cache-Control`, cookie de session renouvelé) que sur la réponse qu'il
+    fabrique lui-même, jamais sur une `Response` rendue par la route."""
+    response.status_code = 204
+    return response
 
 
 def clear_session_cookie(response: Response) -> None:

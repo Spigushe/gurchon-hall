@@ -62,13 +62,15 @@ TOKEN_HASH_LENGTH = 64
 """SHA-256 en hexadécimal."""
 
 SESSION_LIFETIME = timedelta(days=14)
-"""Durée d'une session (D1, P3) : échéance **fixe**, posée à la connexion et
-jamais repoussée. Pas d'expiration glissante, pas de plafond absolu distinct —
-une requête authentifiée n'écrit donc rien dans `auth_session`.
+"""Durée initiale d'une session par défaut, et durée sans usage au bout de
+laquelle elle expire (Lot 12, P10 et A10 de
+`docs/lot12-plan-consolidation.md`).
 
-Le Lot 12 (P10, A10 de `docs/lot12-plan-consolidation.md`) en fait la durée
-**initiale** d'une session, renouvelée à l'usage jusqu'à un plafond : étape
-B1, pas encore câblée."""
+Au Lot 6 (D1, P3), c'était une échéance **fixe**, jamais repoussée. Depuis le
+Lot 12, l'usage la prolonge au plus une fois par jour, jusqu'à un plafond
+compté depuis la connexion (90 jours) ; les deux durées se règlent par
+`SESSION_IDLE_DAYS` et `SESSION_MAX_DAYS`, lues par `app.services.auth`, dont
+cette constante n'est que la valeur par défaut de la première."""
 
 USER_AGENT_MAX_LENGTH = 256
 """Plafond de `auth_session.user_agent` (Lot 12, A2) : l'en-tête est coupé à

@@ -723,7 +723,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | A0 | utilisateur, orchestrateur | trancher P1 à P10 et écrire le brief Claude Design (P9, `docs/design-handoff/lot12-brief-claude-design.md`) : **faits le 2026-11-18** ; relever en HTTPS sur téléphone la copie par le presse-papiers, `persist()` et la montée d'une base IndexedDB déjà utilisée, consigner les résultats ici | — |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` : **fait le 2026-11-18**, en deux envois (corrections demandées et design system, puis `LOT12.md`, prototypes et captures, P9 « Handoff reçu ») ; choix du designer et écarts 1 et 2 retenus le 2026-11-18 | A0 |
 | A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré — **fait le 2026-11-18** (cf. « Livré à A1 ») | A0 |
-| B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) | A1 |
+| B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) — **fait le 2026-11-18** (cf. « Livré à B1 ») | A1 |
 | B2 | backend-fastapi | export du compte (A4) | A1 |
 | B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` | A0 |
 | B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) | A0 |
@@ -809,6 +809,71 @@ bureau avec la seule alerte de la barre haute et `G S`.
   refuse de démarrer tant qu'elle n'est pas à `c4e8a1f2d7b3`
   (`schema_check.py`) : `uv run alembic upgrade head` depuis `backend/`, après
   avoir vérifié `DATABASE_URL`.
+
+### Livré à B1 (2026-11-18)
+
+- **Mot de passe** : `POST /moi/mot-de-passe` appelle
+  `auth.change_password`, qui vérifie l'actuel, rehache et ferme les sessions
+  du compte autres que celle de la requête, en une transaction (P2, A3).
+  Actuel faux : **422** `[{"loc": ["body", "current_password"], "msg": "Mot de
+  passe actuel incorrect."}]`, aucune session touchée. `set_password` (script)
+  ferme toujours tout. Débit limité par `PASSWORD_CHANGE_RATE_LIMIT`
+  (`5/minute` par défaut, `app/services/rate_limit.py`) ; ordre 401, 422, 429.
+- **Sessions** : `GET /moi/sessions` (`auth.list_sessions`), la courante en
+  tête puis par dernière utilisation, l'ouverture et l'identifiant
+  départageant, sans les expirées ; `DELETE /moi/sessions/{id}` (409 sur la
+  courante, « se ferme par la déconnexion » ; 404 « Session N introuvable. »
+  pour une inconnue, expirée ou d'un autre compte) ; `DELETE /moi/sessions`
+  (toutes sauf la courante, idempotente).
+- **Appareil** : `create_session(…, user_agent=)` reçoit l'en-tête de
+  `POST /connexion` et `POST /inscription` ; `clean_user_agent` retire les
+  caractères non imprimables, rogne et coupe à 256, et rend `None` pour un
+  en-tête absent ou vide.
+- **Renouvellement (A10)** : `auth.renew_session`, appelé par
+  `current_session` après résolution. Rien si la dernière utilisation
+  (`last_used_at`, à défaut `created_at`) date de moins de 24 heures ; sinon
+  `last_used_at = maintenant` et `expires_at = min(maintenant + idle,
+  created_at + max)`, puis la dépendance repose le cookie (`Max-Age` sur la
+  durée restante). Le `flush` passe sous un `PRAGMA busy_timeout` abaissé à
+  250 ms (`RENEWAL_BUSY_TIMEOUT_MS`), posé et rétabli sur la connexion du
+  pilote ; une `OperationalError` fait sauter le renouvellement sans échec.
+  Durées lues à chaque appel dans `SESSION_IDLE_DAYS` (14) et
+  `SESSION_MAX_DAYS` (90) ; `check_session_settings`, appelé par le lifespan
+  avant le contrôle de révision, refuse le démarrage sur une valeur illisible,
+  inférieure à 1 ou une durée sans usage au-delà du plafond
+  (`SessionSettingsError`). Une session neuve dure `min(idle, max)`.
+  `SESSION_LIFETIME` n'est plus que la valeur par défaut de la première.
+  L'horloge des sessions est une seule fonction, `auth.naive_utcnow`, que le
+  `Max-Age` du cookie lit aussi (ex-`_naive_utcnow`, dédoublée dans
+  `common.py`).
+- **Les 204 rendent la réponse injectée** : FastAPI ne recopie les en-têtes
+  posés par une dépendance que sur la réponse qu'il fabrique. Les sept routes
+  qui rendaient `Response(status_code=204)` (suppression d'un deck, d'une
+  ligne de deck, d'une entrée de stock, d'un joueur, d'un lieu, d'un tournoi,
+  d'une partie) passent par `no_content(response)` (`common.py`), comme les
+  quatre routes de B1 : sinon le cookie renouvelé, et déjà le
+  `Cache-Control: private, no-store`, s'y perdaient.
+- **Contrat** : seules deux descriptions changent (schéma de sécurité
+  `sessionCookie` et `logIn`, qui annonçaient une échéance fixe) ; contrat
+  exporté, client TS régénéré, toujours 57 opérations sur 36 chemins.
+- **Garde provisoire** : ne reste que sur `GET /moi/export`, à retirer à B2
+  (`test_the_export_is_a_provisional_501_until_b2`).
+- **Tests** : `backend/tests/test_lot12_account_sessions.py` (mot de passe,
+  liste et fermeture des sessions, appareil, renouvellement sur horloge
+  simulée : 24 heures, plafond de 90 jours, expiration à 14 jours sans usage,
+  session de la v1.0 renouvelée à sa première requête, durées réglées par
+  l'environnement, cookie reposé sur un 204, verrou tenu par une autre
+  connexion sans attente ni échec, `busy_timeout` rétabli, renouvellement
+  commité avant que `/sync` ne prenne son verrou, démarrage refusé) ;
+  `test_lot12_contract.py` réduit à la garde de l'export.
+  **2932 tests backend verts et les 2 `xfail` connus** (2893 à A1), sous
+  couverture, sans régression CRAP ; `ruff check` propre ; `tsc` et les
+  vitest du contrat et des préfixes verts (aucun code du front ne change hors
+  du client généré, suite vitest complète et e2e non relancés).
+- **Reste pour E** : la vérification en production qu'une session de la v1.0
+  est renouvelée à sa première requête (critère de fin de lot) ; D3 n'a rien
+  à poser dans l'unité systemd pour les durées, les valeurs par défaut étant
+  celles de P10.
 
 ## Tests attendus (E)
 

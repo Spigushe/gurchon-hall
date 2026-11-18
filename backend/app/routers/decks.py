@@ -19,6 +19,7 @@ from app.routers.common import (
     CurrentUser,
     DbSession,
     PathId,
+    no_content,
 )
 from app.schemas.collection import (
     DeckCardCreate,
@@ -142,9 +143,9 @@ def update_deck(
     ),
     responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def delete_deck(deck_id: PathId, db: DbSession, user: CurrentUser):
+def delete_deck(deck_id: PathId, db: DbSession, user: CurrentUser, response: Response):
     decks.delete_deck(db, user.id, deck_id)
-    return Response(status_code=204)
+    return no_content(response)
 
 
 @router.get(
@@ -280,6 +281,7 @@ def remove_deck_card(
     card_set_id: PathId,
     db: DbSession,
     user: CurrentUser,
+    response: Response,
 ):
     decks.remove_card(db, user.id, deck_id, card_id, language_code, card_set_id)
-    return Response(status_code=204)
+    return no_content(response)

@@ -3,7 +3,8 @@
 Module isolé, comme chez barrins-project
 (`apps/barrins_identity/app/core/rate_limit.py`) : `app.main` (enregistrement
 sur `app.state.limiter` et le middleware) et `app.routers.auth` (décorateur
-`@limiter.limit(...)` sur `POST /connexion` et `POST /inscription`) l'importent
+`@limiter.limit(...)` sur `POST /connexion`, `POST /inscription` et, depuis
+le Lot 12, `POST /moi/mot-de-passe`) l'importent
 tous les deux, sans dépendance circulaire.
 
 La clé est l'adresse IP de la requête (`get_remote_address`) : des compteurs en
@@ -38,6 +39,14 @@ def signup_rate_limit() -> str:
     valeur par défaut que la connexion : l'inscription est ouverte (P2), donc
     tout aussi exposée à un essai en boucle."""
     return os.getenv("SIGNUP_RATE_LIMIT", _DEFAULT_RATE_LIMIT)
+
+
+def password_change_rate_limit() -> str:
+    """Débit autorisé pour `POST /moi/mot-de-passe` (`PASSWORD_CHANGE_RATE_LIMIT`,
+    Lot 12, P2) : la route vérifie le mot de passe actuel, donc se prête au
+    même essai en boucle que la connexion, depuis une session volée. Même
+    valeur par défaut."""
+    return os.getenv("PASSWORD_CHANGE_RATE_LIMIT", _DEFAULT_RATE_LIMIT)
 
 
 _DEFAULT_VDB_RATE_LIMIT = "20/minute"

@@ -18,6 +18,7 @@ from app.routers.common import (
     CurrentUser,
     DbSession,
     PathId,
+    no_content,
 )
 from app.schemas.play import (
     TournamentCreate,
@@ -121,6 +122,11 @@ def update_tournament(
     ),
     responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def delete_tournament(tournament_id: PathId, db: DbSession, user: CurrentUser):
+def delete_tournament(
+    tournament_id: PathId,
+    db: DbSession,
+    user: CurrentUser,
+    response: Response,
+):
     tournaments.delete_tournament(db, user.id, tournament_id)
-    return Response(status_code=204)
+    return no_content(response)

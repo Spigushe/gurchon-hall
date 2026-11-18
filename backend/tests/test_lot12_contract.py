@@ -10,8 +10,9 @@ Ce que ce fichier fige (A1, A2, A4) :
   `AccountExport`), sans jeton, empreinte ni hachage nulle part ;
 * les deux colonnes de R15 au modèle (la migration est éprouvée dans la
   section « Lot 12 » de `test_migrations.py`) ;
-* la garde provisoire : le corps des routes rend 501 après le contrôle de
-  session et la validation, jusqu'aux étapes B1 et B2.
+* la garde provisoire de l'export : 501 après le contrôle de session,
+  jusqu'à l'étape B2 (les quatre autres routes sont livrées à B1, éprouvées
+  par `test_lot12_account_sessions.py`).
 """
 
 import pytest
@@ -308,35 +309,16 @@ def test_the_session_model_gains_the_device_and_the_last_use():
     assert list(columns.keys())[-2:] == ["user_agent", "last_used_at"]
 
 
-# --- Garde provisoire (à retirer à B1 et B2) ---------------------------------
+# --- Garde provisoire (export seul, à retirer à B2) --------------------------
 
 
-@pytest.mark.parametrize(
-    "method,path,body,step",
-    [
-        (
-            "POST",
-            "/moi/mot-de-passe",
-            {"current_password": DEFAULT_PASSWORD, "new_password": NEW_PASSWORD},
-            "B1",
-        ),
-        ("GET", "/moi/sessions", None, "B1"),
-        ("DELETE", "/moi/sessions", None, "B1"),
-        ("DELETE", "/moi/sessions/1", None, "B1"),
-        ("GET", "/moi/export", None, "B2"),
-    ],
-)
-def test_the_routes_are_a_provisional_501_until_b1_and_b2(
-    me_api, method, path, body, step
-):
-    response = me_api.request(method, path, json=body)
+def test_the_export_is_a_provisional_501_until_b2(me_api):
+    response = me_api.get("/moi/export")
     assert response.status_code == 501
-    assert response.json() == {
-        "detail": f"Route pas encore livrée (Lot 12, étape {step})."
-    }
+    assert response.json() == {"detail": "Route pas encore livrée (Lot 12, étape B2)."}
 
 
-def test_the_password_body_is_validated_before_the_provisional_guard(me_api):
+def test_the_password_body_is_validated_by_the_schema(me_api):
     response = me_api.post(
         "/moi/mot-de-passe",
         json={"current_password": DEFAULT_PASSWORD, "new_password": "faible"},
@@ -344,6 +326,6 @@ def test_the_password_body_is_validated_before_the_provisional_guard(me_api):
     assert response.status_code == 422
 
 
-def test_the_session_identifier_is_validated_before_the_provisional_guard(me_api):
+def test_the_session_identifier_is_validated_by_the_path(me_api):
     assert me_api.delete("/moi/sessions/0").status_code == 422
     assert me_api.delete(f"/moi/sessions/{2**31}").status_code == 422

@@ -19,6 +19,7 @@ from app.routers.common import (
     DbSession,
     PathId,
     QueryId,
+    no_content,
 )
 from app.schemas.collection import CardCopyCreate, CardCopyRead, CardCopyUpdate
 from app.services import stock
@@ -131,6 +132,7 @@ def delete_stock_entry(
     card_set_id: PathId,
     db: DbSession,
     user: CurrentUser,
+    response: Response,
 ):
     stock.delete_copy(db, user.id, card_id, language_code, card_set_id)
-    return Response(status_code=204)
+    return no_content(response)

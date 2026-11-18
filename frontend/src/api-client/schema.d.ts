@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * Ouvrir une session
-         * @description Vérifie l'adresse et le mot de passe, puis pose le cookie de session (échéance fixe de 14 jours). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).
+         * @description Vérifie l'adresse et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).
          */
         post: operations["logIn"];
         delete?: never;
