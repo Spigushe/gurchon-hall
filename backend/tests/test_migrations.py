@@ -52,7 +52,8 @@ IDS_REVISION = "e2a7819dd4a2"  # identifiants jamais réattribués (Lot 7, R11)
 REQUIREMENT_REVISION = "8ab23342a26f"  # exigence des cartes (lot Chercher, R12)
 VERSIONS_REVISION = "ac6cda5ad252"  # versions jouées et deck adverse (Lot 8, R13)
 VDB_LINK_REVISION = "5f2b8e9d0c41"  # lien VDB sur le deck (Lot 9, R14)
-HEAD_REVISION = VDB_LINK_REVISION
+SESSION_DEVICE_REVISION = "c4e8a1f2d7b3"  # appareil, dernière utilisation (Lot 12, R15)
+HEAD_REVISION = SESSION_DEVICE_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -68,6 +69,7 @@ REVISIONS = [
     REQUIREMENT_REVISION,
     VERSIONS_REVISION,
     VDB_LINK_REVISION,
+    SESSION_DEVICE_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -3750,4 +3752,164 @@ def test_the_vdb_link_revision_downgrade_does_not_render_offline(empty_db):
     )
     assert result.returncode != 0
     assert "ne se rend pas hors ligne" in result.stdout + result.stderr
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot 12 : appareil et dernière utilisation des sessions (R15)
+# --------------------------------------------------------------------------
+
+
+def session_column_names(db_path: Path) -> list[str]:
+    return [row[1] for row in rows(db_path, "PRAGMA table_info(auth_session)")]
+
+
+def populated_at_r14_with_sessions(db_path: Path) -> None:
+    """La base peuplée des tests de R13 et R14, montée à R14, avec une session
+    ouverte pour chacun de ses deux comptes."""
+    populated_at_r13(db_path)
+    alembic(db_path, "upgrade", VDB_LINK_REVISION)
+    accounts = [
+        row[0] for row in rows(db_path, "SELECT id FROM user_account ORDER BY id")
+    ]
+    assert len(accounts) >= 2
+    values = ", ".join(
+        f"({n}, {account}, '{n:064x}', '2026-11-17 20:00:00', '2026-12-01 20:00:00')"
+        for n, account in enumerate(accounts, start=1)
+    )
+    execute(
+        db_path,
+        "INSERT INTO auth_session (id, user_id, token_hash, created_at, expires_at)"
+        f" VALUES {values}",
+    )
+
+
+def test_head_adds_the_device_and_the_last_use_to_the_sessions(migrated):
+    columns = {
+        row[1]: row[2:] for row in rows(migrated, "PRAGMA table_info(auth_session)")
+    }
+    # (type, notnull, dflt_value, pk)
+    assert columns["user_agent"] == ("VARCHAR(256)", 0, None, 0)
+    assert columns["last_used_at"] == ("DATETIME", 0, None, 0)
+    assert session_column_names(migrated)[-2:] == ["user_agent", "last_used_at"]
+
+
+def test_the_session_device_revision_adds_no_table_and_no_index(empty_db):
+    """Le serveur ne cherche jamais une session par l'appareil ni par la
+    dernière utilisation : pas d'index."""
+    alembic(empty_db, "upgrade", VDB_LINK_REVISION)
+    tables = table_names(empty_db)
+    indexes = rows(empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+
+    alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
+
+    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert rows(
+        empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
+    ) == indexes
+
+
+def test_upgrade_keeps_every_row_and_open_sessions_start_empty(empty_db):
+    """Aucune conversion : les sessions déjà ouvertes gardent leur échéance et
+    reçoivent deux colonnes vides (« appareil inconnu », dernière utilisation
+    lue comme la création)."""
+    populated_at_r14_with_sessions(empty_db)
+    before = every_row(empty_db)
+    columns_before = session_column_names(empty_db)
+
+    alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
+
+    assert session_column_names(empty_db) == [
+        *columns_before,
+        "user_agent",
+        "last_used_at",
+    ]
+    after = every_row(empty_db)
+    others = {table for table in after if table != "auth_session"}
+    assert {table: after[table] for table in others} == {
+        table: before[table] for table in others
+    }
+    assert sorted((line[:-2] for line in after["auth_session"]), key=repr) == before[
+        "auth_session"
+    ]
+    assert {line[-2:] for line in after["auth_session"]} == {(None, None)}
+    assert len(before["auth_session"]) >= 2
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_head_still_refuses_a_session_that_expires_before_it_starts(migrated):
+    execute(
+        migrated,
+        "INSERT INTO auth_session (user_id, token_hash, created_at, expires_at,"
+        " user_agent, last_used_at) VALUES (1, 'a', '2026-11-18 10:00:00',"
+        " '2026-12-02 10:00:00', 'Mozilla/5.0', '2026-11-19 10:00:00')",
+    )
+    with pytest.raises(Exception, match="CHECK constraint failed"):
+        execute(
+            migrated,
+            "INSERT INTO auth_session (user_id, token_hash, created_at, expires_at)"
+            " VALUES (1, 'b', '2026-11-18 10:00:00', '2026-11-18 10:00:00')",
+        )
+
+
+def test_downgrade_drops_both_columns_without_guard_and_keeps_every_row(empty_db):
+    """Sans garde : ni l'appareil ni la dernière utilisation ne sont des
+    saisies. Les sessions restent valides, à leur échéance du moment."""
+    populated_at_r14_with_sessions(empty_db)
+    before = every_row(empty_db)
+    columns_before = session_column_names(empty_db)
+    alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
+    execute(
+        empty_db,
+        "UPDATE auth_session SET user_agent = 'Mozilla/5.0 (Linux; Android 15)',"
+        " last_used_at = '2026-11-18 08:00:00'",
+    )
+
+    alembic(empty_db, "downgrade", VDB_LINK_REVISION)
+
+    assert session_column_names(empty_db) == columns_before
+    assert every_row(empty_db) == before
+    assert foreign_key_violations(empty_db) == []
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == VDB_LINK_REVISION
+    )
+
+
+def test_the_session_device_revision_round_trip_keeps_the_ddl_and_the_rows(
+    empty_db,
+):
+    populated_at_r14_with_sessions(empty_db)
+    alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
+    ddl = schema_text(empty_db)
+    data = every_row(empty_db)
+
+    alembic(empty_db, "downgrade", VDB_LINK_REVISION)
+    alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert every_row(empty_db) == data
+
+
+def test_the_session_device_revision_renders_offline_in_both_directions(empty_db):
+    up = alembic(
+        empty_db,
+        "upgrade",
+        f"{VDB_LINK_REVISION}:{SESSION_DEVICE_REVISION}",
+        "--sql",
+    )
+    assert "ALTER TABLE auth_session ADD COLUMN user_agent VARCHAR(256)" in up.stdout
+    assert "ALTER TABLE auth_session ADD COLUMN last_used_at DATETIME" in up.stdout
+    assert "CREATE TABLE" not in up.stdout
+
+    down = alembic(
+        empty_db,
+        "downgrade",
+        f"{SESSION_DEVICE_REVISION}:{VDB_LINK_REVISION}",
+        "--sql",
+    )
+    assert "ALTER TABLE auth_session DROP COLUMN last_used_at" in down.stdout
+    assert "ALTER TABLE auth_session DROP COLUMN user_agent" in down.stdout
+    assert "CREATE TABLE" not in down.stdout
     assert not empty_db.exists()

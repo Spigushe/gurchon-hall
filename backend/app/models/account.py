@@ -64,7 +64,16 @@ TOKEN_HASH_LENGTH = 64
 SESSION_LIFETIME = timedelta(days=14)
 """Durée d'une session (D1, P3) : échéance **fixe**, posée à la connexion et
 jamais repoussée. Pas d'expiration glissante, pas de plafond absolu distinct —
-une requête authentifiée n'écrit donc rien dans `auth_session`."""
+une requête authentifiée n'écrit donc rien dans `auth_session`.
+
+Le Lot 12 (P10, A10 de `docs/lot12-plan-consolidation.md`) en fait la durée
+**initiale** d'une session, renouvelée à l'usage jusqu'à un plafond : étape
+B1, pas encore câblée."""
+
+USER_AGENT_MAX_LENGTH = 256
+"""Plafond de `auth_session.user_agent` (Lot 12, A2) : l'en-tête est coupé à
+cette longueur avant écriture. Un `User-Agent` courant fait 100 à 200
+caractères ; au-delà, la fin n'aide plus à reconnaître l'appareil."""
 
 
 class UserAccount(Base, TimestampMixin):
@@ -109,10 +118,23 @@ class AuthSession(Base):
     utilisable. SHA-256 simple et non Argon2 : le jeton a 256 bits d'entropie,
     un hachage lent ne protégerait de rien (P1).
 
-    Pas de `revoked_at` ni de `last_used_at` : révoquer, c'est supprimer la
-    ligne, et l'échéance est fixe (`SESSION_LIFETIME`). Les sessions expirées ne
-    servent plus à rien ; elles sont purgées à la connexion du compte et par le
-    script de gestion des comptes.
+    Pas de `revoked_at` : révoquer, c'est supprimer la ligne. Les sessions
+    expirées ne servent plus à rien ; elles sont purgées à la connexion du
+    compte et par le script de gestion des comptes.
+
+    Deux colonnes du Lot 12 (R15, P1 et A2 de
+    `docs/lot12-plan-consolidation.md`), nullables, pour reconnaître une
+    session dans la liste de l'écran Compte :
+
+    * `user_agent`, l'en-tête `User-Agent` de la connexion ou de l'inscription
+      qui a ouvert la session, coupé à `USER_AGENT_MAX_LENGTH` et débarrassé
+      des caractères de contrôle. NULL pour une session ouverte avant le lot,
+      ou par un client qui n'envoie pas l'en-tête (« appareil inconnu »). Le
+      client en tire un libellé lisible ; aucune adresse IP n'est gardée ;
+    * `last_used_at`, la dernière utilisation notée, au jour près : le
+      renouvellement de la session (A10) l'écrit au plus une fois par jour.
+      NULL se lit comme `created_at`, si bien que les sessions existantes
+      n'ont rien à convertir.
     """
 
     __tablename__ = "auth_session"
@@ -128,5 +150,8 @@ class AuthSession(Base):
     token_hash: Mapped[str] = mapped_column(String(TOKEN_HASH_LENGTH), unique=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime(), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(UtcDateTime())
+    # Lot 12, R15 : ajoutées en fin de table par `ADD COLUMN`, dans cet ordre.
+    user_agent: Mapped[str | None] = mapped_column(String(USER_AGENT_MAX_LENGTH))
+    last_used_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
     user: Mapped[UserAccount] = relationship(back_populates="sessions")

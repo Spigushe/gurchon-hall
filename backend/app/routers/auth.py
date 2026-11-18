@@ -21,6 +21,14 @@ Les adresses sont comparées sous leur forme normalisée
 (`app.services.rate_limit`, P1) : au-delà du seuil, slowapi lève avant que le
 corps de la route ne s'exécute (429 + `Retry-After`, gérés par le handler
 enregistré dans `app.main`).
+
+**Lot 12, étape A1** (`docs/lot12-plan-consolidation.md`, A1) : cinq routes
+sous `/moi` sont déclarées au contrat, toutes sous session et en ligne
+seulement : changer son mot de passe, lister et fermer ses sessions, exporter
+son compte. Leur corps rend **501** tant que les étapes B1 (mot de passe,
+sessions) et B2 (export) ne sont pas livrées, après le contrôle de session et
+la validation du corps et du chemin. Ces gardes sont à retirer avec leurs
+tests (`test_lot12_contract.py`).
 """
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -29,16 +37,26 @@ from app.routers.common import (
     CLEAR_SESSION_COOKIE,
     CONFLICT,
     FORBIDDEN_ORIGIN,
+    NOT_FOUND,
     SET_SESSION_COOKIE,
     TOO_MANY_REQUESTS,
     UNAUTHENTICATED,
+    CurrentSession,
     CurrentUser,
     DbSession,
+    PathId,
     SessionToken,
     clear_session_cookie,
     set_session_cookie,
 )
-from app.schemas.account import UserLogIn, UserRead, UserSignUp
+from app.schemas.account import (
+    PasswordChange,
+    SessionRead,
+    UserLogIn,
+    UserRead,
+    UserSignUp,
+)
+from app.schemas.account_export import AccountExport
 from app.schemas.errors import ErrorResponse
 from app.services import auth as auth_service
 from app.services.rate_limit import limiter, login_rate_limit, signup_rate_limit
@@ -172,3 +190,144 @@ def log_out(token: SessionToken, response: Response, db: DbSession) -> Response:
 )
 def read_current_user(current_user: CurrentUser) -> UserRead:
     return current_user
+
+
+# ---------------------------------------------------------------------------
+# Lot 12 : mot de passe, sessions, export (`docs/lot12-plan-consolidation.md`)
+# ---------------------------------------------------------------------------
+
+
+def _not_yet_delivered(step: str) -> HTTPException:
+    """Garde provisoire de l'étape A1 : la route est au contrat, son corps
+    vient à l'étape `step`. À retirer à B1 et B2."""
+    return HTTPException(
+        status_code=501,
+        detail=f"Route pas encore livrée (Lot 12, étape {step}).",
+    )
+
+
+_CONTENT_DISPOSITION = {
+    "Content-Disposition": {
+        "description": (
+            "`attachment; filename=\"gurchon-hall-<username>-<AAAA-MM-JJ>.json\"` :"
+            " le navigateur enregistre le fichier au lieu de l'afficher."
+        ),
+        "schema": {"type": "string"},
+    }
+}
+
+
+@router.post(
+    "/moi/mot-de-passe",
+    status_code=204,
+    response_class=Response,
+    operation_id="changePassword",
+    summary="Changer son mot de passe",
+    description=(
+        "Vérifie le mot de passe actuel, pose le nouveau (mêmes règles qu'à "
+        "l'inscription) et ferme toutes les **autres** sessions du compte, dans "
+        "une transaction ; la session de la requête reste ouverte (P2). Un "
+        "mot de passe actuel incorrect rend **422** « Mot de passe actuel "
+        "incorrect. », jamais 401 : la session, elle, est valide. Limité en "
+        "débit par adresse IP (429). En ligne seulement, hors `/sync`."
+    ),
+    responses={
+        204: {"description": "Mot de passe changé, autres sessions fermées."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+        **TOO_MANY_REQUESTS,
+    },
+)
+def change_password(
+    payload: PasswordChange, session: CurrentSession, db: DbSession
+) -> Response:
+    raise _not_yet_delivered("B1")
+
+
+@router.get(
+    "/moi/sessions",
+    response_model=list[SessionRead],
+    operation_id="listSessions",
+    summary="Sessions ouvertes du compte",
+    description=(
+        "Sessions non expirées du compte, la session de la requête en tête "
+        "(`current`), puis par dernière utilisation décroissante. Ni jeton ni "
+        "empreinte : l'appareil se reconnaît à `user_agent`, noté à la "
+        "connexion (P1)."
+    ),
+    responses={**UNAUTHENTICATED},
+)
+def list_sessions(session: CurrentSession, db: DbSession) -> list[SessionRead]:
+    raise _not_yet_delivered("B1")
+
+
+@router.delete(
+    "/moi/sessions",
+    status_code=204,
+    response_class=Response,
+    operation_id="revokeOtherSessions",
+    summary="Fermer toutes les autres sessions",
+    description=(
+        "Ferme toutes les sessions du compte sauf celle de la requête. "
+        "Idempotente : 204 même s'il n'y en avait aucune autre."
+    ),
+    responses={
+        204: {"description": "Autres sessions fermées."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+    },
+)
+def revoke_other_sessions(session: CurrentSession, db: DbSession) -> Response:
+    raise _not_yet_delivered("B1")
+
+
+@router.delete(
+    "/moi/sessions/{session_id}",
+    status_code=204,
+    response_class=Response,
+    operation_id="revokeSession",
+    summary="Fermer une session",
+    description=(
+        "Ferme une autre session du compte : l'appareil qui la tenait reçoit "
+        "401 à sa requête suivante. 404 pour une session inconnue, expirée ou "
+        "d'un autre compte, avec le même message. **409 pour la session de la "
+        "requête** : elle se ferme par `POST /deconnexion`, seul chemin qui "
+        "fait purger la base locale du compte."
+    ),
+    responses={
+        204: {"description": "Session fermée."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+        **NOT_FOUND,
+        **CONFLICT,
+    },
+)
+def revoke_session(
+    session_id: PathId, session: CurrentSession, db: DbSession
+) -> Response:
+    raise _not_yet_delivered("B1")
+
+
+@router.get(
+    "/moi/export",
+    response_model=AccountExport,
+    operation_id="exportAccount",
+    summary="Exporter toutes ses données",
+    description=(
+        "Toutes les données du compte en un fichier JSON lisible sans la base "
+        "(P3) : compte, collection, decks archivés et supprimés avec leurs "
+        "lignes et leurs versions jouées, joueurs, lieux, tournois et parties "
+        "avec leurs tables. Ni hachage, ni session, ni journal de "
+        "synchronisation. Fabriqué depuis la base, en ligne seulement : une "
+        "saisie encore en file n'y figure pas. Servi en pièce jointe."
+    ),
+    responses={
+        200: {
+            "description": "Export du compte, en pièce jointe.",
+            "headers": _CONTENT_DISPOSITION,
+        },
+        **UNAUTHENTICATED,
+    },
+)
+def export_account(user: CurrentUser, db: DbSession) -> AccountExport:
+    raise _not_yet_delivered("B2")

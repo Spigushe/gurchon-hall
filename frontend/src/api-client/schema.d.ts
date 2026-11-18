@@ -101,6 +101,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/moi/mot-de-passe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Changer son mot de passe
+         * @description Vérifie le mot de passe actuel, pose le nouveau (mêmes règles qu'à l'inscription) et ferme toutes les **autres** sessions du compte, dans une transaction ; la session de la requête reste ouverte (P2). Un mot de passe actuel incorrect rend **422** « Mot de passe actuel incorrect. », jamais 401 : la session, elle, est valide. Limité en débit par adresse IP (429). En ligne seulement, hors `/sync`.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moi/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sessions ouvertes du compte
+         * @description Sessions non expirées du compte, la session de la requête en tête (`current`), puis par dernière utilisation décroissante. Ni jeton ni empreinte : l'appareil se reconnaît à `user_agent`, noté à la connexion (P1).
+         */
+        get: operations["listSessions"];
+        put?: never;
+        post?: never;
+        /**
+         * Fermer toutes les autres sessions
+         * @description Ferme toutes les sessions du compte sauf celle de la requête. Idempotente : 204 même s'il n'y en avait aucune autre.
+         */
+        delete: operations["revokeOtherSessions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moi/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Fermer une session
+         * @description Ferme une autre session du compte : l'appareil qui la tenait reçoit 401 à sa requête suivante. 404 pour une session inconnue, expirée ou d'un autre compte, avec le même message. **409 pour la session de la requête** : elle se ferme par `POST /deconnexion`, seul chemin qui fait purger la base locale du compte.
+         */
+        delete: operations["revokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moi/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Exporter toutes ses données
+         * @description Toutes les données du compte en un fichier JSON lisible sans la base (P3) : compte, collection, decks archivés et supprimés avec leurs lignes et leurs versions jouées, joueurs, lieux, tournois et parties avec leurs tables. Ni hachage, ni session, ni journal de synchronisation. Fabriqué depuis la base, en ligne seulement : une saisie encore en file n'y figure pas. Servi en pièce jointe.
+         */
+        get: operations["exportAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cartes": {
         parameters: {
             query?: never;
@@ -704,6 +788,60 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccountExport
+         * @description Toutes les données d'un compte, lisibles sans la base (P3, A4).
+         */
+        AccountExport: {
+            /**
+             * Format Version
+             * @description Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute.
+             * @constant
+             */
+            format_version: 1;
+            /**
+             * Exported At
+             * Format: date-time
+             * @description Instant de l'export, en UTC.
+             */
+            exported_at: string;
+            /**
+             * Schema Revision
+             * @description Révision Alembic de la base au moment de l'export.
+             */
+            schema_revision: string;
+            account: components["schemas"]["ExportedAccount"];
+            /**
+             * Collection
+             * @default []
+             */
+            collection: components["schemas"]["ExportedCollectionEntry"][];
+            /**
+             * Decks
+             * @default []
+             */
+            decks: components["schemas"]["ExportedDeck"][];
+            /**
+             * Players
+             * @default []
+             */
+            players: components["schemas"]["ExportedPlayer"][];
+            /**
+             * Venues
+             * @default []
+             */
+            venues: components["schemas"]["ExportedVenue"][];
+            /**
+             * Tournaments
+             * @default []
+             */
+            tournaments: components["schemas"]["ExportedTournament"][];
+            /**
+             * Games
+             * @default []
+             */
+            games: components["schemas"]["ExportedGame"][];
+        };
         /**
          * BundleCardRead
          * @description Une ligne du contenu d'un produit : une carte, en n exemplaires.
@@ -2054,6 +2192,332 @@ export interface components {
          */
         EventTier: "standard" | "national_championship" | "grand_prix" | "continental_championship";
         /**
+         * ExportedAccount
+         * @description Le compte, sans identifiant, hachage ni session.
+         */
+        ExportedAccount: {
+            /** Email */
+            email: string;
+            /** Username */
+            username: string;
+            role: components["schemas"]["UserRole"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ExportedCollectionEntry
+         * @description Une entrée de collection : carte × langue × extension.
+         */
+        ExportedCollectionEntry: {
+            /**
+             * Vekn Id
+             * @description Identifiant VEKN de la carte, stable d'une base à l'autre.
+             */
+            vekn_id: number;
+            /**
+             * Card Name
+             * @description Nom anglais de la carte, tel que le catalogue le porte.
+             */
+            card_name: string;
+            /** Language Code */
+            language_code: string;
+            /**
+             * Card Set Abbrev
+             * @description Abréviation de l'extension de l'impression (« KoT »).
+             */
+            card_set_abbrev: string;
+            /** Quantity Owned */
+            quantity_owned: number;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
+         * ExportedDeck
+         * @description Un deck, archivé et supprimé compris, avec ses lignes et ses versions.
+         */
+        ExportedDeck: {
+            /**
+             * Id
+             * @description Identifiant du deck, valable dans ce fichier.
+             */
+            id: number;
+            /** Name */
+            name: string;
+            /** Discriminator */
+            discriminator: string;
+            status: components["schemas"]["DeckStatus"];
+            archetype: components["schemas"]["DeckArchetype"] | null;
+            /** Notes */
+            notes: string | null;
+            /** Proxy Allowed */
+            proxy_allowed: boolean;
+            /** Created On */
+            created_on: string | null;
+            /** Vdb Deck Id */
+            vdb_deck_id: string | null;
+            /** Archived At */
+            archived_at: string | null;
+            /** Deleted At */
+            deleted_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Cards
+             * @description Composition du deck ; pour un deck supprimé, sa liste figée à la suppression.
+             * @default []
+             */
+            cards: components["schemas"]["ExportedDeckLine"][];
+            /**
+             * Versions
+             * @description Versions jouées, par numéro croissant.
+             * @default []
+             */
+            versions: components["schemas"]["ExportedDeckVersion"][];
+        };
+        /**
+         * ExportedDeckLine
+         * @description Une ligne de deck. Pour un deck supprimé, une ligne de sa liste figée.
+         */
+        ExportedDeckLine: {
+            /**
+             * Vekn Id
+             * @description Identifiant VEKN de la carte, stable d'une base à l'autre.
+             */
+            vekn_id: number;
+            /**
+             * Card Name
+             * @description Nom anglais de la carte, tel que le catalogue le porte.
+             */
+            card_name: string;
+            /** Language Code */
+            language_code: string;
+            /**
+             * Card Set Abbrev
+             * @description Abréviation de l'extension de l'impression (« KoT »).
+             */
+            card_set_abbrev: string;
+            /** Quantity */
+            quantity: number;
+            /** Proxy Quantity */
+            proxy_quantity: number;
+        };
+        /**
+         * ExportedDeckVersion
+         * @description Une version jouée d'un deck, figée au jeu.
+         */
+        ExportedDeckVersion: {
+            /** Number */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Cards
+             * @default []
+             */
+            cards: components["schemas"]["ExportedDeckVersionCard"][];
+        };
+        /**
+         * ExportedDeckVersionCard
+         * @description Une carte d'une version jouée : carte × quantité, sans langue ni
+         *     extension (Lot 8, P1).
+         */
+        ExportedDeckVersionCard: {
+            /**
+             * Vekn Id
+             * @description Identifiant VEKN de la carte, stable d'une base à l'autre.
+             */
+            vekn_id: number;
+            /**
+             * Card Name
+             * @description Nom anglais de la carte, tel que le catalogue le porte.
+             */
+            card_name: string;
+            /** Quantity */
+            quantity: number;
+        };
+        /**
+         * ExportedGame
+         * @description Une partie et sa table.
+         */
+        ExportedGame: {
+            /**
+             * Id
+             * @description Identifiant de la partie, valable dans ce fichier.
+             */
+            id: number;
+            /**
+             * Played At
+             * Format: date-time
+             */
+            played_at: string;
+            /** Venue Id */
+            venue_id: number | null;
+            /** Tournament Id */
+            tournament_id: number | null;
+            round_type: components["schemas"]["RoundType"];
+            /** Round Number */
+            round_number: number | null;
+            /** Player Count */
+            player_count: number;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Participations
+             * @default []
+             */
+            participations: components["schemas"]["ExportedParticipation"][];
+        };
+        /**
+         * ExportedParticipation
+         * @description Une ligne de la table d'une partie.
+         */
+        ExportedParticipation: {
+            /**
+             * Player Id
+             * @description Joueur de la ligne ; nul pour un adversaire non nommé.
+             */
+            player_id: number | null;
+            /** Is Me */
+            is_me: boolean;
+            /** Seat */
+            seat: number | null;
+            /** Deck Id */
+            deck_id: number | null;
+            /** Deck Version Number */
+            deck_version_number: number | null;
+            /** Victory Points */
+            victory_points: number | null;
+            /** Game Win */
+            game_win: boolean | null;
+            /** Opponent Deck Name */
+            opponent_deck_name: string | null;
+            opponent_deck_archetype: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Opponent Clan
+             * @description Nom du clan principal du deck adverse.
+             */
+            opponent_clan: string | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
+         * ExportedPlayer
+         * @description Un joueur du carnet, « Moi » compris.
+         */
+        ExportedPlayer: {
+            /**
+             * Id
+             * @description Identifiant du joueur, valable dans ce fichier.
+             */
+            id: number;
+            /** Name */
+            name: string;
+            /** Is Me */
+            is_me: boolean;
+        };
+        /**
+         * ExportedTournament
+         * @description Un tournoi, sans bilan : le bilan se recalcule depuis les parties.
+         */
+        ExportedTournament: {
+            /**
+             * Id
+             * @description Identifiant du tournoi, valable dans ce fichier.
+             */
+            id: number;
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date: string | null;
+            /** Venue Id */
+            venue_id: number | null;
+            deck_policy: components["schemas"]["DeckPolicy"];
+            format: components["schemas"]["TournamentFormat"];
+            event_tier: components["schemas"]["EventTier"];
+            final_deck_rule: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count: number | null;
+            /** Player Count */
+            player_count: number | null;
+            /** My Ranking */
+            my_ranking: number | null;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Deck Versions
+             * @default []
+             */
+            deck_versions: components["schemas"]["ExportedTournamentDeckVersion"][];
+        };
+        /**
+         * ExportedTournamentDeckVersion
+         * @description La version d'un deck dans un tournoi (Lot 8, A9).
+         */
+        ExportedTournamentDeckVersion: {
+            /** Deck Id */
+            deck_id: number;
+            /** Deck Version Number */
+            deck_version_number: number;
+            /** Frozen By Game Id */
+            frozen_by_game_id: number;
+        };
+        /**
+         * ExportedVenue
+         * @description Un lieu.
+         */
+        ExportedVenue: {
+            /**
+             * Id
+             * @description Identifiant du lieu, valable dans ce fichier.
+             */
+            id: number;
+            /** Name */
+            name: string;
+            /** City */
+            city: string | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
          * FinalDeckRule
          * @description Règle du deck de finale d'un tournoi multi-deck (VEKN 3.1.5a, Lot 7, A11).
          *
@@ -2555,6 +3019,29 @@ export interface components {
             game_win: boolean | null;
         };
         /**
+         * PasswordChange
+         * @description Corps de `POST /moi/mot-de-passe`.
+         *
+         *     L'actuel est un `SubmittedPassword`, sans règle de complexité, comme à la
+         *     connexion : un secret posé sous une règle plus ancienne doit pouvoir être
+         *     remplacé. Le nouveau suit la règle de l'inscription. Un actuel faux rend
+         *     **422**, jamais 401 : le client lit un 401 comme une session perdue (pause
+         *     du moteur de sync, bandeau de reconnexion), alors que la session est
+         *     intacte.
+         */
+        PasswordChange: {
+            /**
+             * Current Password
+             * @description Mot de passe du compte, tel quel. Seule la longueur est bornée : la règle de complexité ne s'applique qu'au choix d'un mot de passe.
+             */
+            current_password: string;
+            /**
+             * New Password
+             * @description Au moins 12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole ; 128 au plus.
+             */
+            new_password: string;
+        };
+        /**
          * PlayerCreate
          * @description Création d'un adversaire. Le « Moi » existe déjà (A1).
          */
@@ -2718,6 +3205,46 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /**
+         * SessionRead
+         * @description Une session ouverte du compte : `GET /moi/sessions` (P1).
+         *
+         *     Ni jeton ni empreinte. `user_agent` est l'en-tête brut noté à la
+         *     connexion : le client en tire le libellé lisible (« Chrome sur Android »),
+         *     qui aide à reconnaître un appareil sans rien prouver.
+         */
+        SessionRead: {
+            /** Id */
+            id: number;
+            /**
+             * Created At
+             * Format: date-time
+             * @description Ouverture de la session, en UTC.
+             */
+            created_at: string;
+            /**
+             * Last Used At
+             * Format: date-time
+             * @description Dernière utilisation notée, au jour près (le renouvellement l'écrit au plus une fois par jour) ; égale à `created_at` pour une session jamais renouvelée.
+             */
+            last_used_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description Échéance du moment, en UTC : repoussée à l'usage (14 jours sans usage), jamais au-delà de 90 jours après l'ouverture.
+             */
+            expires_at: string;
+            /**
+             * User Agent
+             * @description En-tête `User-Agent` de la connexion qui a ouvert la session, coupé à 256 caractères ; nul pour une session ouverte avant le Lot 12 ou sans en-tête (« appareil inconnu »).
+             */
+            user_agent: string | null;
+            /**
+             * Current
+             * @description Vrai pour la session de la requête, et pour elle seule. Elle se ferme par `POST /deconnexion`, jamais par `DELETE /moi/sessions/{id}`.
+             */
+            current: boolean;
         };
         /**
          * StockDeleteOperation
@@ -3838,6 +4365,227 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordChange"];
+            };
+        };
+        responses: {
+            /** @description Mot de passe changé, autres sessions fermées. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`. */
+            429: {
+                headers: {
+                    /** @description Délai avant une nouvelle tentative, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revokeOtherSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Autres sessions fermées. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revokeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session fermée. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    exportAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export du compte, en pièce jointe. */
+            200: {
+                headers: {
+                    /** @description `attachment; filename="gurchon-hall-<username>-<AAAA-MM-JJ>.json"` : le navigateur enregistre le fichier au lieu de l'afficher. */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountExport"];
                 };
             };
             /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */

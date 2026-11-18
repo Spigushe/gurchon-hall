@@ -283,6 +283,293 @@
         ]
       }
     },
+    "/moi/mot-de-passe": {
+      "post": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Changer son mot de passe",
+        "description": "Vérifie le mot de passe actuel, pose le nouveau (mêmes règles qu'à l'inscription) et ferme toutes les **autres** sessions du compte, dans une transaction ; la session de la requête reste ouverte (P2). Un mot de passe actuel incorrect rend **422** « Mot de passe actuel incorrect. », jamais 401 : la session, elle, est valide. Limité en débit par adresse IP (429). En ligne seulement, hors `/sync`.",
+        "operationId": "changePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Mot de passe changé, autres sessions fermées."
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai avant une nouvelle tentative, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0.0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/moi/sessions": {
+      "get": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Sessions ouvertes du compte",
+        "description": "Sessions non expirées du compte, la session de la requête en tête (`current`), puis par dernière utilisation décroissante. Ni jeton ni empreinte : l'appareil se reconnaît à `user_agent`, noté à la connexion (P1).",
+        "operationId": "listSessions",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionRead"
+                  },
+                  "type": "array",
+                  "title": "Response Listsessions"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Fermer toutes les autres sessions",
+        "description": "Ferme toutes les sessions du compte sauf celle de la requête. Idempotente : 204 même s'il n'y en avait aucune autre.",
+        "operationId": "revokeOtherSessions",
+        "responses": {
+          "204": {
+            "description": "Autres sessions fermées."
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/moi/sessions/{session_id}": {
+      "delete": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Fermer une session",
+        "description": "Ferme une autre session du compte : l'appareil qui la tenait reçoit 401 à sa requête suivante. 404 pour une session inconnue, expirée ou d'un autre compte, avec le même message. **409 pour la session de la requête** : elle se ferme par `POST /deconnexion`, seul chemin qui fait purger la base locale du compte.",
+        "operationId": "revokeSession",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Session Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Session fermée."
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/moi/export": {
+      "get": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Exporter toutes ses données",
+        "description": "Toutes les données du compte en un fichier JSON lisible sans la base (P3) : compte, collection, decks archivés et supprimés avec leurs lignes et leurs versions jouées, joueurs, lieux, tournois et parties avec leurs tables. Ni hachage, ni session, ni journal de synchronisation. Fabriqué depuis la base, en ligne seulement : une saisie encore en file n'y figure pas. Servi en pièce jointe.",
+        "operationId": "exportAccount",
+        "responses": {
+          "200": {
+            "description": "Export du compte, en pièce jointe.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "`attachment; filename=\"gurchon-hall-<username>-<AAAA-MM-JJ>.json\"` : le navigateur enregistre le fichier au lieu de l'afficher.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountExport"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
     "/cartes": {
       "get": {
         "tags": [
@@ -4371,6 +4658,93 @@
   },
   "components": {
     "schemas": {
+      "AccountExport": {
+        "properties": {
+          "format_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Format Version",
+            "description": "Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute."
+          },
+          "exported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Exported At",
+            "description": "Instant de l'export, en UTC."
+          },
+          "schema_revision": {
+            "type": "string",
+            "title": "Schema Revision",
+            "description": "Révision Alembic de la base au moment de l'export."
+          },
+          "account": {
+            "$ref": "#/components/schemas/ExportedAccount"
+          },
+          "collection": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedCollectionEntry"
+            },
+            "type": "array",
+            "title": "Collection",
+            "default": []
+          },
+          "decks": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeck"
+            },
+            "type": "array",
+            "title": "Decks",
+            "default": []
+          },
+          "players": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedPlayer"
+            },
+            "type": "array",
+            "title": "Players",
+            "default": []
+          },
+          "venues": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedVenue"
+            },
+            "type": "array",
+            "title": "Venues",
+            "default": []
+          },
+          "tournaments": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedTournament"
+            },
+            "type": "array",
+            "title": "Tournaments",
+            "default": []
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedGame"
+            },
+            "type": "array",
+            "title": "Games",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "format_version",
+          "exported_at",
+          "schema_revision",
+          "account",
+          "collection",
+          "decks",
+          "players",
+          "venues",
+          "tournaments",
+          "games"
+        ],
+        "title": "AccountExport",
+        "description": "Toutes les données d'un compte, lisibles sans la base (P3, A4)."
+      },
       "BundleCardRead": {
         "properties": {
           "card": {
@@ -6968,6 +7342,791 @@
         "title": "EventTier",
         "description": "Niveau d'un tournoi, au sens où le règlement VEKN le distingue (Lot 7, A11).\n\nLe niveau ne sert qu'à une règle : le multi-deck est interdit en championnat\nnational, en Grand Prix et en championnat continental (VEKN 3.1.5, CLAUDE.md\n§5). Tout autre tournoi est `standard`, valeur par défaut."
       },
+      "ExportedAccount": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "$ref": "#/components/schemas/UserRole"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "username",
+          "role",
+          "created_at"
+        ],
+        "title": "ExportedAccount",
+        "description": "Le compte, sans identifiant, hachage ni session."
+      },
+      "ExportedCollectionEntry": {
+        "properties": {
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id",
+            "description": "Identifiant VEKN de la carte, stable d'une base à l'autre."
+          },
+          "card_name": {
+            "type": "string",
+            "title": "Card Name",
+            "description": "Nom anglais de la carte, tel que le catalogue le porte."
+          },
+          "language_code": {
+            "type": "string",
+            "title": "Language Code"
+          },
+          "card_set_abbrev": {
+            "type": "string",
+            "title": "Card Set Abbrev",
+            "description": "Abréviation de l'extension de l'impression (« KoT »)."
+          },
+          "quantity_owned": {
+            "type": "integer",
+            "title": "Quantity Owned"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vekn_id",
+          "card_name",
+          "language_code",
+          "card_set_abbrev",
+          "quantity_owned",
+          "notes"
+        ],
+        "title": "ExportedCollectionEntry",
+        "description": "Une entrée de collection : carte × langue × extension."
+      },
+      "ExportedDeck": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant du deck, valable dans ce fichier."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "discriminator": {
+            "type": "string",
+            "title": "Discriminator"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DeckStatus"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "proxy_allowed": {
+            "type": "boolean",
+            "title": "Proxy Allowed"
+          },
+          "created_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created On"
+          },
+          "vdb_deck_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdb Deck Id"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeckLine"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Composition du deck ; pour un deck supprimé, sa liste figée à la suppression.",
+            "default": []
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeckVersion"
+            },
+            "type": "array",
+            "title": "Versions",
+            "description": "Versions jouées, par numéro croissant.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "discriminator",
+          "status",
+          "archetype",
+          "notes",
+          "proxy_allowed",
+          "created_on",
+          "vdb_deck_id",
+          "archived_at",
+          "deleted_at",
+          "created_at",
+          "updated_at",
+          "cards",
+          "versions"
+        ],
+        "title": "ExportedDeck",
+        "description": "Un deck, archivé et supprimé compris, avec ses lignes et ses versions."
+      },
+      "ExportedDeckLine": {
+        "properties": {
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id",
+            "description": "Identifiant VEKN de la carte, stable d'une base à l'autre."
+          },
+          "card_name": {
+            "type": "string",
+            "title": "Card Name",
+            "description": "Nom anglais de la carte, tel que le catalogue le porte."
+          },
+          "language_code": {
+            "type": "string",
+            "title": "Language Code"
+          },
+          "card_set_abbrev": {
+            "type": "string",
+            "title": "Card Set Abbrev",
+            "description": "Abréviation de l'extension de l'impression (« KoT »)."
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          },
+          "proxy_quantity": {
+            "type": "integer",
+            "title": "Proxy Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vekn_id",
+          "card_name",
+          "language_code",
+          "card_set_abbrev",
+          "quantity",
+          "proxy_quantity"
+        ],
+        "title": "ExportedDeckLine",
+        "description": "Une ligne de deck. Pour un deck supprimé, une ligne de sa liste figée."
+      },
+      "ExportedDeckVersion": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeckVersionCard"
+            },
+            "type": "array",
+            "title": "Cards",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at",
+          "cards"
+        ],
+        "title": "ExportedDeckVersion",
+        "description": "Une version jouée d'un deck, figée au jeu."
+      },
+      "ExportedDeckVersionCard": {
+        "properties": {
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id",
+            "description": "Identifiant VEKN de la carte, stable d'une base à l'autre."
+          },
+          "card_name": {
+            "type": "string",
+            "title": "Card Name",
+            "description": "Nom anglais de la carte, tel que le catalogue le porte."
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vekn_id",
+          "card_name",
+          "quantity"
+        ],
+        "title": "ExportedDeckVersionCard",
+        "description": "Une carte d'une version jouée : carte × quantité, sans langue ni\nextension (Lot 8, P1)."
+      },
+      "ExportedGame": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant de la partie, valable dans ce fichier."
+          },
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "tournament_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tournament Id"
+          },
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType"
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "player_count": {
+            "type": "integer",
+            "title": "Player Count"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedParticipation"
+            },
+            "type": "array",
+            "title": "Participations",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "played_at",
+          "venue_id",
+          "tournament_id",
+          "round_type",
+          "round_number",
+          "player_count",
+          "notes",
+          "created_at",
+          "updated_at",
+          "participations"
+        ],
+        "title": "ExportedGame",
+        "description": "Une partie et sa table."
+      },
+      "ExportedParticipation": {
+        "properties": {
+          "player_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Id",
+            "description": "Joueur de la ligne ; nul pour un adversaire non nommé."
+          },
+          "is_me": {
+            "type": "boolean",
+            "title": "Is Me"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number"
+          },
+          "victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victory Points"
+          },
+          "game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Win"
+          },
+          "opponent_deck_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Deck Name"
+          },
+          "opponent_deck_archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "opponent_clan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opponent Clan",
+            "description": "Nom du clan principal du deck adverse."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "player_id",
+          "is_me",
+          "seat",
+          "deck_id",
+          "deck_version_number",
+          "victory_points",
+          "game_win",
+          "opponent_deck_name",
+          "opponent_deck_archetype",
+          "opponent_clan",
+          "notes"
+        ],
+        "title": "ExportedParticipation",
+        "description": "Une ligne de la table d'une partie."
+      },
+      "ExportedPlayer": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant du joueur, valable dans ce fichier."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "is_me": {
+            "type": "boolean",
+            "title": "Is Me"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "is_me"
+        ],
+        "title": "ExportedPlayer",
+        "description": "Un joueur du carnet, « Moi » compris."
+      },
+      "ExportedTournament": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant du tournoi, valable dans ce fichier."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Venue Id"
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy"
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier"
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count"
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "deck_versions": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedTournamentDeckVersion"
+            },
+            "type": "array",
+            "title": "Deck Versions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start_date",
+          "end_date",
+          "venue_id",
+          "deck_policy",
+          "format",
+          "event_tier",
+          "final_deck_rule",
+          "round_count",
+          "player_count",
+          "my_ranking",
+          "notes",
+          "created_at",
+          "updated_at",
+          "deck_versions"
+        ],
+        "title": "ExportedTournament",
+        "description": "Un tournoi, sans bilan : le bilan se recalcule depuis les parties."
+      },
+      "ExportedTournamentDeckVersion": {
+        "properties": {
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "deck_version_number": {
+            "type": "integer",
+            "title": "Deck Version Number"
+          },
+          "frozen_by_game_id": {
+            "type": "integer",
+            "title": "Frozen By Game Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "deck_version_number",
+          "frozen_by_game_id"
+        ],
+        "title": "ExportedTournamentDeckVersion",
+        "description": "La version d'un deck dans un tournoi (Lot 8, A9)."
+      },
+      "ExportedVenue": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant du lieu, valable dans ce fichier."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "city",
+          "notes"
+        ],
+        "title": "ExportedVenue",
+        "description": "Un lieu."
+      },
       "FinalDeckRule": {
         "type": "string",
         "enum": [
@@ -8046,6 +9205,33 @@
         "title": "ParticipationSummary",
         "description": "Ma ligne d'une partie, en résumé : ce qu'une liste affiche."
       },
+      "PasswordChange": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Current Password",
+            "description": "Mot de passe du compte, tel quel. Seule la longueur est bornée : la règle de complexité ne s'applique qu'au choix d'un mot de passe."
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 12,
+            "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^\\w\\s]).{12,}$",
+            "title": "New Password",
+            "description": "Au moins 12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole ; 128 au plus."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "PasswordChange",
+        "description": "Corps de `POST /moi/mot-de-passe`.\n\nL'actuel est un `SubmittedPassword`, sans règle de complexité, comme à la\nconnexion : un secret posé sous une règle plus ancienne doit pouvoir être\nremplacé. Le nouveau suit la règle de l'inscription. Un actuel faux rend\n**422**, jamais 401 : le client lit un 401 comme une session perdue (pause\ndu moteur de sync, bandeau de reconnexion), alors que la session est\nintacte."
+      },
       "PlayerCreate": {
         "properties": {
           "name": {
@@ -8295,6 +9481,60 @@
         ],
         "title": "SectRead",
         "description": "Sect."
+      },
+      "SessionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Ouverture de la session, en UTC."
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Used At",
+            "description": "Dernière utilisation notée, au jour près (le renouvellement l'écrit au plus une fois par jour) ; égale à `created_at` pour une session jamais renouvelée."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At",
+            "description": "Échéance du moment, en UTC : repoussée à l'usage (14 jours sans usage), jamais au-delà de 90 jours après l'ouverture."
+          },
+          "user_agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Agent",
+            "description": "En-tête `User-Agent` de la connexion qui a ouvert la session, coupé à 256 caractères ; nul pour une session ouverte avant le Lot 12 ou sans en-tête (« appareil inconnu »)."
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current",
+            "description": "Vrai pour la session de la requête, et pour elle seule. Elle se ferme par `POST /deconnexion`, jamais par `DELETE /moi/sessions/{id}`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "user_agent",
+          "current"
+        ],
+        "title": "SessionRead",
+        "description": "Une session ouverte du compte : `GET /moi/sessions` (P1).\n\nNi jeton ni empreinte. `user_agent` est l'en-tête brut noté à la\nconnexion : le client en tire le libellé lisible (« Chrome sur Android »),\nqui aide à reconnaître un appareil sans rien prouver."
       },
       "StockDeleteOperation": {
         "properties": {

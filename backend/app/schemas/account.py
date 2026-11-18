@@ -232,3 +232,62 @@ class UserRead(ReadModel):
         )
     )
     created_at: datetime = Field(description="Création du compte, en UTC.")
+
+
+# ---------------------------------------------------------------------------
+# Lot 12 : mot de passe et sessions (`docs/lot12-plan-consolidation.md`, A1)
+# ---------------------------------------------------------------------------
+
+
+class PasswordChange(WriteModel):
+    """Corps de `POST /moi/mot-de-passe`.
+
+    L'actuel est un `SubmittedPassword`, sans règle de complexité, comme à la
+    connexion : un secret posé sous une règle plus ancienne doit pouvoir être
+    remplacé. Le nouveau suit la règle de l'inscription. Un actuel faux rend
+    **422**, jamais 401 : le client lit un 401 comme une session perdue (pause
+    du moteur de sync, bandeau de reconnexion), alors que la session est
+    intacte.
+    """
+
+    current_password: SubmittedPassword
+    new_password: NewPassword
+
+
+class SessionRead(ReadModel):
+    """Une session ouverte du compte : `GET /moi/sessions` (P1).
+
+    Ni jeton ni empreinte. `user_agent` est l'en-tête brut noté à la
+    connexion : le client en tire le libellé lisible (« Chrome sur Android »),
+    qui aide à reconnaître un appareil sans rien prouver.
+    """
+
+    id: int
+    created_at: datetime = Field(description="Ouverture de la session, en UTC.")
+    last_used_at: datetime = Field(
+        description=(
+            "Dernière utilisation notée, au jour près (le renouvellement l'écrit "
+            "au plus une fois par jour) ; égale à `created_at` pour une session "
+            "jamais renouvelée."
+        )
+    )
+    expires_at: datetime = Field(
+        description=(
+            "Échéance du moment, en UTC : repoussée à l'usage (14 jours sans "
+            "usage), jamais au-delà de 90 jours après l'ouverture."
+        )
+    )
+    user_agent: str | None = Field(
+        default=None,
+        description=(
+            "En-tête `User-Agent` de la connexion qui a ouvert la session, coupé "
+            "à 256 caractères ; nul pour une session ouverte avant le Lot 12 ou "
+            "sans en-tête (« appareil inconnu »)."
+        ),
+    )
+    current: bool = Field(
+        description=(
+            "Vrai pour la session de la requête, et pour elle seule. Elle se "
+            "ferme par `POST /deconnexion`, jamais par `DELETE /moi/sessions/{id}`."
+        )
+    )

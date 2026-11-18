@@ -1,7 +1,8 @@
 # Lot 12 — Consolidation (v1.1) : plan d'implémentation
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
-écrit le 2026-11-18** ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
+écrit le 2026-11-18, D0 close le 2026-11-18 ; A1 livrée le 2026-11-18** (cf.
+« Livré à A1 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -470,8 +471,11 @@ Deux choix à expliquer :
   (D3 du Lot 6). La laisser fermer par `DELETE /moi/sessions/{id}` ouvrirait
   un second chemin qui oublierait la purge.
 
-Le contrat passe à 57 opérations sur 35 chemins ; la matrice d'autorisation
-(`test_lot6_authorization_matrix.py`) les reçoit toutes.
+Le contrat passe à 57 opérations sur 36 chemins (35 écrit ici d'abord, une
+erreur de compte : `/moi/mot-de-passe`, `/moi/sessions`,
+`/moi/sessions/{session_id}` et `/moi/export` font quatre chemins) ; la
+matrice d'autorisation (`test_lot6_authorization_matrix.py`) les reçoit
+toutes.
 
 ### A2. Révision R15 : `auth_session.user_agent` et `last_used_at` (P1, P10)
 
@@ -718,7 +722,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | trancher P1 à P10 et écrire le brief Claude Design (P9, `docs/design-handoff/lot12-brief-claude-design.md`) : **faits le 2026-11-18** ; relever en HTTPS sur téléphone la copie par le presse-papiers, `persist()` et la montée d'une base IndexedDB déjà utilisée, consigner les résultats ici | — |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` : **fait le 2026-11-18**, en deux envois (corrections demandées et design system, puis `LOT12.md`, prototypes et captures, P9 « Handoff reçu ») ; choix du designer et écarts 1 et 2 retenus le 2026-11-18 | A0 |
-| A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré | A0 |
+| A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré — **fait le 2026-11-18** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) | A1 |
 | B2 | backend-fastapi | export du compte (A4) | A1 |
 | B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` | A0 |
@@ -739,6 +743,72 @@ bandeau reposent sur les deux classes corrigées. D5 suit D1, dans la même
 livraison : retirer l'onglet et le lien de l'alerte avant que l'écran Compte
 existe laisserait le mobile sans aucune entrée vers Synchronisation, et le
 bureau avec la seule alerte de la barre haute et `G S`.
+
+### Livré à A1 (2026-11-18)
+
+- **Modèle et R15** : `auth_session.user_agent` (`VARCHAR(256)`, plafond
+  `USER_AGENT_MAX_LENGTH`) et `auth_session.last_used_at` (date-heure UTC
+  naïve), nullables, en fin de table (`app/models/account.py`). Révision
+  `c4e8a1f2d7b3`
+  (`migrations/versions/20261118_c4e8a1f2d7b3_appareil_et_derniere_utilisation_des_sessions.py`) :
+  deux `ADD COLUMN` sur le patron de R12 et R14, sans conversion, sans index ;
+  le CHECK `expires_after_creation` n'est pas touché. **Montée et descente se
+  rendent hors ligne** ; la descente retire les colonnes sans garde (rien n'y
+  est une saisie). 28 tables, quinze révisions. `SESSION_LIFETIME` reste à
+  14 jours fixes : son docstring annonce le renouvellement de B1, rien n'est
+  câblé.
+- **Schémas** : `PasswordChange` (`current_password` en `SubmittedPassword`,
+  sans règle de complexité comme à la connexion ; `new_password` en
+  `NewPassword`, règle de l'inscription ; tout autre champ en 422) et
+  `SessionRead` (`id`, `created_at`, `last_used_at` non nullable, que le
+  service remplira par `created_at` quand la colonne est NULL, `expires_at`,
+  `user_agent` nullable, `current`) dans `app/schemas/account.py`.
+  `AccountExport` et ses sous-schémas dans `app/schemas/account_export.py` :
+  `format_version` (constante 1, `ACCOUNT_EXPORT_FORMAT_VERSION`),
+  `exported_at`, `schema_revision`, `account` (adresse, nom, rôle, création ;
+  ni identifiant, ni hachage, ni session), `collection`, `decks` (archivés et
+  supprimés, lignes ou liste figée, versions jouées rangées sous leur deck),
+  `players`, `venues`, `tournaments` (avec la version de chaque deck joué, par
+  numéro), `games` (avec leur table). Une carte s'y désigne par `vekn_id` et
+  `card_name`, une extension par `card_set_abbrev`, le clan d'un deck adverse
+  par son nom ; les ressources privées gardent leur `id`, qui ne vaut que dans
+  le fichier et sert aux renvois d'une section à l'autre. Pas de bilan de
+  tournoi : il se recalcule depuis les parties. Précision à A4 : le journal
+  `sync_operation` et `auth_session` n'y entrent pas, toute autre table privée
+  y est représentée, `deleted_deck_card` et `deck_version_card` sous leur
+  deck.
+- **Routes** (`app/routers/auth.py`, tag `comptes`), toutes sous session :
+  `POST /moi/mot-de-passe` (`changePassword`, 204, 422, 429 déclaré, 403
+  d'origine), `GET /moi/sessions` (`listSessions`), `DELETE /moi/sessions`
+  (`revokeOtherSessions`), `DELETE /moi/sessions/{session_id}`
+  (`revokeSession`, 404 et 409), `GET /moi/export` (`exportAccount`, en-tête
+  `Content-Disposition` déclaré). Contrat à **57 opérations sur 36 chemins**,
+  client TS régénéré. `/moi` était déjà dans `API_ROUTE_PREFIXES`.
+- **Garde provisoire** : le corps des cinq routes rend **501** (« Route pas
+  encore livrée (Lot 12, étape B1). », B2 pour l'export), après le contrôle de
+  session et la validation du corps et du chemin. **À retirer à B1 et B2**,
+  avec `test_the_routes_are_a_provisional_501_until_b1_and_b2`. La limitation
+  de débit du changement de mot de passe est déclarée au contrat mais pas
+  encore posée : elle vient avec le corps de la route, à B1 (réglage à créer
+  dans `app/services/rate_limit.py`, sur le patron de `LOGIN_RATE_LIMIT`).
+- **Tests** : `backend/tests/test_lot12_contract.py` (déclaration des cinq
+  routes et de leurs réponses, règles de `PasswordChange`, `SessionRead`
+  complet en sortie, export sans secret ni identifiant de compte, domaines
+  couverts, `format_version` fixée, colonnes du modèle, garde provisoire,
+  validation avant la garde) ; section « Lot 12 » de `test_migrations.py`
+  (colonnes et types, ni table ni index, base peuplée de deux comptes et de
+  leurs sessions conservée avec des colonnes vides, CHECK toujours en place,
+  descente sans garde, aller-retour, rendu hors ligne dans les deux sens) ;
+  matrice d'autorisation, opérations attendues et compte du contrat portés à
+  57. **2893 tests backend verts et les 2 `xfail` connus** (2848 au départ),
+  sous couverture, sans régression CRAP ; `ruff check` propre ; `tsc`, lint
+  et les vitest du contrat, des routes et des préfixes verts (suite vitest
+  complète et e2e non relancés : aucun code du front ne change hors du client
+  généré).
+- **Base de développement** : `backend/vtes.db` n'a pas été migrée. L'API
+  refuse de démarrer tant qu'elle n'est pas à `c4e8a1f2d7b3`
+  (`schema_check.py`) : `uv run alembic upgrade head` depuis `backend/`, après
+  avoir vérifié `DATABASE_URL`.
 
 ## Tests attendus (E)
 
