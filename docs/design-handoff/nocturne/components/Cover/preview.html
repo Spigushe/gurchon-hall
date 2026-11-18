@@ -1,0 +1,39 @@
+<!-- @dsCard height=288 -->
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap">
+<style>
+html,body{margin:0;background:var(--color-bg)}
+.cover{position:relative;width:960px;height:288px;overflow:hidden;background:var(--color-bg)}
+.cover svg{position:absolute;left:0;top:0}
+.b{rx:var(--radius-md);ry:var(--radius-md)}
+.accent{fill:var(--color-accent)}
+.deep{fill:var(--color-accent-800)}
+.n8{fill:var(--color-neutral-800)}
+.neutral{fill:var(--color-neutral-700)}
+.tint{fill:var(--color-accent-300)}
+.cut{stroke:var(--color-bg);stroke-width:1px}
+.text{position:absolute;left:40px;bottom:32px;max-width:880px}
+.name{margin:0;font-family:var(--font-heading);font-weight:500;font-size:62px;line-height:.95;letter-spacing:-0.02em;color:var(--color-text)}
+.tag{margin:8px 0 0;font-size:14px;line-height:1.5;color:var(--color-neutral-400);max-width:440px}
+</style></head><body>
+<div class="cover">
+<!-- Dérivation
+  blocs : color-accent 344×112, color-neutral-800 196×112, color-accent-800 168×112, color-accent-300 72×112, color-neutral-700 55×112 (color-surface écarté : trop proche du fond) ; coins radius-md
+  disposition : bande pleine largeur en haut (y 32–144, marges de 40px), bandes inégales, l'accent en tête parce que c'est la seule couleur qu'on retient de Nocturne
+  motif : quatre filets du fond qui traversent les blocs au pas space-8 (22,4px) : « l'élévation est une arête, pas une ombre » et « l'accent est un trait » (README)
+  pas et rayons : écarts space-4 (11,2px) entre blocs, filets à space-8, radius-md
+-->
+<svg width="960" height="288" viewBox="0 0 960 288" aria-hidden="true">
+  <rect class="b accent" x="40" y="32" width="344" height="112"/>
+  <rect class="b n8" x="395.2" y="32" width="196" height="112"/>
+  <rect class="b deep" x="602.4" y="32" width="168" height="112"/>
+  <rect class="b tint" x="781.6" y="32" width="72" height="112"/>
+  <rect class="b neutral" x="864.8" y="32" width="55.2" height="112"/>
+  <line class="cut" x1="40" x2="920" y1="54.4" y2="54.4"/>
+  <line class="cut" x1="40" x2="920" y1="76.8" y2="76.8"/>
+  <line class="cut" x1="40" x2="920" y1="99.2" y2="99.2"/>
+  <line class="cut" x1="40" x2="920" y1="121.6" y2="121.6"/>
+</svg>
+<div class="text"><p class="name">Nocturne — Gurchon Hall</p><p class="tag">Sombre, compact, un seul accent porté en trait.</p></div>
+</div>
+</body></html>

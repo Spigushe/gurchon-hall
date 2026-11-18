@@ -343,7 +343,7 @@ over 48px at each end (see the home footer rule); box borders and in-row separat
   canvas's 1a screens are deliberately not captured.
 - `nocturne/styles.css` — the design-system token sheet and component classes (source of truth
   for every value above).
-- `nocturne/readme.md` — the Nocturne guide (direction, color, type, do/don't).
+- `nocturne/readme-lot5.md` — the Nocturne guide (direction, color, type, do/don't).
 
 Repo mapping (screen → files to change in `Spigushe/gurchon-hall`):
 

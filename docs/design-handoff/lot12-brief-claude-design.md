@@ -224,6 +224,38 @@ l'écran, et disparaître de lui-même.
 - Catalogue en cours de chargement : liste des decks et aperçu bureau, détail
   mobile.
 
+## Corrections demandées
+
+Deux défauts relevés dans `frontend/src/index.css` lors de l'extraction du
+design system « Nocturne — Gurchon Hall » (2026-11-18). Ils ne demandent aucun
+écran nouveau : les maquettes du lot les dessinent **dans leur état voulu**, et
+le handoff `LOT12.md` les reprend dans une section « Corrections » pour
+l'implémentation.
+
+1. **Les champs soulignés gardent la bordure du navigateur.**
+   `.underline-field` ne pose que `border-bottom`, et rien ne remet à zéro la
+   bordure des `input` : le navigateur garde sa bordure inset en haut, à gauche
+   et à droite. Constaté sur une capture de l'application
+   (`docs/qa-baselines/lot9-mobile-390x844/02-nouveau-deck.png`, champ « Nom du
+   deck »). Le handoff mobile veut un simple soulignement. Correction attendue :
+   `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux
+   règles du panneau bureau (`.sheet .underline-field`), qui encadrent le champ
+   volontairement. Les feuilles du Lot 12 (mot de passe) en dépendent.
+2. **Les boutons texte posés sur un `<button>` gardent le fond et la bordure
+   du navigateur.** `.btn-ghost` et `.chip-action--text` ne remettent à zéro ni
+   `background` ni `border`. Sur un `<a>`, l'usage le plus courant, rien ne se
+   voit ; sur un `<button>`, le navigateur garde son fond clair et sa bordure.
+   Concernés : « Se reconnecter → » du bandeau de reconnexion
+   (`ReconnectBanner`), le bouton de `BilanFilters`, « Abandonner » de l'écran
+   Synchronisation (`RejectedOperations`). Relevé à la lecture du CSS, **pas vu
+   sur une capture** : à confirmer à l'écran avant de corriger. Correction
+   attendue : `background: transparent; border: 0` sur ces deux classes. Les
+   actions du bandeau « nouvelle version » (« Mettre à jour », « Plus tard »)
+   seront des `.btn-ghost` sur des `<button>` et en dépendent.
+
+Le design system montre déjà les deux corrections, par deux règles signalées
+en fin de `components/bundle.css`.
+
 ## Hors du brief
 
 Réinitialisation du mot de passe par e-mail, suppression du compte,

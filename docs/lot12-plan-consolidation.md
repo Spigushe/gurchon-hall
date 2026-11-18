@@ -28,7 +28,11 @@ fait :
   file vide ;
 - quatre dettes : tris sur `fold_text`, état « catalogue en cours de
   chargement » à la première connexion, légende des raccourcis `?`,
-  attribution de la flakiness vitest si elle revient.
+  attribution de la flakiness vitest si elle revient ;
+- Synchronisation quitte la navigation (onglet de la barre haute, surlignage
+  dans la tab bar mobile, lien de l'alerte de l'Atelier) pour l'écran Compte,
+  aux deux largeurs (A11, demandé par l'utilisateur le 2026-11-18, sans
+  handoff).
 
 Ce que le lot ne fait pas :
 
@@ -208,7 +212,8 @@ déjà, mais autant ne pas en dépendre sans raison.
 1. **Recommandé : attendre les opérations en attente, prévenir pour les
    refusées.** Tant qu'une opération attend son rejeu, le bandeau dit
    « Nouvelle version prête. Elle s'installera une fois vos N saisies
-   synchronisées », sans bouton, avec un lien vers Synchronisation ; dès que
+   synchronisées », sans bouton, avec un lien vers Synchronisation (lien
+   retiré le 2026-11-18, A11) ; dès que
    la file est vide, il propose « Mettre à jour ». Une opération refusée ne
    bloque pas (elle peut rester des semaines) : le bandeau le signale et
    laisse faire. « Plus tard » masque le bandeau jusqu'au prochain
@@ -285,6 +290,102 @@ raccourcis (P8) et l'état « catalogue en cours d'écriture » (A8), en mobile 
 en bureau. D1 et D2 attendent le handoff. A1 à C1 n'en dépendent pas et
 avancent pendant ce temps. Le brief suit les décisions de P1 à P10, et toute
 décision qui s'en écarte d'ici l'envoi doit y être reportée.
+
+#### Handoff reçu (premier envoi, 2026-11-18)
+
+L'archive `gurchon-hall-handoff-lot12.zip`, versée le 2026-11-18, est le paquet
+remis à Claude Design. Elle ne contient **encore aucune maquette** du lot :
+pas de `LOT12.md`, pas de prototype `.dc.html` nouveau, pas de capture. Son
+dossier `design-handoff/` est celui du dépôt au commit `0ed427a`, à une
+différence près. Deux apports, versés dans le dépôt :
+
+- **Le brief gagne une section « Corrections demandées »**
+  (`docs/design-handoff/lot12-brief-claude-design.md`) : deux défauts de
+  `frontend/src/index.css`, relevés pendant l'extraction du design system,
+  antérieurs au lot. Les maquettes les dessineront corrigés ; le code se
+  corrige à l'étape D4 (ci-dessous).
+- **Le design system extrait du code** (artefact « Nocturne — Gurchon Hall »),
+  versé dans `docs/design-handoff/nocturne/` à côté du `styles.css` du Lot 5,
+  le guide d'origine y devenant `readme-lot5.md` : tokens, guide, aperçus statiques de
+  seize composants, et `lot12.md`, qui dit pour chaque écran du brief quel
+  composant ou quelle classe existe déjà (aucun token nouveau prévu, ni
+  couleur « danger », ni vert de succès). Les deux dernières règles de
+  `components/bundle.css` sont les corrections, absentes du code.
+
+Ce premier envoi ne fermait pas D0 : D1 et D2 attendaient les maquettes, que
+le second envoi apporte (ci-dessous). D4 n'en dépend pas.
+
+#### Handoff reçu (second envoi, 2026-11-18) : les maquettes
+
+L'archive `gurchon-hall-lot12.zip` apporte ce qui manquait au premier envoi,
+versé dans `docs/design-handoff/` : `LOT12.md`, `Gurchon Hall Compte.dc.html`
+(mobile, 1b-59 à 1b-78) et `Gurchon Hall Compte Bureau.dc.html` (bureau, d35 à
+d49), leurs 35 captures dans `screenshots/`, et les scripts qui génèrent les
+prototypes dans `sources/lot12/`. Le reste de l'archive (brief, design system,
+`nocturne/styles.css`, `TabBar.dc.html`, `support.js`, plan) est identique à
+ce que le dépôt contient déjà. **D0 est close** : D1 et D2 peuvent partir dès
+que les écarts ci-dessous sont tranchés.
+
+Choix du designer, sur les trois points que le brief laissait ouverts,
+**validés tous trois par l'utilisateur le 2026-11-18** :
+
+- fermer **une** session se fait sans confirmation (la ligne disparaît, une
+  ligne de retour le dit) ; seul « Fermer toutes les autres sessions »
+  confirme, en `.confirm-row` ;
+- l'écran Compte au bureau tient en **deux colonnes** : compte, mot de passe,
+  données, déconnexion et versions à gauche (400 px), sessions en tableau à
+  droite ;
+- au mobile, une session tient en trois lignes courtes (connecté le, utilisé,
+  expire le).
+
+**Écarts au brief** (section « Écarts au brief » de `LOT12.md`), **1 et 2
+retenus par l'utilisateur le 2026-11-18** :
+
+1. **Au mobile, « Se déconnecter » quitte la barre haute** pour l'écran
+   Compte : à 390 px, le nom, la déconnexion et « Hors ligne » ne tiennent pas
+   sur une ligne. La barre garde la marque, le nom (entrée vers Compte) et
+   l'état du réseau. Le brief disait que le menu gardait la déconnexion.
+2. **Au bureau, le menu du compte remonte dans la barre haute** : « En
+   ligne », puis `lea-v ▾`, qui ouvre un menu Compte · Raccourcis `?` · Se
+   déconnecter (d36) ; la `.shell-bar` disparaît au bureau. Aujourd'hui
+   `AccountMenu` et l'état du réseau tombent dans une barre sous la barre
+   haute.
+3. **Données de démonstration du bureau** : la session courante y est
+   l'ordinateur, pour illustrer le téléphone perdu. Sans effet sur le code ;
+   rien à trancher, sinon en prendre acte.
+
+**Rapport avec A11**, décidé après l'envoi du brief : les maquettes gardent
+l'onglet Synchronisation dans la barre haute (d35 à d49) et n'ont pas de
+ligne « Synchronisation » dans l'écran Compte. D5 s'en écarte comme A11 le
+prévoit : la ligne se place dans la colonne de gauche au bureau, avant « Mes
+données ». Le bandeau « nouvelle version » perd son action
+« Synchronisation → » (1b-73 et son équivalent bureau), décision de
+l'utilisateur le 2026-11-18 (A11). L'écart 2 étant retenu, le menu `lea-v ▾`
+n'a pas d'entrée Synchronisation : Compte en tient lieu.
+
+La section « Corrections » de `LOT12.md` reprend les deux défauts du brief
+sans rien y ajouter : D4 inchangée.
+
+Les deux défauts, relus dans `index.css` le 2026-11-18 :
+
+1. **`.underline-field` garde la bordure du navigateur** sur trois côtés : la
+   règle (l. 1069) ne pose que `border-bottom`, et rien ne remet à zéro la
+   bordure des `input` et `select` (seul `textarea.underline-field` pose la
+   sienne). Visible sur `docs/qa-baselines/lot9-mobile-390x844/02-nouveau-deck.png`,
+   champ « Nom du deck ». Les règles qui encadrent volontairement le champ au
+   bureau (`.sheet .underline-field:not(textarea)`,
+   `.deck-builder-picker …`, `.sync-correction …`) ne doivent pas bouger.
+2. **`.btn-ghost` et `.chip-action--text` sur un `<button>` gardent le fond ou
+   la bordure du navigateur.** `.btn-ghost` seul ne remet à zéro ni l'un ni
+   l'autre : touchés, « Se reconnecter → » de `ReconnectBanner` et
+   « Effacer les filtres » de `BilanFilters`, tous deux un `<button class="btn-ghost">`
+   sans `.btn` (un `btn btn-ghost`, comme dans `DeckDetailPage`, hérite de la
+   remise à zéro de `.btn`). `.chip-action` pose déjà `background: transparent`
+   mais pas de bordure : « Abandonner » de `RejectedOperations` ne garde donc
+   que la bordure. Le brief le donne comme relevé à la lecture du CSS, non vu
+   à l'écran : la lecture du code le confirme, une capture avant correction
+   reste à prendre. Les actions du bandeau « nouvelle version » de D2 seront
+   des `<button class="btn-ghost">` et en dépendent.
 
 ### P10. Persistance des sessions (ajoutée le 2026-11-17)
 
@@ -505,6 +606,86 @@ par jour pour l'usage réel. Hors ligne, rien ne change : une session expirée
 pendant une absence de plus de 14 jours donne le bandeau de reconnexion, et la
 file attend (Lot 6).
 
+### A11. Synchronisation : de la navigation à l'écran Compte
+
+Demandé par l'utilisateur le 2026-11-18, **à faire dans le lot sans handoff** :
+le brief n'est pas modifié, et si les maquettes de D0 montrent encore
+l'onglet dans la barre haute ou le lien de l'alerte de l'Atelier, D5 s'en
+écarte et le consigne. L'écran Compte devient **la** porte d'entrée de
+Synchronisation, aux deux largeurs.
+
+Aujourd'hui, l'écran Synchronisation (`#/synchronisation`) s'atteint :
+
+- au bureau, par un cinquième onglet de la barre haute (`topnav-sync`, chord
+  `G S`) et par l'alerte `topbar__alert` quand il y a un problème ;
+- au mobile, par le lien de l'alerte de l'Atelier (`sync-alert-link`,
+  « Corriger maintenant → » ou « Voir la synchronisation → », porté par le
+  Lot 5c) ; la tab bar n'a pas d'onglet Synchronisation, mais son onglet
+  Atelier se surligne sur `#/synchronisation` (`active.home || active.sync`),
+  comme si l'écran en faisait partie.
+
+Ce qui change :
+
+- **Barre haute** : l'entrée `sync` sort de `TOP_NAV_ITEMS` ; il reste quatre
+  onglets (Atelier, Collection, Decks, Parties). `NavKey` et `navActive`
+  perdent `sync` : sur `#/synchronisation`, aucun onglet n'est surligné.
+- **Tab bar mobile** : l'onglet Atelier ne se surligne plus sur
+  `#/synchronisation` ; aucun onglet ne l'est, comme au bureau. Le point
+  rouge des refus reste sur Atelier : il signale l'alerte de l'Atelier, qui
+  reste, et non l'écran Synchronisation.
+- **Alerte de l'Atelier** (`HomePage`, `sync-alert`) : le lien vers
+  Synchronisation disparaît, aux deux largeurs. L'alerte garde son titre
+  (refus, hors ligne avec file, serveur injoignable) et le bouton
+  « Synchroniser maintenant », qui agit sans quitter l'écran ; une ligne
+  `.hint` dit où corriger : « À corriger depuis Compte › Synchronisation »
+  quand il y a des refus. Revient sur une décision du Lot 5c (lien porté au
+  mobile, quel que soit le motif), voulue par l'utilisateur.
+- **Écran Compte**, aux deux largeurs : une ligne « Synchronisation »
+  (`.row--interactive` avec `.row__arrow`, patron de « Changer le mot de
+  passe »), avec en méta l'état de la file lu par `useSyncStatus`
+  (« À jour », « 3 en attente », « 1 refusée », « hors ligne »), qui ouvre
+  `#/synchronisation`. Elle se lit et s'ouvre hors ligne, contrairement aux
+  actions du compte : l'écran Synchronisation est local. Placée avant
+  « Mes données », dont l'avertissement de file non vide renvoie au même
+  écran.
+- **Écran Synchronisation** : une ligne de retour « ← Compte » en tête
+  (`BackRow`), puisque l'écran n'a plus d'onglet pour y revenir.
+
+Ce qui ne change pas :
+
+- le chord **`G S`** reste câblé et figure dans la légende `?` (P8) : la
+  table `NAV_SHORTCUT_BINDINGS`, dérivée aujourd'hui de `TOP_NAV_ITEMS`, garde
+  une entrée `sync` hors de la barre ;
+- l'alerte **`topbar__alert`** reste dans la barre haute : ce n'est pas une
+  entrée de navigation mais le signal d'un problème (refus, hors ligne avec
+  file, serveur injoignable), qui doit rester visible sans ouvrir le compte ;
+- les cinq onglets de la tab bar mobile ;
+- la route, `SyncPage` et ses `data-testid` ne changent pas.
+
+Ajouté le 2026-11-18 après réception des maquettes : le **bandeau « nouvelle
+version »** (P5) n'a pas de lien vers Synchronisation, contre le brief, P5 et
+les maquettes (1b-73 et son équivalent bureau). Avec des saisies en attente, il
+dit « Nouvelle version prête. Elle s'installera une fois vos N saisies
+synchronisées. » et garde « Plus tard » ; une `.hint` dit où suivre l'envoi
+(« L'envoi se suit dans Compte › Synchronisation »), sur le patron de
+l'alerte de l'Atelier.
+
+`data-testid` : `topnav-sync` et `sync-alert-link` disparaissent,
+disparitions justifiées par A11 dans la référence de clôture ; nouveaux
+identifiants pour la ligne du compte (`account-sync-row`), le retour
+(`sync-back`) et l'indication de l'alerte (`sync-alert-hint`). Tests à
+reprendre :
+
+- `topnav-sync` : `tests/e2e-desktop/navigation.spec.ts`,
+  `tests/e2e-desktop-real/support/nav.ts`, `tests/e2e-real/support/play.ts`,
+  `tests/unit/ui/games.test.tsx` ;
+- `sync-alert-link` : `tests/e2e-real/lot5c-symetrie.spec.ts`,
+  `tests/e2e-real/support/app.ts`, `tests/e2e-real/support/play.ts`,
+  `tests/unit/ui/sync.test.tsx` ;
+- le surlignage d'Atelier sur `#/synchronisation`, s'il est vérifié quelque
+  part. Les aides e2e qui ouvrent Synchronisation passent par Compte (ou par
+  l'adresse quand le chemin n'est pas l'objet du test).
+
 ## Écrans (frontend-react)
 
 Ce qui suit est le contenu fonctionnel que le brief transmet à Claude Design.
@@ -522,6 +703,8 @@ La mise en page vient du handoff de D0 (P9).
   message hors ligne ;
 - « Exporter mes données » : télécharge le fichier, prévient si la file
   n'est pas vide ;
+- « Synchronisation » : ligne vers `#/synchronisation` avec l'état de la
+  file (A11, hors brief, ajoutée à D5) ;
 - la déconnexion, qui reste aussi dans le menu ;
 - en pied, la version de la coquille et celle de l'API (`/health`).
 
@@ -534,7 +717,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
 | A0 | utilisateur, orchestrateur | trancher P1 à P10 et écrire le brief Claude Design (P9, `docs/design-handoff/lot12-brief-claude-design.md`) : **faits le 2026-11-18** ; relever en HTTPS sur téléphone la copie par le presse-papiers, `persist()` et la montée d'une base IndexedDB déjà utilisée, consigner les résultats ici | — |
-| D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` | A0 |
+| D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` : **fait le 2026-11-18**, en deux envois (corrections demandées et design system, puis `LOT12.md`, prototypes et captures, P9 « Handoff reçu ») ; choix du designer et écarts 1 et 2 retenus le 2026-11-18 | A0 |
 | A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré | A0 |
 | B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) | A1 |
 | B2 | backend-fastapi | export du compte (A4) | A1 |
@@ -544,11 +727,18 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff | B1, B2, D0 |
 | D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff | C1, D0 |
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
-| E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D3 |
+| D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px | A0 |
+| D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px | D1 |
+| E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D5 |
 | F | orchestrateur, devops | staging du lot complet sur `main`, essai de R15 sur une copie de la base de production, versions à `1.1.0`, release complète v1.1.0, production redéployée, vérification sur téléphone, CLAUDE.md | E |
 
 B3 et B4 peuvent partir dès A0, en parallèle de A1. D3 peut partir tout de
-suite, P6 étant tranché. D0 avance en parallèle de A1 à C1.
+suite, P6 étant tranché. D0 avance en parallèle de A1 à C1. D4 peut partir
+tout de suite et passe de préférence avant D1 et D2, dont les feuilles et le
+bandeau reposent sur les deux classes corrigées. D5 suit D1, dans la même
+livraison : retirer l'onglet et le lien de l'alerte avant que l'écran Compte
+existe laisserait le mobile sans aucune entrée vers Synchronisation, et le
+bureau avec la seule alerte de la barre haute et `G S`.
 
 ## Tests attendus (E)
 
@@ -582,7 +772,11 @@ Frontend :
   tard » ;
 - libellé d'appareil tiré du `User-Agent` (fonction pure, table de cas) ;
 - tris du miroir sur la table commune ;
-- écran Compte : formulaires, états hors ligne, messages d'erreur.
+- écran Compte : formulaires, états hors ligne, messages d'erreur ;
+- barre haute à quatre onglets, `G S` qui ouvre toujours Synchronisation,
+  aucun onglet de la tab bar surligné sur `#/synchronisation`, alerte de
+  l'Atelier sans lien et avec son indication, ligne « Synchronisation » du
+  compte et sa méta selon la file (A11).
 
 e2e contre le vrai back, aux deux largeurs :
 
@@ -649,6 +843,10 @@ Flakiness vitest : la suite complète lancée cinq fois sous PowerShell en
 - écran Compte, bandeau de mise à jour, légende `?` et état du catalogue
   livrés aux deux largeurs sur le handoff de D0, écarts consignés, validés
   sur captures ;
+- les deux corrections CSS du brief appliquées (D4), captures avant et après
+  à l'appui ;
+- Synchronisation atteinte depuis l'écran Compte, et non plus depuis la barre
+  haute, la tab bar ni l'alerte de l'Atelier (A11, D5), aux deux largeurs ;
 - journaux JSON en production, lisibles par `journalctl -u gurchon-api` ;
   `sync_report.py` lancé une fois sur la base servie ;
 - sauvegardes recopiées hors du VPS selon P6, procédure dans

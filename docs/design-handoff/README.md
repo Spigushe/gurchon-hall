@@ -33,6 +33,20 @@ sémantique offline) :
   1b-43, 1b-44. Reçu le 2026-11-06 hors brief ; sa section « Raccord au code » liste ce qu'il
   ignore du code actuel et les points à trancher avant implémentation.
 
+- [`LOT12.md`](LOT12.md) — consolidation (Lot 12) : écran Compte `#/compte` (mot de passe,
+  sessions, export, déconnexion, versions), menu du compte au bureau, légende des raccourcis
+  `?`, bandeau « nouvelle version », catalogue en cours de chargement ; mobile 1b-59 à 1b-78,
+  bureau d35 à d49. Produit à partir du brief
+  [`lot12-brief-claude-design.md`](lot12-brief-claude-design.md), dont la section
+  « Corrections demandées » porte deux défauts CSS antérieurs au lot (repris dans la section
+  « Corrections » de `LOT12.md`). Reçu en deux envois le 2026-11-18 : d'abord le brief corrigé
+  et le design system extrait du code, versé dans [`nocturne/`](nocturne/README.md) (sa page
+  [`lot12.md`](nocturne/lot12.md) dit quel composant existant sert à chaque écran), puis les
+  maquettes. `docs/lot12-plan-consolidation.md` fait foi pour les données et les règles, et
+  liste les écarts à trancher et ceux décidés hors handoff (section « Handoff reçu », sous P9,
+  et A11 : Synchronisation passe par l'écran Compte, contre les maquettes qui la gardent dans la
+  barre haute).
+
 ## Fichiers du bundle
 
 - `Gurchon Hall.dc.html` — prototype mobile (référence visuelle, pas du code à copier).
@@ -49,13 +63,32 @@ sémantique offline) :
 - `Gurchon Hall Bilan.dc.html`, `Gurchon Hall Bilan Bureau.dc.html`, `lot8-data.js` — Lot 8
   (`LOT8.md`). `lot8-data.js` est chargé par `import()` : servir le dossier en HTTP
   (`npx serve .`), il ne se charge pas depuis `file://`.
+- `Gurchon Hall Compte.dc.html`, `Gurchon Hall Compte Bureau.dc.html` — Lot 12 (`LOT12.md`),
+  maquettes statiques ; elles chargent React et les icônes Phosphor depuis unpkg.com (servir
+  le dossier en HTTP, avec un accès réseau).
+- `sources/lot12/` — scripts du designer qui génèrent les deux prototypes du Lot 12
+  (`mobile.py`, `desktop.py`, `common.py`, chemin de sortie en argument) et refont leurs
+  captures (`cap.js`, Playwright, paquets npm servis depuis le dossier `PKGS`). Gardés pour
+  pouvoir reprendre une maquette ; rien ne les lance dans le dépôt.
 - `support.js` — runtime généré des prototypes `.dc.html` (tous le chargent ; à ne pas éditer).
-- `nocturne/` — design system partagé (tokens, styles).
+- `nocturne/` — design system partagé, en deux couches :
+  - livré au Lot 5 : `styles.css` (tokens et classes, chargé par tous les prototypes
+    `.dc.html`) et `readme-lot5.md` (le guide d'origine, en anglais, nommé `readme.md`
+    jusqu'au 2026-11-18) ;
+  - relevé dans `frontend/src/index.css` le 2026-11-18 pour le Lot 12 (artefact Claude
+    Design « Nocturne — Gurchon Hall », au commit `0ed427a`) : `tokens.json`, guide
+    `README.md`, `lot12.md`, `design-system.json`, et un dossier par composant sous
+    `components/` avec un aperçu statique (`preview.html`, que Claude Design rend avec
+    `components/bundle.css` ; ouvert seul, il n'a pas de styles). Cette couche fait foi sur
+    la première pour l'état actuel des classes. Les deux dernières règles de `bundle.css`
+    sont les corrections demandées, absentes du code ; les logos ne sont pas inclus
+    (`assets/Logos/README.md` renvoie à `frontend/public/`).
 - `screenshots/1b-*.png` — captures mobiles ; `screenshots/desktop/d*.png` — captures bureau
-  (`d0*` Lot 5bis, `d10`–`d16` Lot 7, `d17`–`d21` lot Chercher ; `1b-26` à `1b-42` lot
-  Chercher). Les captures du lot Chercher ont été tirées des prototypes (éléments `shot-*`) par
-  Playwright, au même format que les précédentes : 390 de large à l'échelle 2 en mobile,
-  1440 à l'échelle 1 au bureau. Les captures de l'affichage des decks (`1b-43`, `1b-44`,
+  (`d0*` Lot 5bis, `d10`–`d16` Lot 7, `d17`–`d21` lot Chercher, `d25`–`d34` Lot 8, `d35`–`d49`
+  Lot 12 ; `1b-26` à `1b-42` lot Chercher, `1b-46` à `1b-58` Lot 8, `1b-59` à `1b-78` Lot 12).
+  Les captures du lot Chercher, du Lot 8 et du Lot 12 ont été tirées des prototypes (éléments
+  `shot-*`) par Playwright, au même format que les précédentes : 390 de large à l'échelle 2 en
+  mobile, 1440 à l'échelle 1 au bureau. Les captures de l'affichage des decks (`1b-43`, `1b-44`,
   `d22`–`d24`) sont des JPEG versés tels quels depuis l'archive, à 909–924px de large.
 
 Historique : ce dossier s'appelait `design-handoff-mobile/` jusqu'à la clôture du Lot 5bis,

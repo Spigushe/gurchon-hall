@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  body { margin: 0; background: #0d0e16; }
+  i[class^="ph"] { display: block; }
+  .lot12 * { box-sizing: border-box; }
+  .cap { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--color-neutral-400); }
+  .cap b { font-weight:400; font-family:var(--font-heading); font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--color-accent); color:var(--color-accent); }
+  .phone { width:390px; height:844px; border-radius:38px; background:var(--color-bg); box-shadow:var(--shadow-md); overflow:hidden; position:relative; display:flex; flex-direction:column; color:var(--color-text); font-family:var(--font-body); font-size:15px; line-height:1.5; }
+  .desk { width:1440px; height:900px; border-radius:12px; background:var(--color-bg); box-shadow:var(--shadow-md); overflow:hidden; position:relative; display:flex; flex-direction:column; color:var(--color-text); font-family:var(--font-body); font-size:15px; line-height:1.5; }
+  .sbar { display:flex; justify-content:space-between; align-items:center; padding:16px 26px 0; font-size:12px; color:var(--color-neutral-500); flex:none; }
+  .shell { display:flex; align-items:center; gap:12px; padding:14px 26px 0; font-size:11px; color:var(--color-neutral-500); flex:none; }
+  .shell .brand { letter-spacing:.16em; text-transform:uppercase; margin-right:auto; }
+  .acct { display:flex; align-items:center; gap:5px; font-family:var(--font-heading); font-size:12px; color:var(--color-text); }
+  .acct.on { color:var(--color-accent); }
+  .off { color:var(--color-accent-300); display:flex; align-items:center; gap:5px; }
+  .mpage { display:flex; flex-direction:column; gap:26px; padding:22px 26px 120px; }
+  .viewport { flex:1; overflow:hidden; position:relative; }
+  .h1 { font-family:var(--font-heading); font-weight:500; font-size:30px; line-height:1.15; letter-spacing:-.02em; margin:0; }
+  .h2 { font-family:var(--font-heading); font-weight:500; font-size:26px; line-height:1.15; letter-spacing:-.02em; margin:0; }
+  .meta { font-size:13px; color:var(--color-neutral-400); margin-top:4px; }
+  .kicker { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--color-neutral-500); margin:0 0 6px; }
+  .sec { display:flex; flex-direction:column; }
+  .sec-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .row { padding:16px 0; border-top:1px solid var(--color-divider); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .row.first { border-top:none; }
+  .rn { font-family:var(--font-heading); font-size:17px; line-height:1.2; }
+  .rm { font-size:12px; color:var(--color-neutral-500); margin-top:3px; }
+  .arrow { color:var(--color-accent); font-size:18px; }
+  .hint { font-size:13px; color:var(--color-neutral-400); text-wrap:pretty; }
+  .small { font-size:12px; color:var(--color-neutral-500); }
+  .err { font-size:13px; color:var(--color-accent-200); }
+  .ok { font-size:13px; color:var(--color-accent-200); display:flex; gap:6px; align-items:flex-start; }
+  .bt { font-size:13px; color:var(--color-accent-300); display:inline-flex; align-items:center; gap:4px; min-height:44px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:8px 16px; border-radius:var(--radius-md); border:1px solid transparent; font-family:var(--font-heading); font-size:14px; color:var(--color-text); align-self:flex-start; }
+  .btn.p { color:var(--color-accent); border-color:var(--color-accent); }
+  .btn.s { border-color:var(--color-divider); }
+  .dis { opacity:.45; }
+  .ca { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:0 16px; border-radius:999px; font-size:13px; flex:none; white-space:nowrap; }
+  .ca.a { border:1px solid var(--color-accent); color:var(--color-accent); }
+  .ca.n { border:1px solid var(--color-divider); color:var(--color-text); }
+  .tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--radius-sm); font-size:12px; line-height:1.5; flex:none; white-space:nowrap; }
+  .tag.u { border:1px solid var(--color-divider); color:var(--color-neutral-400); }
+  .tag.l { background:var(--color-accent-800); color:var(--color-accent-100); }
+  .alert { border-left:2px solid var(--color-accent); padding:2px 0 2px 14px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+  .alert .t { font-family:var(--font-heading); font-size:15px; line-height:1.4; color:var(--color-accent-200); }
+  .alert .acts { display:flex; gap:18px; flex-wrap:wrap; }
+  .alert .acts span { font-size:13px; color:var(--color-accent-300); min-height:32px; display:flex; align-items:center; gap:4px; }
+  .kbd { display:inline-flex; align-items:center; justify-content:center; height:17px; padding:0 5px; border:1px solid var(--color-divider); border-radius:var(--radius-sm); font-size:11px; line-height:17px; color:var(--color-neutral-400); white-space:nowrap; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:12px; color:var(--color-neutral-400); }
+  .uf { min-height:44px; border-bottom:1px solid var(--color-divider); padding:0 2px 10px; display:flex; align-items:flex-end; font-size:15px; letter-spacing:.1em; }
+  .uf.focus { border-bottom-color:var(--color-accent); }
+  .uf.bad { border-bottom-color:var(--color-accent-300); }
+  .caret { width:1px; height:18px; background:var(--color-accent); margin-left:2px; display:inline-block; }
+  .rules { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:4px; }
+  .rules li { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--color-neutral-400); }
+  .rules li.met { color:var(--color-accent-300); }
+  .rules li i { font-size:15px; }
+  .pill { min-height:50px; border-radius:999px; border:1px solid var(--color-accent); background:var(--color-bg); box-shadow:var(--shadow-md); display:flex; align-items:center; justify-content:center; gap:8px; font-family:var(--font-heading); font-size:16px; color:var(--color-accent); }
+  .confirm { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .skel { display:block; border-radius:var(--radius-sm); background:var(--color-neutral-900); }
+  .loading { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--color-neutral-500); }
+  .spin { width:13px; height:13px; border-radius:50%; border:1.5px solid var(--color-neutral-700); border-top-color:var(--color-accent-300); flex:none; }
+  .tabs { display:flex; gap:18px; border-bottom:1px solid var(--color-divider); font-size:13px; }
+  .tabs span { padding-bottom:9px; color:var(--color-neutral-500); }
+  .tabs span.on { color:var(--color-text); font-family:var(--font-heading); box-shadow:inset 0 -2px 0 var(--color-accent); }
+  /* bureau */
+  .top { height:56px; flex:none; border-bottom:1px solid var(--color-divider); display:flex; justify-content:center; }
+  .top-in { flex:1; max-width:1200px; display:flex; align-items:center; gap:40px; }
+  .tabsd { display:flex; gap:28px; align-self:stretch; }
+  .tabsd span { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--color-neutral-400); }
+  .tabsd span.on { color:var(--color-text); box-shadow:inset 0 -2px 0 var(--color-accent); }
+  .search { width:280px; height:34px; display:flex; align-items:center; gap:10px; padding:0 10px; border-radius:var(--radius-md); border:1px solid var(--color-divider); background:var(--color-surface); font-size:13px; color:var(--color-neutral-500); }
+  .dpage { flex:1; display:flex; justify-content:center; overflow:hidden; position:relative; }
+  .dcol { flex:1; max-width:1200px; padding:28px 0; display:flex; flex-direction:column; gap:24px; }
+  .panel { position:absolute; top:56px; right:0; bottom:0; width:460px; background:var(--color-surface); box-shadow:var(--shadow-lg); padding:28px 32px; display:flex; flex-direction:column; gap:24px; }
+  .dim { opacity:.35; }
+  .card { background:var(--color-surface); border-radius:var(--radius-md); padding:20px 22px; display:flex; flex-direction:column; gap:12px; }
+  .th { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--color-neutral-500); }
+  .grid { display:grid; align-items:center; gap:16px; }
+  .krow { display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:40px; border-top:1px solid var(--color-divider); font-size:14px; }
+  .krow:first-of-type { border-top:none; }
+  .keys { display:flex; gap:4px; align-items:center; }
+  .menu { position:absolute; top:52px; width:240px; background:var(--color-surface); border-radius:var(--radius-md); box-shadow:var(--shadow-md); padding:6px; display:flex; flex-direction:column; z-index:5; }
+  .menu span { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 10px; border-radius:var(--radius-sm); font-size:14px; }
+</style>
+</helmet>
+
+<section class="lot12" style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:40px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:820px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · Lot 12 · bureau 1440 · direction 3a</div>
+    <h2 style="font-size:30px;margin:0">Consolidation — « j'ai perdu mon téléphone », depuis l'ordinateur</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:70ch;text-wrap:pretty">Le menu du compte remonte dans la barre haute (Compte, Raccourcis, Se déconnecter). Compte en deux colonnes : le compte, le mot de passe et les données à gauche, les sessions à droite, en tableau. Mot de passe et raccourcis en panneau latéral de 460 px. Ici, « cet appareil » est l'ordinateur (Firefox sur Windows).</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:48px">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d35</b>Compte</span>
+        <div id="shot-d35-compte" data-screen-label="3a-35 Compte" class="desk"><div class=""><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (3)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d36</b>Menu du compte ouvert</span>
+        <div id="shot-d36-menu-compte" data-screen-label="3a-36 Menu du compte ouvert" class="desk"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="on">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          <div class="menu" style="right:0">
+            <span style="color:var(--color-text)"><i class="ph ph-user-circle" style="font-size:18px;color:var(--color-neutral-400)"></i>Compte</span>
+            <span><i class="ph ph-keyboard" style="font-size:18px;color:var(--color-neutral-400)"></i>Raccourcis<span class="kbd" style="margin-left:auto">?</span></span>
+            <span style="border-top:1px solid var(--color-divider);border-radius:0;color:var(--color-accent-300)"><i class="ph ph-sign-out" style="font-size:18px"></i>Se déconnecter</span></div>
+        </div></div></div><div class="dpage"><div class="dcol" style="padding-top:28px">
+        
+        <div style="padding-top:20px"><h1 class="h1" style="font-size:40px">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div class="card"><p class="kicker" style="margin:0">En cours</p>
+            <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+            <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></div>
+          <div class="card"><p class="kicker" style="margin:0">Raccourcis</p>
+            <div class="krow" style="border-top:none"><span>Nouvelle partie</span><span class="kbd">↵</span></div>
+            <div class="krow"><span>Collection</span><span class="kbd">G C</span></div></div></div>
+      </div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d37</b>Compte hors ligne</span>
+        <div id="shot-d37-compte-hors-ligne" data-screen-label="3a-37 Compte hors ligne" class="desk"><div class=""><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span class="off" style="font-size:12px"><i class="ph ph-wifi-slash" style="font-size:13px"></i>Hors ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s dis">Changer le mot de passe</span><p class="hint">Indisponible hors ligne.</p></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s dis"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span><p class="hint">Indisponible hors ligne.</p></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s dis">Se déconnecter</span><p class="hint">Déconnexion indisponible hors ligne.</p></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card"><div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span></div>
+          <div class="alert" style="border-left-color:var(--color-divider)"><span class="t" style="color:var(--color-text)">Liste indisponible hors ligne</span>
+          <span class="hint">Les sessions se lisent sur le serveur. Elles s'afficheront au retour du réseau.</span></div></div></div></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d38</b>Mot de passe, en cours de saisie</span>
+        <div id="shot-d38-mdp-saisie" data-screen-label="3a-38 Mot de passe, en cours de saisie" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (3)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div><div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2" style="font-size:24px">Changer le mot de passe</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">••••••••••••••</div></div>
+        <div class="field" style="gap:8px"><label>Nouveau mot de passe</label>
+          <div class="uf focus" style="min-height:40px;border:1px solid var(--color-accent);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">Nuit-de-Lyon7<span class="caret"></span></div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center"></div></div>
+        
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+          <p class="small">Vos autres appareils devront se reconnecter.</p>
+          <div style="display:flex;justify-content:flex-end;gap:12px"><span class="btn s">Annuler</span>
+          <span class="btn p dis">Enregistrer<span class="kbd">⌘↵</span></span></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d39</b>Actuel incorrect</span>
+        <div id="shot-d39-mdp-actuel-incorrect" data-screen-label="3a-39 Actuel incorrect" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (3)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div><div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2" style="font-size:24px">Changer le mot de passe</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf focus bad" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center;border-color:var(--color-accent);border-color:var(--color-accent-300)">••••••••••••••<span class="caret"></span></div></div><p class="err">Mot de passe actuel incorrect.</p>
+        <div class="field" style="gap:8px"><label>Nouveau mot de passe</label>
+          <div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">•••••••••••••</div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">•••••••••••••</div></div>
+        
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+          <p class="small">Vos autres appareils devront se reconnecter.</p>
+          <div style="display:flex;justify-content:flex-end;gap:12px"><span class="btn s">Annuler</span>
+          <span class="btn p">Enregistrer<span class="kbd">⌘↵</span></span></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d40</b>Trop d'essais</span>
+        <div id="shot-d40-mdp-trop-essais" data-screen-label="3a-40 Trop d'essais" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (3)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div><div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2" style="font-size:24px">Changer le mot de passe</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">••••••••••••••</div></div>
+        <div class="field" style="gap:8px"><label>Nouveau mot de passe</label>
+          <div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">•••••••••••••</div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf" style="min-height:40px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);padding:0 12px;align-items:center">•••••••••••••</div></div>
+        <div class="alert"><span class="t">Trop d'essais.</span><span class="hint">Réessayez dans 42 secondes.</span></div>
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:12px">
+          <p class="small">Vos autres appareils devront se reconnecter.</p>
+          <div style="display:flex;justify-content:flex-end;gap:12px"><span class="btn s">Annuler</span>
+          <span class="btn p dis">Enregistrer<span class="kbd">⌘↵</span></span></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d41</b>Mot de passe changé</span>
+        <div id="shot-d41-mdp-change" data-screen-label="3a-41 Mot de passe changé" class="desk"><div class=""><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span><p class="ok"><i class="ph ph-check-circle" style="font-size:15px;margin-top:2px"></i>Mot de passe changé. Vos autres appareils devront se reconnecter.</p></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">1</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div></div><p class="hint">Aucune autre session ouverte.</p>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d42</b>Session du téléphone fermée</span>
+        <div id="shot-d42-session-fermee" data-screen-label="3a-42 Session du téléphone fermée" class="desk"><div class=""><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">3</span></div>
+          <p class="ok"><i class="ph ph-check-circle" style="font-size:15px;margin-top:2px"></i>Session fermée : Chrome sur Android. Le téléphone sera déconnecté à sa prochaine requête.</p><div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (2)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d43</b>Fermer les autres, confirmation</span>
+        <div id="shot-d43-fermer-autres" data-screen-label="3a-43 Fermer les autres, confirmation" class="desk"><div class=""><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><div class="confirm"><span class="hint" style="color:var(--color-text)">3 appareils seront déconnectés.</span>
+            <span class="ca a">Fermer les 3 sessions</span><span class="ca n">Annuler</span></div>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d44</b>Raccourcis sur Decks</span>
+        <div id="shot-d44-raccourcis-decks" data-screen-label="3a-44 Raccourcis sur Decks" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="on">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:40px">
+        <div style="width:380px;flex:none;display:flex;flex-direction:column;gap:16px"><div><h1 class="h1">Decks</h1><p class="meta">2 decks · lecture locale</p></div>
+          <div class="tabs"><span class="on">En cours</span><span>Archivés</span><span>Tous</span></div><div><div style="background:color-mix(in srgb,var(--color-text) 4%,transparent);padding:12px 14px;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Banu Princes</div><div class="rm">#0007 · actif · Bleed · 12 / 80</div></div><div style="padding:12px 14px;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Toreador Mass Vote</div><div class="rm">#0003 · actif · Vote · 12 / 76</div></div></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:14px"><p class="kicker" style="margin:0">Aperçu</p><h2 class="h2">Banu Princes</h2>
+          <div class="card" style="height:420px"></div></div></div></div></div><div class="panel" style="gap:22px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Clavier</p><h2 class="h2" style="font-size:24px">Raccourcis</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Decks</p><div><div class="krow"><span>Nouveau deck</span><span class="keys"><span class=kbd>N</span></span></div><div class="krow"><span>Ouvrir le deck sélectionné</span><span class="keys"><span class=kbd>↵</span></span></div><div class="krow"><span>Parcourir la liste</span><span class="keys"><span class=kbd>↑</span><span class=kbd>↓</span></span></div></div></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Partout</p><div><div class="krow"><span>Atelier</span><span class="keys"><span class=kbd>G A</span></span></div><div class="krow"><span>Collection</span><span class="keys"><span class=kbd>G C</span></span></div><div class="krow"><span>Decks</span><span class="keys"><span class=kbd>G D</span></span></div><div class="krow"><span>Parties</span><span class="keys"><span class=kbd>G P</span></span></div><div class="krow"><span>Synchronisation</span><span class="keys"><span class=kbd>G S</span></span></div><div class="krow"><span>Rechercher (champ de la barre haute, ou de l'écran)</span><span class="keys"><span class=kbd>/</span></span></div><div class="krow"><span>Cette légende</span><span class="keys"><span class=kbd>?</span></span></div></div></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Dans une feuille</p><p class="small" style="margin-top:-4px">Sur Mac, ⌘ ; ailleurs, Ctrl.</p><div><div class="krow"><span>Fermer</span><span class="keys"><span class=kbd>Échap</span></span></div><div class="krow"><span>Valider</span><span class="keys"><span class=kbd>⌘↵</span></span></div></div></section>
+      </div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d45</b>Raccourcis sur Chercher</span>
+        <div id="shot-d45-raccourcis-chercher" data-screen-label="3a-45 Raccourcis sur Chercher" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol"><div><h1 class="h1">Chercher</h1><p class="meta">4 212 cartes · catalogue local</p></div>
+        <div class="search" style="width:560px;height:40px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span>Nom ou texte</span></div><div style="max-width:560px"><div style="padding:12px 0;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Deflection</div><div class="rm">Réaction · Auspex</div></div><div style="padding:12px 0;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Conditioning</div><div class="rm">Action · Dominate</div></div><div style="padding:12px 0;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Govern the Unaligned</div><div class="rm">Action · Dominate</div></div><div style="padding:12px 0;border-top:1px solid var(--color-divider)"><div class="rn" style="font-size:15px">Forced Awakening</div><div class="rm">Action modifier</div></div></div></div></div></div><div class="panel" style="gap:22px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Clavier</p><h2 class="h2" style="font-size:24px">Raccourcis</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Chercher</p><div><div class="krow"><span>Filtres</span><span class="keys"><span class=kbd>F</span></span></div><div class="krow"><span>Parcourir les résultats</span><span class="keys"><span class=kbd>↑</span><span class=kbd>↓</span></span></div><div class="krow"><span>Ouvrir la fiche</span><span class="keys"><span class=kbd>↵</span></span></div><div class="krow"><span>Ajouter la carte</span><span class="keys"><span class=kbd>N</span></span></div><div class="krow"><span>Champ de recherche de l'écran</span><span class="keys"><span class=kbd>/</span></span></div></div></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Partout</p><div><div class="krow"><span>Atelier</span><span class="keys"><span class=kbd>G A</span></span></div><div class="krow"><span>Collection</span><span class="keys"><span class=kbd>G C</span></span></div><div class="krow"><span>Decks</span><span class="keys"><span class=kbd>G D</span></span></div><div class="krow"><span>Parties</span><span class="keys"><span class=kbd>G P</span></span></div><div class="krow"><span>Synchronisation</span><span class="keys"><span class=kbd>G S</span></span></div><div class="krow"><span>Rechercher (champ de la barre haute, ou de l'écran)</span><span class="keys"><span class=kbd>/</span></span></div><div class="krow"><span>Cette légende</span><span class="keys"><span class=kbd>?</span></span></div></div></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Dans une feuille</p><p class="small" style="margin-top:-4px">Sur Mac, ⌘ ; ailleurs, Ctrl.</p><div><div class="krow"><span>Fermer</span><span class="keys"><span class=kbd>Échap</span></span></div><div class="krow"><span>Valider</span><span class="keys"><span class=kbd>⌘↵</span></span></div></div></section>
+      </div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d46</b>Raccourcis, écran sans raccourci propre</span>
+        <div id="shot-d46-raccourcis-globaux" data-screen-label="3a-46 Raccourcis, écran sans raccourci propre" class="desk"><div class="dim"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;color:var(--color-accent);box-shadow:inset 0 -2px 0 var(--color-accent)"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div></div><div class="dim" style="flex:1;display:flex"><div class="dpage"><div class="dcol" style="flex-direction:row;gap:56px"><div style="width:400px;flex:none;display:flex;flex-direction:column;gap:28px">
+        <div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mot de passe</p>
+          <p class="hint">Le changer ferme vos autres sessions et garde celle-ci.</p><span class="btn s">Changer le mot de passe</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Mes données</p><p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section>
+        <section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p><span class="btn s">Se déconnecter</span></section>
+        <p class="small">Application 1.1.0 · Serveur 1.1.0</p></div><div style="flex:1;min-width:0"><div class="card" style="gap:14px">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Sessions ouvertes</span><span class="small">4</span></div>
+          <div><div class="grid th" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;height:30px;border-bottom:1px solid var(--color-divider)"><span>Appareil</span><span>Connecté le</span><span>Utilisé</span><span>Expire le</span><span></span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Firefox sur Windows</span><span style="color:var(--color-neutral-400)">20 septembre</span>
+            <span style="color:var(--color-neutral-400)">Aujourd'hui</span><span style="color:var(--color-neutral-400)">2 décembre</span><span class="tag u" style="justify-self:end">Cet appareil</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Chrome sur Android</span><span style="color:var(--color-neutral-400)">2 novembre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 3 jours</span><span style="color:var(--color-neutral-400)">29 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Safari sur iPhone</span><span style="color:var(--color-neutral-400)">28 octobre</span>
+            <span style="color:var(--color-neutral-400)">Il y a 12 jours</span><span style="color:var(--color-neutral-400)">20 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div><div class="grid" style="grid-template-columns:minmax(0,1fr) 130px 140px 120px 96px;min-height:52px;border-bottom:1px solid var(--color-divider);font-size:14px">
+            <span style="font-family:var(--font-heading)">Appareil inconnu</span><span style="color:var(--color-neutral-400)">10 novembre</span>
+            <span style="color:var(--color-neutral-400)">Jamais revu depuis</span><span style="color:var(--color-neutral-400)">24 novembre</span><span class="ca n" style="justify-self:end;min-height:32px;padding:0 14px">Fermer</span></div></div><span class="bt" style="min-height:32px">Fermer toutes les autres sessions (3)</span>
+          <p class="small" style="max-width:62ch">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></div></div></div></div></div><div class="panel" style="gap:22px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Clavier</p><h2 class="h2" style="font-size:24px">Raccourcis</h2></div>
+          <div style="display:flex;align-items:center;gap:10px"><span class="kbd">Échap</span><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div></div>
+        <section class="sec"><p class="kicker" style="margin:0 0 6px">Compte</p><p class="hint">Cet écran n'a pas de raccourci propre.</p></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Partout</p><div><div class="krow"><span>Atelier</span><span class="keys"><span class=kbd>G A</span></span></div><div class="krow"><span>Collection</span><span class="keys"><span class=kbd>G C</span></span></div><div class="krow"><span>Decks</span><span class="keys"><span class=kbd>G D</span></span></div><div class="krow"><span>Parties</span><span class="keys"><span class=kbd>G P</span></span></div><div class="krow"><span>Synchronisation</span><span class="keys"><span class=kbd>G S</span></span></div><div class="krow"><span>Rechercher (champ de la barre haute, ou de l'écran)</span><span class="keys"><span class=kbd>/</span></span></div><div class="krow"><span>Cette légende</span><span class="keys"><span class=kbd>?</span></span></div></div></section>
+        <section class="sec" style="gap:6px"><p class="kicker" style="margin:0 0 4px">Dans une feuille</p><p class="small" style="margin-top:-4px">Sur Mac, ⌘ ; ailleurs, Ctrl.</p><div><div class="krow"><span>Fermer</span><span class="keys"><span class=kbd>Échap</span></span></div><div class="krow"><span>Valider</span><span class="keys"><span class=kbd>⌘↵</span></span></div></div></section>
+      </div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d47</b>Nouvelle version, file vide</span>
+        <div id="shot-d47-maj-disponible" data-screen-label="3a-47 Nouvelle version, file vide" class="desk"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="on">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div><div class="dpage"><div class="dcol" style="padding-top:28px">
+        <div class="alert"><span class="t">Une nouvelle version est disponible.</span>
+          <div class="acts"><span>Mettre à jour</span><span>Plus tard</span></div></div>
+        <div style="padding-top:20px"><h1 class="h1" style="font-size:40px">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div class="card"><p class="kicker" style="margin:0">En cours</p>
+            <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+            <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></div>
+          <div class="card"><p class="kicker" style="margin:0">Raccourcis</p>
+            <div class="krow" style="border-top:none"><span>Nouvelle partie</span><span class="kbd">↵</span></div>
+            <div class="krow"><span>Collection</span><span class="kbd">G C</span></div></div></div>
+      </div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d48</b>En attente, sous la reconnexion</span>
+        <div id="shot-d48-maj-sous-reconnexion" data-screen-label="3a-48 En attente, sous la reconnexion" class="desk"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="on">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div><div class="dpage"><div class="dcol" style="padding-top:28px">
+        <div class="alert"><span class="t">Reconnexion nécessaire pour reprendre l'envoi</span>
+          <div class="acts"><span>Se reconnecter →</span></div></div><div class="alert"><span class="t">Nouvelle version prête. Elle s'installera une fois vos 3 saisies synchronisées.</span>
+          <div class="acts"><span>Synchronisation →</span><span>Plus tard</span></div></div>
+        <div style="padding-top:20px"><h1 class="h1" style="font-size:40px">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div class="card"><p class="kicker" style="margin:0">En cours</p>
+            <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+            <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></div>
+          <div class="card"><p class="kicker" style="margin:0">Raccourcis</p>
+            <div class="krow" style="border-top:none"><span>Nouvelle partie</span><span class="kbd">↵</span></div>
+            <div class="krow"><span>Collection</span><span class="kbd">G C</span></div></div></div>
+      </div></div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>d49</b>Catalogue en cours de chargement</span>
+        <div id="shot-d49-catalogue-decks" data-screen-label="3a-49 Catalogue en cours de chargement" class="desk"><div class="top"><div class="top-in">
+        <div style="display:flex;flex-direction:column;line-height:1.2;flex:none"><span style="font-family:var(--font-heading);font-size:16px">Gurchon Hall</span>
+          <span style="font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--color-neutral-500)">VtES</span></div>
+        <nav class="tabsd"><span class="">Atelier<span class="kbd">G A</span></span><span class="">Collection<span class="kbd">G C</span></span><span class="on">Decks<span class="kbd">G D</span></span><span class="">Parties<span class="kbd">G P</span></span><span class="">Synchronisation<span class="kbd">G S</span></span></nav>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:18px;align-self:stretch;position:relative;white-space:nowrap;flex:none">
+          <div class="search" style="width:250px"><i class="ph ph-magnifying-glass" style="font-size:16px"></i><span style="flex:1;overflow:hidden;text-overflow:ellipsis">Chercher une carte (catalogue)</span><span class="kbd">/</span></div>
+          <span style="font-size:12px;color:var(--color-neutral-500)">En ligne</span>
+          <span style="display:flex;align-items:center;gap:6px;align-self:stretch;font-family:var(--font-heading);font-size:14px;"><i class="ph ph-user-circle" style="font-size:18px"></i>lea-v<i class="ph ph-caret-down" style="font-size:12px;color:var(--color-neutral-500)"></i></span>
+          
+        </div></div></div><div class="dpage"><div class="dcol" style="flex-direction:row;gap:40px">
+        <div style="width:420px;flex:none;display:flex;flex-direction:column;gap:16px"><div><h1 class="h1">Decks</h1><p class="meta">2 decks · lecture locale</p></div>
+          <div class="tabs"><span class="on">En cours</span><span>Archivés</span><span>Tous</span></div><div><div style="background:color-mix(in srgb,var(--color-text) 4%,transparent);box-shadow:inset 2px 0 0 var(--color-accent);padding:12px 14px;border-top:1px solid var(--color-divider);display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div class="rn" style="font-size:15px">Banu Princes</div><div class="rm">#0007 · actif · Bleed</div></div><span class="loading" style="font-size:12px"><span class="spin"></span>Catalogue en cours de chargement</span></div><div style="padding:12px 14px;border-top:1px solid var(--color-divider);display:flex;justify-content:space-between;align-items:center;gap:12px"><div><div class="rn" style="font-size:15px">Toreador Mass Vote</div><div class="rm">#0003 · actif · Vote</div></div><span class="loading" style="font-size:12px"><span class="spin"></span>Catalogue en cours de chargement</span></div></div></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:16px"><div><p class="kicker">Aperçu</p><h2 class="h2">Banu Princes</h2><p class="meta">#0007 · actif · Bleed · proxies autorisés</p></div>
+          <div class="card" aria-busy="true"><div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Crypte</span></div><div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:34%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:28%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:40%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:30%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:36%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div></div></div>
+          <div class="card"><div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Bibliothèque</span></div><div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:34%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:28%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:16px;height:36px;border-bottom:1px solid var(--color-divider)"><span class="skel" style="height:11px;width:22px"></span><span class="skel" style="height:11px;width:40%"></span><span class="skel" style="height:11px;width:14%;margin-left:auto"></span></div></div></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="loading" style="font-size:12px"><span class="spin"></span>Catalogue en cours de chargement</span><p class="hint">Les cartes s'enregistrent sur cet appareil. Les tableaux s'afficheront d'eux-mêmes dans quelques secondes.</p></div>
+        </div></div></div></div>
+      </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
