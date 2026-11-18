@@ -1,0 +1,55 @@
+{
+  "description": "Table de cas commune du tri des noms (Lot 12, A7) : côté API, `folded_order` (backend/app/services/text_search.py) sur GET /cartes, /stock et /decks ; côté miroir, `compareFolded` (frontend/src/offline/, étape C1). Règle : nom replié par fold_text / foldText (NFKD, marques retirées, casefold), puis nom brut comparé point de code par point de code pour départager deux noms qui ne diffèrent que par la casse ou un accent. Chaque cas : description, names (ordre d'entrée, volontairement mélangé), expected (ordre attendu). Les noms restent dans le plan multilingue de base : au-delà, JavaScript compare des unités UTF-16 et SQLite des octets UTF-8, qui ne rangent pas pareil. Aucun cas ne répète un nom à l'identique, pour que l'ordre attendu ne dépende pas des clés suivantes (groupe, identifiant, discriminant). Une évolution de la règle se fait ici et dans les deux implémentations.",
+  "cases": [
+    {
+      "description": "un accent initial ne renvoie plus le nom après Z",
+      "names": ["Zoé", "Élan", "Dame"],
+      "expected": ["Dame", "Élan", "Zoé"]
+    },
+    {
+      "description": "une minuscule initiale se range à côté de sa majuscule",
+      "names": ["Abbot", "Bastet", "abbot"],
+      "expected": ["Abbot", "abbot", "Bastet"]
+    },
+    {
+      "description": "même nom replié : le nom brut départage, majuscule non accentuée d'abord",
+      "names": ["élan", "Élan", "elan", "Elan"],
+      "expected": ["Elan", "elan", "Élan", "élan"]
+    },
+    {
+      "description": "tilde au milieu du mot",
+      "names": ["Nyx", "Ñuke", "Nergal"],
+      "expected": ["Nergal", "Ñuke", "Nyx"]
+    },
+    {
+      "description": "le ß se replie en ss, et le nom brut départage Strauss de Strauß",
+      "names": ["Strausz", "Strauß", "Strauss"],
+      "expected": ["Strauss", "Strauß", "Strausz"]
+    },
+    {
+      "description": "limite assumée : œ ne se décompose pas et reste après z",
+      "names": ["Œuvre", "Zoé", "Oeil"],
+      "expected": ["Oeil", "Zoé", "Œuvre"]
+    },
+    {
+      "description": "l'espace passe avant les lettres, comme dans l'ordre binaire",
+      "names": ["Theo Bell", "The Erciyes Fragments", "Theft of Vitae"],
+      "expected": ["The Erciyes Fragments", "Theft of Vitae", "Theo Bell"]
+    },
+    {
+      "description": "ponctuation et chiffres gardent leur rang de point de code",
+      "names": ["Ambrogino Giovanni", "2nd Tradition: Domain", "...", "'Ilm"],
+      "expected": ["'Ilm", "...", "2nd Tradition: Domain", "Ambrogino Giovanni"]
+    },
+    {
+      "description": "des noms tout en majuscules se mêlent aux autres",
+      "names": ["NRA Paymaster", "Nana Buruku", "NOT ONE"],
+      "expected": ["Nana Buruku", "NOT ONE", "NRA Paymaster"]
+    },
+    {
+      "description": "cédille et caron au milieu du mot",
+      "names": ["Françoise", "Franz", "Frančesca", "Frank"],
+      "expected": ["Frančesca", "Françoise", "Frank", "Franz"]
+    }
+  ]
+}

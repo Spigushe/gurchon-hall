@@ -235,7 +235,9 @@ def test_the_stock_search_still_combines_with_its_other_filters(api, searchable)
 
 def test_the_folded_search_keeps_the_existing_order_and_pagination(api, searchable):
     ordered = [item["name"] for item in api.get("/cartes", params={"q": "e"}).json()]
-    assert ordered == sorted(ordered)
+    # Ordre replié puis brut depuis le Lot 12 (A7) : « Élan vital » ne passe
+    # plus après tous les noms en ASCII.
+    assert ordered == sorted(ordered, key=lambda name: (fold_text(name), name))
     page = api.get("/cartes", params={"q": "e", "limit": 2, "offset": 1}).json()
     assert [item["name"] for item in page] == ordered[1:3]
 

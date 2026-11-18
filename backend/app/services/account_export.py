@@ -12,7 +12,8 @@ extension par abréviation, des identifiants privés qui ne valent que dans le
 fichier) sont décrits dans `app.schemas.account_export`.
 
 Ordre des listes, pour qu'un fichier se relise et se compare d'un export à
-l'autre : la collection par nom de carte puis identifiant VEKN, langue et
+l'autre : la collection par nom de carte (replié, puis brut, comme les
+listes de l'API depuis le Lot 12, A7) puis identifiant VEKN, langue et
 extension ; les ressources privées par identifiant, sauf les tournois (date de
 début) et les parties (date de jeu), dans l'ordre où l'on les cherche ; une
 table de partie par siège, les sans-siège en dernier, comme `GET /parties/{id}`.
@@ -60,6 +61,7 @@ from app.schemas.account_export import (
     ExportedTournamentDeckVersion,
     ExportedVenue,
 )
+from app.services.text_search import folded_order
 
 UNKNOWN_REVISION = "inconnue"
 """Révision écrite quand la base n'a pas de table `alembic_version` : base de
@@ -96,7 +98,12 @@ def export_collection(db: Session, *, user_id: int) -> list[ExportedCollectionEn
         .join(Card, Card.id == CardCopy.card_id)
         .join(CardSet, CardSet.id == CardCopy.card_set_id)
         .where(CardCopy.user_id == user_id)
-        .order_by(Card.name, Card.vekn_id, CardCopy.language_code, CardSet.abbrev)
+        .order_by(
+            *folded_order(Card.name),
+            Card.vekn_id,
+            CardCopy.language_code,
+            CardSet.abbrev,
+        )
     )
     return [
         ExportedCollectionEntry(
@@ -135,7 +142,7 @@ def _lines_by_deck(db: Session, model, owned) -> dict[int, list[ExportedDeckLine
         .where(owned)
         .order_by(
             model.deck_id,
-            Card.name,
+            *folded_order(Card.name),
             Card.vekn_id,
             model.language_code,
             CardSet.abbrev,
@@ -171,7 +178,7 @@ def _versions_by_deck(
         .join(Card, Card.id == DeckVersionCard.card_id)
         .join(DeckVersion, DeckVersion.id == DeckVersionCard.deck_version_id)
         .where(DeckVersion.user_id == user_id)
-        .order_by(Card.name, Card.vekn_id)
+        .order_by(*folded_order(Card.name), Card.vekn_id)
     )
     for row, vekn_id, name in rows:
         cards[row.deck_version_id].append(

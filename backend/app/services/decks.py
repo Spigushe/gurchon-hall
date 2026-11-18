@@ -84,7 +84,7 @@ from app.schemas.collection import (
 from app.services import catalog, deck_versions, stock, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict
-from app.services.text_search import contains_folded
+from app.services.text_search import contains_folded, folded_order
 
 _COMPOSITION_CONFLICT = "La composition du deck contredit la collection."
 _WRITE_CONFLICT = "Le deck n'a pas pu être enregistré (écriture concurrente)."
@@ -340,7 +340,8 @@ def list_decks(
         stmt = stmt.where(Deck.status == status)
     if q:
         stmt = stmt.where(contains_folded(Deck.name, q))
-    return list(db.scalars(stmt.order_by(Deck.name, Deck.discriminator, Deck.id)))
+    stmt = stmt.order_by(*folded_order(Deck.name), Deck.discriminator, Deck.id)
+    return list(db.scalars(stmt))
 
 
 def list_deck_versions(

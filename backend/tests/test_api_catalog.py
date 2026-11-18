@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.db.folding import fold_text
 from app.models.enums import UserRole
 from app.services.catalog_import import import_catalog
 from tests.auth_helpers import authenticated_api
@@ -27,10 +28,14 @@ def names(response):
 
 
 def test_list_cards_is_sorted_by_name(api, catalog_in_db):
+    """Nom replié, puis nom brut (Lot 12, A7) ; les cas difficiles sont dans
+    `test_lot12_folded_sort.py`."""
     response = api.get("/cartes")
 
     assert response.status_code == 200
-    assert names(response) == sorted(names(response))
+    assert names(response) == sorted(
+        names(response), key=lambda name: (fold_text(name), name)
+    )
     assert len(response.json()) == 10
 
 
