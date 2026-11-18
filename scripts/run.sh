@@ -239,6 +239,12 @@ serve() {
         export SESSION_COOKIE_SECURE=false
     fi
 
+    # Journaux de l'API (Lot 12, A5) : une ligne lisible plutot que du JSON en
+    # developpement, sauf si la variable est deja positionnee. Les journaux
+    # d'acces d'uvicorn sont coupes (--no-access-log) : l'API ecrit deja une
+    # ligne par requete.
+    export LOG_FORMAT="${LOG_FORMAT:-text}"
+
     local front_label front_port
     local -a front_cmd
     if [ "$mode" = "preview" ]; then
@@ -266,7 +272,7 @@ serve() {
     }
     trap cleanup EXIT INT TERM
 
-    (cd "$backend_dir" && "$venv_python" -m uvicorn app.main:app --reload --host 0.0.0.0 --port "$backend_port") &
+    (cd "$backend_dir" && "$venv_python" -m uvicorn app.main:app --reload --no-access-log --host 0.0.0.0 --port "$backend_port") &
     backend_pid=$!
 
     (cd "$frontend_dir" && "${front_cmd[@]}") &

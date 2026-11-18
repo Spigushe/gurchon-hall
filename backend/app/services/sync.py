@@ -34,6 +34,8 @@ ligne) ; une langue absente du serveur est donc refusée `not_found`, comme
 `POST /stock` la refuserait en ligne.
 """
 
+import logging
+from collections import Counter
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -51,6 +53,7 @@ from app.models.enums import (
     SyncResourceKind,
 )
 from app.models.sync import SyncOperation
+from app.observability import SYNC_LOGGER
 from app.schemas.collection import CardCopyUpdate, DeckCardUpdate
 from app.schemas.sync import (
     AnySyncOperation,
@@ -540,11 +543,48 @@ def apply_batch(engine: Engine, request: SyncRequest, user_id: int) -> SyncResul
     def count(outcome: SyncOutcome) -> int:
         return sum(1 for result in results if result.outcome is outcome)
 
-    return SyncResult(
+    result = SyncResult(
         batch_id=UUID(batch_id),
         synced_at=utcnow(),
         applied=count(SyncOutcome.APPLIED),
         replayed=count(SyncOutcome.REPLAYED),
         rejected=count(SyncOutcome.REJECTED),
         results=results,
+    )
+    # Après le `COMMIT` (sortie de `serialized_writes`) : la ligne ne décrit
+    # que ce qui est effectivement journalisé en base.
+    log_batch_summary(result, user_id)
+    return result
+
+
+_sync_logger = logging.getLogger(SYNC_LOGGER)
+
+
+def batch_summary_fields(result: SyncResult, user_id: int) -> dict:
+    """Champs de la ligne `sync.batch` (Lot 12, A5).
+
+    Les refus sont ceux du lot (`rejected`), pas les refus mémorisés qu'un
+    rejeu rend (`replayed` avec un motif) : ceux-là ont été comptés au lot qui
+    les a tranchés. Aucun message de refus, aucune référence client : le
+    message reprend le texte d'un service, qui peut citer un nom de deck.
+    """
+    rejected = [r for r in result.results if r.outcome is SyncOutcome.REJECTED]
+    by_code = Counter(r.error.code.value for r in rejected if r.error is not None)
+    by_type = Counter(r.type.value for r in rejected)
+    return {
+        "user_id": user_id,
+        "batch_id": str(result.batch_id),
+        "size": len(result.results),
+        "applied": result.applied,
+        "replayed": result.replayed,
+        "rejected": result.rejected,
+        "rejected_by_code": dict(sorted(by_code.items())),
+        "rejected_by_type": dict(sorted(by_type.items())),
+    }
+
+
+def log_batch_summary(result: SyncResult, user_id: int) -> None:
+    level = logging.WARNING if result.rejected else logging.INFO
+    _sync_logger.log(
+        level, "sync.batch", extra={"fields": batch_summary_fields(result, user_id)}
     )

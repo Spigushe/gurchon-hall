@@ -21,6 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app import __version__
 from app.db import session as db_session
 from app.db.schema_check import enforce_schema_revision
+from app.observability import RequestLogMiddleware, configure_logging
 from app.routers.auth import router as auth_router
 from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
@@ -72,6 +73,12 @@ _WRITE_METHODS = {"POST", "PATCH", "DELETE"}
 # livraison de B1).
 GZIP_MINIMUM_SIZE = 1000
 GZIP_LEVEL = 6
+
+# Journaux (Lot 12, A5) : posés au chargement du module, donc après la
+# configuration des journaux d'uvicorn, qui ne touche pas au journal `app`.
+# Une valeur illisible de `LOG_LEVEL` ou `LOG_FORMAT` fait échouer l'import,
+# donc le démarrage, comme une base en retard.
+configure_logging()
 
 
 @asynccontextmanager
@@ -172,6 +179,11 @@ app.add_middleware(
     # peut pas le lire.
     expose_headers=["Retry-After"],
 )
+
+# Journal des requêtes (Lot 12, A5), ajouté en dernier : c'est la couche la plus
+# extérieure (sous la gestion des erreurs de Starlette), qui mesure tout ce que
+# les autres répondent, 403, 429 et CORS compris (`app.observability`).
+app.add_middleware(RequestLogMiddleware)
 
 app.include_router(health_router)
 app.include_router(auth_router)

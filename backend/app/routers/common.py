@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path, Query, Response, Security
+from fastapi import Depends, HTTPException, Path, Query, Request, Response, Security
 from fastapi.security import APIKeyCookie
 from sqlalchemy.orm import Session
 
@@ -99,7 +99,7 @@ def _unauthenticated() -> HTTPException:
 
 
 def current_session(
-    token: SessionToken, db: DbSession, response: Response
+    token: SessionToken, db: DbSession, request: Request, response: Response
 ) -> AuthSession:
     """Résout le cookie de session en ligne `auth_session`, ou lève 401.
 
@@ -130,6 +130,9 @@ def current_session(
     if session is None:
         raise _unauthenticated()
     response.headers["Cache-Control"] = "private, no-store"
+    # Lu par le journal des requêtes (Lot 12, A5, `app.observability`) :
+    # l'identifiant seul, jamais l'adresse ni le nom.
+    request.state.user_id = session.user_id
     if auth_service.renew_session(db, session):
         set_session_cookie(response, token, session.expires_at)
     return session
