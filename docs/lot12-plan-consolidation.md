@@ -1,8 +1,8 @@
 # Lot 12 — Consolidation (v1.1) : plan d'implémentation
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
-écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1 et B2 livrées le
-2026-11-18** (cf. « Livré à A1 », « Livré à B1 », « Livré à B2 ») ; il ne
+écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4 et D4
+livrées le 2026-11-18** (cf. « Livré à A1 » à « Livré à D4 ») ; il ne
 reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
@@ -726,13 +726,13 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré — **fait le 2026-11-18** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) — **fait le 2026-11-18** (cf. « Livré à B1 ») | A1 |
 | B2 | backend-fastapi | export du compte (A4) — **fait le 2026-11-18** (cf. « Livré à B2 ») | A1 |
-| B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` | A0 |
-| B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) | A0 |
+| B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` — **fait le 2026-11-18** (cf. « Livré à B3 ») | A0 |
+| B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) — **fait le 2026-11-18** (cf. « Livré à B4 ») | A0 |
 | C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) | B4 pour la table |
 | D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff | B1, B2, D0 |
 | D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff | C1, D0 |
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
-| D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px | A0 |
+| D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px — **fait le 2026-11-18** (cf. « Livré à D4 ») | A0 |
 | D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px | D1 |
 | E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D5 |
 | F | orchestrateur, devops | staging du lot complet sur `main`, essai de R15 sur une copie de la base de production, versions à `1.1.0`, release complète v1.1.0, production redéployée, vérification sur téléphone, CLAUDE.md | E |
@@ -919,6 +919,117 @@ bureau avec la seule alerte de la barre haute et `G S`.
   connus** (2932 à B1), sous couverture, sans régression CRAP ; `ruff check`
   propre ; contrat inchangé (`export_openapi.py --check`). Aucun code du front
   ne change.
+
+### Livré à B3 (2026-11-18)
+
+- **Module** : `app/observability.py`. `configure_logging` pose un
+  gestionnaire sur le journal `app` (sortie standard relue à chaque ligne,
+  remplacé et non empilé à un second appel), au niveau `LOG_LEVEL` (`INFO` par
+  défaut) et au format `LOG_FORMAT` (`json` par défaut, `text` pour le
+  développement) ; une valeur inconnue lève `LoggingSettingsError` avant toute
+  modification, et comme l'appel est fait au chargement de `app.main`, le
+  démarrage est refusé. Le journal propage : sous uvicorn la racine n'a pas de
+  gestionnaire, rien n'est doublé ; sous pytest, `caplog` voit tout. Les
+  avertissements existants (`app.db.schema_check`) sortent au même format.
+- **Forme d'une ligne** : `ts` (UTC, millisecondes, « Z »), `level`, `logger`,
+  `event`, puis les seuls champs passés dans `extra={"fields": …}` ; une
+  exception n'apparaît que par `exc_type` (le message d'une `IntegrityError`
+  cite les paramètres SQL). Le format texte donne la même chose en
+  `clé=valeur` sur une ligne.
+- **`http.request`** (journal `app.access`) : `RequestLogMiddleware`, ASGI pur,
+  ajouté en dernier, donc couche la plus extérieure sous la gestion d'erreurs
+  de Starlette. Champs `method`, `route` (gabarit lu dans `scope["route"]`,
+  `<aucune route>` pour un 404 du routeur ou une requête préliminaire CORS),
+  `status`, `duration_ms`, et `user_id` quand une session a été résolue :
+  `current_session` le pose dans `request.state`. Niveau `error` à partir de
+  500 (une exception qui remonte est notée 500 et relancée), `info` sinon.
+  Les 401, les 403 d'origine et les 429 de slowapi sont journalisés comme le
+  reste.
+- **`sync.batch`** (journal `app.sync`) : écrit par `apply_batch` après la
+  sortie de `serialized_writes`, donc après le `COMMIT`. Champs `user_id`,
+  `batch_id`, `size`, `applied`, `replayed`, `rejected`, `rejected_by_code`
+  et `rejected_by_type` (dictionnaires triés, vides sans refus). Un refus
+  mémorisé rendu par un rejeu n'y est pas recompté. Niveau `warning` s'il y a
+  des refus. Ni message de refus (il cite des noms de deck), ni référence
+  client.
+- **`scripts/sync_report.py`** : chemin de la base obligatoire, ouverture en
+  `mode=ro`, bornes `--since` et `--until` en jours UTC inclus sur
+  `processed_at`, `--user`, `--json`. Rapport : opérations tranchées,
+  appliquées, refusées, premier et dernier verdict, refus par motif, par motif
+  et type, et par jour. Code 2 sur un fichier absent, une base sans
+  `sync_operation` ou une date illisible. Lancé sur une copie de
+  `backend/vtes.db` : 232 opérations, aucun refus.
+- **Développement** : `scripts/run.ps1` et `run.sh` posent `LOG_FORMAT=text`
+  (sauf variable déjà posée) et lancent uvicorn avec `--no-access-log`. Les e2e
+  contre le vrai back lancent l'API avec `LOG_LEVEL=WARNING`, comme uvicorn
+  (`--log-level warning`), pour que la fin du journal gardée en cas d'échec
+  ne soit pas remplie de requêtes.
+- **Reste pour D3** : `--no-access-log` dans l'unité systemd, sans quoi chaque
+  requête est écrite deux fois ; `LOG_LEVEL` n'a pas à y figurer tant que
+  `INFO` convient.
+- **Tests** : `backend/tests/test_lot12_observability.py` (24 tests :
+  formateurs, réglages, idempotence, sortie standard ; gabarit de route,
+  compte, 401, 404 sans chemin brut, 403 d'origine, 500 en `error` ; ni
+  adresse, ni mot de passe, ni jeton, ni texte de recherche, ni nom de deck
+  dans aucune ligne ; résumé `/sync` par motif et par type, niveau, écriture
+  après le `COMMIT` vérifiée depuis une autre connexion ; rapport sur un
+  journal fabriqué, période, compte, lecture seule, refus).
+
+### Livré à B4 (2026-11-18)
+
+- **Règle** : `folded_order(colonne)` (`app/services/text_search.py`) rend
+  `(fold_text(colonne), colonne)` ; `GET /cartes` (`catalog.list_cards`),
+  `GET /stock` (`stock.list_stock`) et `GET /decks` (`decks.list_decks`) trient
+  par ces deux clés, puis par leurs clés d'avant (groupe et identifiant ;
+  langue et extension ; discriminant et identifiant). L'export du compte (B2)
+  suit la même règle pour la collection, les lignes de deck et les cartes
+  d'une version. Bundles et extensions gardent leurs clés propres.
+- **Table de cas commune** : `backend/tests/fixtures/folded_sort_cases.json`,
+  dix cas (accent initial, minuscule initiale, quatre graphies d'un même nom
+  départagées par le nom brut, tilde, ß, œ qui reste après z, espace,
+  ponctuation et chiffres, majuscules, cédille et caron). Les noms restent
+  dans le plan multilingue de base, où JavaScript et SQLite rangent pareil ;
+  aucun nom répété, pour que l'ordre attendu ne dépende pas des clés
+  suivantes. C1 la reprend pour `compareFolded`.
+- **Performance**, mesurée sur une copie de `backend/vtes.db` (4212 cartes),
+  service seul, médiane de quinze appels : `list_cards` à 200 cartes passe de
+  65 ms à 126 ms pour la première page, de 67 ms à 111 ms pour la dernière.
+  Une lecture complète du catalogue (22 pages) coûte donc environ une seconde
+  de plus au serveur, à comparer aux 14 à 16 s de la lecture sur un réseau
+  ralenti (lot Chercher). Accepté ; un index sur `fold_text(name)` exigerait
+  que la fonction existe sur toute connexion qui écrit `card`, client
+  `sqlite3` compris.
+- **Tests** : `backend/tests/test_lot12_folded_sort.py` (49 tests : la table
+  elle-même, avec au moins un cas où l'ordre binaire se trompe ; chaque cas
+  sur les trois routes ; clés suivantes conservées ; recherche puis tri ;
+  export) ; `test_list_cards_is_sorted_by_name` et
+  `test_the_folded_search_keeps_the_existing_order_and_pagination`, qui
+  figeaient l'ordre binaire, suivent la règle repliée.
+  **3023 tests backend verts et les 2 `xfail` connus** après B3 et B4 (2950 à
+  B2), sous couverture, sans régression CRAP ; `ruff check` propre ; contrat
+  inchangé (aucun schéma ni route ne bouge).
+
+### Livré à D4 (2026-11-18)
+
+- **Corrections** (`frontend/src/index.css`) : `border: 0` avant
+  `border-bottom` sur `.underline-field` ; `background: transparent; border: 0`
+  sur `.btn-ghost` et `.chip-action--text`. Les règles qui encadrent le champ
+  (`.sheet`, picker du deckbuilder, correction de Synchronisation, `textarea`)
+  sont plus spécifiques et ne bougent pas : le champ « Nom du deck » au bureau
+  est identique avant et après.
+- **Effet de bord, assumé** : le seul `btn btn-ghost` posé sur un `<button>`,
+  « Replier le picker » du deckbuilder (`deck-picker-collapse`), perd la
+  bordure transparente de 1 px de `.btn`, soit 2 px en hauteur et en largeur.
+- **Captures** : `docs/qa-baselines/lot12-d4/avant/` et `apres/`, à 390 et
+  1440 px, prises par `frontend/tests/visual-baseline/lot12-d4.spec.ts` (outil
+  de capture sans assertion, hors de `npm run test:e2e`, phase choisie par
+  `D4_PHASE`, `dist-real` construit sur l'`index.css` de chaque phase). Les
+  quatre défauts sont visibles avant (bordure inset du champ, fond clair de
+  « Se reconnecter → » et d'« Effacer les filtres », contour d'« Abandonner »)
+  et absents après, aux deux largeurs. « Effacer les filtres » n'existe qu'au
+  mobile : le bureau a la barre de filtres, sans ce bouton.
+- **Tests** : aucun test ne lit ces styles (jsdom ne calcule pas la mise en
+  page) ; lint et `tsc` propres, aucun `data-testid` touché.
 
 ## Tests attendus (E)
 

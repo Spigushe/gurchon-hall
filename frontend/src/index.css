@@ -1066,7 +1066,13 @@ main:focus {
   flex: 1 1 10rem;
 }
 
+/* `border: 0` d'abord (Lot 12, D4) : sans remise à zéro des bordures d'`input`
+   et de `select`, le navigateur gardait sa bordure inset sur les trois autres
+   côtés. Les règles qui encadrent le champ (`.sheet`, picker du deckbuilder,
+   correction de Synchronisation, `textarea`) sont plus spécifiques et
+   l'emportent toujours. */
 .underline-field {
+  border: 0;
   border-bottom: 1px solid var(--color-divider);
   padding: 0 2px 10px;
   min-height: 44px;
@@ -1369,7 +1375,12 @@ fieldset:disabled .chip {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
+/* Fond et bordure remis à zéro (Lot 12, D4) : sur un `<button>` sans `.btn`
+   (« Se reconnecter → », « Effacer les filtres »), le navigateur gardait son
+   fond et sa bordure de bouton. */
 .btn-ghost {
+  background: transparent;
+  border: 0;
   color: var(--color-accent-300);
   padding-inline: 4px;
   min-height: auto;
@@ -1438,7 +1449,11 @@ fieldset:disabled .chip {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
+/* Bordure remise à zéro (Lot 12, D4) : `.chip-action` pose le fond
+   transparent mais pas la bordure, que « Abandonner » gardait. */
 .chip-action--text {
+  background: transparent;
+  border: 0;
   color: var(--color-accent-300);
   padding: 0 4px;
 }
