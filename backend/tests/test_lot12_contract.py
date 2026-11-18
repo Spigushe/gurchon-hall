@@ -9,10 +9,11 @@ Ce que ce fichier fige (A1, A2, A4) :
 * les schémas d'entrée (`PasswordChange`) et de sortie (`SessionRead`,
   `AccountExport`), sans jeton, empreinte ni hachage nulle part ;
 * les deux colonnes de R15 au modèle (la migration est éprouvée dans la
-  section « Lot 12 » de `test_migrations.py`) ;
-* la garde provisoire de l'export : 501 après le contrôle de session,
-  jusqu'à l'étape B2 (les quatre autres routes sont livrées à B1, éprouvées
-  par `test_lot12_account_sessions.py`).
+  section « Lot 12 » de `test_migrations.py`).
+
+Le comportement des routes est éprouvé ailleurs : mot de passe et sessions
+dans `test_lot12_account_sessions.py` (B1), export dans
+`test_lot12_account_export.py` (B2).
 """
 
 import pytest
@@ -309,13 +310,7 @@ def test_the_session_model_gains_the_device_and_the_last_use():
     assert list(columns.keys())[-2:] == ["user_agent", "last_used_at"]
 
 
-# --- Garde provisoire (export seul, à retirer à B2) --------------------------
-
-
-def test_the_export_is_a_provisional_501_until_b2(me_api):
-    response = me_api.get("/moi/export")
-    assert response.status_code == 501
-    assert response.json() == {"detail": "Route pas encore livrée (Lot 12, étape B2)."}
+# --- Validation par le schéma ------------------------------------------------
 
 
 def test_the_password_body_is_validated_by_the_schema(me_api):

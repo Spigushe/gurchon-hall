@@ -1,8 +1,9 @@
 # Lot 12 — Consolidation (v1.1) : plan d'implémentation
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
-écrit le 2026-11-18, D0 close le 2026-11-18 ; A1 livrée le 2026-11-18** (cf.
-« Livré à A1 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
+écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1 et B2 livrées le
+2026-11-18** (cf. « Livré à A1 », « Livré à B1 », « Livré à B2 ») ; il ne
+reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -724,7 +725,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` : **fait le 2026-11-18**, en deux envois (corrections demandées et design system, puis `LOT12.md`, prototypes et captures, P9 « Handoff reçu ») ; choix du designer et écarts 1 et 2 retenus le 2026-11-18 | A0 |
 | A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré — **fait le 2026-11-18** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) — **fait le 2026-11-18** (cf. « Livré à B1 ») | A1 |
-| B2 | backend-fastapi | export du compte (A4) | A1 |
+| B2 | backend-fastapi | export du compte (A4) — **fait le 2026-11-18** (cf. « Livré à B2 ») | A1 |
 | B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` | A0 |
 | B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) | A0 |
 | C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) | B4 pour la table |
@@ -874,6 +875,50 @@ bureau avec la seule alerte de la barre haute et `G S`.
   est renouvelée à sa première requête (critère de fin de lot) ; D3 n'a rien
   à poser dans l'unité systemd pour les durées, les valeurs par défaut étant
   celles de P10.
+
+### Livré à B2 (2026-11-18)
+
+- **Service** : `app/services/account_export.py`, une fonction par domaine
+  (`export_collection`, `export_decks`, `export_players`, `export_venues`,
+  `export_tournaments`, `export_games`), chacune avec `user_id` en paramètre
+  nommé obligatoire, sans valeur par défaut. Chaque lecture joint le
+  catalogue par une requête à colonnes (vekn_id, nom, abréviation, nom du
+  clan) au lieu de charger les relations ligne à ligne : une poignée de
+  requêtes par export, quelle que soit la taille du compte. Les listes
+  imbriquées (lignes, versions, tables) sont remplies depuis ces lectures, pas
+  par `model_validate` sur l'objet ORM, qui aurait chargé les relations du
+  même nom dans une autre forme.
+- **Ordre** : collection par nom de carte, identifiant VEKN, langue et
+  extension ; decks, joueurs et lieux par identifiant ; tournois par date de
+  début ; parties par date de jeu ; une table par siège, les sans-siège en
+  dernier, comme `GET /parties/{id}`. Le tri par nom suit la collation
+  binaire : B4 le passera au tri replié avec le reste.
+- **Deck supprimé** : il porte sa liste figée (`deleted_deck_card`), un deck
+  vivant ou archivé ses lignes. Les versions jouées sont rangées sous leur
+  deck, les cartes d'une version par nom.
+- **Révision** : `schema_revision` est lue dans `alembic_version` sur la
+  connexion de la requête, pas supposée égale à la tête des scripts ;
+  `inconnue` (`UNKNOWN_REVISION`) sans la table, cas d'une base de test ou
+  d'un contrôle de révision coupé.
+- **Route** : la garde 501 est retirée. `GET /moi/export` pose
+  `Content-Disposition: attachment; filename="gurchon-hall-<username>-<AAAA-MM-JJ>.json"`
+  (jour UTC de l'export, `export_filename`) sur la `Response` injectée, que
+  FastAPI fusionne avec `Cache-Control: private, no-store` et le cookie
+  renouvelé. Le nom d'utilisateur suit le motif du Lot 6 : rien à échapper.
+  Contrat inchangé (déjà décrit à A1).
+- **Tests** : `backend/tests/test_lot12_account_export.py` (en-têtes et nom de
+  fichier, compte vide avec son « Moi », 401 sans session, collection, decks
+  vivants, archivés et supprimés avec leur liste figée, versions sous leur
+  deck, carnet, tournoi et version de chaque deck joué, partie et table par
+  siège avec adversaire non nommé et clan par son nom, isolation dans les
+  deux sens, aucun secret ni identifiant de compte, révision lue ou
+  inconnue) ; **toute table à `user_id` est exportée ou exclue par
+  décision** (`auth_session`, `sync_operation`), test qui échouera sur une
+  table ajoutée au Lot 14 sans décision. Garde 501 retirée de
+  `test_lot12_contract.py`. **2950 tests backend verts et les 2 `xfail`
+  connus** (2932 à B1), sous couverture, sans régression CRAP ; `ruff check`
+  propre ; contrat inchangé (`export_openapi.py --check`). Aucun code du front
+  ne change.
 
 ## Tests attendus (E)
 

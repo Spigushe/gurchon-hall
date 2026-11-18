@@ -24,9 +24,8 @@ enregistré dans `app.main`).
 
 **Lot 12** (`docs/lot12-plan-consolidation.md`, A1) : cinq routes sous
 `/moi`, toutes sous session et en ligne seulement : changer son mot de passe,
-lister et fermer ses sessions (étape B1), exporter son compte (étape B2).
-L'export rend encore **501** après le contrôle de session, garde à retirer à
-B2 avec son test (`test_lot12_contract.py`). Depuis B1, la connexion et
+lister et fermer ses sessions (étape B1), exporter son compte (étape B2,
+`app.services.account_export`). Depuis B1, la connexion et
 l'inscription notent l'appareil (`User-Agent`, A2) sur la session qu'elles
 ouvrent, et le changement de mot de passe est limité en débit comme elles.
 """
@@ -59,6 +58,7 @@ from app.schemas.account import (
 )
 from app.schemas.account_export import AccountExport
 from app.schemas.errors import ErrorResponse
+from app.services import account_export as export_service
 from app.services import auth as auth_service
 from app.services.rate_limit import (
     limiter,
@@ -207,15 +207,6 @@ def read_current_user(current_user: CurrentUser) -> UserRead:
 # ---------------------------------------------------------------------------
 
 
-def _not_yet_delivered(step: str) -> HTTPException:
-    """Garde provisoire de l'étape A1 : la route est au contrat, son corps
-    vient à l'étape `step`. Ne sert plus qu'à l'export, à retirer à B2."""
-    return HTTPException(
-        status_code=501,
-        detail=f"Route pas encore livrée (Lot 12, étape {step}).",
-    )
-
-
 _CONTENT_DISPOSITION = {
     "Content-Disposition": {
         "description": (
@@ -355,5 +346,13 @@ def revoke_session(
         **UNAUTHENTICATED,
     },
 )
-def export_account(user: CurrentUser, db: DbSession) -> AccountExport:
-    raise _not_yet_delivered("B2")
+def export_account(
+    user: CurrentUser, db: DbSession, response: Response
+) -> AccountExport:
+    export = export_service.export_account(db, user)
+    filename = export_service.export_filename(user.username, export.exported_at)
+    # Posé sur la `Response` injectée, que FastAPI fusionne avec la réponse
+    # qu'il fabrique, comme le `Cache-Control` et le cookie renouvelé de la
+    # dépendance de session.
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return export
