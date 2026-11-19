@@ -15,7 +15,7 @@ export interface LocalDeckCounts {
  * carte absente du miroir n'est comptée nulle part.
  *
  * Factorisé depuis l'ancien `DeckLegalitySummary` (Lot 5c, étape 5) pour que
- * la liste « En cours » mobile de l'Atelier affiche les mêmes chiffres, sans les
+ * la liste « Joués » mobile de l'Atelier affiche les mêmes chiffres, sans les
  * recalculer autrement. `DeckLegalitySummary` a disparu au lot Affichage des
  * decks, remplacé au bureau par la pastille `DeckLegalityBadge`.
  */

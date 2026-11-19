@@ -64,6 +64,33 @@ describe("routes clientes", () => {
     expect(parseHash("#/collection?action=constructor")).toEqual({ name: "stock" });
   });
 
+  it("garde l'onglet des decks dans l'adresse, seul ou avec une intention ; « Joués » reste l'adresse nue", () => {
+    const withFilter: Route[] = [
+      { name: "decks", filter: "active" },
+      { name: "decks", filter: "draft" },
+      { name: "decks", filter: "archived" },
+      { name: "decks", filter: "all" },
+      { name: "decks", intent: "new", filter: "draft" },
+    ];
+    for (const route of withFilter) {
+      expect(parseHash(hrefFor(route))).toEqual(route);
+    }
+    expect(hrefFor({ name: "decks", filter: "active" })).toBe("#/decks?filtre=actifs");
+    expect(hrefFor({ name: "decks", filter: "draft" })).toBe("#/decks?filtre=brouillons");
+    expect(hrefFor({ name: "decks", filter: "archived" })).toBe("#/decks?filtre=archives");
+    expect(hrefFor({ name: "decks", filter: "all" })).toBe("#/decks?filtre=tous");
+    expect(hrefFor({ name: "decks", filter: "played" })).toBe("#/decks");
+    expect(parseHash("#/decks?filtre=actifs&action=importer")).toEqual({
+      name: "decks",
+      intent: "import",
+      filter: "active",
+    });
+    // Un onglet inconnu, ou le code anglais à la place du paramètre, est ignoré.
+    expect(parseHash("#/decks?filtre=joues")).toEqual({ name: "decks" });
+    expect(parseHash("#/decks?filtre=active")).toEqual({ name: "decks" });
+    expect(parseHash("#/collection?filtre=actifs")).toEqual({ name: "stock" });
+  });
+
   it("refuse une clé de partie mal formée, et nomme les parties et tournois en français", () => {
     expect(hrefFor({ name: "games" })).toBe("#/parties");
     expect(hrefFor({ name: "tournaments" })).toBe("#/tournois");

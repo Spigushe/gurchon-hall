@@ -188,7 +188,7 @@ test("n°7 : le picker mobile annonce « Dans le deck : N » pour la carte et la
   await expect(form.getByTestId("deck-card-form-in-deck")).toHaveText("Dans le deck : 2");
 });
 
-test("n°17b : la liste « En cours » de l'Atelier mobile porte les comptes crypte et bibliothèque", async ({
+test("n°17b : la liste « Joués » de l'Atelier mobile porte les comptes crypte et bibliothèque", async ({
   page,
   api,
 }) => {

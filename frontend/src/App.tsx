@@ -185,7 +185,7 @@ function Page({ route }: { route: Route }) {
     case "stock":
       return <StockPage intent={route.intent} />;
     case "decks":
-      return <DecksPage intent={route.intent} />;
+      return <DecksPage intent={route.intent} filter={route.filter} />;
     case "deck":
       return <DeckDetailPage key={route.key} deckKey={route.key} />;
     case "games":

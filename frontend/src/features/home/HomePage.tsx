@@ -104,7 +104,7 @@ function legalityDisplay(
 }
 
 /**
- * Ligne du tableau « En cours » bureau (d08) : nom, comptes, légalité, flèche.
+ * Ligne du tableau « Joués » bureau (d08) : nom, comptes, légalité, flèche.
  * Verdict lu **en ligne** (`GET /decks/{id}/legalite`, comme
  * `DeckLegalityPanel`) : indisponible hors ligne plutôt que recalculé
  * localement, sans appel bloquant (l'effet se résout en arrière-plan). Rendue
@@ -152,7 +152,7 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
 }
 
 /**
- * Ligne de la liste « En cours » mobile : nom, puis discriminant, statut,
+ * Ligne de la liste « Joués » mobile : nom, puis discriminant, statut,
  * archétype et — depuis le Lot 5c (étape 5) — les comptes crypte / bibliothèque
  * du bureau. Comptes **locaux** (composition du miroir croisée avec la catégorie
  * du catalogue, `useLocalDeckCounts`) : pas de verdict de légalité ici, qui
@@ -254,7 +254,7 @@ function CurrentTournament({ tournament }: { tournament: LocalTournament }) {
   );
 }
 
-/** Point d'entrée : chiffres du jour, alerte de synchronisation, decks en cours. */
+/** Point d'entrée : chiffres du jour, alerte de synchronisation, decks joués (non archivés). */
 export function HomePage() {
   const stock = useLocalStock();
   const decks = useLocalDecks({ state: "active" });
@@ -301,14 +301,14 @@ export function HomePage() {
                 <span className="stat__value">{stock.length}</span>
                 <span className="stat__label">{plural(stock.length, "entrée")}</span>
               </Link>
-              <Link to={{ name: "decks" }} className="stat" data-testid="home-decks">
+              <Link to={{ name: "decks", filter: "active" }} className="stat" data-testid="home-decks">
                 <span className="stat__value">{activeCount ?? 0}</span>
                 <span className="stat__label">decks actifs</span>
               </Link>
-              <span className="stat">
+              <Link to={{ name: "decks", filter: "draft" }} className="stat" data-testid="home-drafts">
                 <span className="stat__value">{draftCount ?? 0}</span>
                 <span className="stat__label">brouillon{(draftCount ?? 0) > 1 ? "s" : ""}</span>
-              </span>
+              </Link>
             </div>
           )}
 
@@ -318,7 +318,7 @@ export function HomePage() {
 
           {decks !== undefined && decks.length > 0 && (
             <div>
-              <p className="kicker">En cours</p>
+              <p className="kicker">Joués</p>
               {isDesktop ? (
                 <div className="home-deck-table" data-testid="home-deck-table">
                   {decks.map((deck) => (

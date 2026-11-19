@@ -1170,6 +1170,16 @@ textarea.underline-field:focus-visible {
   margin: 0;
 }
 
+/* Rangée d'onglets qui défile plutôt que de passer à la ligne (filtres des decks). */
+.tabs--scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tabs--scroll .tab-option__label {
+  white-space: nowrap;
+}
+
 .tab-option {
   display: inline-flex;
   cursor: pointer;
@@ -1833,7 +1843,7 @@ fieldset:disabled .chip {
   width: 100%;
 }
 
-/* Tableau « En cours » (bureau uniquement, cf. `HomePage.tsx`) : nom, comptes, légalité, flèche. */
+/* Tableau « Joués » (bureau uniquement, cf. `HomePage.tsx`) : nom, comptes, légalité, flèche. */
 .home-deck-table {
   display: flex;
   flex-direction: column;
