@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { shortcutLegendRegistry, type ShortcutScope } from "./shortcutLegend";
 
 /**
  * Raccourcis clavier globaux (handoff bureau `docs/design-handoff/DESKTOP.md`,
@@ -47,6 +48,32 @@ export interface ShortcutBinding {
    * le comportement des bindings existants ne change pas. Voir `isInteractiveTarget`.
    */
   ignoreTarget?: (target: EventTarget | null) => boolean;
+  /**
+   * Libellé du raccourci dans la légende `?` (Lot 12, P8) : « Nouveau deck ».
+   * Absent, le raccourci n'y figure pas. Deux raccourcis du même appel ou de
+   * la même portée qui partagent un libellé forment une seule ligne à
+   * plusieurs touches (`↑` `↓`).
+   */
+  legend?: string;
+}
+
+/**
+ * Suspension des raccourcis (Lot 12, D2) : tant qu'une suspension est tenue,
+ * seuls les appels marqués `ignoreSuspension` réagissent. La légende `?` la
+ * tient pendant qu'elle est ouverte, pour qu'un `N` frappé devant elle
+ * n'ouvre pas « Nouveau deck » derrière ; les feuilles (`Sheet`) n'y sont pas
+ * soumises, si bien que `Échap` la ferme toujours.
+ */
+let suspensions = 0;
+
+export function suspendShortcuts(): () => void {
+  suspensions += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    suspensions -= 1;
+  };
 }
 
 const INTERACTIVE_SELECTOR = [
@@ -123,9 +150,23 @@ function sameSequence(a: ShortcutToken[], b: ShortcutToken[]): boolean {
  */
 export function useKeyboardShortcuts(
   bindings: ShortcutBinding[],
-  options: { enabled?: boolean; chordTimeoutMs?: number } = {},
+  options: {
+    enabled?: boolean;
+    chordTimeoutMs?: number;
+    /** Portée dans la légende `?` : l'écran courant (défaut) ou partout. */
+    scope?: ShortcutScope;
+    /** Reste actif pendant une suspension (`suspendShortcuts`). */
+    ignoreSuspension?: boolean;
+  } = {},
 ): void {
-  const { enabled = true, chordTimeoutMs = DEFAULT_CHORD_TIMEOUT_MS } = options;
+  const {
+    enabled = true,
+    chordTimeoutMs = DEFAULT_CHORD_TIMEOUT_MS,
+    scope = "screen",
+    ignoreSuspension = false,
+  } = options;
+  // Objet propre à cet appel, qui le désigne dans le registre de la légende.
+  const [owner] = useState(() => ({}));
   // Ref plutôt que dépendance d'effet : `bindings` est recréé à chaque rendu chez la
   // plupart des appelants (tableau inline), et reposer l'écouteur à chaque rendu casserait
   // une séquence `G` en cours (le nettoyage de l'effet précédent purge la fenêtre d'attente).
@@ -134,7 +175,15 @@ export function useKeyboardShortcuts(
   const bindingsRef = useRef(bindings);
   useEffect(() => {
     bindingsRef.current = bindings;
+    // La légende suit les raccourcis à chaque rendu (un raccourci conditionnel
+    // apparaît ou disparaît avec sa condition) ; le registre ne prévient ses
+    // abonnés que si la liste publiée a changé.
+    const entries = enabled
+      ? bindings.flatMap((binding) => (binding.legend ? [{ label: binding.legend, keys: binding.keys }] : []))
+      : [];
+    shortcutLegendRegistry.publish(owner, { scope, entries });
   });
+  useEffect(() => () => shortcutLegendRegistry.publish(owner, null), [owner]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -169,6 +218,10 @@ export function useKeyboardShortcuts(
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
+      if (suspensions > 0 && !ignoreSuspension) {
+        clearPending();
+        return;
+      }
       const token = tokenFor(event);
       if (token === null) return;
       const editable = isEditableTarget(event.target);
@@ -207,5 +260,5 @@ export function useKeyboardShortcuts(
       document.removeEventListener("keydown", onKeyDown);
       clearPending();
     };
-  }, [enabled, chordTimeoutMs]);
+  }, [enabled, chordTimeoutMs, ignoreSuspension]);
 }

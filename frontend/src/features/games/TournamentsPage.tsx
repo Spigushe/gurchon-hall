@@ -119,7 +119,7 @@ export function TournamentsPage() {
     [tournaments, selectedKey],
   );
 
-  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], {
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true), legend: "Nouveau tournoi" }], {
     enabled: isDesktop && !creating && !detailEditing,
   });
 

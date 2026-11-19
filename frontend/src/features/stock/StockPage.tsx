@@ -288,9 +288,9 @@ export function StockPage({ intent }: { intent?: StockIntent } = {}) {
   // derrière une feuille ouverte ne doit pas en ouvrir une seconde.
   useKeyboardShortcuts(
     [
-      { keys: ["n"], onTrigger: openCreate },
-      { keys: ["v"], onTrigger: () => setBundleOpen(true) },
-      { keys: ["f"], onTrigger: () => setFiltersOpen(true) },
+      { keys: ["n"], onTrigger: openCreate, legend: "Ajouter une carte" },
+      { keys: ["v"], onTrigger: () => setBundleOpen(true), legend: "Verser un produit" },
+      { keys: ["f"], onTrigger: () => setFiltersOpen(true), legend: "Filtres" },
     ],
     { enabled: mode === "closed" && !bundleOpen && !filtersOpen },
   );

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CaretDownIcon, SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, KeyboardIcon, SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
+import { Kbd } from "../../components/Kbd";
 import { useLiveQuery } from "../../offline/react";
 import { readLocalAccount, useVtesOffline } from "../../offline/vtes";
 import { LogoutControl } from "./LogoutControl";
@@ -17,10 +18,20 @@ import { LogoutControl } from "./LogoutControl";
  *   sur cet écran. La déconnexion n'y est plus : à 390 px, le nom, la
  *   déconnexion et « Hors ligne » ne tiennent pas sur une ligne ; elle vit dans
  *   l'écran Compte ;
- * - `menu` (bureau, `.topbar__actions`) : `lea-v ▾` ouvre un menu Compte · Se
- *   déconnecter (d36). « Raccourcis `?` » s'y ajoutera avec la légende (D2).
+ * - `menu` (bureau, `.topbar__actions`) : `lea-v ▾` ouvre un menu Compte ·
+ *   Raccourcis `?` · Se déconnecter (d36). « Raccourcis » ouvre la légende
+ *   (Lot 12, D2), que `App` tient ouverte.
  */
-export function AccountMenu({ variant, current = false }: { variant: "bar" | "menu"; current?: boolean }) {
+export function AccountMenu({
+  variant,
+  current = false,
+  onShowShortcuts,
+}: {
+  variant: "bar" | "menu";
+  current?: boolean;
+  /** Ouvre la légende des raccourcis ; sans elle, l'entrée « Raccourcis » n'est pas rendue. */
+  onShowShortcuts?: () => void;
+}) {
   const { db } = useVtesOffline();
   const query = useCallback(() => readLocalAccount(db), [db]);
   const account = useLiveQuery(query);
@@ -45,10 +56,18 @@ export function AccountMenu({ variant, current = false }: { variant: "bar" | "me
     );
   }
 
-  return <AccountDropdown username={account.username} current={current} />;
+  return <AccountDropdown username={account.username} current={current} onShowShortcuts={onShowShortcuts} />;
 }
 
-function AccountDropdown({ username, current }: { username: string; current: boolean }) {
+function AccountDropdown({
+  username,
+  current,
+  onShowShortcuts,
+}: {
+  username: string;
+  current: boolean;
+  onShowShortcuts?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -103,6 +122,26 @@ function AccountDropdown({ username, current }: { username: string; current: boo
             <UserCircleIcon size={16} />
             Compte
           </Link>
+          {onShowShortcuts && (
+            <button
+              type="button"
+              className="account-dropdown__item"
+              role="menuitem"
+              aria-keyshortcuts="?"
+              data-testid="account-menu-shortcuts"
+              onClick={() => {
+                setOpen(false);
+                toggleRef.current?.focus();
+                onShowShortcuts();
+              }}
+            >
+              <KeyboardIcon size={16} />
+              Raccourcis
+              <span className="account-dropdown__kbd">
+                <Kbd>?</Kbd>
+              </span>
+            </button>
+          )}
           <hr className="account-dropdown__rule" />
           <div className="account-dropdown__logout">
             <SignOutIcon size={16} aria-hidden="true" />

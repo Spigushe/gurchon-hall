@@ -7261,3 +7261,189 @@ fieldset:disabled .chip {
 .password-sheet__note {
   text-align: center;
 }
+
+/* — Lot 12, D2 — */
+
+/* Bandeaux de la coquille (reconnexion, nouvelle version), dans la colonne de
+   la page ; masqués quand aucun ne s'affiche. Écart de page entre deux
+   bandeaux (1b-76, d48). */
+.shell-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 22px var(--page-padding) 0;
+  width: 100%;
+}
+
+.shell-banners:empty {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .shell-banners {
+    max-width: var(--page-max-width-desktop);
+    padding: 28px var(--page-padding-desktop) 0;
+  }
+}
+
+/* Bandeau « nouvelle version » (1b-72 à 1b-75, d47) : actions `btn-ghost` en
+   13 px, côte à côte. */
+.app-update-banner .hint {
+  margin: 0;
+}
+
+.app-update-banner .error-text {
+  margin: 0;
+}
+
+.app-update-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.app-update-banner__actions .btn-ghost {
+  min-height: 32px;
+}
+
+/* « Catalogue en cours de chargement » (1b-77, 1b-78, d49) : 13 px, un anneau
+   de 13 px dont le quart haut est en accent. */
+.catalog-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+.catalog-loading__ring {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-neutral-700);
+  border-top-color: var(--color-accent-300);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .catalog-loading__ring {
+    animation: catalog-loading-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes catalog-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.catalog-loading-composition {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-loading-composition .hint {
+  margin: 0;
+}
+
+.catalog-loading__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.catalog-loading__row .skeleton {
+  height: 12px;
+}
+
+.catalog-loading__row .catalog-loading__count {
+  width: 12%;
+  margin-left: auto;
+}
+
+.catalog-loading__card .catalog-loading__rows {
+  padding: 4px var(--space-4) var(--space-4);
+}
+
+.catalog-loading__card .catalog-loading__row {
+  height: 36px;
+}
+
+/* Liste des decks : la mention sous la méta, à la place des comptes et des
+   clans, aux deux largeurs (12 px au bureau, comme la méta). */
+.deck-item__catalog {
+  display: block;
+  margin-top: 6px;
+}
+
+@media (min-width: 1024px) {
+  .deck-item__catalog .catalog-loading {
+    font-size: 12px;
+  }
+}
+
+/* Menu du compte : « Raccourcis » et sa touche, à droite (d36). */
+.account-dropdown__kbd {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+/* Légende des raccourcis (d44 à d46) : sections à kicker, lignes de 40 px,
+   description à gauche, touches à droite. */
+.shortcuts-legend .sheet__inner {
+  gap: 22px;
+}
+
+.shortcuts-legend__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcuts-legend__title {
+  margin: 0 0 4px;
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+.shortcuts-legend__note {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.shortcuts-legend__section .hint {
+  margin: 0;
+}
+
+.shortcuts-legend__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shortcuts-legend__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 14px;
+}
+
+.shortcuts-legend__row:first-child {
+  border-top: none;
+}
+
+.shortcuts-legend__keys {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: none;
+}

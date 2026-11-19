@@ -207,7 +207,7 @@ function CurrentTournament({ tournament }: { tournament: LocalTournament }) {
   const label = next === null ? null : next.kind === "final" ? "Saisir la finale" : `Saisir la ronde ${next.number}`;
 
   useKeyboardShortcuts(
-    [{ keys: ["enter"], ignoreTarget: isInteractiveTarget, onTrigger: () => setEntering(true) }],
+    [{ keys: ["enter"], ignoreTarget: isInteractiveTarget, onTrigger: () => setEntering(true), legend: "Nouvelle partie" }],
     { enabled: isDesktop && next !== null && games !== undefined && !entering },
   );
 

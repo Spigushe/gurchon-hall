@@ -116,12 +116,17 @@ export function Sheet({
   // Échap ferme toujours (y compris depuis un champ de saisie, comme avant) ;
   // ⌘↵/Ctrl↵ valide si le panneau connaît son action primaire. Les deux
   // restent actifs quel que soit l'endroit du panneau qui a le focus.
-  useKeyboardShortcuts([
-    { keys: ["escape"], onTrigger: () => onClose(), allowInEditableTarget: true },
-    ...(onPrimaryAction
-      ? [{ keys: ["mod+enter"], onTrigger: () => onPrimaryAction(), allowInEditableTarget: true }]
-      : []),
-  ]);
+  // Hors de la suspension que tient la légende `?` (Lot 12, D2) : sa propre
+  // feuille doit se fermer à Échap.
+  useKeyboardShortcuts(
+    [
+      { keys: ["escape"], onTrigger: () => onClose(), allowInEditableTarget: true },
+      ...(onPrimaryAction
+        ? [{ keys: ["mod+enter"], onTrigger: () => onPrimaryAction(), allowInEditableTarget: true }]
+        : []),
+    ],
+    { ignoreSuspension: true },
+  );
 
   // Focus piégé : Tab/Shift+Tab bouclent sur les éléments focalisables du
   // panneau, sans jamais rendre la main aux éléments (désormais inertes) qui

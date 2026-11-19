@@ -1,8 +1,9 @@
-import { Component, lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
+import { Component, lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { CardsIcon, HouseIcon, MagnifyingGlassIcon, StackIcon, TrophyIcon, WarningCircleIcon, WifiSlashIcon } from "@phosphor-icons/react";
 import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
+import { ShortcutsLegend } from "./components/ShortcutsLegend";
 import { useIsDesktop } from "./components/useIsDesktop";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
 import { GlobalSearchField } from "./features/search/GlobalSearchField";
@@ -10,6 +11,7 @@ import { focusSearch } from "./features/search/globalSearch";
 import { AccountMenu } from "./features/auth/AccountMenu";
 import { ReconnectBanner } from "./features/auth/ReconnectBanner";
 import { CatalogProvider } from "./features/catalog/CatalogProvider";
+import { AppUpdateBanner } from "./features/sync/AppUpdateBanner";
 import { SyncStatusBar } from "./features/sync/SyncStatusBar";
 import { plural } from "./labels";
 import { useConnectivity, useSyncStatus } from "./offline/react";
@@ -294,8 +296,9 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = [
   ...TOP_NAV_ITEMS.map((item) => ({
     keys: ["g", item.chordKey],
     onTrigger: () => navigate(item.route),
+    legend: item.label,
   })),
-  { keys: ["g", "s"], onTrigger: () => navigate({ name: "sync" }) },
+  { keys: ["g", "s"], onTrigger: () => navigate({ name: "sync" }), legend: "Synchronisation" },
 ];
 
 /**
@@ -328,7 +331,17 @@ function NetworkStatus({ online }: { online: boolean }) {
  * `TopBar` a le focus. Le champ de recherche global, retiré au Lot 5c faute
  * de cible, revient avec Chercher (D3) : `GlobalSearchField`.
  */
-function TopBar({ route, online, isDesktop }: { route: Route; online: boolean; isDesktop: boolean }) {
+function TopBar({
+  route,
+  online,
+  isDesktop,
+  onShowShortcuts,
+}: {
+  route: Route;
+  online: boolean;
+  isDesktop: boolean;
+  onShowShortcuts: () => void;
+}) {
   const status = useSyncStatus();
   const active = navActive(route);
 
@@ -382,7 +395,7 @@ function TopBar({ route, online, isDesktop }: { route: Route; online: boolean; i
           {isDesktop && (
             <>
               <NetworkStatus online={online} />
-              <AccountMenu variant="menu" current={route.name === "account"} />
+              <AccountMenu variant="menu" current={route.name === "account"} onShowShortcuts={onShowShortcuts} />
             </>
           )}
         </div>
@@ -397,6 +410,7 @@ const SLASH_BINDING = (onSearchPage: boolean): ShortcutBinding => ({
   keys: ["/"],
   onTrigger: () => focusSearch(onSearchPage),
   ignoreTarget: openDialog,
+  legend: "Rechercher (champ de la barre haute, ou de l'écran)",
 });
 
 /**
@@ -421,19 +435,27 @@ function App() {
   //    mesurable. `Sheet.tsx` n'a plus son propre écouteur `keydown` maison depuis
   //    cette étape : il appelle `useKeyboardShortcuts` comme ici, une instance par
   //    feuille ouverte, coexistant sans conflit avec celle-ci (voir le hook) ;
-  //  - `?` (aide) : aucun écran d'aide n'est spécifié à ce stade du plan ; ne rien
-  //    enregistrer est délibéré (la frappe reste sans effet, rien à casser) plutôt que
-  //    de poser un raccourci qui ne mène nulle part ;
+  //  - `?` (aide) : laissé de côté au Lot 5bis, câblé au Lot 12 (P8) ci-dessous ;
   //  - `/` (focus recherche), `N` (nouveau), `V` (verser un produit) : leurs cibles
   //    (champ de recherche fonctionnel, panneaux bureau concrets) arrivent aux étapes
   //    7, 9, 10 du Lot 5bis (`docs/lot5bis-plan-design.md`).
-  useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS);
+  useKeyboardShortcuts(NAV_SHORTCUT_BINDINGS, { scope: "global" });
 
   // `/` (lot Chercher, D3, P8) : un seul à la fois. Il focalise le champ global, ou
   // celui de la page sur Chercher ; inerte dans un champ (comportement par défaut du
   // hook) et tant qu'une feuille est ouverte. Coupé sur le deckbuilder, où `/` reste
   // au picker (`AddDeckCardForm`).
-  useKeyboardShortcuts([SLASH_BINDING(route.name === "search")], { enabled: route.name !== "deck" });
+  useKeyboardShortcuts([SLASH_BINDING(route.name === "search")], { enabled: route.name !== "deck", scope: "global" });
+
+  // `?` (Lot 12, P8) : la légende des raccourcis, au bureau seulement (un
+  // téléphone n'a pas de clavier, verdict du Lot 5c). Inerte dans un champ et
+  // tant qu'une feuille est ouverte ; la légende ouverte se ferme par `?` ou
+  // Échap. Passer sous 1024 px la referme.
+  const [legendOpen, setLegendOpen] = useState(false);
+  useKeyboardShortcuts(
+    [{ keys: ["?"], onTrigger: () => setLegendOpen(true), ignoreTarget: openDialog, legend: "Cette légende" }],
+    { enabled: isDesktop, scope: "global" },
+  );
 
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.
@@ -463,7 +485,7 @@ function App() {
           Aller au contenu
         </a>
 
-        <TopBar route={route} online={online} isDesktop={isDesktop} />
+        <TopBar route={route} online={online} isDesktop={isDesktop} onShowShortcuts={() => setLegendOpen(true)} />
 
         {/* Sous 1024px, seule barre de chrome au-dessus du contenu : marque, nom du
             compte (entrée vers l'écran Compte) et état du réseau. À partir de 1024px,
@@ -486,11 +508,16 @@ function App() {
           )}
         </div>
 
-        {/* Bandeau de reconnexion (Lot 6) : visible sur toutes les pages, pas
-            bloquant (la file peut rester utilisable hors ligne pendant ce
-            temps, P3). Ne s'affiche que si le moteur est en pause faute
-            d'authentification ; rend `null` sinon. */}
-        <ReconnectBanner />
+        {/* Bandeaux de la coquille, dans la colonne de la page, masqués par CSS
+            quand aucun ne s'affiche (`:empty`). Reconnexion d'abord (Lot 6) :
+            visible sur toutes les pages, pas bloquant (la file peut rester
+            utilisable hors ligne pendant ce temps, P3), rendu seulement si le
+            moteur est en pause faute d'authentification. Puis la nouvelle
+            version (Lot 12, P5), qui passe après la reconnexion (1b-76, d48). */}
+        <div className="shell-banners">
+          <ReconnectBanner />
+          <AppUpdateBanner />
+        </div>
 
         {/* Toujours monté (identifiant unique dans le DOM), visuellement masqué :
             l'état de synchronisation détaillé vit sur la page dédiée
@@ -509,6 +536,7 @@ function App() {
 
         <TabBar route={route} />
       </div>
+      {legendOpen && isDesktop && <ShortcutsLegend route={route} onClose={() => setLegendOpen(false)} />}
     </CatalogProvider>
   );
 }

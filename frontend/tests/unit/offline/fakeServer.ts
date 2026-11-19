@@ -189,6 +189,11 @@ export interface FakeServer {
     status: number | null;
     /** Fait échouer les prochains `GET` (rafraîchissement). */
     getStatus: number | null;
+    /**
+     * Retient chaque `GET /cartes` jusqu'à ce que la promesse se résolve
+     * (Lot 12, D2) : fige l'état « catalogue en cours de chargement ».
+     */
+    catalogGate: Promise<void> | null;
   };
   addBulkStock(count: number): void;
 }
@@ -221,6 +226,7 @@ export function createFakeServer(): FakeServer {
     loseResponse: false,
     status: null,
     getStatus: null,
+    catalogGate: null,
   };
   let nextDeckId = 1;
   let nextPlayerId = 2;
@@ -733,6 +739,7 @@ export function createFakeServer(): FakeServer {
       }
       if (url.pathname === "/extensions") return json(CARD_SETS);
       if (url.pathname === "/cartes") {
+        if (next.catalogGate) await next.catalogGate;
         return json(page(state.legacyCatalog ? state.catalog.map(legacyListItem) : state.catalog));
       }
       if (url.pathname === "/stock") {

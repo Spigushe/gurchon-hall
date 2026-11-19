@@ -40,3 +40,12 @@ export function useCatalog(): CatalogState {
   if (!state) throw new Error("useCatalog : aucun <CatalogProvider> au-dessus de ce composant.");
   return state;
 }
+
+/**
+ * Lot 12 (A8, D2) : `loading` du catalogue, faux sans `<CatalogProvider>`
+ * au-dessus (composant rendu seul dans un test). Les écrans qui ne font
+ * qu'afficher l'état passent par ici plutôt que par `useCatalog`, qui lève.
+ */
+export function useCatalogLoading(): boolean {
+  return useContext(CatalogContext)?.loading ?? false;
+}

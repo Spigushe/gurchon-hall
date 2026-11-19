@@ -131,6 +131,7 @@ export function SyncPage() {
         onTrigger: () => {
           if (!flushDisabled) void action.run(flush);
         },
+        legend: "Synchroniser maintenant",
       },
       {
         keys: ["mod+enter"],
@@ -138,6 +139,7 @@ export function SyncPage() {
           detailRef.current?.querySelector<HTMLFormElement>('[data-testid="correction-form"]')?.requestSubmit();
         },
         allowInEditableTarget: true,
+        legend: "Valider la correction",
       },
     ],
     { enabled: isDesktop },

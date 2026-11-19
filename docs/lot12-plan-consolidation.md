@@ -2,8 +2,8 @@
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
 écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
-livrées le 2026-11-18, D1 et D5 le 2026-11-19** (cf. « Livré à A1 » à
-« Livré à D1 et D5 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
+livrées le 2026-11-18, D1, D5 et D2 le 2026-11-19** (cf. « Livré à A1 » à
+« Livré à D2 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -730,7 +730,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) — **fait le 2026-11-18** (cf. « Livré à B4 ») | A0 |
 | C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) — **fait le 2026-11-18** (cf. « Livré à C1 ») | B4 pour la table |
 | D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff — **fait le 2026-11-19** (cf. « Livré à D1 et D5 ») | B1, B2, D0 |
-| D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff | C1, D0 |
+| D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff — **fait le 2026-11-19** (cf. « Livré à D2 ») | C1, D0 |
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
 | D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px — **fait le 2026-11-18** (cf. « Livré à D4 ») | A0 |
 | D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px — **fait le 2026-11-19**, avec D1 | D1 |
@@ -1210,6 +1210,105 @@ Synchronisation.
   vide, en saisie et actuel incorrect, session fermée, « fermer les autres »,
   hors ligne avec une saisie en file, Atelier sans lien, Synchronisation et
   son retour), à valider par l'utilisateur.
+
+### Livré à D2 (2026-11-19)
+
+- **Bandeau « nouvelle version »** (`features/sync/AppUpdateBanner.tsx`,
+  P5, 1b-72 à 1b-76, d47, d48) : aucune logique propre, il lit
+  `useAppUpdate()`. `ready` : « Une nouvelle version est disponible. »,
+  « Mettre à jour » (« Mise à jour… » pendant l'installation) et « Plus
+  tard » ; avec des refus, « 2 saisies refusées restent à régler ; elles
+  seront conservées. ». `waiting` : « Nouvelle version prête. Elle
+  s'installera une fois vos 3 saisies synchronisées. » (« votre saisie » au
+  singulier), « Plus tard » seul, « Hors ligne : l'envoi reprendra au retour
+  du réseau. » hors ligne, et, A11, « L'envoi se suit dans Compte ›
+  Synchronisation. » au lieu du lien. Une installation qui échoue le dit
+  (« La nouvelle version n'a pas pu s'installer. Réessayez. ») et rend le
+  bouton. Textes en fonctions pures (`appUpdateCopy.ts`). Pas de
+  `role="status"`, unique dans la coquille : une région nommée « Nouvelle
+  version », `aria-live="polite"`. Le bandeau de reconnexion et celui-ci
+  vivent dans `.shell-banners`, sous la barre, dans la colonne de la page
+  (560 px au mobile, 1200 px au bureau), séparés de 26 px, masqués par
+  `:empty` ; le bandeau de reconnexion, qui tombait jusqu'ici contre le bord
+  de l'écran, s'aligne au passage sur la page.
+- **Légende `?`** (`components/ShortcutsLegend.tsx`, P8, d44 à d46) : panneau
+  latéral, kicker « Clavier », titre « Raccourcis » ; l'écran courant (titre
+  tiré de la route, « Cet écran n'a pas de raccourci propre. » à défaut),
+  « Partout », « Dans une feuille » (fixe, « Sur Mac, ⌘ ; ailleurs, Ctrl. »).
+  Touches en `Kbd` lues par les lecteurs d'écran. **Pas de liste écrite à la
+  main** : `ShortcutBinding` gagne un `legend` (libellé), et chaque appel de
+  `useKeyboardShortcuts` publie ses raccourcis libellés, montés et actifs,
+  dans un registre (`components/shortcutLegend.ts`, portée `screen` par
+  défaut, `global` pour ceux d'`App`). La légende montre donc ce qui marche :
+  « Ajouter une ronde » n'y est que si le tournoi en accepte une, « Modifier
+  la table » que si la table se modifie. Deux raccourcis de même libellé font
+  une ligne à deux touches (`↑` `↓`). Libellés posés sur tous les raccourcis
+  d'écran existants (Atelier, Collection, Decks, deckbuilder et son picker,
+  Parties, partie, Tournois, tournoi, Chercher, Synchronisation) et sur
+  `G A` à `G S`, `/` et `?`. Ouverte par `?` (bureau seulement, inerte dans
+  un champ et sous une feuille) ou par « Raccourcis `?` » du menu du compte
+  (d36, `account-menu-shortcuts`) ; fermée par `?` ou Échap. **Pendant
+  qu'elle est ouverte, les autres raccourcis sont suspendus**
+  (`suspendShortcuts`) : sans cela, un `N` frappé devant elle ouvrait
+  « Nouveau deck » derrière. Les feuilles (`Sheet`) n'y sont pas soumises
+  (`ignoreSuspension`), si bien qu'Échap la ferme.
+- **Catalogue en cours de chargement** (A8, 1b-77, 1b-78, d49) : sur
+  `useCatalog().loading`, lu par `useCatalogLoading` (faux sans
+  `CatalogProvider`, pour les composants rendus seuls).
+  `CatalogLoadingNote` (anneau de 13 px au quart haut accent, tournant hors
+  `prefers-reduced-motion`) remplace comptes et clans d'une ligne de la liste
+  des decks, sous la méta, aux deux largeurs ; un deck vide garde son
+  « 0 / 0 », juste quel que soit le catalogue.
+  `CatalogLoadingComposition` remplace la composition : quatre lignes en
+  squelette dans le deckbuilder, aux deux largeurs (1b-78), crypte et
+  bibliothèque en squelette dans leurs cartes dans l'aperçu bureau (d49), avec
+  la phrase de chacune. Le fichier s'appelle `CatalogLoadingState.tsx` : un
+  `CatalogLoading.tsx` à côté de `catalogLoading.ts` se confond sur un disque
+  insensible à la casse (même piège que `deckTablesModel.ts`).
+- **Écarts au handoff** : « Parcourir la liste `↑` `↓` » de d44 n'existe pas
+  sur Decks, la légende ne l'invente pas ; d45 range « Champ de recherche de
+  l'écran `/` » sous Chercher, la légende le laisse sous « Partout », où vit
+  le raccourci (« Rechercher (champ de la barre haute, ou de l'écran) ») ;
+  le deckbuilder ajoute « Recalculer la légalité » et les raccourcis de son
+  picker, dans l'ordre où React les monte (picker d'abord) ; le bandeau n'a
+  pas « Synchronisation → » (A11) ; la légende n'apparaît pas sous 1024 px,
+  le menu non plus. Au bureau, la mention du catalogue reste sous la méta
+  d'une ligne de la liste, et non en bout de ligne comme dans d49 : la
+  colonne de la liste fait 360 px (420 dans la maquette), et la mention à
+  droite coupait le nom du deck en deux (vu sur capture).
+- **Tests** : `tests/unit/components/shortcutLegend.test.ts` (touches,
+  regroupement, registre), `useKeyboardShortcuts.test.tsx` (suspension,
+  publication dans la légende selon `enabled` et le montage),
+  `tests/unit/features/sync/appUpdateCopy.test.ts`,
+  `tests/unit/ui/lot12Shell.test.tsx` (12 tests : bandeau seul sur un vrai
+  runtime, en attente puis proposé, échec, « Plus tard », dans la coquille
+  sans second `role="status"` ; légende sur Decks, suspension et fermeture,
+  depuis le menu sur Compte, rien au mobile ; catalogue retenu par le serveur
+  factice, liste et aperçu bureau, liste mobile et deckbuilder, deck vide).
+  Le serveur factice gagne `next.catalogGate`, qui retient `GET /cartes`.
+  **1716 tests vitest sur 97 fichiers** (1679 sur 94 à D1), sous couverture,
+  sans régression CRAP ; lint et `tsc` (application et config Vite)
+  propres. e2e Playwright non relancés à cette étape : aucun scénario ne
+  visait ce qui change, ils repassent en entier à E. Un échec isolé de
+  `lot12Shell.test.tsx` et `decks.test.tsx` lancés ensemble, au premier
+  passage après la dernière retouche de la liste des decks, ne s'est pas
+  reproduit en quatre passages suivants ; le nom du test n'a pas été relevé
+  (sortie tronquée). À attribuer à E s'il revient, avec la flakiness du lot.
+- **Captures** : `tests/visual-baseline/lot12-d2.spec.ts`, sortie dans
+  `docs/qa-baselines/lot12-d2/` : catalogue en cours de chargement (liste,
+  aperçu bureau, deckbuilder mobile), légende sur Decks, Chercher et Compte,
+  menu du compte, bandeau prêt, en attente hors ligne, puis de nouveau prêt
+  après le rejeu, à valider par l'utilisateur. Le bandeau y vient d'une
+  **vraie mise à jour du service worker** : le script réécrit `dist-real/sw.js`
+  d'une ligne, demande une vérification, puis le rend tel quel ; la nouvelle
+  version s'installe, attend (mode `prompt`) et le bandeau passe de `ready` à
+  `waiting` à la saisie hors ligne, puis de nouveau à `ready` après le rejeu.
+  Une route Playwright ne suffit pas, elle ne voit pas la lecture du script
+  par le navigateur. C'est le mécanisme dont l'e2e de mise à jour de E a
+  besoin.
+- **`data-testid`** : nouveaux `app-update-*`, `shortcuts-legend*`,
+  `account-menu-shortcuts`, `catalog-loading*` ; aucun disparu (le
+  recensement ne signale que `topnav-sync` et `sync-alert-link`, A11).
 
 ## Tests attendus (E)
 

@@ -24,6 +24,8 @@ import {
   type DeckListState,
   type LocalDeck,
 } from "../../offline/vtes";
+import { CatalogLoadingComposition, CatalogLoadingNote } from "../catalog/CatalogLoadingState";
+import { useCatalogLoading } from "../catalog/catalogContext";
 import { ArchetypeChips } from "./ArchetypeChips";
 import { DeckLegalityTag } from "./DeckLegalityTag";
 import { DeckResults } from "./DeckResults";
@@ -185,6 +187,7 @@ function DeckItem({
   selected,
   onSelect,
   summary,
+  catalogLoading,
 }: {
   deck: LocalDeck;
   isDesktop: boolean;
@@ -192,7 +195,15 @@ function DeckItem({
   onSelect: () => void;
   /** Comptes et clans (P7) ; `undefined` tant que les lignes ne sont pas lues. */
   summary: DeckListSummary | undefined;
+  /**
+   * Lot 12 (A8) : le catalogue arrive. Les comptes et les clans, faux tant
+   * qu'il manque, laissent la place à la mention, sous la méta (1b-77). Aussi
+   * au bureau, contre d49 qui la met en bout de ligne : la colonne de la liste
+   * fait 360 px (420 dans la maquette), et la mention y coupait le nom.
+   */
+  catalogLoading: boolean;
 }) {
+  const counts = catalogLoading ? undefined : summary;
   const content = (
     <>
       <span>
@@ -205,9 +216,9 @@ function DeckItem({
           {DECK_STATUS_LABELS[deck.status].toLowerCase()}
           {deck.archivedAt && " · archivé"}
           {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
-          {summary && (
+          {counts && (
             <span data-testid="deck-item-counts" title="Crypte / bibliothèque">
-              {` · ${summary.crypt} / ${summary.library}`}
+              {` · ${counts.crypt} / ${counts.library}`}
             </span>
           )}
         </span>
@@ -223,10 +234,15 @@ function DeckItem({
             En attente de synchronisation
           </span>
         )}
+        {catalogLoading && (
+          <span className="deck-item__catalog">
+            <CatalogLoadingNote />
+          </span>
+        )}
       </span>
-      {summary && summary.clans.length > 0 && (
+      {counts && counts.clans.length > 0 && (
         <span className="deck-item__clans" data-testid="deck-item-clans">
-          {summary.clans.map((clan) => {
+          {counts.clans.map((clan) => {
             const glyph = clanGlyph(clan);
             return glyph ? <GlyphIcon key={clan} glyph={glyph} label={clan} /> : null;
           })}
@@ -273,7 +289,11 @@ function DeckPreviewTables({ deck }: { deck: LocalDeck }) {
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
   const facts = useLastDefined(useDeckCardFacts(cardIds));
   const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
+  const catalogLoading = useCatalogLoading();
 
+  if (lines !== undefined && lines.length > 0 && catalogLoading) {
+    return <CatalogLoadingComposition variant="tables" />;
+  }
   if (lines === undefined || tables === null) {
     return <LoadingState groups={2} caption="Lecture de la composition…" />;
   }
@@ -371,6 +391,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ state, q: deferred || undefined });
   const summaries = useDeckListSummaries();
+  const catalogLoading = useCatalogLoading();
   const isDesktop = useIsDesktop();
 
   // Intention portée par l'adresse (`#/decks?action=nouveau`, raccourci de
@@ -410,7 +431,9 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   // l'active au lieu d'être confisquée par ce raccourci (qui appelait
   // `preventDefault`). `ignoreTarget` est propre à ce binding, l'ordre
   // `preventDefault` / `onTrigger` du hook reste le même pour tous les autres.
-  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], { enabled: !creating && !importing });
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true), legend: "Nouveau deck" }], {
+    enabled: !creating && !importing,
+  });
   useKeyboardShortcuts(
     [
       {
@@ -419,6 +442,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
         onTrigger: () => {
           if (selectedDeck) navigate({ name: "deck", key: selectedDeck.key });
         },
+        legend: "Ouvrir le deck sélectionné",
       },
     ],
     { enabled: isDesktop && !creating && !importing },
@@ -540,6 +564,8 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
                   selected={selectedDeck?.key === deck.key}
                   onSelect={() => setSelectedKey(deck.key)}
                   summary={summaries ? (summaries.get(deck.key) ?? EMPTY_SUMMARY) : undefined}
+                  // Un deck vide garde son « 0 / 0 », juste quel que soit le catalogue.
+                  catalogLoading={catalogLoading && summaries?.has(deck.key) !== false}
                 />
               ))}
             </ul>
