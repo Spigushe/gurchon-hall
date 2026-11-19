@@ -36,6 +36,7 @@ export type Route =
   | { name: "bilan"; deck?: DeckKey }
   | { name: "notebook" }
   | { name: "sync" }
+  | { name: "account" }
   | { name: "search"; q?: string; deck?: DeckKey }
   | { name: "not-found" };
 
@@ -124,6 +125,7 @@ export function parseHash(hash: string): Route {
   if (path === "/tournois") return { name: "tournaments" };
   if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
+  if (path === "/compte") return { name: "account" };
   if (path === "/chercher") return searchRoute(hash);
   if (path === "/bilan") return bilanRoute(hash);
   const version = deckVersionRoute(path);
@@ -172,6 +174,8 @@ export function hrefFor(route: Route): string {
       return "#/carnet";
     case "sync":
       return "#/synchronisation";
+    case "account":
+      return "#/compte";
     case "search": {
       const params = new URLSearchParams();
       if (route.q) params.set("q", route.q);

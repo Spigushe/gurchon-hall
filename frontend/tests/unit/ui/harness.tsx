@@ -6,6 +6,7 @@ import App from "../../../src/App";
 import { ApiClientContext } from "../../../src/app/apiClientContext";
 import { VtesOfflineProvider } from "../../../src/offline/vtes/VtesOfflineProvider";
 import { createVtesOffline, type VtesOfflineRuntime } from "../../../src/offline/vtes/runtime";
+import { saveLocalAccount } from "../../../src/offline/vtes/account";
 import { refreshCardSets, refreshCatalog } from "../../../src/offline/vtes/refresh";
 import { createFakeServer, type FakeServer } from "../offline/fakeServer";
 import { freshDbName, manualTimers } from "../offline/helpers";
@@ -51,6 +52,19 @@ export interface UiServer {
    * corps (200), ou une réponse d'erreur. Un identifiant absent rend 404.
    */
   vdbDecks: Map<string, unknown | { status: number; body: unknown; retryAfter?: string }>;
+  /**
+   * Routes du compte (Lot 12, D1) : sessions servies par `GET /moi/sessions`
+   * (fermées par les deux `DELETE`), réponse forcée d'une route (`failures`,
+   * par « MÉTHODE chemin »), corps de l'export et version de `/health`.
+   */
+  account: {
+    sessions: Array<{ id: number; current: boolean } & Record<string, unknown>>;
+    failures: Map<string, { status: number; body: unknown; retryAfter?: string } | "network">;
+    exportBody: unknown;
+    exportFileName: string;
+    serverVersion: string;
+    passwordBodies: unknown[];
+  };
   requests: Array<{ method: string; path: string; search: string }>;
   client: ReturnType<typeof createClient<paths>>;
 }
@@ -62,6 +76,14 @@ function createUiServer(): UiServer {
     bundles: [],
     cards: new Map(),
     vdbDecks: new Map(),
+    account: {
+      sessions: [],
+      failures: new Map(),
+      exportBody: { format_version: 1 },
+      exportFileName: "gurchon-hall-alice-2026-11-19.json",
+      serverVersion: "9.9.9",
+      passwordBodies: [],
+    },
     requests: [],
     client: null as unknown as UiServer["client"],
   };
@@ -82,6 +104,7 @@ function createUiServer(): UiServer {
         return body === undefined ? json({ detail: "Version introuvable." }, 404) : json(body);
       }
       if (url.pathname === "/bundles") return json(ui.bundles);
+      if (url.pathname === "/health" || url.pathname.startsWith("/moi")) return accountResponse(ui, request, url);
       const vdb = /^\/vdb\/decks\/([^/]+)$/.exec(url.pathname);
       if (vdb) return vdbResponse(ui.vdbDecks.get(decodeURIComponent(vdb[1])));
       const card = /^\/cartes\/(\d+)$/.exec(url.pathname);
@@ -90,6 +113,45 @@ function createUiServer(): UiServer {
     },
   });
   return ui;
+}
+
+/** Routes du compte (Lot 12) et `/health`, sur l'état de `ui.account`. */
+async function accountResponse(ui: UiServer, request: Request, url: URL): Promise<Response> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
+  const key = `${request.method} ${url.pathname}`;
+  const failure = ui.account.failures.get(key);
+  if (failure === "network") throw new TypeError("Failed to fetch");
+  if (failure) {
+    if (failure.retryAfter) headers["Retry-After"] = failure.retryAfter;
+    return json(failure.body, failure.status);
+  }
+  if (key === "GET /health") return json({ status: "ok", version: ui.account.serverVersion });
+  if (key === "GET /moi/sessions") return json(ui.account.sessions);
+  if (key === "DELETE /moi/sessions") {
+    ui.account.sessions = ui.account.sessions.filter((session) => session.current);
+    return new Response(null, { status: 204 });
+  }
+  const one = /^\/moi\/sessions\/(\d+)$/.exec(url.pathname);
+  if (one && request.method === "DELETE") {
+    const id = Number(one[1]);
+    if (!ui.account.sessions.some((session) => session.id === id && !session.current)) {
+      return json({ detail: `Session ${id} introuvable.` }, 404);
+    }
+    ui.account.sessions = ui.account.sessions.filter((session) => session.id !== id);
+    return new Response(null, { status: 204 });
+  }
+  if (key === "POST /moi/mot-de-passe") {
+    ui.account.passwordBodies.push(await request.json());
+    return new Response(null, { status: 204 });
+  }
+  if (key === "GET /moi/export") {
+    return new Response(JSON.stringify(ui.account.exportBody), {
+      status: 200,
+      headers: { ...headers, "Content-Disposition": `attachment; filename="${ui.account.exportFileName}"` },
+    });
+  }
+  return json({ detail: `route non prévue : ${url.pathname}` }, 404);
 }
 
 /** Réponse simulée de la lecture d'un deck VDB par le serveur. */
@@ -126,6 +188,10 @@ export interface AppOptions {
   /** Catalogue déjà téléchargé (miroir local rempli avant le premier rendu). */
   catalog?: boolean;
   server?: FakeServer;
+  /** Compte connu localement (copie du dernier `GET /moi`), écrit avant le premier rendu (Lot 12). */
+  account?: { id: number; email: string; username: string; role: "user" | "admin" };
+  /** Réglage du serveur simulé des lectures en ligne avant le premier rendu (sessions du compte…). */
+  configure?: (ui: UiServer) => void;
 }
 
 export async function renderApp(options: AppOptions = {}) {
@@ -148,6 +214,8 @@ export async function renderApp(options: AppOptions = {}) {
     await refreshCardSets(server.client, runtime.db);
   }
   server.state.requests.length = 0;
+  if (options.account) await saveLocalAccount(runtime.db, options.account);
+  options.configure?.(ui);
 
   const view = render(
     <VtesOfflineProvider runtime={runtime}>

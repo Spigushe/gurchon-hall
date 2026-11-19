@@ -170,11 +170,12 @@ describe("navigation des parties", () => {
     expect(screen.getByTestId("nav-games")).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId("topnav-games")).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId("nav-decks")).not.toHaveAttribute("aria-current");
-    // Entre Decks et Chercher (tab bar), entre Decks et Synchronisation (barre haute).
+    // Entre Decks et Chercher (tab bar), en dernier dans la barre haute depuis que
+    // Synchronisation l'a quittée (Lot 12, A11).
     const tabs = Array.from(document.querySelectorAll(".tabbar__item")).map((el) => el.textContent);
     expect(tabs).toEqual(["Atelier", "Collection", "Decks", "Parties", "Chercher"]);
     const top = Array.from(document.querySelectorAll(".topbar__tab")).map((el) => el.getAttribute("data-testid"));
-    expect(top).toEqual(["topnav-home", "topnav-stock", "topnav-decks", "topnav-games", "topnav-sync"]);
+    expect(top).toEqual(["topnav-home", "topnav-stock", "topnav-decks", "topnav-games"]);
 
     await go({ name: "tournaments" });
     await screen.findByTestId("tournaments-page");

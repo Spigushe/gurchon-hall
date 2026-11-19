@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
+import packageJson from "./package.json";
 
 // PWA minimale (Lot 0) : app shell installable et utilisable hors-ligne.
 //
@@ -28,7 +29,12 @@ import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
 // endroit à adapter si Barrin utilise d'autres noms de ressources ou un
 // préfixe `/api`.
 
+// Version de la coquille (Lot 12, D1), lue dans `package.json` au build et
+// affichée en pied de l'écran Compte à côté de celle de l'API (`/health`).
+const appVersion: string = packageJson.version;
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     VitePWA({

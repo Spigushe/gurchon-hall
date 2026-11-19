@@ -1,96 +1,114 @@
-import { useCallback, useState } from "react";
-import { useGuardedAction } from "../../components/useGuardedAction";
-import { useLiveQuery, useSyncStatus } from "../../offline/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CaretDownIcon, SignOutIcon, UserCircleIcon } from "@phosphor-icons/react";
+import { Link } from "../../app/Link";
+import { useLiveQuery } from "../../offline/react";
 import { readLocalAccount, useVtesOffline } from "../../offline/vtes";
-import { plural } from "../../labels";
-import { useAuthActions } from "./context";
+import { LogoutControl } from "./LogoutControl";
 
 /**
- * Compte courant et déconnexion (Lot 6, § « D — écrans »), dans la coquille
- * partagée (`shell-bar`, visible aux deux largeurs, cf. `App.tsx`). Rend `null`
- * tant qu'aucun compte n'est connu localement — notamment sous les bancs
- * d'essai existants qui montent `<App/>` sans `<AuthGate>` au-dessus
- * (`tests/unit/ui/harness.tsx`), dont la base ne porte aucune ligne `meta`.
+ * Entrée vers le compte, dans la coquille (Lot 6, revue au Lot 12). Rend `null`
+ * tant qu'aucun compte n'est connu localement, notamment sous les bancs
+ * d'essai qui montent `<App/>` sans `<AuthGate>` (`tests/unit/ui/harness.tsx`).
  *
- * Déconnexion (D3) :
- * - hors ligne : bouton désactivé (le cookie `HttpOnly` ne peut pas être
- *   effacé côté serveur sans réseau) ;
- * - file vide : déconnexion directe ;
- * - file non vide (en attente ou refusées) : confirmation explicite, avec le
- *   nombre d'opérations concernées ; sans confirmation, rien ne bouge.
+ * Deux formes, choisies par `App` selon la largeur (handoff Lot 12, écarts 1
+ * et 2, retenus le 2026-11-18) :
+ *
+ * - `bar` (mobile, `.shell-bar`) : le nom, lien vers l'écran Compte, en accent
+ *   sur cet écran. La déconnexion n'y est plus : à 390 px, le nom, la
+ *   déconnexion et « Hors ligne » ne tiennent pas sur une ligne ; elle vit dans
+ *   l'écran Compte ;
+ * - `menu` (bureau, `.topbar__actions`) : `lea-v ▾` ouvre un menu Compte · Se
+ *   déconnecter (d36). « Raccourcis `?` » s'y ajoutera avec la légende (D2).
  */
-export function AccountMenu() {
+export function AccountMenu({ variant, current = false }: { variant: "bar" | "menu"; current?: boolean }) {
   const { db } = useVtesOffline();
-  const status = useSyncStatus();
-  const { logout } = useAuthActions();
-  const action = useGuardedAction();
-  const [confirming, setConfirming] = useState(false);
-
   const query = useCallback(() => readLocalAccount(db), [db]);
   const account = useLiveQuery(query);
 
   if (!account) return null;
 
-  const queued = status.pending + status.rejected;
+  if (variant === "bar") {
+    return (
+      <div className="account-menu" data-testid="account-menu">
+        <Link
+          to={{ name: "account" }}
+          current={current}
+          className="account-menu__link"
+          data-testid="account-menu-link"
+        >
+          <UserCircleIcon size={16} />
+          <span className="account-menu__name" data-testid="account-menu-username">
+            {account.username}
+          </span>
+        </Link>
+      </div>
+    );
+  }
 
-  const runLogout = () => {
-    void action.run(async () => {
-      await logout();
-      setConfirming(false);
-    });
-  };
+  return <AccountDropdown username={account.username} current={current} />;
+}
 
-  const onLogoutClick = () => {
-    if (queued > 0 && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    runLogout();
-  };
+function AccountDropdown({ username, current }: { username: string; current: boolean }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Fermeture au clic dehors et à Échap, le focus rendu au bouton dans ce second cas.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   return (
-    <div className="account-menu" data-testid="account-menu">
-      <span className="account-menu__name" data-testid="account-menu-username">
-        {account.username}
-      </span>
-      {!status.online ? (
-        <span className="hint" data-testid="account-menu-offline-hint">
-          Déconnexion indisponible hors ligne
+    <div className="account-menu account-dropdown" data-testid="account-menu" ref={rootRef}>
+      <button
+        ref={toggleRef}
+        type="button"
+        className="account-dropdown__toggle"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-current={current || undefined}
+        data-testid="account-menu-toggle"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <UserCircleIcon size={16} />
+        <span className="account-menu__name" data-testid="account-menu-username">
+          {username}
         </span>
-      ) : confirming ? (
-        <div className="confirm-row" role="group" aria-label="Confirmer la déconnexion">
-          <span className="hint" data-testid="account-menu-warning">
-            {plural(queued, "opération en attente ou refusée sera perdue", "opérations en attente ou refusées seront perdues")}.
-          </span>
-          <button
-            type="button"
-            className="chip-action chip-action--accent"
-            disabled={action.pending}
-            data-testid="account-menu-logout-confirm"
-            onClick={runLogout}
+        <CaretDownIcon size={12} />
+      </button>
+      {open && (
+        <div className="account-dropdown__panel" role="menu" aria-label="Compte" data-testid="account-menu-panel">
+          <Link
+            to={{ name: "account" }}
+            className="account-dropdown__item"
+            data-testid="account-menu-account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
           >
-            Se déconnecter quand même
-          </button>
-          <button
-            type="button"
-            className="chip-action chip-action--neutral"
-            disabled={action.pending}
-            data-testid="account-menu-logout-cancel"
-            onClick={() => setConfirming(false)}
-          >
-            Rester connecté
-          </button>
+            <UserCircleIcon size={16} />
+            Compte
+          </Link>
+          <hr className="account-dropdown__rule" />
+          <div className="account-dropdown__logout">
+            <SignOutIcon size={16} aria-hidden="true" />
+            <LogoutControl place="menu" onDone={() => setOpen(false)} />
+          </div>
         </div>
-      ) : (
-        <button
-          type="button"
-          className="btn-text"
-          disabled={action.pending}
-          data-testid="account-menu-logout"
-          onClick={onLogoutClick}
-        >
-          Se déconnecter
-        </button>
       )}
     </div>
   );

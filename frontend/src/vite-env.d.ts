@@ -13,3 +13,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Version de la coquille, injectée au build depuis `package.json` (`vite.config.ts`, Lot 12). */
+declare const __APP_VERSION__: string;

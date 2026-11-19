@@ -9,6 +9,8 @@ import react from "@vitejs/plugin-react";
 // couvert par ces tests — voir tests/e2e pour le service worker réel).
 export default defineConfig({
   plugins: [react()],
+  // Même constante que `vite.config.ts` (Lot 12, D1), figée pour les tests.
+  define: { __APP_VERSION__: JSON.stringify("0.0.0-test") },
   // `virtual:pwa-register` n'existe que sous le plugin PWA : sans ce
   // remplaçant, `src/offline/registerServiceWorker.ts` ne se transforme pas, et
   // la couverture v8 l'écartait (« Failed to parse … Excluding it from

@@ -2,8 +2,8 @@
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
 écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
-livrées le 2026-11-18** (cf. « Livré à A1 » à « Livré à C1 ») ; il ne
-reste d'A0 que les relevés HTTPS sur téléphone.
+livrées le 2026-11-18, D1 et D5 le 2026-11-19** (cf. « Livré à A1 » à
+« Livré à D1 et D5 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -729,11 +729,11 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` — **fait le 2026-11-18** (cf. « Livré à B3 ») | A0 |
 | B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) — **fait le 2026-11-18** (cf. « Livré à B4 ») | A0 |
 | C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) — **fait le 2026-11-18** (cf. « Livré à C1 ») | B4 pour la table |
-| D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff | B1, B2, D0 |
+| D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff — **fait le 2026-11-19** (cf. « Livré à D1 et D5 ») | B1, B2, D0 |
 | D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff | C1, D0 |
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
 | D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px — **fait le 2026-11-18** (cf. « Livré à D4 ») | A0 |
-| D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px | D1 |
+| D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px — **fait le 2026-11-19**, avec D1 | D1 |
 | E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D5 |
 | F | orchestrateur, devops | staging du lot complet sur `main`, essai de R15 sur une copie de la base de production, versions à `1.1.0`, release complète v1.1.0, production redéployée, vérification sur téléphone, CLAUDE.md | E |
 
@@ -1097,6 +1097,119 @@ bureau avec la seule alerte de la barre haute et `G S`.
 - **Reste pour E** : l'e2e de mise à jour sur deux builds successifs (plan,
   « Tests attendus »), qui demande un service worker réel ; le hook et le
   store sont couverts en vitest.
+
+### Livré à D1 et D5 (2026-11-19)
+
+Livrées ensemble, comme le plan le demande : retirer l'onglet et le lien de
+l'alerte avant l'écran Compte aurait laissé le mobile sans entrée vers
+Synchronisation.
+
+- **Route** `#/compte` (`{ name: "account" }`), page chargée à la demande et
+  préchauffée comme les autres. Aucun onglet n'est surligné sur `#/compte` ni
+  sur `#/synchronisation`, aux deux largeurs.
+- **Coquille, écarts 1 et 2 du handoff** : au mobile, `.shell-bar` garde la
+  marque, le nom du compte (lien vers Compte, en accent sur cet écran,
+  `account-menu-link`) et l'état du réseau ; la déconnexion n'y est plus. Au
+  bureau, `.shell-bar` est masquée ; l'état du réseau puis le menu `lea-v ▾`
+  (`account-menu-toggle`) passent dans `.topbar__actions`, menu Compte · Se
+  déconnecter refermé par Échap et par un clic dehors. Le choix se fait par
+  `useIsDesktop` dans `App`, pour que `role="status"` reste unique dans le DOM.
+  « Raccourcis `?` » s'ajoutera au menu avec la légende (D2).
+- **Déconnexion** : `LogoutControl`, sorti d'`AccountMenu`, sert à la page
+  (`account-page-…`) et au menu (`account-menu-…`, identifiants du Lot 6
+  gardés), mêmes règles qu'au Lot 6 (hors ligne, file vide, confirmation).
+  Les identifiants sont des littéraux, par emplacement, pour le recensement.
+- **Écran Compte** (`features/auth/AccountPage.tsx`) : en-tête lu dans la copie
+  locale de `GET /moi` (nom, adresse, « Administrateur » pour un `admin`) ;
+  « Mot de passe » (ligne au mobile, phrase et bouton au bureau) ; « Sessions
+  ouvertes » ; « Synchronisation » ; « Mes données » ; « Déconnexion » ;
+  versions en pied. Une colonne au mobile ; deux au bureau (400 px à gauche,
+  sessions en carte à droite). Hors ligne : mot de passe, export et
+  déconnexion désactivés avec « Indisponible hors ligne. », sessions
+  remplacées par le bloc du handoff ; l'en-tête et la ligne Synchronisation
+  restent lisibles.
+- **Sessions** (`AccountSessions.tsx`) : `GET /moi/sessions` au montage, au
+  retour du réseau et après un changement de mot de passe. Mobile : trois
+  lignes courtes ; bureau : tableau Appareil · Connecté le · Utilisé · Expire
+  le. « Cet appareil » sans bouton ; « Fermer » sans confirmation, avec un
+  retour (« Session fermée : Firefox sur Windows. ») ; un 404 (déjà fermée
+  ailleurs) retire aussi la ligne, avec « Session déjà fermée » ; « Fermer
+  toutes les autres sessions » confirme en `.confirm-row`. Un 401 dit de se
+  reconnecter, sans toucher au moteur de sync (il le verra à sa requête
+  suivante).
+- **Libellé d'appareil** (`deviceLabel.ts`) : quelques motifs, l'ordre réglant
+  Edge, Opera et Samsung Internet qui se déclarent Chrome, et l'iPhone qui se
+  déclare Mac OS X ; « Appareil inconnu » pour un en-tête nul ou non reconnu.
+  **Dates** (`sessionDates.ts`) : jour et mois sans année, jours du calendrier
+  local ; la session courante est « utilisée aujourd'hui » ; une session dont
+  `last_used_at` égale `created_at` est « jamais revue depuis », sauf ouverte
+  le jour même.
+- **Mot de passe** (`ChangePasswordSheet.tsx`) : feuille au mobile, panneau
+  latéral au bureau (`⌘↵`). Règles cochées au fil de la saisie
+  (`passwordRules.ts`, comptées en caractères comme Python, symbole au sens de
+  `[^\w\s]` Unicode) ; « Enregistrer » retenu tant qu'une règle ou la
+  confirmation manque. 422 sur `current_password` sous le champ, les autres
+  saisies gardées ; 429 en `.sync-alert` avec un compte à rebours qui retient
+  le bouton ; tout autre refus en `.error-text`. Au succès, la feuille se ferme,
+  l'écran le dit et relit les sessions.
+- **Export** : `GET /moi/export` lu en `Blob`, téléchargé par `downloadBlob`
+  (généralisé depuis l'export VDB du Lot 9) sous le nom du serveur ;
+  « 3 saisies pas encore synchronisées n'y seront pas. » quand la file n'est pas
+  vide ; « Préparation du fichier… » pendant la lecture ; « Fichier
+  téléchargé : … » ensuite. **Côté API**, `Content-Disposition` rejoint
+  `Retry-After` dans `expose_headers` : le front et l'API sont sur deux hôtes,
+  et le navigateur cachait l'en-tête (test dans
+  `test_lot12_account_export.py`) ; un nom refait côté client sert de repli.
+- **Versions** : `__APP_VERSION__`, injectée au build depuis `package.json`
+  (`define` de `vite.config.ts`, import JSON, `resolveJsonModule` dans
+  `tsconfig.node.json` ; `0.0.0-test` sous vitest), et `/health` pour l'API,
+  omise si le serveur ne répond pas.
+- **D5 (A11)** : `sync` sort de `TOP_NAV_ITEMS` et de `NavKey` (quatre onglets) ;
+  `G S` reste câblé à part. La tab bar ne surligne plus Atelier sur
+  `#/synchronisation`. L'alerte de l'Atelier perd son lien et gagne, s'il y a
+  des refus, « À corriger depuis Compte › Synchronisation » (`sync-alert-hint`).
+  L'écran Compte a sa section « Synchronisation », dont la ligne « Voir la
+  synchronisation » (`account-sync-row`, sur le patron « Mot de passe » /
+  « Changer le mot de passe ») porte une méta tirée
+  de la file par `syncRowMeta` (« À jour », « 3 en attente », « 1 refusée »,
+  « hors ligne »), placée avant « Mes données » au bureau comme au mobile ;
+  l'écran Synchronisation a « ← Compte » (`sync-back`). L'alerte `topbar__alert`
+  de la barre haute reste.
+- **Écarts au handoff** : le menu bureau n'a pas encore « Raccourcis » (D2) ;
+  pas de ligne « Synchronisation » dans les maquettes (A11) ; au mobile, la
+  confirmation de « Fermer toutes les autres » et le retour d'une session
+  fermée prennent la phrase courte, au bureau la phrase longue, comme les
+  maquettes ; « Utilisé hier » pour un jour d'écart, que les maquettes ne
+  montrent pas.
+- **`data-testid`** : `topnav-sync` et `sync-alert-link` disparaissent
+  (A11) ; le recensement contre `testids-lot9-cloture.txt` ne signale que
+  ces deux-là, à justifier dans la référence de clôture (E).
+- **Tests** : `tests/unit/features/auth/accountPure.test.ts` (règles du mot de
+  passe, comparées au motif du contrat ; libellé d'appareil sur dix-sept
+  `User-Agent` ; dates ; copies ; nom du fichier exporté),
+  `tests/unit/ui/account.test.tsx` (23 tests : en-tête, sessions, fermeture
+  simple et groupée, 404, 401, hors ligne puis retour du réseau, tableau du
+  bureau, feuille du mot de passe avec 422, 429 et compte à rebours, refus du
+  nouveau mot de passe, panne réseau, export et son avertissement, D5 aux deux
+  largeurs), `accountMenu.test.tsx` réécrit pour les deux formes du menu et
+  `LogoutControl` ; `sync.test.tsx` et `games.test.tsx` suivent A11. Banc
+  d'essai UI : routes `/moi` et `/health` simulées, compte local et réglage du
+  serveur avant le premier rendu. e2e repris : `lot6-comptes` (déconnexion par
+  l'écran Compte au mobile), `lot5c-symetrie` (alerte sans lien, Compte puis
+  Synchronisation), `navigation` du bureau, aides `goToRejectedOperations`,
+  `goToSyncAt` et `goToSyncDesktop` qui passent par Compte. **1679 tests vitest
+  sur 94 fichiers** (1619 sur 92 à C1), sous couverture, sans régression
+  CRAP ; lint, `tsc` (application et config Vite) propres. **e2e : 89 sur 90
+  au premier passage complet** (`npm run test:e2e`, 17 min) ; le seul échec,
+  `games-saisie` en `real-backend`, venait d'un back injoignable dès la
+  connexion (« Failed to fetch » sur toutes les lectures) et passe relancé
+  seul ; `lot6-comptes`, `lot5c-symetrie` et `navigation` repassés (20 sur 20)
+  sur un build refait après les dernières retouches. Le compte des e2e ne
+  change pas (90). Captures : `tests/visual-baseline/lot12-d1.spec.ts`, sortie
+  dans `docs/qa-baselines/lot12-d1/` (menu du compte, Compte, mot de passe
+  vide, en saisie et actuel incorrect, session fermée, « fermer les autres »,
+  hors ligne avec une saisie en file, Atelier sans lien, Synchronisation et
+  son retour), à valider par l'utilisateur.
 
 ## Tests attendus (E)
 

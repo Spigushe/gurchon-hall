@@ -33,13 +33,16 @@ export async function goToTournamentsAt(page: Page, desktop: boolean): Promise<v
   await expect(page.getByTestId("tournaments-page")).toBeVisible();
 }
 
+/** Synchronisation, ouverte depuis l'écran Compte aux deux largeurs (Lot 12, A11). */
 export async function goToSyncAt(page: Page, desktop: boolean): Promise<void> {
   if (desktop) {
-    await page.getByTestId("topnav-sync").click();
+    await page.getByTestId("account-menu-toggle").click();
+    await page.getByTestId("account-menu-account").click();
   } else {
-    await page.getByTestId("nav-home").click();
-    await page.getByTestId("sync-alert-link").click();
+    await page.getByTestId("account-menu-link").click();
   }
+  await expect(page.getByTestId("account-page")).toBeVisible();
+  await page.getByTestId("account-sync-row").click();
   await expect(page.getByTestId("sync-page")).toBeVisible();
 }
 

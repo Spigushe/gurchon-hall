@@ -3,6 +3,7 @@ import { CardsIcon, HouseIcon, MagnifyingGlassIcon, StackIcon, TrophyIcon, Warni
 import { Link } from "./app/Link";
 import { navigate, useRoute, type Route } from "./app/routes";
 import { Kbd } from "./components/Kbd";
+import { useIsDesktop } from "./components/useIsDesktop";
 import { useKeyboardShortcuts, type ShortcutBinding } from "./components/useKeyboardShortcuts";
 import { GlobalSearchField } from "./features/search/GlobalSearchField";
 import { focusSearch } from "./features/search/globalSearch";
@@ -45,6 +46,7 @@ const DeckVersionPage = lazy(() =>
 const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
+const AccountPage = lazy(() => import("./features/auth/AccountPage").then((m) => ({ default: m.AccountPage })));
 
 // Préchauffe les quatre autres chunks de page dès l'évaluation de ce module
 // (en parallèle du tout premier rendu, pas après lui) : un `import()` d'un
@@ -82,21 +84,21 @@ for (const importRoute of [
   () => import("./features/decks/DeckVersionPage"),
   () => import("./features/sync/SyncPage"),
   () => import("./features/search/SearchPage"),
+  () => import("./features/auth/AccountPage"),
 ]) {
   importRoute().catch(() => {});
 }
 
-/** Les cinq onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
-type NavKey = "home" | "stock" | "decks" | "games" | "sync" | "search";
+/** Les onglets de premier niveau, partagés par `TabBar` et `TopBar`. */
+type NavKey = "home" | "stock" | "decks" | "games" | "search";
 
 /**
  * Route active par onglet. Factorisée pour que `TabBar` (< 1024px) et
  * `TopBar` (≥ 1024px) lisent la même logique plutôt que de la dupliquer
- * (`docs/lot5bis-plan-design.md`, étape 1). Seul `home` diffère volontairement
- * entre les deux barres : la tab bar mobile n'a pas d'onglet Synchronisation
- * propre (atteint depuis l'alerte de l'Atelier) et surligne Atelier quand on
- * y est ; la barre haute a un onglet Synchronisation dédié, donc Atelier n'y
- * est actif que sur la route `home` elle-même.
+ * (`docs/lot5bis-plan-design.md`, étape 1). Synchronisation n'est plus un
+ * onglet depuis le Lot 12 (A11) : elle s'ouvre depuis l'écran Compte, et sur
+ * `#/synchronisation` comme sur `#/compte`, aucun onglet n'est surligné, aux
+ * deux largeurs.
  */
 function navActive(route: Route): Record<NavKey, boolean> {
   return {
@@ -111,7 +113,6 @@ function navActive(route: Route): Record<NavKey, boolean> {
       route.name === "tournament" ||
       route.name === "bilan" ||
       route.name === "notebook",
-    sync: route.name === "sync",
     search: route.name === "search",
   };
 }
@@ -202,6 +203,8 @@ function Page({ route }: { route: Route }) {
       return <NotebookPage />;
     case "sync":
       return <SyncPage />;
+    case "account":
+      return <AccountPage />;
     case "search":
       // Pas de `key` sur le deck : la page réécrit elle-même `q` et `deck` dans l'adresse
       // (`replaceState`), et `useRoute` relit l'adresse à chaque rendu. Une clé tirée du
@@ -233,7 +236,7 @@ function TabBar({ route }: { route: Route }) {
     <nav aria-label="Navigation principale" className="tabbar">
       <Link
         to={{ name: "home" }}
-        current={active.home || active.sync}
+        current={active.home}
         className="tabbar__item"
         data-testid="nav-home"
       >
@@ -273,7 +276,6 @@ const TOP_NAV_ITEMS: Array<{
   { key: "stock", route: { name: "stock" }, label: "Collection", chordKey: "c", testId: "topnav-stock" },
   { key: "decks", route: { name: "decks" }, label: "Decks", chordKey: "d", testId: "topnav-decks" },
   { key: "games", route: { name: "games" }, label: "Parties", chordKey: "p", testId: "topnav-games" },
-  { key: "sync", route: { name: "sync" }, label: "Synchronisation", chordKey: "s", testId: "topnav-sync" },
 ];
 
 /**
@@ -284,12 +286,31 @@ const TOP_NAV_ITEMS: Array<{
  * ci-dessous) ; `Échap` reste porté localement par `Sheet.tsx`, pas ici (idem).
  *
  * Table dérivée de `TOP_NAV_ITEMS` plutôt que dupliquée : le libellé affiché dans
- * `TopBar` (`Kbd`) et le comportement réel restent la même source.
+ * `TopBar` (`Kbd`) et le comportement réel restent la même source. `G S` ouvre
+ * toujours Synchronisation, sortie de la barre au Lot 12 (A11) mais gardée au
+ * clavier.
  */
-const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
-  keys: ["g", item.chordKey],
-  onTrigger: () => navigate(item.route),
-}));
+const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = [
+  ...TOP_NAV_ITEMS.map((item) => ({
+    keys: ["g", item.chordKey],
+    onTrigger: () => navigate(item.route),
+  })),
+  { keys: ["g", "s"], onTrigger: () => navigate({ name: "sync" }) },
+];
+
+/**
+ * État du réseau, `role="status"` : unique dans le DOM (les e2e et
+ * `App.test.tsx` en dépendent). `App` le rend dans la barre haute au bureau,
+ * dans `.shell-bar` au mobile, jamais aux deux endroits.
+ */
+function NetworkStatus({ online }: { online: boolean }) {
+  return (
+    <p className="shell-bar__status" role="status" data-online={online}>
+      {!online && <WifiSlashIcon size={14} weight="fill" />}
+      {online ? "En ligne" : "Hors ligne"}
+    </p>
+  );
+}
 
 /**
  * Barre haute bureau (≥ 1024px, `docs/design-handoff/DESKTOP.md`) :
@@ -307,7 +328,7 @@ const NAV_SHORTCUT_BINDINGS: ShortcutBinding[] = TOP_NAV_ITEMS.map((item) => ({
  * `TopBar` a le focus. Le champ de recherche global, retiré au Lot 5c faute
  * de cible, revient avec Chercher (D3) : `GlobalSearchField`.
  */
-function TopBar({ route }: { route: Route }) {
+function TopBar({ route, online, isDesktop }: { route: Route; online: boolean; isDesktop: boolean }) {
   const status = useSyncStatus();
   const active = navActive(route);
 
@@ -356,6 +377,14 @@ function TopBar({ route }: { route: Route }) {
           {/* Champ global (lot Chercher, D3, P8) : il ouvre Chercher avec le texte saisi ;
               sur Chercher, il désigne le champ de la page. */}
           <GlobalSearchField onSearchPage={route.name === "search"} />
+          {/* Lot 12, écart 2 du handoff (d36) : l'état du réseau puis le menu du
+              compte remontent ici, et `.shell-bar` disparaît au bureau. */}
+          {isDesktop && (
+            <>
+              <NetworkStatus online={online} />
+              <AccountMenu variant="menu" current={route.name === "account"} />
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -378,6 +407,7 @@ const SLASH_BINDING = (onSearchPage: boolean): ShortcutBinding => ({
 function App() {
   const online = useConnectivity();
   const route = useRoute();
+  const isDesktop = useIsDesktop();
   const mainRef = useRef<HTMLElement>(null);
 
   // Raccourcis globaux (handoff bureau, § « Style kbd ») : seule la navigation
@@ -433,15 +463,13 @@ function App() {
           Aller au contenu
         </a>
 
-        <TopBar route={route} />
+        <TopBar route={route} online={online} isDesktop={isDesktop} />
 
-        {/* Sous 1024px, seule barre de chrome au-dessus du contenu : marque + statut de
-            connexion. À partir de 1024px, `TopBar` porte déjà la marque (index.css masque
-            `.shell-bar__brand`) ; `role="status"` reste ici, unique dans le DOM aux deux
-            largeurs plutôt que dupliqué dans `TopBar`. Le compte courant et la
-            déconnexion (`AccountMenu`, Lot 6) partagent cette même barre, pour la
-            même raison : un seul endroit à rendre aux deux largeurs plutôt qu'une
-            copie dans `TopBar`. */}
+        {/* Sous 1024px, seule barre de chrome au-dessus du contenu : marque, nom du
+            compte (entrée vers l'écran Compte) et état du réseau. À partir de 1024px,
+            la barre haute porte la marque, l'état du réseau et le menu du compte
+            (Lot 12, écart 2), et index.css masque `.shell-bar` ; le titre y reste pour
+            les e2e mobiles qui le cherchent par son rôle. */}
         <div className="shell-bar">
           {/* Le titre reste un `<h1>` (les e2e le cherchent par son rôle) ; le lien
               à l'intérieur ramène à l'Atelier, comme `.topbar__brand` au bureau. */}
@@ -450,11 +478,12 @@ function App() {
               Gurchon Hall
             </Link>
           </h1>
-          <AccountMenu />
-          <p className="shell-bar__status" role="status" data-online={online}>
-            {!online && <WifiSlashIcon size={14} weight="fill" />}
-            {online ? "En ligne" : "Hors ligne"}
-          </p>
+          {!isDesktop && (
+            <div className="shell-bar__end">
+              <AccountMenu variant="bar" current={route.name === "account"} />
+              <NetworkStatus online={online} />
+            </div>
+          )}
         </div>
 
         {/* Bandeau de reconnexion (Lot 6) : visible sur toutes les pages, pas
@@ -464,8 +493,8 @@ function App() {
         <ReconnectBanner />
 
         {/* Toujours monté (identifiant unique dans le DOM), visuellement masqué :
-            l'état de synchronisation détaillé vit désormais sur la page dédiée
-            (`#/synchronisation`), accessible depuis l'alerte de l'Atelier. */}
+            l'état de synchronisation détaillé vit sur la page dédiée
+            (`#/synchronisation`), ouverte depuis l'écran Compte (Lot 12, A11). */}
         <div className="sr-only">
           <SyncStatusBar />
         </div>

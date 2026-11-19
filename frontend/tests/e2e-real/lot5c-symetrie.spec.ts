@@ -59,12 +59,15 @@ test("n°1+2 : hors ligne, une saisie en file et aucun refus, l'alerte mène à 
   await addStock(page, { search: "awe", card: CARDS.awe, quantity: 1, language: "EN" });
   await expectPending(page, 1);
 
-  // Aucun refus : avant le Lot 5c, le lien n'existait que s'il y en avait.
+  // L'alerte de l'Atelier dit le problème mais n'a plus de lien (Lot 12, A11,
+  // qui revient sur le lien porté par le Lot 5c) : Synchronisation s'ouvre
+  // depuis l'écran Compte, et sa ligne donne l'état de la file.
   await page.getByTestId("nav-home").click();
-  const link = page.getByTestId("sync-alert-link");
-  await expect(link).toBeVisible();
-  await expect(link).toContainText("Voir la synchronisation");
-  await link.click();
+  await expect(page.getByTestId("sync-alert")).toContainText("Hors ligne");
+  await expect(page.getByTestId("sync-alert-link")).toHaveCount(0);
+  await page.getByTestId("account-menu-link").click();
+  await expect(page.getByTestId("account-sync-meta")).toHaveText("1 en attente · hors ligne");
+  await page.getByTestId("account-sync-row").click();
 
   await expect(page.getByTestId("sync-page")).toBeVisible();
   const list = page.getByTestId("sync-pending-list");

@@ -54,15 +54,16 @@ function SyncAlert() {
     <div className="sync-alert" data-testid="sync-alert">
       <p className="sync-alert__title">{title}</p>
       {/*
-       * Un seul lien, quel que soit le motif de l'alerte (Lot 5c, étape 2) :
-       * l'écran Synchronisation est le seul endroit où l'on voit la file en
-       * attente, sur mobile qui n'a pas d'onglet dédié. Même testid dans les
-       * deux cas — un seul point d'accroche pour les tests, le libellé seul
-       * change (« Corriger » n'a de sens que s'il y a des refus).
+       * Plus de lien vers Synchronisation (Lot 12, A11, voulu par l'utilisateur,
+       * qui revient sur le lien porté au mobile par le Lot 5c) : l'écran
+       * s'ouvre depuis Compte, aux deux largeurs. Avec des refus, l'alerte dit
+       * où les corriger ; « Synchroniser maintenant » agit sans quitter l'écran.
        */}
-      <Link to={{ name: "sync" }} className="btn-ghost" data-testid="sync-alert-link">
-        {status.rejected > 0 ? "Corriger maintenant →" : "Voir la synchronisation →"}
-      </Link>
+      {status.rejected > 0 && (
+        <p className="hint" data-testid="sync-alert-hint">
+          À corriger depuis Compte › Synchronisation
+        </p>
+      )}
       {status.online && status.pending > 0 && (
         <button
           type="button"

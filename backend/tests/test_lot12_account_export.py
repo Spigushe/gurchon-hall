@@ -200,6 +200,17 @@ def test_the_export_is_an_attachment_named_after_the_account_and_the_day(me_api)
     AccountExport.model_validate(response.json())
 
 
+def test_a_cross_origin_client_can_read_the_file_name(me_api):
+    # Le front et l'API sont sur deux hôtes (Lot 11) : sans `expose_headers`, le
+    # navigateur cacherait l'en-tête au client, qui reprend ce nom (Lot 12, D1).
+    response = me_api.get("/moi/export", headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 200
+    exposed = response.headers["access-control-expose-headers"]
+    assert "Content-Disposition" in exposed
+    assert "Retry-After" in exposed
+
+
 def test_the_file_name_takes_the_utc_day_of_the_export():
     late = datetime(2026, 11, 18, 23, 30, tzinfo=UTC)
     assert export_service.export_filename("lea-v", late) == (

@@ -176,8 +176,9 @@ app.add_middleware(
     allow_headers=["*"],
     # Retry-After accompagne les 503 de POST /sync (cf. docs/lot3-sync-contrat.md)
     # et les 429 ci-dessus : sans expose_headers, un navigateur cross-origin ne
-    # peut pas le lire.
-    expose_headers=["Retry-After"],
+    # peut pas le lire. Content-Disposition porte le nom du fichier de
+    # `GET /moi/export` (Lot 12), que le client reprend pour le téléchargement.
+    expose_headers=["Retry-After", "Content-Disposition"],
 )
 
 # Journal des requêtes (Lot 12, A5), ajouté en dernier : c'est la couche la plus

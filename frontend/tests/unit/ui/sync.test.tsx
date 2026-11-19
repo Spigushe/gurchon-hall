@@ -286,7 +286,7 @@ describe("opérations refusées", () => {
     expect(within(item).getByTestId("discard-button")).toBeInTheDocument();
   });
 
-  it("les refus s'annoncent par une alerte sur l'Atelier, qui mène à l'écran Synchronisation", async () => {
+  it("les refus s'annoncent par une alerte sur l'Atelier, qui dit de les corriger depuis Compte (A11)", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await refusedDeckCard(app);
 
@@ -306,7 +306,13 @@ describe("opérations refusées", () => {
     const alert = await screen.findByTestId("sync-alert");
     expect(alert).toHaveTextContent("1 opération refusée");
     expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument();
-    fireEvent.click(within(alert).getByTestId("sync-alert-link"));
+    // Lot 12, A11 : plus de lien dans l'alerte, une indication ; l'écran s'ouvre depuis Compte.
+    expect(within(alert).queryByTestId("sync-alert-link")).not.toBeInTheDocument();
+    expect(within(alert).getByTestId("sync-alert-hint")).toHaveTextContent("À corriger depuis Compte › Synchronisation");
+    act(() => {
+      window.location.hash = hrefFor({ name: "account" });
+    });
+    fireEvent.click(await screen.findByTestId("account-sync-row"));
     expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
   });
 
@@ -486,35 +492,40 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 });
 
 /**
- * Lot 5c, étape 2 : symétrie de l'écran Synchronisation. Mobile : lien de
- * l'alerte pour tout motif et liste En attente ; bureau : date de saisie des
- * refus.
+ * Lot 5c, étape 2 : symétrie de l'écran Synchronisation. Mobile : liste En
+ * attente ; bureau : date de saisie des refus. Le lien de l'alerte, porté au
+ * mobile par cette étape, a été retiré au Lot 12 (A11) : l'écran s'ouvre
+ * depuis Compte, aux deux largeurs.
  */
 describe("Lot 5c étape 2 : synchronisation aux deux largeurs", () => {
-  it("mobile : l'alerte hors ligne avec file mène à l'écran Synchronisation, qui liste l'attente", async () => {
+  it("mobile : l'alerte hors ligne avec file, sans lien ; Compte mène à Synchronisation, qui liste l'attente", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     const alert = await screen.findByTestId("sync-alert");
     expect(alert).toHaveTextContent("Hors ligne");
-    const link = within(alert).getByTestId("sync-alert-link");
-    expect(link).toHaveTextContent("Voir la synchronisation");
-    expect(link).not.toHaveTextContent("Corriger");
+    expect(within(alert).queryByTestId("sync-alert-link")).not.toBeInTheDocument();
+    // Pas de refus : rien à corriger, donc pas d'indication.
+    expect(within(alert).queryByTestId("sync-alert-hint")).not.toBeInTheDocument();
 
-    fireEvent.click(link);
+    act(() => {
+      window.location.hash = hrefFor({ name: "account" });
+    });
+    const row = await screen.findByTestId("account-sync-row");
+    expect(within(row).getByTestId("account-sync-meta")).toHaveTextContent("1 en attente · hors ligne");
+    fireEvent.click(row);
     const list = await screen.findByTestId("sync-pending-list");
     expect(within(list).getByTestId("pending-operation")).toBeInTheDocument();
     expect(screen.queryByTestId("sync-columns")).not.toBeInTheDocument(); // colonne unique
   });
 
-  it("mobile : le libellé « Corriger maintenant → » reste pour des refus", async () => {
-    const app = await renderApp({ online: false, catalog: true });
-    await refusedDeckCard(app);
-    act(() => {
-      window.location.hash = hrefFor({ name: "home" });
-    });
-    const alert = await screen.findByTestId("sync-alert");
-    expect(within(alert).getByTestId("sync-alert-link")).toHaveTextContent("Corriger maintenant");
+  it("mobile : l'écran Synchronisation ramène à Compte par « ← Compte »", async () => {
+    await renderApp({ hash: "#/synchronisation" });
+    fireEvent.click(await screen.findByTestId("sync-back"));
+    expect(await screen.findByTestId("account-page")).toBeInTheDocument();
+    // Ni la tab bar ni la barre haute ne surlignent un onglet sur Compte.
+    expect(document.querySelector('.tabbar [aria-current="page"]')).toBeNull();
+    expect(document.querySelector('.topbar__nav [aria-current="page"]')).toBeNull();
   });
 
   it("bureau : la ligne refusée et le panneau de détail portent « Saisie du … »", async () => {
