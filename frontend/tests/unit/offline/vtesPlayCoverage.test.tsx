@@ -293,8 +293,9 @@ describe("lectures locales de la pratique de jeu", () => {
     const all = await ids({});
     expect(all[2]).toBe(1); // le plus ancien en dernier
     expect(all.slice(0, 2).sort()).toEqual([2, 3]);
-    // Même date de début : l'ordre des noms départage (« Régionaux » avant « Éclair »).
-    expect(all.slice(0, 2)).toEqual([2, 3]);
+    // Même date de début : le nom replié départage (Lot 12, A7) : « Éclair »
+    // avant « Régionaux », là où l'ordre binaire renvoyait « É » après « R ».
+    expect(all.slice(0, 2)).toEqual([3, 2]);
     expect(await ids({ q: "NATIONAUX" })).toEqual([1]);
     expect(await ids({ q: "eclair" })).toEqual([3]);
     expect((await ids({ from: "2026-10-20" })).sort()).toEqual([2, 3]);

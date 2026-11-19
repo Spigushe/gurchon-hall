@@ -1,8 +1,8 @@
 # Lot 12 — Consolidation (v1.1) : plan d'implémentation
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
-écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4 et D4
-livrées le 2026-11-18** (cf. « Livré à A1 » à « Livré à D4 ») ; il ne
+écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
+livrées le 2026-11-18** (cf. « Livré à A1 » à « Livré à C1 ») ; il ne
 reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
@@ -728,7 +728,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | B2 | backend-fastapi | export du compte (A4) — **fait le 2026-11-18** (cf. « Livré à B2 ») | A1 |
 | B3 | backend-fastapi | journaux (A5), résumé `/sync`, `scripts/sync_report.py` — **fait le 2026-11-18** (cf. « Livré à B3 ») | A0 |
 | B4 | backend-fastapi | tris repliés côté API, table de cas commune (A7) — **fait le 2026-11-18** (cf. « Livré à B4 ») | A0 |
-| C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) | B4 pour la table |
+| C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) — **fait le 2026-11-18** (cf. « Livré à C1 ») | B4 pour la table |
 | D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff | B1, B2, D0 |
 | D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff | C1, D0 |
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
@@ -1030,6 +1030,73 @@ bureau avec la seule alerte de la barre haute et `G S`.
   mobile : le bureau a la barre de filtres, sans ce bouton.
 - **Tests** : aucun test ne lit ces styles (jsdom ne calcule pas la mise en
   page) ; lint et `tsc` propres, aucun `data-testid` touché.
+
+### Livré à C1 (2026-11-18)
+
+- **Mode `prompt` (A6)** : `registerType: "prompt"` (`vite.config.ts`). Le
+  service worker généré n'appelle `skipWaiting()` qu'à la réception du message
+  `SKIP_WAITING`, sans `clientsClaim` (vérifié dans `dist/sw.js`). Le store
+  générique `AppUpdateStore` (`offline/core/appUpdate.ts`, singleton
+  `appUpdateStore`) garde la version qui attend : `offer(install)`,
+  `dismiss()` (« Plus tard », en mémoire, donc jusqu'au prochain démarrage),
+  `apply()` (une seule installation même sur deux clics ; un échec rend la
+  main). `registerServiceWorker(store, reload)` lui offre la version dans
+  `onNeedRefresh` ; l'installation appelle `updateSW()`, puis un filet
+  recharge la page d'office après `RELOAD_FALLBACK_MS` (10 s) si le service
+  worker n'a pas pris la main (risque « le mode `prompt` mal câblé peut figer
+  une version »). Quand il la prend, le plugin recharge chaque onglet qui
+  l'avait vu attendre, comportement gardé : un onglet resté sur l'ancien
+  JavaScript demanderait des fragments chargés à la demande (`lazy` de
+  `App.tsx`) que le nouveau precache n'a plus. Le contrôle horaire reste.
+- **`useAppUpdate` (P5)**, dans `offline/react/`, générique : croise le store
+  et `useSyncStatus` par une fonction pure, `appUpdateViewOf`, en trois vues.
+  `hidden` (aucune version ou « Plus tard ») ; `waiting` (`pending > 0` :
+  `pending`, `online`, `authRequired`, pas de mise à jour possible) ;
+  `ready` (`rejected` compté, non bloquant ; `applying`). `apply()` ne fait
+  rien hors de `ready`, si bien qu'une saisie arrivée entre l'affichage et le
+  clic n'est pas suivie d'une installation. **Pour D2** : le bandeau lit
+  `useAppUpdate()` et n'a aucune logique propre ; 1b-72 = `ready` sans refus,
+  1b-73 = `waiting`, 1b-74 = `waiting` et `!online`, 1b-75 = `ready` avec
+  `rejected > 0`, 1b-76 = `waiting` et `authRequired` (sous le bandeau de
+  reconnexion).
+- **Tris du miroir (A7)** : `compareFolded` et `compareFoldedKeys` dans
+  `offline/core/foldText.ts` (et non dans `reads.ts` : la règle est
+  générique), avec `compareCodeUnits` pour les clés qui ne sont pas des noms.
+  `reads.ts` les applique au stock, aux decks, aux lignes de deck, à
+  `searchCards` (sur `foldedName`, sans replier 4 000 noms par comparaison),
+  aux decks d'une carte, aux joueurs, aux lieux, au départage des tournois et
+  aux clans. Langues, abréviations, dates et discriminants restent comparés
+  par unités de code.
+- **Catalogue en cours de chargement (A8), amendé** : l'état n'est pas publié
+  par `refreshCatalog` pendant sa transaction. Une transaction Dexie ne laisse
+  voir que l'avant ou l'après ; la fenêtre où la liste des decks montrait
+  « 0 / 0 » est la **lecture** du catalogue (environ 22 pages, jusqu'à 15 s
+  sur un réseau lent), que `CatalogProvider` suit déjà par `status`. D'où
+  `useCatalog().loading`, calculé par la fonction pure `isCatalogLoading`
+  (`features/catalog/catalogLoading.ts`) : vrai tant que le miroir n'a pas
+  été lu, ou que le catalogue est absent ou incomplet pendant une lecture ;
+  faux pour un catalogue complet, même pendant sa mise à jour, et hors ligne
+  ou après un échec (les mentions d'aujourd'hui restent). **Pour D2** : la
+  liste et l'aperçu des decks (1b-77, 1b-78, d49) lisent ce drapeau.
+- **Documentation** : `frontend/src/offline/README.md` (cœur générique, tri
+  des noms, mise à jour en mode `prompt`, limite du tri local réécrite).
+- **Tests** : `tests/unit/offline/foldedSort.test.ts` (la table commune, avec
+  au moins un cas où l'ordre binaire se trompe ; chaque cas sur
+  `compareFolded`, `compareFoldedKeys` et cinq lectures du miroir ;
+  discriminant gardé en clé suivante), `appUpdate.test.tsx` (store, vue,
+  hook branché sur un vrai runtime : bloqué par une saisie hors ligne, proposé
+  après le rejeu, « Plus tard »), `registerServiceWorker.test.ts` (version
+  offerte sans rien installer, `SKIP_WAITING` puis rechargement de secours),
+  `features/catalog/catalogLoading.test.ts`. Un test figeait l'ordre binaire
+  des tournois du même jour (« Régionaux » avant « Éclair ») : il suit la
+  règle repliée. **1619 tests vitest sur 92 fichiers** (1569 sur 89 au
+  départ du lot), sous couverture, sans régression CRAP ; lint et `tsc`
+  propres ; build et `check-pwa-installability.mjs` verts.
+  **90 e2e Playwright verts** (`npm run test:e2e`, builds refaits), dont les
+  scénarios hors ligne qui attendent la prise de contrôle du service worker.
+- **Reste pour E** : l'e2e de mise à jour sur deux builds successifs (plan,
+  « Tests attendus »), qui demande un service worker réel ; le hook et le
+  store sont couverts en vitest.
 
 ## Tests attendus (E)
 

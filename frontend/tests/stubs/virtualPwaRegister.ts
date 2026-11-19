@@ -11,7 +11,12 @@ import type { RegisterSWOptions } from "vite-plugin-pwa/types";
  */
 export const registered: RegisterSWOptions[] = [];
 
+/** Appels de la fonction rendue par `registerSW` (envoi de `SKIP_WAITING`). */
+export const updateCalls: Array<boolean | undefined> = [];
+
 export function registerSW(options: RegisterSWOptions = {}): (reloadPage?: boolean) => Promise<void> {
   registered.push(options);
-  return async () => {};
+  return async (reloadPage?: boolean) => {
+    updateCalls.push(reloadPage);
+  };
 }

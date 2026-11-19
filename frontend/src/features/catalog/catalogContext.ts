@@ -11,6 +11,14 @@ export interface CatalogState {
    * à jour, en ligne.
    */
   detailsComplete: boolean | undefined;
+  /**
+   * Lot 12 (A8) : le catalogue local n'est pas encore utilisable (absent ou
+   * incomplet) et une lecture est en cours, ou la première lecture du miroir
+   * n'a pas abouti. La liste et l'aperçu des decks affichent alors
+   * « Catalogue en cours de chargement » au lieu de « 0 / 0 » et de « Hors
+   * catalogue local ». Faux pour la mise à jour d'un catalogue déjà complet.
+   */
+  loading: boolean;
   /** `loading` : téléchargement en cours ; `error` : le dernier essai a échoué. */
   status: "idle" | "loading" | "error";
   error: string | null;

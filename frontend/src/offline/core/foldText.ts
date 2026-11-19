@@ -78,3 +78,31 @@ export function containsFolded(
 ): boolean {
   return (foldText(haystack) ?? "").includes(foldText(needle));
 }
+
+/**
+ * Comparaison par unités de code, comme le tri binaire de SQLite dans le plan
+ * multilingue de base (au-delà, JavaScript compare des unités UTF-16 et SQLite
+ * des octets UTF-8, qui ne rangent pas pareil).
+ */
+export function compareCodeUnits(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * Tri des noms (Lot 12, A7), jumeau de `folded_order` côté API : nom replié
+ * par `foldText` d'abord, nom brut ensuite pour départager deux noms qui ne
+ * diffèrent que par la casse ou un accent (« Abbot » avant « abbot »). Les clés
+ * propres à chaque liste suivent, à la charge de l'appelant. Table de cas
+ * commune : `backend/tests/fixtures/folded_sort_cases.json`.
+ */
+export function compareFolded(a: string, b: string): number {
+  return compareCodeUnits(foldText(a), foldText(b)) || compareCodeUnits(a, b);
+}
+
+/**
+ * Même règle quand le nom replié est déjà calculé (`foldedName` des miroirs) :
+ * évite de replier 4 000 cartes à chaque comparaison d'un tri.
+ */
+export function compareFoldedKeys(foldedA: string, a: string, foldedB: string, b: string): number {
+  return compareCodeUnits(foldedA, foldedB) || compareCodeUnits(a, b);
+}

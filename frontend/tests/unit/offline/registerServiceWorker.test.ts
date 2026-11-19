@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { registerServiceWorker } from "../../../src/offline/registerServiceWorker";
-import { registered } from "../../stubs/virtualPwaRegister";
+import { AppUpdateStore } from "../../../src/offline/core/appUpdate";
+import { RELOAD_FALLBACK_MS, registerServiceWorker } from "../../../src/offline/registerServiceWorker";
+import { registered, updateCalls } from "../../stubs/virtualPwaRegister";
 
 // `virtual:pwa-register` est remplacé par `tests/stubs/virtualPwaRegister.ts`
 // (alias de `vitest.config.ts`) : on vérifie ce que le module lui demande.
@@ -18,6 +19,7 @@ function setServiceWorkerSupport(supported: boolean) {
 
 beforeEach(() => {
   registered.length = 0;
+  updateCalls.length = 0;
 });
 
 afterEach(() => {
@@ -62,7 +64,7 @@ describe("registerServiceWorker", () => {
     setServiceWorkerSupport(true);
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    registerServiceWorker();
+    registerServiceWorker(new AppUpdateStore(), () => {});
     const options = registered[0];
 
     options.onNeedRefresh?.();
@@ -71,9 +73,41 @@ describe("registerServiceWorker", () => {
     options.onRegisterError?.(failure);
 
     expect(info.mock.calls.map(([message]) => message)).toEqual([
-      "[pwa] nouvelle version de l'app shell activée",
+      "[pwa] nouvelle version de l'app shell en attente",
       "[pwa] app shell disponible hors-ligne",
     ]);
     expect(error).toHaveBeenCalledWith("[pwa] échec de l'enregistrement du service worker", failure);
+  });
+
+  it("mode prompt : une version en attente est offerte au store, sans rien installer", () => {
+    setServiceWorkerSupport(true);
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const store = new AppUpdateStore();
+    registerServiceWorker(store, () => {});
+    expect(store.getSnapshot().available).toBe(false);
+
+    registered[0].onNeedRefresh?.();
+
+    expect(store.getSnapshot()).toEqual({ available: true, dismissed: false, applying: false });
+    expect(updateCalls).toEqual([]);
+  });
+
+  it("« Mettre à jour » envoie SKIP_WAITING, puis recharge d'office si rien ne l'a fait", async () => {
+    vi.useFakeTimers();
+    setServiceWorkerSupport(true);
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const store = new AppUpdateStore();
+    const reload = vi.fn();
+    registerServiceWorker(store, reload);
+    registered[0].onNeedRefresh?.();
+
+    await store.apply();
+
+    expect(updateCalls).toHaveLength(1);
+    expect(store.getSnapshot().applying).toBe(true);
+    vi.advanceTimersByTime(RELOAD_FALLBACK_MS - 1);
+    expect(reload).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });

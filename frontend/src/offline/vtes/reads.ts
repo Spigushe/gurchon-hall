@@ -1,4 +1,4 @@
-import { foldText } from "../core/foldText";
+import { compareCodeUnits, compareFolded, compareFoldedKeys, foldText } from "../core/foldText";
 import type { CardRow, CardSetRow, DeckVersionRow, VtesOfflineDb } from "./db";
 import {
   findByKey,
@@ -83,8 +83,12 @@ export async function readProjection(db: VtesOfflineDb): Promise<Projection> {
   );
 }
 
-/** Comparaison par unités de code, comme le tri binaire par défaut de SQLite pour le BMP. */
-const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+/**
+ * Comparaison par unités de code, pour les clés qui ne sont pas des noms
+ * (langue, abréviation, date, discriminant). Les noms passent par
+ * `compareFolded` (Lot 12, A7), comme `GET /cartes`, `/stock` et `/decks`.
+ */
+const compare = compareCodeUnits;
 
 export interface StockQuery {
   /** Texte cherché dans le nom de la carte (casse et accents ignorés). */
@@ -112,7 +116,7 @@ export async function readStock(
     )
     .sort(
       (a, b) =>
-        compare(a.cardName ?? "", b.cardName ?? "") ||
+        compareFolded(a.cardName ?? "", b.cardName ?? "") ||
         compare(a.languageCode, b.languageCode) ||
         a.cardId - b.cardId ||
         a.cardSetId - b.cardSetId,
@@ -139,7 +143,7 @@ export async function readDecks(db: VtesOfflineDb, query: DeckQuery = {}): Promi
         (state === "all" || (state === "archived") === (deck.archivedAt !== null)) &&
         (!query.status || deck.status === query.status),
     )
-    .sort((a, b) => compare(a.name, b.name) || compare(a.discriminator ?? "", b.discriminator ?? ""));
+    .sort((a, b) => compareFolded(a.name, b.name) || compare(a.discriminator ?? "", b.discriminator ?? ""));
 }
 
 /** Un deck par sa clé, quel que soit son état ; `undefined` s'il n'existe pas (ou plus). */
@@ -152,7 +156,7 @@ export async function readDeckCards(db: VtesOfflineDb, key: DeckKey): Promise<Lo
   const { deckCards } = await readProjection(db);
   return (deckCards.get(key) ?? []).sort(
     (a, b) =>
-      compare(a.cardName ?? "", b.cardName ?? "") ||
+      compareFolded(a.cardName ?? "", b.cardName ?? "") ||
       compare(a.languageCode, b.languageCode) ||
       a.cardId - b.cardId ||
       a.cardSetId - b.cardSetId,
@@ -186,7 +190,7 @@ export async function searchCards(db: VtesOfflineDb, query: CardQuery = {}): Pro
         (!query.category || card.category === query.category),
     )
     .toArray();
-  found.sort((a, b) => compare(a.name, b.name) || a.id - b.id);
+  found.sort((a, b) => compareFoldedKeys(a.foldedName, a.name, b.foldedName, b.name) || a.id - b.id);
   return found.slice(0, query.limit ?? 50);
 }
 
@@ -263,7 +267,7 @@ export async function readCardUsage(db: VtesOfflineDb, cardId: number): Promise<
         .reduce((total, line) => total + line.quantity, 0),
     }))
     .filter((usage) => usage.quantity > 0)
-    .sort((a, b) => compare(foldText(a.deck.name), foldText(b.deck.name)));
+    .sort((a, b) => compareFolded(a.deck.name, b.deck.name));
   return { copies, decks: playing };
 }
 
@@ -324,7 +328,7 @@ export async function readPlayers(db: VtesOfflineDb, query: PlayerQuery = {}): P
   const needle = query.q ? foldText(query.q) : "";
   return players
     .filter((player) => !needle || foldText(player.name).includes(needle))
-    .sort((a, b) => Number(b.isMe) - Number(a.isMe) || compare(a.name, b.name));
+    .sort((a, b) => Number(b.isMe) - Number(a.isMe) || compareFolded(a.name, b.name));
 }
 
 export async function readPlayer(db: VtesOfflineDb, key: ResourceKey): Promise<LocalPlayer | undefined> {
@@ -337,7 +341,7 @@ export async function readVenues(db: VtesOfflineDb, query: PlayerQuery = {}): Pr
   const needle = query.q ? foldText(query.q) : "";
   return venues
     .filter((venue) => !needle || foldText(venue.name).includes(needle))
-    .sort((a, b) => compare(a.name, b.name));
+    .sort((a, b) => compareFolded(a.name, b.name));
 }
 
 export async function readVenue(db: VtesOfflineDb, key: ResourceKey): Promise<LocalVenue | undefined> {
@@ -366,7 +370,7 @@ export async function readTournaments(
         (!query.from || tournament.startDate >= query.from) &&
         (!query.to || tournament.startDate <= query.to),
     )
-    .sort((a, b) => compare(b.startDate, a.startDate) || compare(a.name, b.name));
+    .sort((a, b) => compare(b.startDate, a.startDate) || compareFolded(a.name, b.name));
 }
 
 export async function readTournament(
@@ -479,6 +483,6 @@ export async function readClans(db: VtesOfflineDb): Promise<ClanOption[]> {
       const name = cards[index]?.clanName;
       if (name && !names.has(detail.clanId as number)) names.set(detail.clanId as number, name);
     });
-    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => compare(a.name, b.name));
+    return [...names].map(([id, name]) => ({ id, name })).sort((a, b) => compareFolded(a.name, b.name));
   });
 }
