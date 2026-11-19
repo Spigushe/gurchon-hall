@@ -1372,6 +1372,129 @@ Synchronisation.
   (nom caché pendant la copie, puis renommé, reste d'une copie interrompue
   écrasé ; copie en échec qui ne laisse aucun fichier).
 
+### Livré à E (2026-11-20)
+
+- **Relevé des tests attendus, côté back** : la liste de « Tests attendus
+  (E) » était déjà couverte par les étapes B (matrice à 57 opérations, mot de
+  passe et sa limitation de débit, sessions, R15 sur base peuplée et hors
+  ligne, renouvellement sur horloge simulée dont le verrou occupé et
+  l'écriture hors de la transaction d'un lot `/sync`, démarrage refusé,
+  export et son isolation, journaux, tris) : rien à ajouter. **3026 tests
+  backend verts et les 2 `xfail` connus**, **99 % des lignes de `app/`
+  couvertes** (27 instructions sur 4324), sans régression CRAP, `ruff check`
+  propre.
+- **e2e du lot** (`tests/e2e-real/support/lot12.ts`, appelé par
+  `tests/e2e-real/lot12-compte.spec.ts` à 390 px et
+  `tests/e2e-desktop-real/lot12-compte.spec.ts` à 1440 px, contre le vrai
+  back), quatre scénarios à chaque largeur :
+  - **session fermée depuis un autre appareil** : le téléphone saisit hors
+    ligne ; un second contexte (autre `User-Agent`, « Firefox sur Android »)
+    voit trois sessions et ferme celle du téléphone, repérée par son libellé
+    (calculé par `deviceLabel`, la fonction de l'application) ; au retour du
+    réseau, « Reconnexion nécessaire », la même opération en file, aucun
+    refus ; reconnexion, rejeu, entrée en collection ;
+  - **mot de passe changé sur un autre appareil** : cet appareil-là garde sa
+    session et sa liste tombe à une ; le téléphone, file vide, retrouve
+    l'écran de connexion au rechargement et entre avec le nouveau mot de
+    passe ;
+  - **export** : téléchargé (`gurchon-hall-<nom>-<jour>.json`), relu en JSON,
+    `format_version` à 1, révision, compte, l'entrée de collection saisie, un
+    seul « Moi » ;
+  - **mise à jour en mode `prompt`**, sur une vraie mise à jour du service
+    worker (`dist-real/sw.js` réécrit d'une ligne, mécanisme des captures de
+    D2) : proposée, une version en attente dans l'enregistrement ; bloquée
+    par une saisie hors ligne (« une fois votre saisie synchronisée », sans
+    bouton) ; de nouveau proposée après le rejeu ; « Mettre à jour » recharge
+    la page (marqueur sur `window` effacé), plus de version en attente, plus
+    de bandeau, session et saisie conservées. Le fichier reste réécrit
+    jusqu'à la fin du scénario : rendu plus tôt, la vérification qui suit le
+    rechargement verrait une version différente de celle installée et
+    proposerait une nouvelle mise à jour. Le point que le plan disait le plus
+    délicat passe donc en e2e ; il **ne retombe pas en vérification manuelle
+    à F**, qui garde seulement le contrôle sur téléphone.
+  Les connexions restent sous la limite de 5 par minute du back de chaque
+  test (quatre au plus par scénario, fixture compris).
+- **Contrôle de types des tests** (ajouté à E, décision de l'utilisateur du
+  2026-11-19) : rien sous `tests/` n'était vérifié, vitest et Playwright
+  transpilant sans contrôle et `tsconfig.app.json` ne couvrant que `src/`.
+  `tsconfig.test.json` (règles de l'application, types de Node, `src`,
+  `tests` et les deux configurations), `@types/node` 22 en dépendance de
+  développement (la version de Node de la CI et du serveur), script
+  `npm run typecheck:tests`, lancé après le lint du front par `run.ps1 test`,
+  `run.sh test` et la CI ; hors de `tsconfig.json`, donc hors du build. Le
+  premier passage a trouvé **65 erreurs**, toutes dans `tests/unit`, dont
+  deux tests qui ne vérifiaient rien : `collectionCorrection.test.ts`
+  fabriquait ses opérations avec des champs en snake_case que
+  `ops.stockUpsert` ignore (opérations à `data: {}`), et `client.test.ts`
+  appelait `/stock/{card_id}/{language_code}`, chemin disparu au Lot 4. Le
+  reste : écritures de stock sans extension d'avant le Lot 4 (`sync`,
+  `stock`), fabriques en retard sur leurs types (`deckVersions` du Lot 8,
+  `failures` et `authRequired` du statut de sync, statut de recherche,
+  `CardSummary`), conversions de JSON. Seul changement hors des tests : un
+  type de retour JSDoc sur `summarize` (`scripts/testid-census.mjs`).
+- **Front** : **1716 tests vitest sur 97 fichiers**, sous couverture, sans
+  régression CRAP ; **94,9 % des lignes de `src/` couvertes** (93,4 % des
+  instructions, 86,6 % des branches, 91,6 % des fonctions, 214 fichiers ;
+  e2e hors mesure, comme depuis le score CRAP). Lint et `tsc` (application,
+  config Vite, tests) propres.
+- **`data-testid`** : référence de clôture
+  `docs/qa-baselines/testids-lot12-cloture.txt`, **672 littéraux statiques
+  distincts** (611 à la clôture du Lot 9). Disparus et justifiés :
+  `topnav-sync` et `sync-alert-link` (A11, D5).
+- **e2e complets** : `npm run test:e2e`, builds refaits, **98 tests verts**
+  en 18 minutes (90 au départ du lot, plus les 8 du lot) : 8 `chromium`, 51
+  `real-backend`, 3 `desktop`, 36 `desktop-real-backend`. Ceux que D1, D5 et
+  C1 avaient repris (`lot6-comptes`, `lot5c-symetrie`, `navigation`,
+  passages par l'écran Compte, prise de contrôle du service worker) passent
+  avec le reste.
+- **Flakiness vitest** : à reporter.
+- **Reste pour F** : CLAUDE.md (dont la commande de recensement, qui vise
+  encore `testids-lot9-cloture.txt`), les relevés HTTPS d'A0, le
+  renouvellement d'une session de la v1.0 en production.
+
+### Ajouté hors plan : filtres de la liste des decks (2026-11-20)
+
+Demande de l'utilisateur, prise dans le lot après E. Front seul : ni route
+d'API, ni contrat, ni `/sync`, ni migration, ni version Dexie, la lecture
+locale filtrant déjà par statut (`DeckQuery.status`).
+
+- **Cinq onglets dans Decks** au lieu de trois : **Joués** (non archivés,
+  actifs et brouillons : l'ancien « En cours », renommé), **Actifs**,
+  **Brouillons**, **Archivés**, **Tous**. Chaque onglet est un couple
+  `state` × `status` (`FILTERS` de `DecksPage.tsx`). La rangée défile au lieu
+  de passer à la ligne (`.tabs--scroll`), bien qu'elle tienne à 390 px.
+- **L'onglet reste dans l'adresse** (`#/decks?filtre=actifs|brouillons|archives|tous`,
+  Joués étant l'adresse nue ; type `DecksFilter` de `app/routes.ts`).
+  Contrairement à une intention (`action`), il n'est pas consommé :
+  `replaceDecksFilter` le réécrit sans entrée d'historique, si bien qu'un
+  retour arrière depuis un deck retrouve l'onglet, ce qui n'était pas le cas.
+  `consumeIntent` garde l'onglet quand il retire l'intention. L'onglet Decks
+  de la navigation ramène à Joués.
+- **Atelier aligné** : la liste « En cours » devient « Joués » ; les
+  compteurs « decks actifs » et « brouillons » ouvrent l'onglet
+  correspondant (`home-decks`, et `home-drafts`, jusque-là non cliquable).
+- **Collision de vocabulaire acceptée** : « Joués » désigne ici les decks non
+  archivés, alors que le Lot 8 emploie « Decks joués », « version jouée » et
+  « deck jamais joué » au sens de « qui a des parties ». Choix de
+  l'utilisateur, contre la proposition « En jeu ».
+- **Renommage des statuts reporté au Lot 17** (décision de l'utilisateur) :
+  `active` deviendra « Monté » (« Montés » pour l'onglet), un deck prêt à
+  jouer en physique, et `draft` « En préparation » ; libellés seuls, codes
+  inchangés. Les trois règles que le nouveau sens met en question restent
+  telles quelles d'ici là : la légalité qui bloque le passage à `active`, le
+  retour en brouillon de « Mettre à jour depuis VDB » (P7 du Lot 9), et un
+  brouillon qui réserve ses exemplaires réels. Le libellé « Brouillon » ne
+  promet pas le contraire et ne change pas. Noté au Lot 17 du §12 de
+  CLAUDE.md.
+- **Tests** : aller-retour des adresses à onglet (`routes.test.ts`), cinq
+  onglets, adresse réécrite et onglet ouvert depuis l'adresse
+  (`ui/decks.test.tsx`), liens des compteurs de l'Atelier
+  (`ui/home.test.tsx`) ; titres et commentaires des e2e qui nommaient
+  « En cours » mis à jour, sans changement de comportement. **1720 tests
+  vitest sur 97 fichiers**, sans régression CRAP ; lint et `tsc` propres ;
+  e2e non relancés. Deux `data-testid` ajoutés (`decks-filter`,
+  `home-drafts`), aucun disparu par rapport à `testids-lot12-cloture.txt`.
+
 ## Tests attendus (E)
 
 Backend :

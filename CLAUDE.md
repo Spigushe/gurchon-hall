@@ -201,7 +201,9 @@ métier de consultation et de saisie existe pour la collection, les decks, les p
 les tournois, le carnet d'adversaires et de lieux, la recherche dans le catalogue
 (`#/chercher`, depuis le lot Chercher), le bilan (`#/bilan`) et la liste d'une
 version jouée (`#/decks/<clé>/versions/<n>`, depuis le Lot 8), l'import et l'export
-VDB (`#/decks?action=importer`, depuis le Lot 9) (`frontend/src/features/`, routeur
+VDB (`#/decks?action=importer`, depuis le Lot 9), l'onglet de la liste des decks
+(`#/decks?filtre=actifs|brouillons|archives|tous`, depuis le Lot 12, Joués par
+défaut) (`frontend/src/features/`, routeur
 à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
 compte, déconnexion), mobile et bureau.
 
@@ -2513,7 +2515,14 @@ donnent des v2.x.
     en impression à la demande ; checklist d'assemblage imprimable, une case par
     exemplaire, qui dit dans quel inventaire prendre chaque carte. Lectures
     dérivées, sans table prévue ; elles remplacent deux skills Claude que
-    l'utilisateur emploie aujourd'hui hors de l'application.
+    l'utilisateur emploie aujourd'hui hors de l'application. Renommage des
+    statuts de deck reporté ici le 2026-11-20 (décision de l'utilisateur) :
+    `active` devient « Monté » (« Montés » pour l'onglet), un deck prêt à
+    jouer en physique, `draft` « En préparation » ; libellés seuls,
+    codes inchangés. À trancher alors : la légalité qui bloque le passage à
+    `active`, le retour en brouillon de « Mettre à jour depuis VDB », et un
+    deck en préparation qui réserve quand même ses exemplaires réels (règles
+    gardées telles quelles en attendant).
 20. **Suggestions de decklists** — *fin de v2 ou v3, numéro attribué à
     l'ouverture.* Import rejouable de la TWDA de krcg
     (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03), suggestions
