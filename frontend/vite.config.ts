@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
-import packageJson from "./package.json";
+import packageJson from "./package.json" with { type: "json" };
 
 // PWA minimale (Lot 0) : app shell installable et utilisable hors-ligne.
 //
