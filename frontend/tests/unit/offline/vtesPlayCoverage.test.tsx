@@ -363,7 +363,7 @@ describe("lectures locales de la pratique de jeu", () => {
     expect(bound?.id).toBeGreaterThan(0);
     render(
       <VtesOfflineProvider runtime={runtime}>
-        <Probe kind="venue" k={`id:${bound?.id}`} />
+        <Probe kind="venue" k={`id:${bound!.id}`} />
       </VtesOfflineProvider>,
     );
     await waitFor(() => expect(screen.getByTestId("probe")).toHaveTextContent(created.key));

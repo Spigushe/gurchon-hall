@@ -18,10 +18,11 @@ const fields = (patch: Partial<CollectionFields> = {}): CollectionFields => ({
   ...patch,
 });
 
-function corrected(operation: VtesOperation, patch: Partial<CollectionFields>): VtesOperation {
+/** La correction garde le type de l'opération : on la relit sous ce type. */
+function corrected<T extends VtesOperation>(operation: T, patch: Partial<CollectionFields>): T {
   const result = collectionCorrection(operation, fields(patch));
   if (result === null || "error" in result) throw new Error(`correction refusée : ${JSON.stringify(result)}`);
-  return result.transform(operation);
+  return result.transform(operation) as T;
 }
 
 const errorOf = (operation: VtesOperation, patch: Partial<CollectionFields>) => {
@@ -30,13 +31,13 @@ const errorOf = (operation: VtesOperation, patch: Partial<CollectionFields>) => 
 };
 
 const deck = { deckId: 3 };
-const stock = ops.stockUpsert(clock, { card_id: 1, language_code: "FR", card_set_id: 5, quantity_owned: 1 });
+const stock = ops.stockUpsert(clock, { cardId: 1, languageCode: "FR", cardSetId: 5, quantityOwned: 1 });
 const deckCard = ops.deckCardUpsert(clock, deck, {
-  card_id: 1,
-  language_code: "FR",
-  card_set_id: 5,
+  cardId: 1,
+  languageCode: "FR",
+  cardSetId: 5,
   quantity: 2,
-  proxy_quantity: 1,
+  proxyQuantity: 1,
 });
 const bundle = ops.bundleDeposit(clock, 7, "EN", 1);
 const created = ops.deckCreate(clock, "ref-1", { name: "Ancien nom", proxyAllowed: false });

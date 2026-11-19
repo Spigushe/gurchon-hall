@@ -63,7 +63,7 @@ function line(changes: Partial<LocalTableLine>): LocalTableLine {
 }
 
 let nextId = 1;
-function game(changes: Partial<LocalGame> & { me?: Partial<LocalGame["me"]> } = {}): LocalGame {
+function game(changes: Omit<Partial<LocalGame>, "me"> & { me?: Partial<LocalGame["me"]> } = {}): LocalGame {
   const id = nextId++;
   const me = {
     deckKey: BANU,

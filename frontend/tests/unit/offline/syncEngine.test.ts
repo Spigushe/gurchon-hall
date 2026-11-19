@@ -524,7 +524,9 @@ describe("SyncEngine : jamais deux envois concurrents", () => {
         callback(null),
     );
     vi.stubGlobal("navigator", { onLine: true, locks: { request } });
-    cleanups.push(() => vi.unstubAllGlobals());
+    cleanups.push(() => {
+      vi.unstubAllGlobals();
+    });
 
     const { outbox, transport, engine, clock } = setup((ops) => allApplied(ops), {
       lockName: "test-lock",

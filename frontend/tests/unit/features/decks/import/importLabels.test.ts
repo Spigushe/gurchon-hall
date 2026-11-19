@@ -75,10 +75,11 @@ describe("feuille d'import : deck lié et bouton « Continuer »", () => {
   });
 
   const ready = { catalogEmpty: false, loading: false, linked: false, online: true };
-  const list = { kind: "list", decklist: { format: "jol", header: { name: null, author: null, description: null }, lines: [], unreadable: [] } } as const;
-  const link = { kind: "vdb-deck", vdbDeckId: "abc" } as const;
+  type Source = Parameters<typeof continueBlocked>[0];
+  const list: Source = { kind: "list", decklist: { format: "jol", header: { name: null, author: null, description: null }, lines: [], unreadable: [] } };
+  const link: Source = { kind: "vdb-deck", vdbDeckId: "abc" };
 
-  it.each([
+  it.each<[string, Source, Parameters<typeof continueBlocked>[1], boolean]>([
     ["liste prête", list, ready, false],
     ["sans catalogue", list, { ...ready, catalogEmpty: true }, true],
     ["pendant une lecture", link, { ...ready, loading: true }, true],

@@ -29,7 +29,7 @@ import {
  */
 
 describe("règles du nouveau mot de passe", () => {
-  const schema = (contract as { components: { schemas: Record<string, { properties: Record<string, Record<string, unknown>> }> } })
+  const schema = (contract as unknown as { components: { schemas: Record<string, { properties: Record<string, Record<string, unknown>> }> } })
     .components.schemas;
   const newPassword = schema.PasswordChange.properties.new_password;
 

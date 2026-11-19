@@ -20,6 +20,8 @@ function makeRuntime(online: boolean): OfflineRuntime {
     pending: 0,
     sending: 0,
     rejected: 0,
+    failures: 0,
+    authRequired: false,
     lastError: null,
     lastSuccessAt: null,
     nextRetryAt: null,

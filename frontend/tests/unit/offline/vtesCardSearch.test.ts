@@ -135,7 +135,12 @@ describe("correspondances par le nom d'abord (proposition de P1, à valider en D
   });
 
   it("runCardSearch : regroupe sous le tri par nom seulement", () => {
-    const status = { ownedCardIds: new Set<number>(), deckCardIds: new Set<number>() };
+    const status = {
+      ownedCardIds: new Set<number>(),
+      deckCardIds: new Set<number>(),
+      ownedCounts: new Map<number, number>(),
+      deckQuantities: new Map<number, number>(),
+    };
     const grouped = runCardSearch(catalog, status, { query: "bleed" }, { on: DEFAULT_ON, grouped: true });
     expect(grouped).toMatchObject({ byName: 1, complete: true });
     expect(idsOf(grouped.cards!)).toEqual([121, 120]);

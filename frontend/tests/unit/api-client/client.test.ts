@@ -90,11 +90,11 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
     });
     await client.POST("/decks/{deck_id}/cartes", {
       params: { path: { deck_id: 3 } },
-      body: { card_id: 7, language_code: "FR", quantity: 2, proxy_quantity: 1 },
+      body: { card_id: 7, language_code: "FR", card_set_id: 9, quantity: 2, proxy_quantity: 1 },
       fetch: fetchSpy,
     });
-    await client.DELETE("/stock/{card_id}/{language_code}", {
-      params: { path: { card_id: 7, language_code: "FR" } },
+    await client.DELETE("/stock/{card_id}/{language_code}/{card_set_id}", {
+      params: { path: { card_id: 7, language_code: "FR", card_set_id: 9 } },
       fetch: fetchSpy,
     });
 
@@ -109,11 +109,12 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
     expect(await add.json()).toEqual({
       card_id: 7,
       language_code: "FR",
+      card_set_id: 9,
       quantity: 2,
       proxy_quantity: 1,
     });
     expect(remove.method).toBe("DELETE");
-    expect(new URL(remove.url).pathname).toBe("/stock/7/FR");
+    expect(new URL(remove.url).pathname).toBe("/stock/7/FR/9");
   });
 
   // Lot 2 passe 2 bis : plus de routes `archiver` / `restaurer`. Archiver un
@@ -240,7 +241,7 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
       "/decks/{deck_id}/cartes",
       {
         params: { path: { deck_id: 1 } },
-        body: { card_id: 1, language_code: "EN", quantity: 9 },
+        body: { card_id: 1, language_code: "EN", card_set_id: 9, quantity: 9 },
         fetch: fetchSpy,
       },
     );
@@ -308,7 +309,7 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
             operation_id: "0f8f8b8e-2222-4222-8333-444444444444",
             recorded_at: "2026-09-20T20:01:00+02:00",
             deck: { client_ref: "ref-deck" },
-            data: { card_id: 7, language_code: "FR", quantity: 4 },
+            data: { card_id: 7, language_code: "FR", card_set_id: 9, quantity: 4 },
           },
         ],
       },
@@ -351,7 +352,7 @@ describe("apiClient (généré depuis contracts/openapi.json)", () => {
             type: "stock.upsert",
             operation_id: "0f8f8b8e-3333-4222-8333-444444444444",
             recorded_at: "2026-09-20T20:00:00+02:00",
-            data: { card_id: 7, language_code: "FR", quantity_owned: 3 },
+            data: { card_id: 7, language_code: "FR", card_set_id: 9, quantity_owned: 3 },
           },
         ],
       },

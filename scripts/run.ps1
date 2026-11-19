@@ -101,6 +101,12 @@ function Invoke-TestCommand {
         Push-Location $frontendDir
         try { npm run lint } finally { Pop-Location }
     }
+    # vitest et Playwright transpilent sans verifier les types : tsconfig.test.json
+    # couvre tests/ (Lot 12, E).
+    Invoke-Step "Frontend : types des tests (tsc -p tsconfig.test.json)" {
+        Push-Location $frontendDir
+        try { npm run typecheck:tests } finally { Pop-Location }
+    }
 
     if (Test-NpmScript "test") {
         Invoke-FrontendCrap

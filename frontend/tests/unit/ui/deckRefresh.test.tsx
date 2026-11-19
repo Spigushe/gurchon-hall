@@ -152,7 +152,7 @@ describe("mise à jour depuis le détail d'un deck lié", () => {
       "deck_card.upsert",
       "deck_card.upsert",
     ]);
-    expect(ops[0].data).toEqual({ status: "draft" });
+    expect(ops[0]).toEqual(expect.objectContaining({ type: "deck.update", data: { status: "draft" } }));
     const upserts = ops.filter((op) => op.type === "deck_card.upsert").map((op) => op.data);
     expect(upserts).toEqual(
       expect.arrayContaining([

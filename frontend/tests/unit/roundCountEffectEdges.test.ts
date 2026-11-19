@@ -8,7 +8,7 @@ import {
 } from "../../src/features/games/tournamentModel";
 import type { LocalGame, LocalTournament } from "../../src/offline/vtes";
 
-const tournament = (roundCount: number | null) => ({ key: "id:1", roundCount }) as LocalTournament;
+const tournament = (roundCount: number | null) => ({ key: "id:1", roundCount }) as unknown as LocalTournament;
 const game = (n: number | null, playedAt: string, type: "preliminary" | "final" = "preliminary") =>
   ({ roundNumber: n, roundType: type, playedAt, me: { deckKey: null, victoryPoints: null, gameWin: null } }) as unknown as LocalGame;
 

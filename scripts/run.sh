@@ -92,6 +92,10 @@ cmd_test() {
 
     step "Frontend : lint (eslint)"
     (cd "$frontend_dir" && npm run lint)
+    # vitest et Playwright transpilent sans vérifier les types : tsconfig.test.json
+    # couvre tests/ (Lot 12, E).
+    step "Frontend : types des tests (tsc -p tsconfig.test.json)"
+    (cd "$frontend_dir" && npm run typecheck:tests)
 
     if [ "$(has_npm_script test)" = "true" ]; then
         frontend_crap

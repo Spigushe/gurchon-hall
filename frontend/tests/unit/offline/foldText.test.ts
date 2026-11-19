@@ -54,7 +54,7 @@ describe("foldText : cas figés côté back", () => {
 });
 
 describe("foldText : parité exhaustive avec Python", () => {
-  const fixture = parityFixture as {
+  const fixture = parityFixture as unknown as {
     unassigned: Array<[number, number]>;
     changed: Record<string, string>;
   };

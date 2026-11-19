@@ -61,8 +61,8 @@ describe("cas limites des règles de tournoi (QA D2)", () => {
 
   it("tournamentInProgress : le plus récent de la liste l'emporte, un classé est ignoré, minuit local", () => {
     const now = new Date(2026, 9, 25, 0, 5);
-    const list = [t({ key: "a", startDate: "2026-10-25", myRanking: 2 }), t({ key: "b", startDate: "2026-10-24" })];
-    expect(tournamentInProgress(list, now)?.key).toBe("b");
+    const list = [t({ key: "ref:a", startDate: "2026-10-25", myRanking: 2 }), t({ key: "ref:b", startDate: "2026-10-24" })];
+    expect(tournamentInProgress(list, now)?.key).toBe("ref:b");
     expect(tournamentInProgress([t({ startDate: "2026-10-23" })], new Date(2026, 9, 25, 23, 59))).toBeNull();
     expect(tournamentInProgress([t({ startDate: "pas-une-date" })], now)).toBeNull();
   });

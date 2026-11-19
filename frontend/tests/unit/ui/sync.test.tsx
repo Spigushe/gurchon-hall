@@ -68,8 +68,8 @@ async function refusedDeckCard(app: App) {
 describe("file de synchronisation : états", () => {
   it("passe de « hors ligne » à « en attente » puis « tout est à jour »", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
-    await app.runtime.actions.saveStock({ cardId: 3, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     const bar = screen.getByTestId("sync-status");
     await waitFor(() => expect(bar).toHaveAttribute("data-pending", "2"));
@@ -88,7 +88,7 @@ describe("file de synchronisation : états", () => {
     const app = await renderApp({ online: true, catalog: true });
     app.server.next.networkFailure = true;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
 
@@ -107,7 +107,7 @@ describe("file de synchronisation : états", () => {
     const app = await renderApp({ online: true, catalog: true });
     app.server.next.status = 503;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
     const bar = screen.getByTestId("sync-status");
@@ -188,7 +188,7 @@ describe("opérations refusées", () => {
 
   it("« corriger et renvoyer » crée une nouvelle opération sous une nouvelle clé, à la même place", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
     const [refused] = await app.runtime.outbox.list("rejected");
 
@@ -227,7 +227,7 @@ describe("opérations refusées", () => {
     const app = await renderApp({ online: false, catalog: true });
     await refusedDeckCard(app);
     const [refused] = await app.runtime.outbox.list("rejected");
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 3 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 3 });
     await app.settle();
 
     fireEvent.click(screen.getByTestId("reissue-button"));
@@ -350,7 +350,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("affiche les deux colonnes, un bouton d'envoi toujours visible (désactivé hors ligne) et l'état vide du panneau", async () => {
     const app = await renderApp({ online: false, catalog: true, hash: "#/synchronisation" });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     expect(await screen.findByTestId("sync-columns")).toBeInTheDocument();
     const flush = screen.getByTestId("sync-flush");
@@ -368,7 +368,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("liste « En attente » : description à gauche, heure à droite", async () => {
     const app = await renderApp({ online: false, catalog: true, hash: "#/synchronisation" });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 2 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 2 });
 
     const list = await screen.findByTestId("sync-pending-list");
     const row = within(list).getByTestId("pending-operation");
@@ -378,7 +378,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("sélectionne (par repli) la première ligne refusée et affiche sa correction dans le panneau de droite", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
 
     const row = screen.getByTestId("rejected-operation");
@@ -466,7 +466,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/synchronisation" });
     app.server.next.networkFailure = true;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
     await screen.findByTestId("sync-flush");
@@ -478,7 +478,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("le raccourci « ⌘↵ » soumet la correction affichée dans le panneau de droite", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
 
     const form = await screen.findByTestId("correction-form");

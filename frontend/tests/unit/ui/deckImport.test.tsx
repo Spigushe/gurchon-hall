@@ -123,17 +123,16 @@ describe("import d'une liste, hors ligne", () => {
       type: "deck.create",
       data: { name: "Chasseur", archetype: "rush", status: "draft", proxy_allowed: true, notes: null },
     });
-    expect(operations[0].data).not.toHaveProperty("vdb_deck_id");
-    const lines = operations.slice(1);
-    expect(lines).toHaveLength(5);
+    expect(operations[0]).not.toHaveProperty("data.vdb_deck_id");
+    expect(operations.slice(1).map((operation) => operation.type)).toEqual(Array(5).fill("deck_card.upsert"));
+    const lines = operations.filter((operation) => operation.type === "deck_card.upsert");
     for (const line of lines) {
-      expect(line.type).toBe("deck_card.upsert");
-      const data = line.data as { quantity: number; proxy_quantity: number; language_code: string };
+      const data = line.data;
       expect(data.proxy_quantity).toBe(data.quantity);
       expect(data.language_code).toBe("FR");
     }
     // Dernière extension de la carte (P6) : Blur a été imprimée dans 9 puis 31.
-    expect(lines.find((line) => (line.data as { card_id: number }).card_id === 20)?.data).toMatchObject({ card_set_id: 31 });
+    expect(lines.find((line) => line.data.card_id === 20)?.data).toMatchObject({ card_set_id: 31 });
     expect(server.state.requests).toEqual([]);
     expect(ui.requests).toEqual([]);
   });

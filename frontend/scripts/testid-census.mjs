@@ -59,7 +59,10 @@ export function mergeScans(scans) {
   return merged;
 }
 
-/** Mentions brutes, distincts triés, par famille. */
+/**
+ * Mentions brutes, distincts triés, par famille.
+ * @returns {Record<string, { mentions: number, distinct: string[] }>}
+ */
 export function summarize(scan) {
   const out = {};
   for (const family of Object.keys(scan)) {
