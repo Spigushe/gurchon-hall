@@ -2,8 +2,8 @@
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
 écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
-livrées le 2026-11-18, D1, D5 et D2 le 2026-11-19** (cf. « Livré à A1 » à
-« Livré à D2 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
+livrées le 2026-11-18, D1, D5, D2 et D3 le 2026-11-19** (cf. « Livré à A1 »
+à « Livré à D3 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -125,7 +125,7 @@ Chaque point porte une recommandation, en premier.
 | P3 | recommandation : export fabriqué par le serveur, `GET /moi/export` |
 | P4 | recommandation : journaux JSON et `scripts/sync_report.py` |
 | P5 | recommandation : la mise à jour attend les opérations en attente, prévient pour les refusées |
-| P6 | recommandation : sauvegardes tirées depuis le poste par `ops/fetch_backups.ps1` et `.sh` |
+| P6 | recommandation : sauvegardes tirées depuis le poste par `ops/fetch_backups.ps1` et `.sh` ; à D3 (2026-11-19), `.sh` seul, lancé dans WSL, vers `ops/sauvegardes/` ignoré par git |
 | P7 | **option 2** : pas de v1.0.1, la v1.1.0 réaligne tag et release |
 | P8 | recommandation : `?` liste les raccourcis de l'écran courant, au bureau, et un lien « Raccourcis » dans le menu du compte |
 | P9 | **option 2** : un handoff Claude Design |
@@ -731,7 +731,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | C1 | pwa-offline | mode `prompt`, `useAppUpdate` (A6) ; tris du miroir sur la table commune (A7) ; état « catalogue en cours d'écriture » (A8) — **fait le 2026-11-18** (cf. « Livré à C1 ») | B4 pour la table |
 | D1 | frontend-react | écran Compte, mobile et bureau, sur le handoff — **fait le 2026-11-19** (cf. « Livré à D1 et D5 ») | B1, B2, D0 |
 | D2 | frontend-react | bandeau de mise à jour, légende `?`, état du catalogue dans les decks, sur le handoff — **fait le 2026-11-19** (cf. « Livré à D2 ») | C1, D0 |
-| D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` | B3, A0 |
+| D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` — **fait le 2026-11-19** (cf. « Livré à D3 ») | B3, A0 |
 | D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px — **fait le 2026-11-18** (cf. « Livré à D4 ») | A0 |
 | D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px — **fait le 2026-11-19**, avec D1 | D1 |
 | E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D5 |
@@ -1309,6 +1309,68 @@ Synchronisation.
 - **`data-testid`** : nouveaux `app-update-*`, `shortcuts-legend*`,
   `account-menu-shortcuts`, `catalog-loading*` ; aucun disparu (le
   recensement ne signale que `topnav-sync` et `sync-alert-link`, A11).
+
+### Livré à D3 (2026-11-19)
+
+- **Journal d'accès d'uvicorn coupé sans toucher au rôle copié** : l'unité
+  systemd reçoit `UVICORN_ACCESS_LOG=false` par `fastapi_backend_env`
+  (`ops/gurchon_hall.yml`). uvicorn lit ses options dans les variables
+  `UVICORN_*` (`auto_envvar_prefix`), et cette valeur vaut `--no-access-log` :
+  vérifié sur uvicorn 0.53 en appelant sa ligne de commande avec et sans la
+  variable (`access_log` à vrai, puis à faux). Le gabarit `service.j2` de
+  `fastapi_backend`, copié de Barrin sans modification, reste tel quel.
+  `LOG_LEVEL` est posé aussi, par une variable du playbook
+  (`gurchon_log_level`, `INFO`), pour qu'un changement de niveau ne demande
+  qu'un `-e`. `LOG_FORMAT` garde sa valeur par défaut (`json`). La sortie
+  standard part dans journald ligne par ligne (le gestionnaire de B3 est un
+  `StreamHandler`, qui vide le flux à chaque ligne).
+- **Sauvegardes tirées depuis le poste (P6)** : `ops/fetch_backups.sh`, dans
+  WSL, avec la clé ssh du playbook. Il liste les copies du VPS par `ssh` (GNU
+  `find … -printf '%s %f'`), ne garde que les noms au motif
+  `^vtes-[A-Za-z0-9-]+\.db$` (un autre nom n'est jamais passé à `scp`),
+  recopie par `scp -p` celles qui manquent sous un nom caché (`.NOM.part`),
+  vérifie la taille annoncée, puis renomme. Rien n'est jamais supprimé, d'un
+  côté ni de l'autre. Dossier par défaut `ops/sauvegardes/`
+  (`ops/sauvegardes/staging/` avec `--environment staging`), ajouté à
+  `.gitignore` : les copies portent adresses et empreintes de mots de passe.
+  `ssh` en `BatchMode` (échec immédiat sans clé, ce qui convient au
+  planificateur), hôte et utilisateur lus dans `ops/hosts.ini`, `--dry-run`
+  qui n'écrit rien, `--destination` pour un autre dossier. Décisions de
+  l'utilisateur à la relecture : WSL seul, donc pas de version PowerShell
+  (une première écriture en `.ps1` a été retirée), le dossier dans le dépôt,
+  et rien à installer sur le VPS qui ne soit indispensable.
+- **Copie atomique côté serveur** : `scripts/compare_db.py backup` écrit
+  désormais sous `.COPIE.part`, puis renomme ; une copie qui échoue ne laisse
+  rien. Sans cela, une recopie lancée pendant la sauvegarde de 03:30 pouvait
+  emporter une copie à moitié écrite, sous un nom que le passage suivant
+  aurait tenu pour complet. La sauvegarde de la nuit et celle d'avant
+  déploiement en profitent ensemble. Effet au premier déploiement de la v1.1 :
+  la sauvegarde d'avant déploiement de ce passage tourne encore avec le script
+  de la v1.0, déjà en place sur le VPS.
+- **Essais** : `bash ops/fetch_backups.sh` lancé pour de vrai depuis WSL,
+  d'abord vers un dossier temporaire, effacé ensuite, puis vers
+  `ops/sauvegardes/` : 3 copies recopiées (les deux de la nuit, celle d'avant
+  le déploiement du 2026-11-17), en `0600` y compris sous `/mnt/c`, dates
+  gardées, `integrity_check` à `ok` et révision `5f2b8e9d0c41` sur les
+  trois ; un second passage ne recopie rien ; `git status` ne voit pas le
+  dossier. `ansible-playbook --syntax-check` passe. `jq` n'est pas installé
+  sur le VPS, et rien n'y est ajouté : le guide filtre les journaux par
+  `grep`, les lignes JSON étant compactes.
+- **`docs/deploiement.md`** : quatre variables dans l'unité au lieu de deux ;
+  section « Journaux » (événements et champs, ce qui n'y figure jamais,
+  `journalctl` filtré par `grep`, priorité journald toujours `info` donc
+  filtre sur `level`, `sync_report.py` sur le VPS ou sur une copie) ;
+  « Sauvegardes et restauration » refondue (seconde copie dans
+  `ops/sauvegardes/`, données que contient une copie, tâche planifiée Windows
+  qui appelle WSL, vérification d'une copie par `compare_db.py snapshot`) ;
+  vérifications à faire après le déploiement de la v1.1. `ops/README.md`
+  cite le script.
+- **Reste à l'utilisateur** : enregistrer la tâche planifiée s'il veut une
+  recopie quotidienne (commande dans le guide). L'unité ne change sur le VPS
+  qu'au prochain passage du playbook (staging à F, puis production).
+- **Tests** : `backend/tests/test_compare_db_script.py`, deux tests de plus
+  (nom caché pendant la copie, puis renommé, reste d'une copie interrompue
+  écrasé ; copie en échec qui ne laisse aucun fichier).
 
 ## Tests attendus (E)
 

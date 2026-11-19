@@ -15,5 +15,13 @@ LETSENCRYPT_CONTACT=<adresse> ansible-playbook gurchon_hall.yml   # premier pass
 ansible-playbook gurchon_hall.yml -e deploy_env=staging            # staging
 ```
 
-Prérequis, domaines, sauvegardes, premier compte et retour arrière :
+`fetch_backups.sh` recopie sur le poste, dans `sauvegardes/` (ignoré par
+git), les sauvegardes SQLite prises sur le VPS, sans jamais rien supprimer :
+
+```bash
+bash fetch_backups.sh --dry-run
+bash fetch_backups.sh
+```
+
+Prérequis, domaines, journaux, sauvegardes, premier compte et retour arrière :
 [`docs/deploiement.md`](../docs/deploiement.md).

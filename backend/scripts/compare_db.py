@@ -14,7 +14,10 @@ l'utilisateur et conserve les identifiants du catalogue. Procédure complète,
 `backup` copie la base par l'API de sauvegarde de SQLite, source ouverte en
 lecture seule, et refuse d'écraser un fichier existant : la copie est
 cohérente même si un autre processus lit la base. C'est la sauvegarde datée
-d'avant migration, et la copie sur laquelle on fait l'essai.
+d'avant migration, et la copie sur laquelle on fait l'essai. La copie s'écrit
+d'abord sous un nom caché (`.COPIE.part`), renommé une fois la copie finie
+(Lot 12, D3) : `ops/fetch_backups` peut tirer les sauvegardes du VPS pendant
+que celle de la nuit s'écrit sans jamais emporter une copie à moitié faite.
 
 `snapshot` ouvre la base en lecture seule (`mode=ro`) : il ne la modifie
 jamais, même par erreur de chemin. Il relève toutes les lignes de toutes les
@@ -46,13 +49,26 @@ def _read_only(database: Path) -> sqlite3.Connection:
     return sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
 
 
+def partial_path(target: Path) -> Path:
+    """Nom de la copie en cours : caché, et hors du motif `vtes-*.db`."""
+    return target.with_name(f".{target.name}.part")
+
+
 def backup(database: Path, target: Path) -> None:
+    partial = partial_path(target)
+    partial.unlink(missing_ok=True)
     source = _read_only(database)
-    copy = sqlite3.connect(target)
     try:
-        source.backup(copy)
+        copy = sqlite3.connect(partial)
+        try:
+            source.backup(copy)
+        finally:
+            copy.close()
+        partial.rename(target)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
     finally:
-        copy.close()
         source.close()
 
 

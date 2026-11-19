@@ -62,3 +62,6 @@ Thumbs.db
 ops/secrets/**
 !ops/secrets/*/
 !ops/secrets/**/*.example
+
+# --- Sauvegardes SQLite recopiées du VPS (ops/fetch_backups.sh) : données des comptes ---
+ops/sauvegardes/
