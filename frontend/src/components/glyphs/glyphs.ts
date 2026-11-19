@@ -159,7 +159,7 @@ const CLAN_CHARS: Readonly<Record<string, string>> = {
   "nosferatu antitribu": "Y",
   osebo: "Z",
   pander: "a",
-  ravnos: "b",
+  ravnos: "x", // ancien symbole représenté par « b »
   redeemer: "6",
   salubri: "c",
   "salubri antitribu": "d",

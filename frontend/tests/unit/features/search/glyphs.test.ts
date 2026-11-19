@@ -40,6 +40,9 @@ describe("table des glyphes krcg", () => {
     expect(costGlyph("blood", null)).toBeNull();
     expect(costGlyph("blood", "9")).toBeNull();
     expect(clanGlyph("Ventrue")).toEqual({ font: "clans", char: "v" });
+    // « b » est l'ancien symbole des Ravnos dans `vtes-clans.otf`
+    // la roue des Ravnos, symbole actuel, est « x ».
+    expect(clanGlyph("Ravnos")).toEqual({ font: "clans", char: "x" });
     expect(clanGlyph("Hecata")).toBeNull();
     expect(clanGlyph(null)).toBeNull();
   });
