@@ -63,6 +63,9 @@ EXCLUDED_TABLES = {
     "auth_session",  # les sessions : un secret, pas une donnée de l'utilisateur
     "sync_operation",  # le journal : technique, volumineux, sans valeur lisible
 }
+# Tables privées du Lot 13, au modèle depuis l'étape A1 et exportées à B2 (A5 de
+# `docs/lot13-plan-partage.md`) : à verser dans `EXPORTED_TABLES` à ce moment.
+PENDING_EXPORT_TABLES = {"deck_share"}
 # Tables privées sans `user_id`, lues à travers leur deck.
 EXPORTED_THROUGH_DECK = {"deleted_deck_card", "deck_version_card"}
 
@@ -473,7 +476,7 @@ def test_every_private_table_is_exported_or_excluded_on_purpose():
     with_owner = {
         table.name for table in Base.metadata.sorted_tables if "user_id" in table.c
     }
-    assert with_owner == EXPORTED_TABLES | EXCLUDED_TABLES, (
+    assert with_owner == EXPORTED_TABLES | EXCLUDED_TABLES | PENDING_EXPORT_TABLES, (
         "Une table privée a été ajoutée ou retirée : l'exporter dans "
         "app/services/account_export.py, ou l'exclure par décision écrite "
         "(docs/lot12-plan-consolidation.md, A4), puis mettre ce test à jour."

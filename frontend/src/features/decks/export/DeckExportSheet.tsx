@@ -3,6 +3,13 @@ import { CopyIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../../components/Loading";
 import { Sheet, SheetHeader } from "../../../components/Sheet";
 import { browserClipboard, copyText, downloadText, type CopyOutcome } from "./exportFile";
+import {
+  EXPORT_FORMATS,
+  exportFormatInfo,
+  readStoredFormat,
+  storeFormat,
+  type ExportFormat,
+} from "./exportFormats";
 
 const COPY_MESSAGES: Record<CopyOutcome, string> = {
   copied: "Liste copiée dans le presse-papiers.",
@@ -11,20 +18,23 @@ const COPY_MESSAGES: Record<CopyOutcome, string> = {
 };
 
 /**
- * Feuille d'export (Lot 9, P9, écran 5) : le texte au format `TEXT` de VDB,
- * puis « Copier » et « Télécharger (.txt) ». Hors contexte sécurisé (`http://`
- * sur le réseau local), la copie se replie sur la sélection du texte.
+ * Feuille d'export (Lot 9, P9, écran 5) : la liste au format choisi (`TEXT` de
+ * VDB par défaut, puis `TWD`, `JOL` et `LACKEY` au Lot 13, le choix étant
+ * mémorisé sur l'appareil), puis « Copier » et « Télécharger (.txt) ». Hors
+ * contexte sécurisé (`http://` sur le réseau local), la copie se replie sur la
+ * sélection du texte.
  */
 export function DeckExportSheet({
   title,
-  fileName,
-  text,
+  fileNameFor,
+  texts,
   onClose,
 }: {
   title: string;
-  fileName: string;
+  /** Nom du fichier pour un suffixe de format (`null` pour `TEXT`). */
+  fileNameFor: (suffix: string | null) => string;
   /** `undefined` tant que la liste n'est pas lue dans le miroir. */
-  text: string | undefined;
+  texts: Record<ExportFormat, string> | undefined;
   onClose: () => void;
 }) {
   const id = useId();
@@ -32,6 +42,16 @@ export function DeckExportSheet({
   const titleRef = useRef<HTMLHeadingElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const [outcome, setOutcome] = useState<CopyOutcome | "downloaded" | null>(null);
+  const [format, setFormat] = useState<ExportFormat>(readStoredFormat);
+  const info = exportFormatInfo(format);
+  const fileName = fileNameFor(info.fileSuffix);
+  const text = texts?.[format];
+
+  const chooseFormat = (next: ExportFormat) => {
+    setFormat(next);
+    storeFormat(next);
+    setOutcome(null);
+  };
 
   const copy = async () => {
     if (text === undefined) return;
@@ -53,16 +73,30 @@ export function DeckExportSheet({
     <Sheet titleId={titleId} titleRef={titleRef} onClose={onClose} data-testid="deck-export-sheet">
       <SheetHeader kicker="Exporter vers VDB" title={title} titleId={titleId} titleRef={titleRef} onClose={onClose} />
       <div className="sheet-form deck-export">
-        <p className="hint">
-          Format texte de VDB : dans VDB, « Import » puis coller le texte. Le fichier se nomme{" "}
-          <span data-testid="deck-export-filename">{fileName}</span>.
+        <div className="segmented segmented--wide" role="radiogroup" aria-label="Format de l'export">
+          {EXPORT_FORMATS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={format === option.id}
+              className={format === option.id ? "segmented__item segmented__item--on" : "segmented__item"}
+              onClick={() => chooseFormat(option.id)}
+              data-testid={`deck-export-format-${option.id}`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint" data-testid="deck-export-hint">
+          {info.hint} Le fichier se nomme <span data-testid="deck-export-filename">{fileName}</span>.
         </p>
         {text === undefined ? (
           <LoadingState caption="Lecture de la liste…" />
         ) : (
           <>
             <label htmlFor={`${id}-text`} className="sr-only">
-              Liste au format texte de VDB
+              Liste au format {info.label}
             </label>
             <textarea
               id={`${id}-text`}

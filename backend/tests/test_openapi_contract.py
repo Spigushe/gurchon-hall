@@ -149,6 +149,12 @@ EXPECTED_OPERATIONS = {
     ("delete", "/moi/sessions"): "revokeOtherSessions",
     ("delete", "/moi/sessions/{session_id}"): "revokeSession",
     ("get", "/moi/export"): "exportAccount",
+    # Lot 13, étape A1 : liens publics vers une decklist (A1).
+    ("get", "/decks/{deck_id}/partages"): "listDeckShares",
+    ("post", "/decks/{deck_id}/partages"): "createDeckShare",
+    ("get", "/moi/partages"): "listMyShares",
+    ("delete", "/moi/partages"): "purgeShares",
+    ("get", "/listes/{token}"): "readSharedDecklist",
 }
 
 

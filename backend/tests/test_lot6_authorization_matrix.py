@@ -169,6 +169,12 @@ _PROTECTED_ROUTES = [
     ("DELETE", "/moi/sessions", None),
     ("DELETE", "/moi/sessions/1", None),
     ("GET", "/moi/export", None),
+    # Lot 13, étape A1 : liens publics vers une decklist (A1). La lecture
+    # publique, `GET /listes/{token}`, n'exige aucune session.
+    ("GET", "/decks/1/partages", None),
+    ("POST", "/decks/1/partages", {"kind": "frozen", "show_notes": True}),
+    ("GET", "/moi/partages", None),
+    ("DELETE", "/moi/partages?scope=selected&share_id=1", None),
 ]
 
 

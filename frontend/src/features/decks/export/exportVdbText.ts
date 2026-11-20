@@ -80,7 +80,7 @@ export function vdbName(name: string): string {
   return match ? `${match[1]}, The` : name;
 }
 
-function cryptName(row: DeckTableRow, reprinted: ReadonlySet<number>): string {
+export function cryptName(row: DeckTableRow, reprinted: ReadonlySet<number>): string {
   const card = row.facts?.card;
   const base = vdbName(row.name);
   if (card?.advanced) return `${base} (ADV)`;
@@ -134,13 +134,16 @@ function compareCrypt(a: { row: DeckTableRow; name: string }, b: { row: DeckTabl
   return capacityB - capacityA || compareFolded(a.name, b.name);
 }
 
-const compareFolded = (a: string, b: string) => {
+export const compareFolded = (a: string, b: string) => {
   const foldedA = foldText(a);
   const foldedB = foldText(b);
   return foldedA < foldedB ? -1 : foldedA > foldedB ? 1 : 0;
 };
 
-/** Les lignes de crypte, en colonnes alignées comme chez VDB. */
+/**
+ * Les lignes de crypte, en colonnes alignées comme chez VDB, par capacité
+ * décroissante puis nom (le `TWD` aussi, par choix, cf. `exportVdbTwd.ts`).
+ */
 export function cryptLines(rows: readonly DeckTableRow[], reprinted: ReadonlySet<number>): string[] {
   const cells = rows
     .map((row) => ({
@@ -172,7 +175,7 @@ export function cryptLines(rows: readonly DeckTableRow[], reprinted: ReadonlySet
   );
 }
 
-interface ExportGroup {
+export interface ExportGroup {
   label: string;
   rank: number;
   size: number;
@@ -209,17 +212,17 @@ export function libraryGroups(rows: readonly DeckTableRow[]): ExportGroup[] {
   );
 }
 
-const sumQuantity = (rows: readonly DeckTableRow[]) => rows.reduce((sum, row) => sum + row.quantity, 0);
+export const sumQuantity = (rows: readonly DeckTableRow[]) => rows.reduce((sum, row) => sum + row.quantity, 0);
 
-/** `Master (18; 7 trifle)` souligné, puis les cartes par nom exporté. */
-function groupBlock(group: ExportGroup): string[] {
+/** `Master (18; 7 trifle)`, souligné de `-` sauf pour le `TWD`, puis les cartes par nom exporté. */
+export function groupBlock(group: ExportGroup, underlined = true): string[] {
   const trifles = group.rows.reduce((sum, row) => sum + (isTrifle(row.facts?.details ?? null) ? row.quantity : 0), 0);
   const title = `${group.label} (${sumQuantity(group.rows)}${trifles > 0 ? `; ${trifles} trifle` : ""})`;
   const cards = group.rows
     .map((row) => ({ quantity: row.quantity, name: vdbName(row.name) }))
     .sort((a, b) => compareFolded(a.name, b.name))
     .map((card) => `${card.quantity}x ${card.name}`);
-  return [title, "-".repeat(title.length + 1), ...cards];
+  return [title, ...(underlined ? ["-".repeat(title.length + 1)] : []), ...cards];
 }
 
 function headerLines(name: string, description: string | null | undefined): string[] {
@@ -229,16 +232,23 @@ function headerLines(name: string, description: string | null | undefined): stri
   return [...lines, "", ""];
 }
 
+/** Les lignes fusionnées du deck, séparées en crypte et bibliothèque (commun aux quatre formats). */
+export function splitDeck(input: VdbExportInput): { crypt: DeckTableRow[]; library: DeckTableRow[] } {
+  const rows = mergeDeckLines(input.lines, input.facts);
+  return {
+    crypt: rows.filter((row) => row.facts?.card.category === "crypt"),
+    library: rows.filter((row) => row.facts?.card.category !== "crypt"),
+  };
+}
+
 /** Le texte complet, lignes séparées par `\n`, terminé par un saut de ligne. */
 export function exportVdbText(input: VdbExportInput): string {
   const reprinted = input.reprinted ?? new Set<number>();
-  const rows = mergeDeckLines(input.lines, input.facts);
-  const crypt = rows.filter((row) => row.facts?.card.category === "crypt");
-  const library = rows.filter((row) => row.facts?.card.category !== "crypt");
+  const { crypt, library } = splitDeck(input);
 
   const cryptTitle = cryptHeader(crypt);
   const libraryTitle = `Library (${sumQuantity(library)} cards)`;
-  const groups = libraryGroups(library).map(groupBlock);
+  const groups = libraryGroups(library).map((group) => groupBlock(group));
   const out = [
     ...headerLines(input.name, input.description),
     cryptTitle,

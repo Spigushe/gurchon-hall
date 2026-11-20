@@ -1,7 +1,9 @@
 # Lot 13 — Partage (v1.2) : plan d'implémentation
 
 Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
-décisions de conception reprises en conséquence ; A1 à lancer. Rédigé sur la
+décisions de conception reprises en conséquence ; **A1, D1 et D4 livrées le
+2026-11-20** (cf. « Livré à A1 », « Livré à D1 », « Livré à D4 ») ; B1 à
+lancer. Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
@@ -195,7 +197,8 @@ que ça change :
 - l'alphabet est `[A-Za-z0-9_]` : les 62 lettres et chiffres, plus `_`, sûr
   dans une adresse comme dans un hash. `-` l'aurait été aussi, mais une
   messagerie peut couper la ligne sur un tiret ; `_` a le défaut inverse,
-  masqué par le soulignement d'un lien. À confirmer à A1, `_` par défaut ;
+  masqué par le soulignement d'un lien. `_` confirmé par l'utilisateur le
+  2026-11-20 ;
 - 63⁸, soit environ 2,5 × 10¹⁴ jetons (47,8 bits, contre 256). À 60 essais
   par minute et par IP (A4), 86 400 essais par jour ont environ trois
   chances et demie sur dix millions de tomber sur l'un de mille liens
@@ -465,6 +468,38 @@ publique existante, aucune opération nouvelle. `/listes` rejoint
 chemins. Dupliquer et Comparer n'ajoutent aucune route : ils lisent
 `GET /listes/{token}` et écrivent par `/sync`.
 
+**Précisé à A1 (2026-11-20)** :
+
+- `DeckShareRead`, rendu par les trois routes du propriétaire, porte `id`,
+  `token`, `kind`, `show_notes`, `created_at`, `frozen_name` (le nom que
+  montre la page d'un figé, nul pour un vivant), `deck_version_number` (la
+  version qu'un figé a copiée, « v3 », plutôt que son identifiant, que le
+  client ne manipule pas) et `deck`, l'état du deck (`SharedDeckState` : `id`,
+  `name`, `discriminator`, `archived_at`, `deleted_at`). Un seul schéma pour
+  les deux listes : la feuille de partage d'un deck et « Listes partagées »
+  lisent la même forme, et `deck.deleted_at` dit au client quels liens ranger
+  à part, sans case (P5). Les deux listes vont du plus récent au plus
+  ancien ;
+- le 422 de `deck_version_number` sur un lien vivant est tenu par le schéma
+  (`DeckShareCreate`), règle de forme ; le contrôle croisé de `scope` et
+  `share_id` est tenu par la route (`check_purge_selection`, 422 au format de
+  FastAPI, `loc` `["query", "share_id"]`), qui dédoublonne la sélection ;
+- `reprinted_card_ids` suit exactement `reprintedCardIds` du client
+  (`features/decks/export/exportVdbText.ts`) : les cartes de crypte non
+  *advanced* de la liste dont le nom replié est porté par une autre carte de
+  crypte non *advanced* de plus petit identifiant VEKN ; par identifiant
+  croissant ;
+- la route publique documente au contrat ses deux en-têtes de réponse
+  (`Cache-Control`, `X-Robots-Tag`) et son 429, pour que B2 n'ait pas à
+  toucher au contrat ;
+- **écart au découpage** : le filtre `ids` de `GET /cartes` est implémenté
+  dès A1 (deux lignes, `Card.id.in_(ids)`), plutôt qu'à B2 : un paramètre
+  déclaré mais ignoré aurait rendu en silence tout le catalogue. Il se combine
+  aux autres filtres, et `limit` et `offset` s'appliquent encore (le client
+  porte `limit` au nombre d'identifiants) ;
+- tag `partages` pour les cinq opérations, toutes dans
+  `app/routers/shares.py`.
+
 ### A2. Révision R16 : `deck_share` et `deck_share_card`
 
 `deck_share` : `id` en `AUTOINCREMENT` (un identifiant supprimé n'est jamais
@@ -484,6 +519,27 @@ de tourner s'il existe un lien (une saisie de l'utilisateur, comme
 `deck.vdb_deck_id` à R14). Seconde révision appliquée à la production, après
 un essai sur une copie de la base servie comme pour R15. Modèle à 30 tables,
 seize révisions.
+
+**Amendé à A1 (2026-11-20)** :
+
+- **la descente ne se rend pas hors ligne**, contrairement à ce qui précède :
+  sa garde lit la base (combien de liens ?), et une descente rendue sans
+  garde supprimerait les liens sans prévenir. Même choix que R10, R13 et R14.
+  La montée, elle, se rend hors ligne ;
+- le CHECK du jeton porte la forme entière, pas seulement la longueur :
+  `length(token) = 8 AND token NOT GLOB '*[^A-Za-z0-9_]*'`
+  (`ck_deck_share_token_format`), `GLOB` étant sensible à la casse et propre
+  à SQLite, comme le CHECK du discriminant ;
+- un CHECK de plus, `ck_deck_share_frozen_fields_match_kind` : un vivant n'a
+  ni `frozen_*` ni `deck_version_id`, un figé a toujours son `frozen_name` ;
+- pas de clé étrangère simple de `user_id` vers `user_account` : la composite
+  vers `deck` l'implique, comme pour `deck_version` ;
+- un index (`user_id`, `deck_id`), `ix_deck_share_user_id_deck_id`, pour les
+  liens d'un compte et ceux d'un deck ; l'unicité du jeton porte son propre
+  index ;
+- pas de `updated_at` : un lien ne se modifie pas, il se crée puis se purge ;
+- révision `dda2c510a2f2`, modèle dans `app/models/share.py`, genre dans
+  `DeckShareKind` (`app/models/enums.py`).
 
 ### A3. Service
 
@@ -635,7 +691,7 @@ demande).
 | Étape | Contenu | Agent |
 | --- | --- | --- |
 | A0 | P1 à P10 tranchées, ce fichier mis à jour | utilisateur, orchestrateur |
-| A1 | contrat (cinq opérations, filtre `ids` de `GET /cartes`), R16, schémas, client TS régénéré, chiffres de départ recomptés | architecte-contrat |
+| A1 | contrat (cinq opérations, filtre `ids` de `GET /cartes`), R16, schémas, client TS régénéré, chiffres de départ recomptés — **fait le 2026-11-20** (cf. « Livré à A1 ») | architecte-contrat |
 | B1 | service des liens, routes sous session, trois purges, suppression d'un deck qui révoque les vivants et garde les figés | backend-fastapi |
 | B2 | route publique : limite, cache, 404 uniforme, matrice d'autorisation ; filtre `ids` ; export du compte | backend-fastapi |
 | C1 | `API_ROUTE_PREFIXES`, interception de `#/liste/` dans `main.tsx` sans base ni moteur | pwa-offline |
@@ -650,6 +706,89 @@ demande).
 
 D1 et D4 ne dépendent ni du contrat ni de R16 : elles peuvent commencer dès
 A0, en parallèle d'A1.
+
+### Livré à A1 (2026-11-20)
+
+- **Chiffres de départ recomptés** avant toute modification, sur la branche
+  à `28e14ae` : 3028 tests backend collectés (3026 verts et 2 `xfail`), 57
+  opérations sur 36 chemins au contrat, 28 tables, quinze révisions (tête
+  `c4e8a1f2d7b3`). Ceux de la clôture du Lot 12 tiennent : les mises à jour
+  Dependabot et la PR #66 n'ont ajouté aucun test backend. Côté front, A1
+  n'ajoute aucun test vitest ; la suite complète, lancée pendant A1 avec les
+  travaux de D1 et D4 en cours dans l'arbre, compte 1753 tests sur 99
+  fichiers, tous verts (1720 sur 97 à la clôture du Lot 12, la différence
+  venant de D1 et D4).
+- **Modèle et R16** : `DeckShare` et `DeckShareCard` dans
+  `app/models/share.py`, `DeckShareKind` (`live`, `frozen`) dans
+  `app/models/enums.py`, constantes `SHARE_TOKEN_LENGTH` et
+  `SHARE_TOKEN_ALPHABET` (63 caractères, `_` en dernier). Révision
+  `dda2c510a2f2`
+  (`migrations/versions/20261120_dda2c510a2f2_liens_publics_vers_une_decklist.py`) :
+  deux `CREATE TABLE` et un index, sans conversion, montée rendue hors ligne,
+  descente gardée (refus avant toute modification dès qu'un lien existe,
+  nombre cité) et non rendue hors ligne (A2 amendée). **30 tables, seize
+  révisions.** Aucun `upgrade` lancé sur `backend/vtes.db`.
+- **Schémas** (`app/schemas/share.py`) : `DeckShareCreate` (`kind`
+  obligatoire, `show_notes` faux par défaut, `deck_version_number` borné,
+  refusé sur un vivant), `DeckShareRead`, `SharedDeckState`,
+  `SharePurgeScope`, `SharePurgeResult`, `SharedDeckCardRead`
+  (`{card: CardSearchItem, quantity}`), `SharedDecklistRead`
+  (`reprinted_card_ids` défini au paragraphe « Précisé à A1 » d'A1). Aucun
+  `user_id` ; pas de jeton dans la lecture publique.
+- **Routes** (`app/routers/shares.py`, tag `partages`) :
+  `GET`/`POST /decks/{deck_id}/partages`, `GET`/`DELETE /moi/partages`,
+  `GET /listes/{token}` (sans dépendance de session, motif du jeton au
+  chemin, 404, 429, `Cache-Control` et `X-Robots-Tag` déclarés). Filtre `ids`
+  de `GET /cartes` implémenté (A1 précisée). Contrat à **62 opérations sur 39
+  chemins**, `contracts/openapi.json` exporté, client TS régénéré, `/listes`
+  ajouté à `API_ROUTE_PREFIXES`.
+- **Garde provisoire** : le corps des cinq routes rend **501** (« Route pas
+  encore livrée (Lot 13, étape B1). », B2 pour la route publique), après le
+  contrôle de session, la validation du chemin, du corps et de la requête,
+  et le contrôle croisé de `scope` et `share_id`. **À retirer à B1 et B2**,
+  avec `test_each_session_route_is_not_delivered_yet` et
+  `test_the_public_route_is_not_delivered_yet_but_needs_no_session`. La
+  limite de débit de la route publique est au contrat mais pas posée : elle
+  vient à B2 (`SHARED_LIST_RATE_LIMIT` à créer dans
+  `app/services/rate_limit.py`, sur le patron de `VDB_RATE_LIMIT`, décorateur
+  `@limiter.limit` avec `request` en paramètre).
+- **Export du compte** : `deck_share` figure dans
+  `PENDING_EXPORT_TABLES` de `test_lot12_account_export.py`, pour que le test
+  de couverture des tables privées reste vert ; **B2 la verse dans
+  `EXPORTED_TABLES`** en l'exportant (A5), et retire l'ensemble.
+- **Tests** : `backend/tests/test_lot13_contract.py` (45 : déclaration des
+  cinq routes, réponses, paramètres de la purge et du filtre `ids`, schémas
+  sans propriétaire, règles de `DeckShareCreate`, 422 du jeton et de la
+  purge avant la garde, filtre `ids` en vrai, tables au modèle) ; section
+  « Lot 13 » de `test_migrations.py` (24 : CHECK nommés, index, quatorze
+  refus de la base, cascade, identifiant jamais réattribué, figé d'un deck
+  supprimé, montée sur base peuplée sans perte, descente sans lien,
+  descente refusée avec deux liens, aller-retour au DDL près, rendu hors
+  ligne de la montée, refus hors ligne de la descente) ; quatre routes de
+  plus dans la matrice d'autorisation ; compteurs de tables, d'opérations
+  et de révisions mis à jour ; un lien figé de plus dans le jeu complet de
+  `test_models_smoke.py` (« toute table accepte une ligne »).
+- **Vérifications à la fin d'A1** : `ruff check` propre ; pytest sous
+  couverture, **3099 verts et 2 `xfail`** (3101 collectés, 73 de plus qu'au
+  départ : 45 du contrat, 24 de migration, 4 de la matrice) ; CRAP back sur
+  447 fonctions, aucune au-dessus de 30 (pire 21), aucune régression par
+  rapport à la référence ; `export_openapi.py --check` à jour ; côté front,
+  `npm run lint`, `tsc -p tsconfig.app.json` et `npm run typecheck:tests`
+  propres, tests vitest du contrat et des routes (`apiRoutes`, `api-client`,
+  `barrel`, `routes`) verts, 28 sur 5 fichiers. La suite vitest complète,
+  relancée en parallèle de pytest avec D1 et D4 en cours, a donné 1752 verts
+  sur 1753 : l'échec (`decks.test.tsx`, « borne le nombre de proxies à
+  convertir… ») ne touche aucun fichier d'A1 et passe seul (52 sur 52),
+  instabilité sous charge du type déjà relevé aux Lots 5c et 6.
+- **Ce qui reste à B1** : `app/services/shares.py` (tirage du jeton,
+  copie d'un figé, depuis la liste courante ou une version, lectures du
+  propriétaire triées du plus récent au plus ancien, trois purges), corps des
+  quatre routes sous session, suppression d'un deck qui retire ses vivants
+  dans sa transaction. **À B2** : corps de la route publique (vivant lu sur
+  `deck_card` sommé par carte, figé sur `deck_share_card`, auteur, notes
+  selon `show_notes`, `reprinted_card_ids`), limite, en-têtes, 404 uniforme,
+  matrice d'autorisation (exception publique, cookie ignoré), export du
+  compte (A5, `format_version` 2).
 
 ## Tests attendus (E)
 
@@ -727,3 +866,120 @@ recollés dans VDB retrouvent la même liste ; l'art de l'extension s'affiche
 dans la Collection en ligne et le pictogramme hors ligne ; les quatre acquis
 de la v1 (§3 de CLAUDE.md) tiennent, file en attente rejouée après la mise à
 jour comprise ; v1.2.0 en production, CLAUDE.md à jour.
+
+## Livré à D1 (2026-11-20)
+
+Exports `TWD`, `JOL` et `LACKEY`, front seul : aucune route, aucun champ de
+contrat, aucun type `/sync`, aucune migration, aucune version Dexie.
+
+- **Une fonction pure par format**, dans `features/decks/export/` :
+  `exportVdbTwd.ts`, `exportVdbJol.ts`, `exportVdbLackey.ts`, sur les mêmes
+  entrées qu'`exportVdbText`. Le commun est resté dans `exportVdbText.ts`,
+  désormais exporté (`splitDeck`, `cryptName`, `compareFolded`, `sumQuantity`,
+  `groupBlock(group, underlined)`, `cryptLines(rows, reprinted)`) ; la
+  sortie du `TEXT` n'a pas bougé. `exportFormats.ts` porte le registre des
+  quatre formats (libellé, suffixe de fichier, aide), `exportAs` et la
+  mémorisation du choix.
+- **Règles relevées sur les huit fixtures, pas de mémoire** :
+  - `TWD` : sept lignes d'en-tête entre crochets, `-- [Scores]`, `Deck Name:`,
+    `Description:` suivi du gabarit littéral `[Description]` (les notes du deck
+    ne sont pas reprises, pas de ligne d'auteur) ; crypte soulignée de `-` sur la
+    longueur de son titre ; `Library (n cards)` et titres de type **sans
+    soulignement** ; groupes séparés par une ligne vide ;
+  - `JOL` : `2xNom`, sans espace ni en-tête, crypte puis bibliothèque, chacune
+    par nom replié ; `(ADV)` gardé ;
+  - `LACKEY` : bibliothèque d'abord par nom, `Crypt:`, puis la crypte par nom ;
+    quantité calée sur 8 caractères ; noms en ASCII (`lackeyName` : accents
+    retirés, `ł ø œ æ ß…` transcrits, `/` supprimé, tout autre caractère non
+    ASCII retiré).
+- **Deux écarts voulus à VDB sur le `TWD`** (décisions de l'utilisateur du
+  2026-11-20) : la crypte est rangée **par capacité décroissante, puis par nom**,
+  comme le `TEXT`, là où l'export réel (`ref-twd.txt`) la range par quantité
+  décroissante puis nom ; et la ligne `[Format]` de l'en-tête n'est pas écrite,
+  vivant comme version de tournoi. Les fixtures réelles ne sont pas touchées :
+  le test dérive l'attendu de la fixture (crypte reprise dans l'ordre du
+  `TEXT`, `[Format]` retiré) et nomme l'écart. `JOL` et `LACKEY` restent fidèles
+  aux fixtures (crypte alphabétique, code distinct de celui du `TWD`). Date ISO
+  et lieu « nom, ville » de l'en-tête gardés (décision du même jour).
+- **Écart assumé, `(G6)`** : seuls `TEXT` et `TWD` écrivent la marque de groupe
+  d'un vampire réimprimé. Aucune fixture ne l'établit pour `JOL` et `LACKEY` ;
+  un nom seul se relit, à l'import du Lot 9, comme la version d'origine ou celle
+  que la crypte rend légale.
+- **En-tête du `TWD` d'une version jouée en tournoi** (`useVersionEvent`,
+  `useDeckExportText.ts`) : lu dans le miroir seulement, hors ligne. Nom du
+  tournoi, lieu (nom et ville du lieu du tournoi, à défaut du lieu de la partie
+  qui a figé la version), date de début (`AAAA-MM-JJ`, la forme de la
+  description de `ref-text.txt`), nombre de joueurs quand il est saisi.
+  Vainqueur et lien d'événement gardent leur gabarit `[…]`, de même que tout
+  champ non saisi ; version sans tournoi ou deck vivant : en-tête vide (sans
+  `[Format]`). `TWD_HINTS` n'est pas écrit.
+- **Feuille d'export** (`DeckExportSheet`) : quatre puces `TEXT | TWD | JOL |
+  LACKEY` (`segmented`, `role="radiogroup"`, `deck-export-format-<id>`), `TEXT`
+  par défaut, choix mémorisé par appareil sous `gurchon-hall:export-format`
+  (`localStorage` sous `try/catch`, valeur inconnue : `TEXT`). La feuille reçoit
+  les quatre textes (`useDeckExportTexts`) et le nom de fichier par suffixe ;
+  `exportFileName` gagne le suffixe : `Banu Princes#1234 (JOL).txt`,
+  `Banu Princes#1234 v2 (TWD).txt`. Depuis un deck et depuis la liste d'une
+  version jouée, aux deux largeurs (même composant).
+- **Tests** : `exportVdbFormats.test.ts` (15) compare les trois formats aux
+  six fixtures `ref-*` et `difficile-*` à l'octet près, sur des decks
+  reconstitués depuis les exports `TEXT` des mêmes fixtures (un garde-fou
+  vérifie que la reconstitution redonne le `TEXT`), puis l'en-tête rempli ou
+  vide, les cas limites (ASCII, liste vide) et le registre ; `exportFile.test.ts`
+  (+5, suffixes) ; `deckExport.test.tsx` (+5 : quatre puces, mémorisation,
+  valeur inconnue, nom de fichier téléchargé, `TWD` d'une version de tournoi
+  et sans tournoi).
+- **Captures** (`tests/visual-baseline/lot13-d1-d4.spec.ts`, back de test
+  jetable, sortie `docs/qa-baselines/lot13-d1-d4/mobile-390x844/` et
+  `desktop-1440x900/`) : `01` à `04` feuille d'export depuis un deck (TEXT, TWD,
+  JOL, LACKEY) ; `05` version v1 jouée au « Championnat de Lyon » en TWD,
+  en-tête rempli (Le Repaire, Lyon ; 2026-10-24 ; 13 joueurs).
+- **`data-testid`** ajoutés : `deck-export-format-text`, `-twd`, `-jol`,
+  `-lackey`, `deck-export-hint`. Aucun disparu.
+
+## Livré à D4 (2026-11-20)
+
+Art de l'extension dans la Collection, front seul, en ligne seulement.
+
+- **`PrintingImage`** (`features/catalog/PrintingImage.tsx`) : image de
+  l'impression lue par `useCardOnline` et `printingImage`, puis l'image générique
+  du miroir, puis le pictogramme, sans la mise en page du picker. L'aperçu au
+  survol du tableau bureau (`StockList`) s'en sert : le composant n'est monté
+  que quand l'aperçu s'ouvre, si bien qu'aucune fiche n'est lue pour les lignes
+  qu'on ne survole pas. Il remplace la lecture de `CardRow.imageUrl` seule.
+- **Feuille d'entrée** (`StockForm`, aux deux largeurs) : `ChosenCardImage` dans
+  un conteneur `stock-form-image`. En création, l'image suit le sélecteur
+  d'extension (présélection sur la dernière version, puis le choix) ; en
+  modification, c'est celle de l'impression de l'entrée. Bureau : image `sm` ;
+  mobile : variante `enlargeable` (toucher pour agrandir), absente hors ligne
+  (conteneur vide masqué par `:empty`). L'image générique de repli d'une
+  entrée modifiée est lue dans le miroir (`useCardsById`).
+- **Pas d'image dans la liste mobile** (décision) : aucune fiche n'est lue
+  pour la liste, vérifié par un test.
+- **Hors ligne** : le tableau garde son pictogramme, la feuille de création un
+  conteneur sans image, aucun appel.
+- **Écart** : `ChosenCardImage` n'a pas reçu de prop d'identifiant de test ; son
+  `deck-card-form-image` reste celui de l'image elle-même, y compris dans la
+  Collection (le recensement des `data-testid` le compte comme littéral), et le
+  conteneur de la Collection porte `stock-form-image`.
+- **Captures** (même spec, mêmes dossiers ; les images krcg se chargent sur
+  cette machine, ce sont de vraies images) : `06` bureau, aperçu au survol en
+  ligne (`06-collection-apercu-en-ligne`) puis hors ligne (`07`, pictogramme) ;
+  mobile, `06-collection-liste-sans-image` ; `08` feuille de création
+  (extension la plus récente) puis `09` après changement d'extension, `10` au
+  mobile image agrandie ; `11` feuille de modification, `12` au mobile image
+  agrandie ; `13` feuille de modification hors ligne.
+- **Tests** : `tests/unit/ui/stockArt.test.tsx` (7) : aperçu au survol,
+  repli générique puis pictogramme hors ligne, feuille bureau en modification,
+  création qui suit l'extension, feuille mobile (agrandir, rien hors ligne),
+  création hors ligne, liste mobile sans image ni lecture.
+- **`data-testid`** ajouté : `stock-form-image`. Aucun disparu (777 en
+  référence, tous présents).
+
+### Chiffres à la clôture de D1 et D4
+
+`npm run lint`, `tsc --noEmit -p tsconfig.app.json` et `npm run typecheck:tests`
+propres. 1753 tests vitest sur 99 fichiers (1720 sur 97 à la clôture du Lot 12 :
++32 tests de D1 et D4, +2 fichiers). Contrôle CRAP : « Aucune régression ».
+`testid-census --check` : aucun identifiant disparu. Aucun e2e Playwright ajouté
+ni modifié.

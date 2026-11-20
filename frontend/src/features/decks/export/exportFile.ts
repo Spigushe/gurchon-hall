@@ -14,14 +14,20 @@ const withoutControls = (value: string) =>
  * `Banu Princes#1234.txt`, `Banu Princes#1234 v2.txt` pour une version jouée ;
  * sans discriminant (deck pas encore synchronisé), le nom seul. Les
  * caractères interdits deviennent `_`, les points et espaces de bord tombent.
+ * Les formats du Lot 13 ajoutent le leur : `Banu Princes#1234 v2 (TWD).txt`.
  */
-export function exportFileName(name: string, discriminator: string | null, version?: number): string {
+export function exportFileName(
+  name: string,
+  discriminator: string | null,
+  version?: number,
+  suffix?: string | null,
+): string {
   const base = `${name}${discriminator ? `#${discriminator}` : ""}${version !== undefined ? ` v${version}` : ""}`;
   const safe = withoutControls(base)
     .replace(FORBIDDEN, "_")
     .replace(/\s+/g, " ")
     .replace(/^[\s.]+|[\s.]+$/g, "");
-  return `${safe || "deck"}.txt`;
+  return `${safe || "deck"}${suffix ? ` (${suffix})` : ""}.txt`;
 }
 
 export type CopyOutcome = "copied" | "fallback";

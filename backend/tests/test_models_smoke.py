@@ -43,6 +43,9 @@ from app.models import (
     DeckArchetype,
     DeckCard,
     DeckPolicy,
+    DeckShare,
+    DeckShareCard,
+    DeckShareKind,
     DeckStatus,
     DeckVersion,
     DeckVersionCard,
@@ -275,6 +278,19 @@ def seeded(session):
             ),
         ]
     )
+
+    # Un lien public figé sur cette version, avec sa liste copiée (Lot 13).
+    share = DeckShare(
+        user_id=user_id,
+        deck_id=deck.id,
+        token="aB3x_9pQ",
+        kind=DeckShareKind.FROZEN,
+        frozen_name=deck.name,
+        frozen_archetype=DeckArchetype.BLEED,
+        deck_version_id=version.id,
+    )
+    share.cards.append(DeckShareCard(card_id=card.id, quantity=4))
+    session.add(share)
 
     # Journal de la file hors ligne (Lot 3) : la création du deck ci-dessus,
     # telle qu'elle serait revenue d'un `POST /sync`. Aucune clé étrangère —

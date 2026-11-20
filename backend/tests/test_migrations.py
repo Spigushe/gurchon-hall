@@ -53,7 +53,8 @@ REQUIREMENT_REVISION = "8ab23342a26f"  # exigence des cartes (lot Chercher, R12)
 VERSIONS_REVISION = "ac6cda5ad252"  # versions jouées et deck adverse (Lot 8, R13)
 VDB_LINK_REVISION = "5f2b8e9d0c41"  # lien VDB sur le deck (Lot 9, R14)
 SESSION_DEVICE_REVISION = "c4e8a1f2d7b3"  # appareil, dernière utilisation (Lot 12, R15)
-HEAD_REVISION = SESSION_DEVICE_REVISION
+SHARES_REVISION = "dda2c510a2f2"  # liens publics vers une decklist (Lot 13, R16)
+HEAD_REVISION = SHARES_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -70,6 +71,7 @@ REVISIONS = [
     VERSIONS_REVISION,
     VDB_LINK_REVISION,
     SESSION_DEVICE_REVISION,
+    SHARES_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -92,6 +94,8 @@ EXPECTED_TABLES = {
     "clan",
     "deck",
     "deck_card",
+    "deck_share",
+    "deck_share_card",
     "deck_version",
     "deck_version_card",
     "deleted_deck_card",
@@ -107,6 +111,11 @@ EXPECTED_TABLES = {
     "user_account",
     "venue",
 }
+
+# Les deux tables du Lot 13 (R16) : absentes de toute base montée à R15 ou
+# avant.
+LOT13_TABLES = {"deck_share", "deck_share_card"}
+TABLES_BEFORE_LOT13 = EXPECTED_TABLES - LOT13_TABLES
 
 SEEDED_LANGUAGES = [
     ("EN", "Anglais", 10),
@@ -254,7 +263,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Treize révisions à la suite, sans branche : une racine, une tête."""
+    """Seize révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -266,11 +275,11 @@ def test_history_has_a_single_head_and_a_single_root():
 # --------------------------------------------------------------------------
 
 
-def test_upgrade_head_creates_the_twenty_eight_tables(empty_db):
+def test_upgrade_head_creates_the_thirty_tables(empty_db):
     assert not empty_db.exists()
     alembic(empty_db, "upgrade", "head")
     assert table_names(empty_db) == EXPECTED_TABLES
-    assert len(table_names(empty_db) - {"alembic_version"}) == 28
+    assert len(table_names(empty_db) - {"alembic_version"}) == 30
 
 
 def test_upgrade_head_stamps_the_revision(migrated):
@@ -379,7 +388,7 @@ def test_migrated_schema_equals_the_models_schema(migrated, tmp_path):
 
     from_migration = snapshot_of(migrated)
 
-    assert len(from_models) == 28
+    assert len(from_models) == 30
     assert set(from_migration) == set(from_models)
     for table in from_models:
         assert from_migration[table] == from_models[table], table
@@ -2802,7 +2811,8 @@ def test_head_gives_an_autoincrement_key_to_the_four_tables_and_the_versions(
 ):
     """Les tables migrées et celles des modèles sont les mêmes ; rien d'autre.
     Les quatre de R11, plus `deck_version` (Lot 8, R13) : un client garde
-    l'identifiant d'une version dans son miroir."""
+    l'identifiant d'une version dans son miroir ; plus `deck_share` (Lot 13,
+    R16) : un lien purgé ne rend jamais son identifiant à un autre."""
     models_path = tmp_path / "models.db"
     engine = create_engine(url_for(models_path))
     try:
@@ -2810,8 +2820,9 @@ def test_head_gives_an_autoincrement_key_to_the_four_tables_and_the_versions(
     finally:
         engine.dispose()
 
-    assert autoincrement_tables(migrated) == {*NEVER_REUSED, "deck_version"}
-    assert autoincrement_tables(models_path) == {*NEVER_REUSED, "deck_version"}
+    expected = {*NEVER_REUSED, "deck_version", "deck_share"}
+    assert autoincrement_tables(migrated) == expected
+    assert autoincrement_tables(models_path) == expected
 
 
 @pytest.mark.parametrize(
@@ -3072,7 +3083,7 @@ def test_the_requirement_revision_adds_no_table(empty_db):
     before = table_names(empty_db)
     alembic(empty_db, "upgrade", REQUIREMENT_REVISION)
     # Les trois tables du Lot 8 (R13) viennent après.
-    assert table_names(empty_db) == before == EXPECTED_TABLES - {
+    assert table_names(empty_db) == before == TABLES_BEFORE_LOT13 - {
         "deck_version",
         "deck_version_card",
         "tournament_deck_version",
@@ -3620,7 +3631,7 @@ def test_the_vdb_link_revision_adds_no_table_and_no_index(empty_db):
 
     alembic(empty_db, "upgrade", VDB_LINK_REVISION)
 
-    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert table_names(empty_db) == tables == TABLES_BEFORE_LOT13
     assert rows(
         empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
     ) == indexes
@@ -3803,7 +3814,7 @@ def test_the_session_device_revision_adds_no_table_and_no_index(empty_db):
 
     alembic(empty_db, "upgrade", SESSION_DEVICE_REVISION)
 
-    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert table_names(empty_db) == tables == TABLES_BEFORE_LOT13
     assert rows(
         empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
     ) == indexes
@@ -3912,4 +3923,294 @@ def test_the_session_device_revision_renders_offline_in_both_directions(empty_db
     assert "ALTER TABLE auth_session DROP COLUMN last_used_at" in down.stdout
     assert "ALTER TABLE auth_session DROP COLUMN user_agent" in down.stdout
     assert "CREATE TABLE" not in down.stdout
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot 13 : liens publics vers une decklist (R16)
+# --------------------------------------------------------------------------
+
+SHARE_INSERT = (
+    "INSERT INTO deck_share (id, user_id, deck_id, token, kind, show_notes,"
+    " frozen_name, frozen_archetype, frozen_notes, deck_version_id) VALUES {}"
+)
+
+
+def share_insert(values: str) -> str:
+    return SHARE_INSERT.format(f"({values})")
+
+
+@pytest.fixture
+def shared(versioned) -> Path:
+    """La tête de `versioned`, avec trois liens du compte 1 : un vivant du
+    deck 1, un figé de la liste courante du deck 2, un figé de la version 1
+    du deck 1, et la liste copiée des deux figés."""
+    execute(
+        versioned,
+        SHARE_INSERT.format(
+            "(1, 1, 1, 'aB3x_9pQ', 'live', 0, NULL, NULL, NULL, NULL),"
+            " (2, 1, 2, 'Zz_00000', 'frozen', 1, 'Wall', 'wall', 'Notes', NULL),"
+            " (3, 1, 1, '________', 'frozen', 0, 'Banu Princes', 'vote', NULL, 1)"
+        ),
+    )
+    execute(
+        versioned,
+        "INSERT INTO deck_share_card (deck_share_id, card_id, quantity)"
+        " VALUES (2, 1, 4), (3, 1, 12), (3, 2, 60)",
+    )
+    assert foreign_key_violations(versioned) == []
+    return versioned
+
+
+def test_head_creates_the_two_share_tables_with_their_named_checks(migrated):
+    engine = create_engine(url_for(migrated))
+    try:
+        inspector = inspect(engine)
+        checks = {
+            table: {check["name"] for check in inspector.get_check_constraints(table)}
+            for table in LOT13_TABLES
+        }
+        uniques = inspector.get_unique_constraints("deck_share")
+        indexes = inspector.get_indexes("deck_share")
+    finally:
+        engine.dispose()
+    assert checks == {
+        "deck_share": {
+            "ck_deck_share_token_format",
+            "ck_deck_share_frozen_fields_match_kind",
+            "ck_deck_share_deck_share_kind",
+            "ck_deck_share_deck_archetype",
+        },
+        "deck_share_card": {"ck_deck_share_card_quantity_positive"},
+    }
+    assert [(u["name"], u["column_names"]) for u in uniques] == [
+        ("uq_deck_share_token", ["token"])
+    ]
+    assert [(i["name"], i["column_names"]) for i in indexes] == [
+        ("ix_deck_share_user_id_deck_id", ["user_id", "deck_id"])
+    ]
+
+
+def _bad_share(values: str, refused_by: str, label: str):
+    return pytest.param(share_insert(values), refused_by, id=label)
+
+
+@pytest.mark.parametrize(
+    ("statement", "refused_by"),
+    [
+        _bad_share(
+            "9, 1, 1, 'aB3x_9p', 'live', 0, NULL, NULL, NULL, NULL",
+            "ck_deck_share_token_format",
+            "jeton de sept caractères",
+        ),
+        _bad_share(
+            "9, 1, 1, 'aB3x_9pQQ', 'live', 0, NULL, NULL, NULL, NULL",
+            "ck_deck_share_token_format",
+            "jeton de neuf caractères",
+        ),
+        _bad_share(
+            "9, 1, 1, 'aB3x-9pQ', 'live', 0, NULL, NULL, NULL, NULL",
+            "ck_deck_share_token_format",
+            "tiret dans le jeton",
+        ),
+        _bad_share(
+            "9, 1, 1, 'aB3x_9pé', 'live', 0, NULL, NULL, NULL, NULL",
+            "ck_deck_share_token_format",
+            "lettre accentuée dans le jeton",
+        ),
+        _bad_share(
+            "9, 1, 1, 'aB3x_9pQ', 'live', 0, NULL, NULL, NULL, NULL",
+            "UNIQUE",
+            "jeton déjà pris",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'shared', 0, NULL, NULL, NULL, NULL",
+            # Le CHECK des genres, ou celui des champs figés, déclaré avant lui.
+            "CHECK constraint failed: ck_deck_share_",
+            "genre inconnu",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'live', 0, 'Nom', NULL, NULL, NULL",
+            "ck_deck_share_frozen_fields_match_kind",
+            "vivant avec un nom copié",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'live', 0, NULL, NULL, NULL, 1",
+            "ck_deck_share_frozen_fields_match_kind",
+            "vivant avec une version",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'frozen', 0, NULL, NULL, NULL, NULL",
+            "ck_deck_share_frozen_fields_match_kind",
+            "figé sans nom copié",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'frozen', 0, 'Nom', 'stealth', NULL, NULL",
+            "ck_deck_share_deck_archetype",
+            "archétype hors des six",
+        ),
+        _bad_share(
+            "9, 1, 3, 'Nouveau1', 'live', 0, NULL, NULL, NULL, NULL",
+            "FOREIGN KEY",
+            "deck d'un autre compte",
+        ),
+        _bad_share(
+            "9, 1, 1, 'Nouveau1', 'frozen', 0, 'Nom', NULL, NULL, 2",
+            "FOREIGN KEY",
+            "version d'un autre deck",
+        ),
+        pytest.param(
+            "INSERT INTO deck_share_card (deck_share_id, card_id, quantity)"
+            " VALUES (2, 2, 0)",
+            "ck_deck_share_card_quantity_positive",
+            id="quantité nulle",
+        ),
+        pytest.param(
+            "INSERT INTO deck_share_card (deck_share_id, card_id, quantity)"
+            " VALUES (2, 999, 1)",
+            "FOREIGN KEY",
+            id="carte inconnue",
+        ),
+    ],
+)
+def test_head_enforces_the_share_rules(shared, statement, refused_by):
+    assert refused_by in refusal(shared, statement)
+
+
+def test_head_drops_the_cards_of_a_purged_share(shared):
+    engine = create_app_engine(url_for(shared))
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM deck_share WHERE id = 3"))
+    finally:
+        engine.dispose()
+    assert rows(
+        shared, "SELECT deck_share_id, card_id FROM deck_share_card ORDER BY 1, 2"
+    ) == [(2, 1)]
+
+
+def test_head_never_gives_a_purged_share_identifier_again(shared):
+    execute(shared, "DELETE FROM deck_share WHERE id = 3")
+    execute(
+        shared,
+        share_insert("NULL, 1, 1, 'Nouveau1', 'live', 0, NULL, NULL, NULL, NULL"),
+    )
+    assert scalar(shared, "SELECT MAX(id) FROM deck_share") == 4
+
+
+def test_head_keeps_the_frozen_share_of_a_deleted_deck(shared):
+    """Un deck ne se supprime que logiquement : le figé garde sa clé (P5)."""
+    execute(shared, "UPDATE deck SET deleted_at = '2026-11-20 10:00:00' WHERE id = 2")
+    assert foreign_key_violations(shared) == []
+    assert scalar(shared, "SELECT COUNT(*) FROM deck_share WHERE deck_id = 2") == 1
+
+
+def populated_at_r15(db_path: Path) -> None:
+    """La base peuplée des tests de R13 à R15, montée à R15."""
+    populated_at_r14_with_sessions(db_path)
+    alembic(db_path, "upgrade", SESSION_DEVICE_REVISION)
+
+
+def test_upgrade_keeps_every_row_and_adds_two_empty_tables(empty_db):
+    """Aucune conversion : toutes les tables ressortent identiques, DDL
+    compris, et les deux tables du lot naissent vides."""
+    populated_at_r15(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+
+    alembic(empty_db, "upgrade", SHARES_REVISION)
+
+    after = every_row(empty_db)
+    assert table_names(empty_db) == EXPECTED_TABLES
+    assert {t: lines for t, lines in after.items() if t not in LOT13_TABLES} == before
+    assert after["deck_share"] == after["deck_share_card"] == []
+    assert [
+        row
+        for row in schema_text(empty_db)
+        if row[2] not in LOT13_TABLES and row[1] != "sqlite_sequence"
+    ] == ddl_before
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_downgrade_without_a_share_drops_both_tables_and_keeps_every_row(empty_db):
+    populated_at_r15(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+    alembic(empty_db, "upgrade", SHARES_REVISION)
+
+    alembic(empty_db, "downgrade", SESSION_DEVICE_REVISION)
+
+    assert table_names(empty_db) == TABLES_BEFORE_LOT13
+    assert every_row(empty_db) == before
+    assert schema_text(empty_db) == ddl_before
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == SESSION_DEVICE_REVISION
+    )
+
+
+def test_downgrade_refuses_a_share_before_any_change(empty_db):
+    """Un lien est une saisie de l'utilisateur, peut-être déjà envoyé : la
+    descente s'arrête et compte les liens, avant toute modification."""
+    populated_at_r15(empty_db)
+    alembic(empty_db, "upgrade", SHARES_REVISION)
+    execute(
+        empty_db,
+        SHARE_INSERT.format(
+            "(1, 1, 3, 'aB3x_9pQ', 'live', 0, NULL, NULL, NULL, NULL),"
+            " (2, 1, 3, 'Zz_00000', 'frozen', 0, 'Figé', NULL, NULL, NULL)"
+        ),
+    )
+    ddl_before = schema_text(empty_db)
+    data_before = every_row(empty_db)
+
+    result = alembic(empty_db, "downgrade", SESSION_DEVICE_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "2 lien(s) public(s)" in output
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == SHARES_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+    assert every_row(empty_db) == data_before
+
+
+def test_the_shares_revision_round_trip_keeps_the_ddl_and_the_rows(empty_db):
+    populated_at_r15(empty_db)
+    alembic(empty_db, "upgrade", SHARES_REVISION)
+    ddl = schema_text(empty_db)
+    data = every_row(empty_db)
+
+    alembic(empty_db, "downgrade", SESSION_DEVICE_REVISION)
+    alembic(empty_db, "upgrade", SHARES_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert every_row(empty_db) == data
+
+
+def test_the_shares_revision_upgrade_renders_offline(empty_db):
+    up = alembic(
+        empty_db, "upgrade", f"{SESSION_DEVICE_REVISION}:{SHARES_REVISION}", "--sql"
+    )
+    assert "CREATE TABLE deck_share (" in up.stdout
+    assert "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT" in up.stdout
+    assert "CREATE TABLE deck_share_card (" in up.stdout
+    assert "CREATE INDEX ix_deck_share_user_id_deck_id" in up.stdout
+    assert "ALTER TABLE" not in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_shares_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{SHARES_REVISION}:{SESSION_DEVICE_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
     assert not empty_db.exists()
