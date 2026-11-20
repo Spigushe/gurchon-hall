@@ -576,7 +576,7 @@
           "catalogue"
         ],
         "summary": "Recherche dans le catalogue",
-        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais seulement (sous-chaîne, sans tenir compte de la casse ni des accents) : ni les noms traduits ni le texte, que la recherche locale du client compare, elle. Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`), et tout ce que les filtres de l'écran Chercher lisent : secte, titre, coût, prérequis, disciplines, types, texte anglais, dates de légalité, exigence envers le vampire et noms traduits. Les autres filtres sont ceux du client, sur son miroir local, pas des paramètres de cette route.",
+        "description": "Cartes du catalogue VEKN, triées par nom. `q` cherche dans le nom anglais seulement (sous-chaîne, sans tenir compte de la casse ni des accents) : ni les noms traduits ni le texte, que la recherche locale du client compare, elle. Chaque carte porte ses extensions d'impression et celle de sa dernière version (`latest_card_set_id`), et tout ce que les filtres de l'écran Chercher lisent : secte, titre, coût, prérequis, disciplines, types, texte anglais, dates de légalité, exigence envers le vampire et noms traduits. Les autres filtres sont ceux du client, sur son miroir local, pas des paramètres de cette route. `ids` lit des cartes connues par leur identifiant (Lot 13 : cartes ajoutées par la révision d'une liste partagée).",
         "operationId": "listCards",
         "parameters": [
           {
@@ -654,6 +654,31 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "ids",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "maximum": 2147483647,
+                    "minimum": 1
+                  },
+                  "minItems": 1,
+                  "maxItems": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Identifiants de cartes (`id`, pas `vekn_id`), répété (`ids=12&ids=40`), de 1 à 200 (Lot 13) : ne rend que ces cartes, un identifiant inconnu étant simplement absent. Se combine aux autres filtres ; `limit` et `offset` s'appliquent encore, à porter au nombre d'identifiants.",
+              "title": "Ids"
+            },
+            "description": "Identifiants de cartes (`id`, pas `vekn_id`), répété (`ids=12&ids=40`), de 1 à 200 (Lot 13) : ne rend que ces cartes, un identifiant inconnu étant simplement absent. Se combine aux autres filtres ; `limit` et `offset` s'appliquent encore, à porter au nombre d'identifiants."
           }
         ],
         "responses": {
@@ -4654,6 +4679,423 @@
           }
         }
       }
+    },
+    "/decks/{deck_id}/partages": {
+      "get": {
+        "tags": [
+          "partages"
+        ],
+        "summary": "Liens publics d'un deck",
+        "description": "Les liens du deck, du plus récent au plus ancien, chacun avec son jeton. Lisible pour un deck supprimé, qui ne garde que ses liens figés (les vivants sont révoqués avec lui, P5). En ligne seulement, hors du miroir.",
+        "operationId": "listDeckShares",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeckShareRead"
+                  },
+                  "title": "Response Listdeckshares"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "partages"
+        ],
+        "summary": "Crée un lien public vers la liste d'un deck",
+        "description": "Tire un jeton de huit caractères et crée un lien `live` (suit le deck) ou `frozen` (copie la liste courante, ou la version jouée `deck_version_number`, avec le nom, l'archétype et, si `show_notes`, les notes du moment). Un deck archivé se partage ; un deck supprimé, non (409). 404 pour un deck inconnu ou d'un autre compte, et pour un numéro de version que le deck n'a pas ; 422 pour `deck_version_number` sur un lien vivant. En ligne seulement, hors `/sync` : le serveur fige la liste qu'il connaît (P4).",
+        "operationId": "createDeckShare",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "deck_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Deck Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeckShareCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckShareRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/moi/partages": {
+      "get": {
+        "tags": [
+          "partages"
+        ],
+        "summary": "Tous les liens publics du compte",
+        "description": "Tous les liens du compte, decks supprimés compris, du plus récent au plus ancien, chacun avec l'état de son deck (`deck.archived_at`, `deck.deleted_at`) : l'écran Compte les groupe par deck et range à part ceux des decks supprimés (P5).",
+        "operationId": "listMyShares",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeckShareRead"
+                  },
+                  "title": "Response Listmyshares"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "partages"
+        ],
+        "summary": "Purge des liens publics",
+        "description": "Seul moyen de révoquer un lien (P5) ; un lien purgé rend 404 à sa lecture publique, dans la minute (cache). `scope=selected` : les liens `share_id`, tous refusés si l'un est inconnu ou d'un autre compte (404 « Lien N introuvable. ») ou vise un deck supprimé (409), rien n'étant alors purgé. `scope=deleted_decks` : les liens figés des decks supprimés. `scope=all` : tous les liens du compte. Ces deux dernières sont idempotentes (`revoked` à 0 au second appel). Rend le nombre de liens purgés.",
+        "operationId": "purgeShares",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "scope",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/SharePurgeScope",
+              "description": "`selected` (les liens `share_id`), `deleted_decks` (les liens des decks supprimés) ou `all` (tous)."
+            },
+            "description": "`selected` (les liens `share_id`), `deleted_decks` (les liens des decks supprimés) ou `all` (tous)."
+          },
+          {
+            "name": "share_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "maximum": 2147483647,
+                    "minimum": 1
+                  },
+                  "minItems": 1,
+                  "maxItems": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Liens à purger, répété (`share_id=3&share_id=7`), de 1 à 200, avec `scope=selected` seulement : 422 s'il manque, ou s'il accompagne une autre portée.",
+              "title": "Share Id"
+            },
+            "description": "Liens à purger, répété (`share_id=3&share_id=7`), de 1 à 200, avec `scope=selected` seulement : 422 s'il manque, ou s'il accompagne une autre portée."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharePurgeResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/listes/{token}": {
+      "get": {
+        "tags": [
+          "partages"
+        ],
+        "summary": "Lit une liste partagée (publique)",
+        "description": "**Publique** : ni session ni cookie, et un cookie envoyé n'y change rien. Nom du deck sans discriminant, archétype, nom d'utilisateur du propriétaire, notes si le lien les montre, et cartes entières avec leurs quantités ; jamais de langue, d'extension, de proxy ni rien de la collection. 422 pour un jeton hors motif, avant toute lecture ; 429 au-delà de la limite de débit par adresse IP ; 404 « Liste introuvable. », le même pour un jeton inconnu, purgé ou dont le deck a été supprimé (lien vivant).",
+        "operationId": "readSharedDecklist",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 8,
+              "pattern": "^[A-Za-z0-9_]{8}$",
+              "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_` (`aB3x_9pQ`). La casse compte. Il est l'adresse publique de la liste (`#/liste/<jeton>` côté client) : quiconque le connaît la lit.",
+              "title": "Token"
+            },
+            "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_` (`aB3x_9pQ`). La casse compte. Il est l'adresse publique de la liste (`#/liste/<jeton>` côté client) : quiconque le connaît la lit."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La liste partagée.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SharedDecklistRead"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "`public, max-age=60` : une purge prend effet en une minute au plus (A4). Jamais `private` : la réponse ne dépend d'aucune session.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Robots-Tag": {
+                "description": "`noindex` : une liste partagée ne s'indexe pas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai avant une nouvelle tentative, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6992,6 +7434,118 @@
         "type": "object",
         "title": "DeckRef",
         "description": "Désignation d'un deck : son identifiant serveur, ou sa référence client.\n\nExactement l'un des deux. `deck_id` pour un deck que le client a déjà vu\nrevenir du serveur ; `client_ref` pour un deck créé hors ligne, dont\nl'identifiant n'existe pas encore au moment où la file est constituée."
+      },
+      "DeckShareCreate": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DeckShareKind",
+            "description": "`live` : le lien suit le deck, la page montre sa composition au moment de la lecture. `frozen` : la page montre la liste copiée à la création du lien, avec le nom, l'archétype et les notes de ce moment."
+          },
+          "show_notes": {
+            "type": "boolean",
+            "title": "Show Notes",
+            "description": "Montre les notes sur la page publique : celles du deck, lues à chaque consultation pour un vivant, copiées à la création pour un figé. Faux par défaut, les notes pouvant porter des remarques privées.",
+            "default": false
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2147483647.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number",
+            "description": "Numéro de la version jouée à figer (« v3 »), pour un lien `frozen` seulement ; omis ou nul, le figé copie la liste courante du deck. 422 sur un lien `live`, 404 pour un numéro que le deck n'a pas."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "DeckShareCreate",
+        "description": "Corps de `POST /decks/{id}/partages` : un lien neuf (P1, P2).\n\nLe nom du deck, son archétype et le nom d'utilisateur sont montrés sur\ntout lien, sans option ; seules les notes se choisissent. Pour figer une\nversion jouée (Lot 8) plutôt que la liste courante, `deck_version_number`\nla désigne."
+      },
+      "DeckShareKind": {
+        "type": "string",
+        "enum": [
+          "live",
+          "frozen"
+        ],
+        "title": "DeckShareKind",
+        "description": "Genre d'un lien public vers une decklist (Lot 13, P1).\n\n`LIVE` suit le deck : chaque consultation montre sa composition du moment.\n`FROZEN` montre la liste copiée à la création du lien (`deck_share_card`),\navec le nom, l'archétype et les notes de ce moment ; une version jouée se\npartage toujours en figé."
+      },
+      "DeckShareRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_` (`aB3x_9pQ`). La casse compte. Il est l'adresse publique de la liste (`#/liste/<jeton>` côté client) : quiconque le connaît la lit."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeckShareKind",
+            "description": "`live` : le lien suit le deck, la page montre sa composition au moment de la lecture. `frozen` : la page montre la liste copiée à la création du lien, avec le nom, l'archétype et les notes de ce moment."
+          },
+          "show_notes": {
+            "type": "boolean",
+            "title": "Show Notes",
+            "description": "Vrai si la page publique montre les notes."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Création du lien (UTC) ; pour un figé, date de la liste copiée."
+          },
+          "frozen_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen Name",
+            "description": "Nom du deck copié à la création d'un figé, celui que montre la page publique ; nul pour un vivant, qui montre le nom actuel du deck."
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number",
+            "description": "Numéro de la version jouée qu'un figé a copiée (« v3 ») ; nul pour un vivant et pour un figé de la liste courante."
+          },
+          "deck": {
+            "$ref": "#/components/schemas/SharedDeckState"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "kind",
+          "show_notes",
+          "created_at",
+          "frozen_name",
+          "deck_version_number",
+          "deck"
+        ],
+        "title": "DeckShareRead",
+        "description": "Un lien du compte, avec son jeton, pour son propriétaire seulement.\n\nRendu par `POST /decks/{id}/partages`, `GET /decks/{id}/partages` et\n`GET /moi/partages`. Le jeton est en clair (P3) : le propriétaire peut\nrecopier son lien à tout moment."
       },
       "DeckStatus": {
         "type": "string",
@@ -9535,6 +10089,191 @@
         ],
         "title": "SessionRead",
         "description": "Une session ouverte du compte : `GET /moi/sessions` (P1).\n\nNi jeton ni empreinte. `user_agent` est l'en-tête brut noté à la\nconnexion : le client en tire le libellé lisible (« Chrome sur Android »),\nqui aide à reconnaître un appareil sans rien prouver."
+      },
+      "SharePurgeResult": {
+        "properties": {
+          "revoked": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revoked",
+            "description": "Liens supprimés par la purge. 0 au second appel d'une purge `deleted_decks` ou `all`, qui sont idempotentes."
+          }
+        },
+        "type": "object",
+        "required": [
+          "revoked"
+        ],
+        "title": "SharePurgeResult",
+        "description": "Réponse de `DELETE /moi/partages` : le nombre de liens purgés."
+      },
+      "SharePurgeScope": {
+        "type": "string",
+        "enum": [
+          "selected",
+          "deleted_decks",
+          "all"
+        ],
+        "title": "SharePurgeScope",
+        "description": "Portée d'une purge de liens (P5), seul moyen de révoquer un lien.\n\n`SELECTED` : les liens désignés par `share_id`, tous de decks non\nsupprimés. `DELETED_DECKS` : les liens figés survivants des decks\nsupprimés (leurs vivants sont tombés avec le deck). `ALL` : tous les liens\ndu compte."
+      },
+      "SharedDeckCardRead": {
+        "properties": {
+          "card": {
+            "$ref": "#/components/schemas/CardSearchItem"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Quantity",
+            "description": "Exemplaires, toutes impressions confondues."
+          }
+        },
+        "type": "object",
+        "required": [
+          "card",
+          "quantity"
+        ],
+        "title": "SharedDeckCardRead",
+        "description": "Une carte d'une liste partagée, avec sa quantité totale.\n\nLa carte entière (`CardSearchItem`, la forme de `GET /cartes`) : la page\npublique n'a pas de miroir du catalogue, et en tire seule ses tableaux et\nses exports."
+      },
+      "SharedDeckState": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nom actuel du deck."
+          },
+          "discriminator": {
+            "type": "string",
+            "title": "Discriminator",
+            "description": "Discriminant du deck, à coller au nom (« Banu Princes#1234 »)."
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At",
+            "description": "Instant d'archivage (UTC), nul sinon."
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deleted At",
+            "description": "Instant de suppression logique (UTC), nul sinon. Un deck supprimé ne garde que ses liens figés."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "discriminator",
+          "archived_at",
+          "deleted_at"
+        ],
+        "title": "SharedDeckState",
+        "description": "Le deck d'un lien, tel que son propriétaire le voit (écran Compte, P5).\n\nUn lien d'un deck supprimé ne se purge pas à l'unité : `deleted_at` dit au\nclient de le ranger à part, sans case à cocher."
+      },
+      "SharedDecklistRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Nom du deck, sans son discriminant."
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Un des six archétypes (Lot 8) : `bleed`, `vote`, `wall`, `toolbox`, `rush`, `combo`, ou rien. Les libellés affichés (Bleed, Vote…) vivent côté client."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeckShareKind",
+            "description": "`live` : le lien suit le deck, la page montre sa composition au moment de la lecture. `frozen` : la page montre la liste copiée à la création du lien, avec le nom, l'archétype et les notes de ce moment."
+          },
+          "frozen_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen At",
+            "description": "Date de la liste copiée (UTC) pour un figé ; nul pour un vivant."
+          },
+          "author": {
+            "type": "string",
+            "title": "Author",
+            "description": "Nom d'utilisateur du propriétaire (son handle public), toujours montré et lu à la consultation."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes",
+            "description": "Notes du deck (copiées pour un figé), si le lien les montre ; nul sinon."
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/SharedDeckCardRead"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Carte × quantité totale, langues et extensions confondues, par identifiant de carte croissant. Vide pour un deck sans carte.",
+            "default": []
+          },
+          "reprinted_card_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Reprinted Card Ids",
+            "description": "Identifiants (`card.id`) des cartes de crypte non *advanced* de la liste dont le nom est porté par une autre carte de crypte non *advanced* du catalogue, de plus petit identifiant VEKN : la version récente d'un vampire réimprimé, que l'export marque de son groupe (« (G6) »), comme VDB. Triés par identifiant croissant.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "archetype",
+          "kind",
+          "frozen_at",
+          "author",
+          "notes",
+          "cards",
+          "reprinted_card_ids"
+        ],
+        "title": "SharedDecklistRead",
+        "description": "Une liste partagée, lue sans session par `GET /listes/{token}` (P2).\n\nJamais : langue, extension, proxies, disponibilités, versions, parties, ni\nrien de la collection. Pour un vivant, nom, archétype, notes et cartes sont\nceux du deck au moment de la lecture ; pour un figé, ceux copiés à la\ncréation du lien."
       },
       "StockDeleteOperation": {
         "properties": {

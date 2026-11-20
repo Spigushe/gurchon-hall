@@ -4,6 +4,7 @@ Le catalogue est en lecture seule côté API (il vient de l'import krcg) ; seule
 la liste des langues, ouverte par décision (§11), accepte des ajouts.
 """
 
+from collections.abc import Sequence
 from datetime import date
 
 from sqlalchemy import func, select
@@ -210,6 +211,7 @@ def list_cards(
     q: str | None = None,
     category: CardCategory | None = None,
     clan_id: int | None = None,
+    ids: Sequence[int] | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> list[CardSearchItem]:
@@ -233,6 +235,8 @@ def list_cards(
         stmt = stmt.where(Card.category == category)
     if clan_id is not None:
         stmt = stmt.where(Card.clan_id == clan_id)
+    if ids:
+        stmt = stmt.where(Card.id.in_(ids))
     stmt = stmt.order_by(*folded_order(Card.name), Card.group_code, Card.id)
     stmt = stmt.limit(limit).offset(offset)
     return [_card_read(card, CardSearchItem) for card in db.scalars(stmt)]

@@ -17,6 +17,17 @@ describe("exportFileName", () => {
     const [name, discriminator, version] = args as readonly [string, string | null, number?];
     expect(exportFileName(name, discriminator, version)).toBe(expected);
   });
+
+  it.each([
+    [["Banu Princes", "1234", undefined, "JOL"], "Banu Princes#1234 (JOL).txt"],
+    [["Banu Princes", "1234", 2, "TWD"], "Banu Princes#1234 v2 (TWD).txt"],
+    [["Banu Princes", null, undefined, "LACKEY"], "Banu Princes (LACKEY).txt"],
+    [["Banu Princes", "1234", 2, null], "Banu Princes#1234 v2.txt"],
+    [["...", null, undefined, "JOL"], "deck (JOL).txt"],
+  ] as const)("suffixe de format %j → %s", (args, expected) => {
+    const [name, discriminator, version, suffix] = args as readonly [string, string | null, number | undefined, string | null];
+    expect(exportFileName(name, discriminator, version, suffix)).toBe(expected);
+  });
 });
 
 describe("copyText", () => {

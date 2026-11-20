@@ -5418,6 +5418,16 @@ fieldset:disabled .chip {
   padding-top: 6px;
 }
 
+/* Art de l'extension dans la feuille d'entrée de la Collection (Lot 13, D4). */
+.stock-form-image {
+  display: flex;
+  align-items: flex-start;
+}
+
+.stock-form-image:empty {
+  display: none;
+}
+
 .search-from-deck {
   display: flex;
   align-items: center;

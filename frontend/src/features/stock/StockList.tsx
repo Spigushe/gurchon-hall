@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CaretDownIcon, CaretUpIcon, ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
-import { CardImage } from "../../components/CardImage";
 import { LoadingState } from "../../components/Loading";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
@@ -12,6 +11,7 @@ import {
   type StockSortColumn,
   type StockSortDir,
 } from "./stockSort";
+import { PrintingImage } from "../catalog/PrintingImage";
 import { useCardSetOptions } from "./useCardSetOptions";
 import { useCardsById } from "./useCardsById";
 
@@ -402,7 +402,7 @@ function StockTable({
                 )}
                 {previewKey === rowKey && (
                   <div className="stock-table__preview" data-testid="stock-table-preview">
-                    <CardImage src={card?.imageUrl} alt={name} size="lg" />
+                    <PrintingImage cardId={entry.cardId} cardSetId={entry.cardSetId} fallbackSrc={card?.imageUrl} alt={name} size="lg" />
                   </div>
                 )}
               </div>

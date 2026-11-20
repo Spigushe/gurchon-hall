@@ -11,6 +11,7 @@ Découpage :
 * `collection`— la collection possédée (langue, proxy) et les decks ;
 * `play`      — joueurs, parties, tournois, participations ;
 * `sync`      — journal d'idempotence de la file hors ligne (`POST /sync`) ;
+* `share`     — liens publics vers une decklist (Lot 13) ;
 * `account`   — comptes et sessions (Lot 6), propriétaires de tout le reste.
 """
 
@@ -37,6 +38,7 @@ from app.models.enums import (
     CostType,
     DeckArchetype,
     DeckPolicy,
+    DeckShareKind,
     DeckStatus,
     DisciplineRequirement,
     EventTier,
@@ -67,6 +69,7 @@ from app.models.reference import (
     Sect,
     Venue,
 )
+from app.models.share import DeckShare, DeckShareCard
 from app.models.sync import SyncOperation
 
 __all__ = [
@@ -89,6 +92,9 @@ __all__ = [
     "DeckArchetype",
     "DeckCard",
     "DeckPolicy",
+    "DeckShare",
+    "DeckShareCard",
+    "DeckShareKind",
     "DeckStatus",
     "DeckVersion",
     "DeckVersionCard",

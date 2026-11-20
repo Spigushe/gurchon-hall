@@ -10,7 +10,9 @@ import { CATEGORY_LABELS, cardLabel, cardSetLabel, plural } from "../../labels";
 import { useConnectivity } from "../../offline/react";
 import { useVtesOffline, type CardRow, type LocalStockEntry } from "../../offline/vtes";
 import { CardPicker } from "../catalog/CardPicker";
+import { ChosenCardImage } from "../catalog/ChosenCardImage";
 import { useCardSetOptions } from "./useCardSetOptions";
+import { useCardsById } from "./useCardsById";
 import { useLanguageOptions } from "./useLanguageOptions";
 
 const MAX_INT = 2_147_483_647;
@@ -22,6 +24,8 @@ interface Chosen {
   cardSetIds: number[];
   /** Extension de la dernière version de la carte (D2a), calculée par le serveur. */
   latestCardSetId: number;
+  /** Image générique de la carte (miroir), repli de l'art de l'extension ; `null` quand le miroir ne la connaît pas. */
+  imageUrl: string | null;
 }
 
 /**
@@ -61,6 +65,8 @@ export function StockForm({
   const isDesktop = useIsDesktop();
   const [confirming, setConfirming] = useState(false);
 
+  // L'entrée modifiée n'a que son identifiant : l'image générique se lit dans le miroir (Lot 13, D4).
+  const editedCards = useCardsById(editing ? [editing.cardId] : []);
   const [chosen, setChosen] = useState<Chosen | null>(() => chosenOf(editing));
   const [languageCode, setLanguageCode] = useState(editing?.languageCode ?? "FR");
   const [cardSetId, setCardSetId] = useState<number | null>(editing?.cardSetId ?? null);
@@ -85,6 +91,7 @@ export function StockForm({
       label: cardLabel(card),
       cardSetIds: card.cardSetIds,
       latestCardSetId: card.latestCardSetId,
+      imageUrl: card.imageUrl,
     });
     setCardSetId(card.latestCardSetId);
     setInvalid(null);
@@ -180,6 +187,20 @@ export function StockForm({
             <CardPicker onSelect={pick} />
           ))}
 
+        {chosen && (
+          <div className="stock-form-image" data-testid="stock-form-image">
+            <ChosenCardImage
+              card={{
+                cardId: chosen.cardId,
+                label: chosen.label,
+                imageUrl: chosen.imageUrl ?? editedCards?.get(chosen.cardId)?.imageUrl ?? null,
+              }}
+              cardSetId={effectiveCardSetId}
+              enlargeable={!isDesktop}
+            />
+          </div>
+        )}
+
         <div className="field">
           <LanguageChips
             legend="Langue"
@@ -254,6 +275,7 @@ function chosenOf(editing: LocalStockEntry | null): Chosen | null {
     label: editing.cardName ?? `Carte n° ${editing.cardId}`,
     cardSetIds: [editing.cardSetId],
     latestCardSetId: editing.cardSetId,
+    imageUrl: null,
   };
 }
 

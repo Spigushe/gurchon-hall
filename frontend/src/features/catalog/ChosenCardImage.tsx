@@ -9,6 +9,9 @@ import { printingImage, useCardOnline } from "./useCardOnline";
  * à la demande en ligne, puis l'image générique du miroir, puis le
  * pictogramme. On parle ici d'un exemplaire précis, d'où l'impression.
  *
+ * Lot 13 (D4) : la feuille d'entrée de la Collection s'en sert aussi, pour
+ * l'art de l'extension de l'exemplaire (son conteneur porte `stock-form-image`).
+ *
  * `enlargeable` (mobile) : l'image n'est montrée qu'en ligne, la ligne restant
  * celle d'avant hors ligne, et un toucher l'agrandit ou la réduit.
  */
