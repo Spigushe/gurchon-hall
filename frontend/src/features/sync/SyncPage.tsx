@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { Kbd } from "../../components/Kbd";
 import { Pill } from "../../components/Pill";
+import { BackRow } from "../../components/Sheet";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
+import { navigate } from "../../app/routes";
 import { formatTime, plural } from "../../labels";
 import { type OutboxEntry } from "../../offline/core";
 import { useFlush, usePendingOperations, useRejectedOperations, useSyncStatus } from "../../offline/react";
@@ -129,6 +131,7 @@ export function SyncPage() {
         onTrigger: () => {
           if (!flushDisabled) void action.run(flush);
         },
+        legend: "Synchroniser maintenant",
       },
       {
         keys: ["mod+enter"],
@@ -136,6 +139,7 @@ export function SyncPage() {
           detailRef.current?.querySelector<HTMLFormElement>('[data-testid="correction-form"]')?.requestSubmit();
         },
         allowInEditableTarget: true,
+        legend: "Valider la correction",
       },
     ],
     { enabled: isDesktop },
@@ -143,7 +147,11 @@ export function SyncPage() {
 
   return (
     <div className="page" data-testid="sync-page">
-      <p className="kicker">Synchronisation</p>
+      {/* Plus d'onglet pour revenir (Lot 12, A11) : l'écran s'ouvre depuis Compte. */}
+      <div>
+        <BackRow label="Compte" onClick={() => navigate({ name: "account" })} data-testid="sync-back" />
+        <p className="kicker">Synchronisation</p>
+      </div>
 
       <div className="sync-columns" data-testid={isDesktop ? "sync-columns" : undefined}>
         <div className="sync-master">

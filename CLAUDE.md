@@ -4,14 +4,14 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9 et 11 livrés,
-v1.0.0 en ligne depuis le 2026-11-17**
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11 et 12 livrés,
+v1.0.0 en ligne depuis le 2026-11-17, v1.1.0 (Lot 12) en cours de mise en service**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
 vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphone le
-2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17,
-§12). Lot 0 : squelette
+2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17 ;
+Lot 12 testé le 2026-11-20, étape F, mise en service, en cours, §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -88,15 +88,26 @@ rôles copiés de ce dépôt dans `ops/roles/` depuis le 2026-11-17 (`gurchon.sp
 sauvegarde avant chaque déploiement et chaque nuit ; la release v1.0.0 y tourne en
 production (guide dans `docs/deploiement.md`, décisions au §11). **Feuille de route de
 la v2 arrêtée le 2026-11-17** : Lots 12 à 17, puis les suggestions de decklists et
-Archon (§12, décisions dans `docs/roadmap-v2-proposition.md`). Le modèle compte **28 tables** et
-quatorze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+Archon (§12, décisions dans `docs/roadmap-v2-proposition.md`). Lot 12 (v1.1),
+consolidation sans fonctionnalité métier nouvelle : écran Compte (`#/compte`) avec
+changement de mot de passe, sessions ouvertes et fermeture, export complet du compte
+(cinq routes sous `/moi`) ; sessions glissantes, 14 jours sans usage et 90 jours au
+plus (R15, `auth_session.user_agent` et `last_used_at`) ; journaux JSON de l'API et
+`scripts/sync_report.py` ; service worker en mode `prompt`, avec une mise à jour qui
+attend la file ; tris repliés des deux côtés ; légende des raccourcis `?` ; état
+« catalogue en cours de chargement » ; Synchronisation atteinte depuis l'écran Compte ;
+sauvegardes recopiées sur le poste par `ops/fetch_backups.sh` ; onglets Joués, Actifs,
+Brouillons, Archivés et Tous dans Decks (plan dans
+`docs/lot12-plan-consolidation.md`, handoff `docs/design-handoff/LOT12.md`,
+décisions au §11). Le modèle compte **28 tables** et
+quinze révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot), `docs/` (briefs de lot) et `ops/` (playbook du Lot 11).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (2848 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (3026 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -109,18 +120,22 @@ deux relevés : l'outil des mises en service, depuis le lot Chercher),
 (comptes, Lot 6, `check-me` au Lot 7 ; le mot de passe se saisit au clavier par `getpass`, jamais en argument),
 `uv run python scripts/vdb_stub.py <dossier> [--etat avant|apres]` (Lot 9 : remplit
 un dossier de réponses de VDB tirées des fixtures ; avec `VDB_STUB_DIR` pointé dessus,
-le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e).
-Front (depuis `frontend/`) : `npm run lint`, `npm run test` (vitest, 1569 tests sur 89 fichiers, à lancer depuis PowerShell en
+le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e),
+`uv run python scripts/sync_report.py <base> [--since AAAA-MM-JJ] [--until …] [--user N] [--json]`
+(Lot 12 : refus `/sync` comptés par motif, par type et par jour, base ouverte en
+lecture seule, sur le VPS ou sur une copie).
+Front (depuis `frontend/`) : `npm run lint`, `npm run typecheck:tests` (contrôle de
+types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 1720 tests sur 97 fichiers, à lancer depuis PowerShell en
 `C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
-`npm run test:e2e` (Playwright, 90 tests sur quatre projets : à 390 × 844, 8 dans
-`chromium` et 47 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 32 dans
+`npm run test:e2e` (Playwright, 98 tests sur quatre projets : à 390 × 844, 8 dans
+`chromium` et 51 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 3 dans `desktop` et 36 dans
 `desktop-real-backend` ; si un back de développement tourne et que
 `frontend/.env.local` pointe dessus, comme après `run.ps1 preview`, deux tests du
 projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
 Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
 si le code a changé depuis),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot9-cloture.txt`
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot12-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -141,7 +156,8 @@ automatique ; `SCHEMA_REVISION_CHECK=false` ramène l'arrêt à un avertissement
 aux tests). Cette base n'est pas versionnée. **Depuis le 2026-11-12 (F0 du Lot 8),
 elle est repartie de zéro** : supprimée, montée par `upgrade head` à `ac6cda5ad252`
 (R13), catalogue réimporté (4212 cartes), puis migrée pendant le Lot 9 à
-`5f2b8e9d0c41` (R14, la tête, un `ADD COLUMN` sans conversion). Elle ne contient plus que des données de
+`5f2b8e9d0c41` (R14, un `ADD COLUMN` sans conversion), et pendant le Lot 12 à
+`c4e8a1f2d7b3` (R15, la tête, deux `ADD COLUMN`). Elle ne contient plus que des données de
 recette et deux comptes, le compte historique (`id = 1`) laissé non réclamé et un
 compte créé par `manage_accounts.py create` (`id = 2`). Ce qui suit, jusqu'à la
 réclamation du 2026-10-02, décrit l'ancienne base, et les sauvegardes `.bak` qu'il
@@ -196,14 +212,19 @@ neuve), puis `upgrade head` avant de relancer l'import.
 `/moi`, et depuis le Lot 7 `/joueurs`, `/lieux`, `/tournois`, `/parties` (dont
 `PUT /parties/{id}/participations`), et depuis le Lot 8 `GET /decks/{id}/versions`
 et `GET /decks/{id}/versions/{number}/legalite`, et depuis le Lot 9
-`GET /vdb/decks/{vdb_deck_id}` — 52 opérations sur 32 chemins au contrat, détail au §7. Hors catalogue et authentification, toute route exige une session. Une UI
+`GET /vdb/decks/{vdb_deck_id}`, et depuis le Lot 12 `POST /moi/mot-de-passe`,
+`GET /moi/sessions`, `DELETE /moi/sessions`, `DELETE /moi/sessions/{session_id}` et
+`GET /moi/export` — 57 opérations sur 36 chemins au contrat, détail au §7. Hors catalogue et authentification, toute route exige une session. Une UI
 métier de consultation et de saisie existe pour la collection, les decks, les parties,
 les tournois, le carnet d'adversaires et de lieux, la recherche dans le catalogue
 (`#/chercher`, depuis le lot Chercher), le bilan (`#/bilan`) et la liste d'une
 version jouée (`#/decks/<clé>/versions/<n>`, depuis le Lot 8), l'import et l'export
-VDB (`#/decks?action=importer`, depuis le Lot 9) (`frontend/src/features/`, routeur
+VDB (`#/decks?action=importer`, depuis le Lot 9), l'onglet de la liste des decks
+(`#/decks?filtre=actifs|brouillons|archives|tous`, depuis le Lot 12, Joués par
+défaut) (`frontend/src/features/`, routeur
 à hash `/#/...`), ainsi que les écrans de compte du Lot 6 (connexion, inscription,
-compte, déconnexion), mobile et bureau.
+compte, déconnexion) et l'écran Compte du Lot 12 (`#/compte` : mot de passe,
+sessions, export, accès à Synchronisation, versions), mobile et bureau.
 
 ---
 
@@ -301,7 +322,8 @@ sans perte après une mise à jour.
 ├─ scripts/                   ← commandes unifiées (install/test/build/dev, .ps1 + .sh)
 │                               et check-pwa-installability.mjs
 ├─ ops/                       ← playbook Ansible de mise en ligne (Lot 11), autonome :
-│                               rôles, inventaire, jeton GitHub (ignoré par git)
+│                               rôles, inventaire, jeton GitHub (ignoré par git),
+│                               fetch_backups.sh et sauvegardes/ (ignoré, Lot 12)
 ├─ .github/                   ← workflow CI + Dependabot
 └─ .claude/
    ├─ agents/                 ← 1 fichier .md par agent (voir §8)
@@ -547,11 +569,20 @@ l'identifiant est tenu par le schéma, seul chemin d'entrée, un CHECK ayant obl
 recréer une table visée par quatre clés étrangères. La montée se rend hors ligne ; la
 descente refuse de tourner dès qu'un deck est lié (le lien est une saisie de
 l'utilisateur, qu'aucun réimport ne rétablirait) et, comme celles de R10 et R13, ne se
-rend pas hors ligne. Le modèle compte **28 tables** et quatorze révisions.
+rend pas hors ligne.
+Le Lot 12 ajoute la quinzième révision, `c4e8a1f2d7b3` (R15, A2 du plan) : deux
+`ADD COLUMN` nullables sur `auth_session`, `user_agent` (`VARCHAR(256)`) et
+`last_used_at`, sur le patron de R12 et R14, sans index ni conversion ; un
+`last_used_at` nul se lit comme `created_at`, si bien qu'une session ouverte avant le
+lot n'a rien à convertir. Le CHECK `expires_after_creation` n'est pas touché. Montée
+et descente se rendent hors ligne, la descente retire les colonnes sans garde (rien
+n'y est une saisie). C'est la **première révision appliquée à la base de
+production**, après un essai sur une copie de la base servie. Le modèle compte
+**28 tables** et quinze révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
-| Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé). Révoquer une session, c'est supprimer sa ligne |
+| Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé, jusqu'au Lot 12). Révoquer une session, c'est supprimer sa ligne. Depuis le Lot 12 (R15) : `user_agent` (en-tête de la connexion ou de l'inscription, débarrassé des caractères non imprimables, coupé à 256, nul s'il manque) et `last_used_at` (posé par le renouvellement, nul lu comme `created_at`) ; `expires_at` glisse, au plus une fois par jour, jusqu'à `min(maintenant + 14 jours, created_at + 90 jours)` |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; `sect_id` rempli par l'import pour toute carte de crypte (secte dérivée du texte, lot Chercher), nul en bibliothèque ; `library_requirement`, exigence brute de `vteslibmeta.csv`, lue à la sortie par `library_requirement` (R12) ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
 | Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme). Depuis le Lot 8 : `deck.archetype` est l'enum `DeckArchetype` (six codes, CHECK `ck_deck_deck_archetype`, nullable). Depuis le Lot 9 : `deck.vdb_deck_id`, identifiant du deck VDB dont le deck a été importé par son adresse (`^[A-Za-z0-9:_-]{1,64}$`, nullable, sans index ni unicité : deux decks liés au même deck VDB restent possibles), posé à la création seulement |
@@ -645,8 +676,8 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `/parties/{id}/participations`. Endpoint de synchronisation pour la file offline :
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
-Livré aux Lots 2 à 9 (chemins en français, `operationId` en anglais camelCase),
-52 opérations sur 32 chemins :
+Livré aux Lots 2 à 12 (chemins en français, `operationId` en anglais camelCase),
+57 opérations sur 36 chemins :
 
 | Route | Rôle |
 | --- | --- |
@@ -654,6 +685,11 @@ Livré aux Lots 2 à 9 (chemins en français, `operationId` en anglais camelCase
 | `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour une adresse inconnue et un mauvais mot de passe ; 429 + `Retry-After` |
 | `POST /deconnexion` (`logOut`) | Lot 6. Supprime la session courante et efface le cookie ; 204 toujours, même sans session valide |
 | `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`) ; 401 sans session |
+| `POST /moi/mot-de-passe` (`changePassword`) | Lot 12. `current_password`, `new_password` (règles de l'inscription) ; 204 ; rehache et ferme les autres sessions du compte, la courante gardée, en une transaction ; **422** « Mot de passe actuel incorrect. » sur `current_password`, jamais 401 ; 429 + `Retry-After` au-delà de `PASSWORD_CHANGE_RATE_LIMIT` (5 par minute). Ordre : 401, 422, 429 |
+| `GET /moi/sessions` (`listSessions`) | Lot 12. Sessions non expirées du compte (`SessionRead` : `id`, `created_at`, `last_used_at`, `expires_at`, `user_agent`, `current`), la courante en tête puis par dernière utilisation décroissante |
+| `DELETE /moi/sessions/{session_id}` (`revokeSession`) | Lot 12. 204 ; 404 « Session N introuvable. » pour une session inconnue, expirée ou d'un autre compte ; **409 pour la session courante**, qui se ferme par la déconnexion (seule à purger la base locale) |
+| `DELETE /moi/sessions` (`revokeOtherSessions`) | Lot 12. 204 ; ferme toutes les sessions sauf la courante, idempotente |
+| `GET /moi/export` (`exportAccount`) | Lot 12. `AccountExport` en JSON (`format_version` 1, `exported_at`, `schema_revision` lue dans `alembic_version`), `Content-Disposition: attachment; filename="gurchon-hall-<username>-<AAAA-MM-JJ>.json"`, exposé en CORS ; compte sans identifiant ni secret, collection, decks archivés et supprimés avec leurs lignes ou leur liste figée et leurs versions jouées, joueurs, lieux, tournois, parties et tables. Cartes par `vekn_id` et nom, extensions par abréviation ; ni `auth_session` ni `sync_operation` |
 | `GET /cartes`, `GET /cartes/{id}` | recherche (`q`, `category`, `clan_id`, `limit`, `offset`) et fiche complète du catalogue, en lecture seule ; chaque carte porte `card_set_ids` (ses impressions) et `latest_card_set_id` (sa dernière version, §11 Lot 4). Depuis le lot Chercher, la liste rend `CardSearchItem` : tout ce que les filtres hors ligne demandent (secte, types et disciplines dans un ordre stable, texte, coûts, prérequis, dates de légalité, exigence lue en `required_sects`, `required_titles`, `requires_titled`, `requires_non_titled`, `other_requirements`) et les noms traduits (`translated_names`) ; la fiche gagne l'exigence |
 | `GET /extensions` | liste des extensions du catalogue, marqueur `is_placeholder` compris (Lot 4) |
 | `GET /bundles`, `GET /bundles/{id}` | produits et leur contenu (carte × exemplaires) |
@@ -711,6 +747,17 @@ vdb.im. Aucun type d'opération `/sync` : un import est un `deck.create` suivi d
 opération écrite avant le lot se rejoue avec la même empreinte (`exclude_unset`).
 Section « Lot 9 » dans `docs/lot3-sync-contrat.md`.
 
+Le Lot 12 ajoute cinq routes sous `/moi` (57 opérations sur 36 chemins), toutes sous
+session et en ligne seulement, `API_ROUTE_PREFIXES` inchangé (`/moi` y était déjà),
+aucun type d'opération `/sync` ni changement de forme des opérations : une file écrite
+par la v1.0 se rejoue telle quelle. Deux descriptions changent sans changer de forme
+(`sessionCookie` et `logIn`, qui annonçaient une échéance fixe). Toute réponse de 204
+passe désormais par la `Response` injectée (`no_content`, `routers/common.py`), sans
+quoi le cookie renouvelé et le `Cache-Control` posés par la dépendance de session s'y
+perdaient. Les listes `GET /cartes`, `/stock` et `/decks` trient par nom replié
+(`fold_text`), puis par nom brut, puis par leurs clés d'avant (`folded_order`,
+`app/services/text_search.py`).
+
 Erreurs : 404 et 409 portent `ErrorResponse` (`{"detail": "…"}`) ; les 422 gardent le
 format standard de FastAPI, y compris ceux que le service produit lui-même. `POST /sync`
 n'utilise jamais 404 ni 409 : un refus est un verdict dans le corps d'une 200, et un 503
@@ -723,11 +770,14 @@ routes `POST /inscription`, `/connexion`, `/deconnexion`. **Toute autre route ex
 session** : `/stock…`, `/decks…`, `POST /bundles/{id}/stock`, `POST /sync`, `GET /moi`,
 `POST /langues`, et depuis le Lot 7 `/joueurs…`, `/lieux…`, `/tournois…`, `/parties…`
 (matrice d'autorisation étendue à leurs 21 opérations), le Lot 8 ses deux routes de
-versions sous `/decks…`, et le Lot 9 `GET /vdb/decks/{id}` (matrice à 52
-opérations). La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
+versions sous `/decks…`, le Lot 9 `GET /vdb/decks/{id}` et le Lot 12 ses cinq routes
+sous `/moi` (matrice à 57 opérations). La session voyage dans un cookie `HttpOnly`, `Secure`, `SameSite=Lax`
 (`__Host-gurchon_session` ; `gurchon_session` si `SESSION_COOKIE_SECURE` est coupé),
 déclaré au contrat comme schéma de sécurité `apiKey` en cookie ; le jeton n'apparaît
-jamais dans un corps de réponse. Les contrôles se font dans cet ordre et rendent :
+jamais dans un corps de réponse. Depuis le Lot 12, la session glisse : une requête
+authentifiée la renouvelle au plus une fois par jour (échéance à 14 jours sans usage,
+plafonnée à 90 jours après la connexion, `SESSION_IDLE_DAYS` et `SESSION_MAX_DAYS`)
+et repose le cookie avec la durée restante, sans changer le jeton (§11, Lot 12). Les contrôles se font dans cet ordre et rendent :
 
 - **401** (`ErrorResponse`) sans session, ou pour une session inconnue, expirée ou
   supprimée. Il passe avant tout : sans session, `/decks/999999` rend 401, pas 404.
@@ -874,7 +924,9 @@ Tranchées pendant le Lot 0 :
   routes API doivent rester hors precache et hors fallback de navigation du service
   worker (`navigateFallbackDenylist`), sans quoi le SW les intercepte.
 - **Service worker en `autoUpdate`** (pas d'UI « nouvelle version » au Lot 0), avec un
-  point d'extension documenté si Barrin a besoin du mode `prompt`.
+  point d'extension documenté si Barrin a besoin du mode `prompt`. *Remplacé au
+  Lot 12 (A6)* : mode `prompt`, avec un bandeau « nouvelle version » qui attend une
+  file vide.
 - **CORS** piloté par la variable d'environnement `BACKEND_CORS_ORIGINS` (défaut dev :
   `localhost:5173` + `127.0.0.1:5173`), non permissif en production.
 - **Contrat** : `contracts/openapi.json` est généré par `backend/scripts/export_openapi.py`,
@@ -1102,6 +1154,8 @@ Limites connues et décisions en attente, à la clôture du Lot 2 :
    listes (cartes, collection, decks) s'appuient sur la collation par défaut de SQLite,
    qui range les majuscules avant les minuscules et « Élan » après « Zoé ». Seule la
    recherche est normalisée, pas l'ordre d'affichage. Dette connue, non traitée.
+   *Soldée au Lot 12 (A7)* : tri par nom replié, puis nom brut, côté API comme côté
+   miroir, sur une table de cas commune.
 6. **`banned_on` et `legal_from` ne sont évalués qu'à la date du jour** : les fonctions
    pures prennent une date d'évaluation, mais l'API n'expose pas ce paramètre. Un verdict
    rétrospectif (« ce deck était-il légal en mars ? ») demanderait de l'ouvrir.
@@ -1351,7 +1405,7 @@ ligne, dans `docs/lot5c-plan-design.md`) :
   générique dans la fiche, champ global rétabli au bureau avec `/` (§11, lot
   Chercher).
 - **Reliquat du Lot 5bis** : la légende des raccourcis `?`, annoncée par le handoff
-  bureau, n'a été livrée dans aucun mode. Pas de lot dédié.
+  bureau, n'a été livrée dans aucun mode. Pas de lot dédié. *Livrée au Lot 12 (P8).*
 - **Défauts corrigés en passant** : `Entrée` sur la page Decks n'est plus écoutée qu'au
   bureau et jamais sur un contrôle interactif (option `ignoreTarget` de
   `useKeyboardShortcuts`, comportement par défaut inchangé) ; les raccourcis de
@@ -1453,7 +1507,10 @@ points d'interprétation dans `docs/lot6-plan-comptes.md`, qui fait foi pour le 
   authentifiée n'écrit donc rien et n'attend pas le verrou d'écriture. Révoquer, c'est
   supprimer la ligne, avec effet immédiat. Pas de paire access/refresh : un JWT aurait
   porté la validité dans le jeton et demandé une liste noire pour révoquer, sans rien
-  gagner sur une application à une seule API.
+  gagner sur une application à une seule API. *Amendé au Lot 12 (P10, A10)* : la
+  session glisse, 14 jours sans usage et 90 jours au plus, et une requête
+  authentifiée écrit au plus une fois par jour et par session, hors du verrou de
+  `/sync` ; le jeton ne change toujours pas.
 - **Hachage et protection de la connexion, alignés sur barrins-project (P1).** Argon2id
   par `argon2-cffi`, coûts de Barrin surchargeables (`ARGON2_MEMORY_COST_KIB`,
   `ARGON2_TIME_COST`, `ARGON2_PARALLELISM`), `needs_rehash` à chaque connexion réussie.
@@ -1805,7 +1862,8 @@ Limites connues à la clôture du lot Chercher :
   et à la collection, synchronisés à la sortie du mode avion. Non relevés : la réponse
   de `persist()`, et le service worker avec elle, parce qu'une page en `http://` sur
   une IP n'est pas un contexte sécurisé (`navigator.storage` absent, la fonction rend
-  `unsupported`) ; il faudra HTTPS, au plus tard au Lot 11. Et la montée en version 6
+  `unsupported`) ; il faudra HTTPS, au plus tard au Lot 11 (*relevé en HTTPS le
+  2026-11-20 : `persisted`*, Lot 12). Et la montée en version 6
   d'une base déjà en service, l'origine `:4173` partant sans doute d'une base neuve ;
   elle reste couverte par `vtesDbV6.test.ts` et les e2e Dexie 5. Les mesures de
   l'étape E3, sur Chromium ralenti (150 ms, 1,6 Mbit/s, processeur divisé par
@@ -2126,6 +2184,7 @@ Limites connues à la clôture du Lot 9 :
   accepte les proxies tant qu'on n'a pas converti ses lignes à la main.
 - **Le presse-papiers exige HTTPS** : en `http://` sur le réseau local, « Copier » se
   replie sur la sélection ; la copie réelle ne se vérifiera qu'après le Lot 11.
+  *Vérifiée en HTTPS le 2026-11-20* (Lot 12, A0).
 - **Lien seulement à l'import** : ni lier après coup un deck créé autrement, ni
   délier, ni mettre à jour depuis un texte (P8). Deux decks liés au même deck VDB
   restent possibles (deux appareils hors ligne) ; l'import propose le plus récent.
@@ -2143,6 +2202,7 @@ Limites connues à la clôture du Lot 9 :
 - **Juste après la première connexion d'un appareil**, la liste et l'aperçu des decks
   montrent quelques secondes des comptes « 0 / 0 » et « Hors catalogue local », le
   temps que le catalogue s'écrive (relevé aux captures, antérieur au lot).
+  *Soldé au Lot 12 (A8)* : « Catalogue en cours de chargement » à la place.
 - **e2e de mise à jour** : le deck des cas difficiles est illégal (92 cartes de
   bibliothèque), si bien que le retour en brouillon n'y est pas visible ; il est
   couvert par les tests purs.
@@ -2212,16 +2272,137 @@ Appliqué le 2026-11-17 (première mise en ligne, v1.0.0) :
 Limites connues après la première mise en ligne :
 
 - **Vérifications HTTPS encore à relever** : la copie par le presse-papiers à
-  l'export VDB (Lot 9) et la réponse de `persist()` (lot Chercher).
+  l'export VDB (Lot 9) et la réponse de `persist()` (lot Chercher). *Relevées le
+  2026-11-20 sur la production v1.0 (Lot 12, A0) : copie conforme, `persist()` à
+  `persisted` dans la PWA installée sur un poste Windows.*
 - **Tag et release à réaligner** : la v1.0.0 a été coupée avant la correction du
   domaine dans `ops/` et la doc ; le code déployé n'en dépend pas (le playbook
-  tourne depuis le poste), mais la release ne reflète pas l'état du dépôt.
+  tourne depuis le poste), mais la release ne reflète pas l'état du dépôt. *À solder
+  par la v1.1.0 (Lot 12, P7).*
 - **`--tags deploy` ne marche pas** avec les rôles de Barrin (le choix de la
   release n'a pas ce tag) : utiliser `--tags backend` ou `--tags frontend`.
 - **Sauvegardes sur le VPS seulement**, quatorze jours : à recopier ailleurs à la
-  main.
+  main. *Soldé au Lot 12 (P6)* : `ops/fetch_backups.sh`, lancé dans WSL, les recopie
+  dans `ops/sauvegardes/`, ignoré par git.
 - **Build du front sur le serveur**, par `npm install` et non `npm ci` (rôle de
   Barrin).
+
+Tranchées pendant le Lot 12 (P1 à P10 tranchées par l'utilisateur le 2026-11-18,
+décisions A1 à A11 de conception, filtres des decks ajoutés le 2026-11-20 ; plan,
+livraisons par étape et écarts dans `docs/lot12-plan-consolidation.md`, qui fait foi
+pour le détail, handoff dans `docs/design-handoff/LOT12.md`) :
+
+- **Pas de v1.0.1 (P7).** La v1.1.0 réaligne tag et release ; elle cumule le premier
+  passage du playbook sur une release ordinaire, la première migration en production
+  (R15) et le passage du service worker en mode `prompt`. D'où, à F, le staging du
+  lot complet sur `main` et l'essai de R15 sur une copie de la base servie.
+- **Sessions glissantes (P10, A10).** 14 jours sans usage, 90 jours au plus après la
+  connexion (`SESSION_IDLE_DAYS`, `SESSION_MAX_DAYS`), contre 14 jours fixes au
+  Lot 6 ; le cookie reste le transport. `current_session` renouvelle une session dont
+  la dernière utilisation date d'au moins 24 heures, dans une écriture courte à part,
+  sous un `busy_timeout` abaissé à 250 ms : un verrou occupé fait sauter le
+  renouvellement, jamais la requête, et l'écriture est commitée avant le
+  `BEGIN IMMEDIATE` d'un lot `/sync`. Le jeton ne change pas (une rotation aurait
+  compliqué deux onglets et une file rejouée au même moment). Un réglage où la durée
+  sans usage dépasse le plafond fait refuser le démarrage. Une session de la v1.0 se
+  renouvelle à sa première requête.
+- **Liste des sessions (P1, R15).** Appareil noté à la connexion (`user_agent`, sans
+  adresse IP) et dernière utilisation au jour près ; le client en tire un libellé
+  (« Chrome sur Android », `deviceLabel.ts`), « Appareil inconnu » à défaut. Fermer
+  une session se fait sans confirmation, « Fermer toutes les autres » confirme ; la
+  session courante ne se ferme que par la déconnexion, seule à purger la base locale
+  (409 sinon).
+- **Mot de passe (P2).** Changer son mot de passe ferme les autres sessions et garde
+  la courante ; l'actuel faux rend 422 et jamais 401, qu'un client lirait comme une
+  session perdue. `manage_accounts.py set-password` ferme toujours tout.
+- **Export par le serveur (P3, A4).** `GET /moi/export`, en ligne seulement : la base
+  a les decks supprimés et toutes les versions jouées, que le miroir n'a pas. Une
+  fonction par domaine, chacune avec `user_id` obligatoire ; un test échoue sur toute
+  table à `user_id` qui n'est ni exportée ni exclue par décision (`auth_session`,
+  `sync_operation`). Une saisie encore en file n'y est pas, et l'écran le dit. Pas
+  d'import d'un export : c'est une sauvegarde lisible.
+- **Observabilité (P4, A5).** Une ligne JSON par requête (`http.request` : méthode,
+  gabarit de route, statut, durée, compte) et par lot `/sync` (`sync.batch` : issues,
+  refus par code et par type), écrite par un middleware ASGI pur et par `apply_batch`
+  après le `COMMIT` (`app/observability.py`). Jamais de chemin brut, de corps,
+  d'adresse, de mot de passe, de jeton, de texte de recherche ni de nom de deck.
+  `LOG_LEVEL`, `LOG_FORMAT` (`json`, `text` en développement). Journal d'accès
+  d'uvicorn coupé dans l'unité par `UVICORN_ACCESS_LOG=false`, sans toucher au rôle
+  copié. `scripts/sync_report.py` lit `sync_operation` en lecture seule. Ni route
+  d'administration ni collecteur externe.
+- **Service worker en mode `prompt` (P5, A6).** Le bandeau « nouvelle version »
+  attend les opérations en attente (« Elle s'installera une fois vos 3 saisies
+  synchronisées », sans bouton), et prévient seulement pour les refusées, qui peuvent
+  rester des semaines ; « Plus tard » le masque jusqu'au prochain démarrage. Store
+  générique `AppUpdateStore` et hook `useAppUpdate` dans `offline/`, sans logique
+  dans le bandeau ; filet qui recharge d'office 10 s après l'installation si le
+  service worker n'a pas pris la main. Transition : un appareil en v1.0 est en
+  `autoUpdate` et installe la v1.1 seul, une dernière fois.
+- **Tris repliés (A7).** Nom replié, puis nom brut, puis les clés d'avant, côté API
+  (`folded_order`) et côté miroir (`compareFolded`, `offline/core/foldText.ts`), sur
+  une table de cas commune (`backend/tests/fixtures/folded_sort_cases.json`). Coût
+  mesuré : la page de 200 cartes passe de 65 à 126 ms ; accepté, un index sur
+  `fold_text(name)` exigeant la fonction sur toute connexion qui écrit `card`.
+- **Catalogue en cours de chargement (A8, amendé).** Suivi pendant la lecture du
+  catalogue (`useCatalog().loading`, `isCatalogLoading`), et non pendant la
+  transaction Dexie, qui ne laisse voir que l'avant ou l'après.
+- **Légende des raccourcis (P8).** `?` au bureau, ou « Raccourcis » du menu du
+  compte ; aucune liste écrite à la main : chaque `useKeyboardShortcuts` publie ses
+  raccourcis libellés, montés et actifs, dans un registre, si bien que la légende ne
+  montre que ce qui marche. Les autres raccourcis sont suspendus pendant qu'elle est
+  ouverte.
+- **Synchronisation depuis l'écran Compte (A11)**, demandé par l'utilisateur : plus
+  d'onglet dans la barre haute ni de lien dans l'alerte de l'Atelier (revient sur le
+  Lot 5c), une ligne « Synchronisation » dans Compte avec l'état de la file, un retour
+  « ← Compte » ; `G S` et l'alerte de la barre haute restent.
+- **Écran Compte (P9)**, sur un handoff Claude Design : deux colonnes au bureau ; au
+  mobile, la déconnexion quitte la barre haute pour l'écran Compte, au bureau le menu
+  du compte monte dans la barre haute (écarts 1 et 2 du handoff, retenus) ; version de
+  la coquille (`__APP_VERSION__`, injectée au build) et de l'API en pied.
+- **Sauvegardes tirées depuis le poste (P6).** `ops/fetch_backups.sh`, dans WSL, sans
+  rien installer sur le VPS ; rien n'est jamais supprimé ; copie sous un nom caché
+  puis renommée, des deux côtés (`compare_db.py backup` écrit aussi en `.part`).
+- **Deux corrections CSS du brief (D4)** : `.underline-field` sans la bordure du
+  navigateur, `.btn-ghost` et `.chip-action--text` sans son fond ni sa bordure.
+- **Contrôle de types des tests** (`tsconfig.test.json`, `npm run typecheck:tests`,
+  dans `run.ps1 test` et la CI) : 65 erreurs au premier passage, dont deux tests qui
+  ne vérifiaient rien.
+- **Onglets de la liste des decks** (ajoutés hors plan le 2026-11-20) : Joués (non
+  archivés, l'ancien « En cours »), Actifs, Brouillons, Archivés, Tous ; l'onglet
+  reste dans l'adresse (`#/decks?filtre=…`), réécrit sans entrée d'historique et non
+  consommé comme une intention ; les compteurs de l'Atelier ouvrent l'onglet
+  correspondant. « Joués » entre en collision avec le vocabulaire du Lot 8 (« deck
+  jamais joué »), choix de l'utilisateur. Le renommage des statuts est reporté au
+  Lot 17 (§12).
+- **`data-testid`** : référence de clôture `docs/qa-baselines/testids-lot12-cloture.txt`
+  (674 littéraux statiques distincts, 611 à la clôture du Lot 9) ; disparus et
+  justifiés, `topnav-sync` et `sync-alert-link` (A11).
+
+Limites connues à la clôture du Lot 12 :
+
+- **Le libellé d'appareil ment parfois** : un `User-Agent` se falsifie et certains
+  navigateurs le réduisent ; il aide à reconnaître, il ne prouve rien.
+- **Une session plus longue est un cookie volé plus longtemps utilisable**, borné par
+  le plafond de 90 jours, l'expiration à 14 jours sans usage et la fermeture depuis
+  l'écran Compte.
+- **Le mode `prompt` ne se vérifie en production qu'à la mise à jour suivante** : la
+  v1.0 installe la v1.1 en `autoUpdate`. Il est couvert par un e2e sur une vraie mise
+  à jour du service worker.
+- **Tri replié plus lent** côté serveur (environ une seconde de plus pour une lecture
+  complète du catalogue).
+- **Instabilités e2e** relevées au dernier passage, sans lien avec le lot et non
+  reproduites en trois passages : `chercher-ajout` (clic parti pendant un
+  rechargement) et `lot9-import-vdb` (processus de Playwright tombé). La flakiness
+  vitest des Lots 5c et 6 n'est pas revenue en cinq passages complets.
+- **Tests de référence** : `backend/tests/test_lot12_contract.py`,
+  `test_lot12_account_sessions.py`, `test_lot12_account_export.py`,
+  `test_lot12_observability.py`, `test_lot12_folded_sort.py`, section « Lot 12 » de
+  `test_migrations.py` ; côté client `accountPure.test.ts`, `foldedSort.test.ts`,
+  `appUpdate.test.tsx`, `registerServiceWorker.test.ts`, `shortcutLegend.test.ts`,
+  `tests/unit/ui/account.test.tsx` et `lot12Shell.test.tsx` ; e2e `lot12-compte` aux
+  deux largeurs contre le vrai back (session fermée depuis un autre appareil, mot de
+  passe changé ailleurs, export, mise à jour en mode `prompt` bloquée par une saisie
+  hors ligne).
 
 ---
 
@@ -2449,9 +2630,9 @@ Limites connues après la première mise en ligne :
     `-staging`, production sur la dernière release GitHub, migration et import du
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
     nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. C'est la
-    **première mise en ligne** (v1) ; restent à relever en HTTPS la copie par le
-    presse-papiers et `persist()`, et à réaligner tag et release sur l'état du dépôt
-    (Lot 12).
+    **première mise en ligne** (v1) ; restaient à relever en HTTPS la copie par le
+    presse-papiers et `persist()` (faits le 2026-11-20), et à réaligner tag et
+    release sur l'état du dépôt (v1.1.0, Lot 12).
 
 **Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 (décisions
 V1 à V6, O1 et O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le
@@ -2459,18 +2640,31 @@ détail). Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v2.0.0 
 le Lot 14, l'identité d'une entrée de collection y changeant ; les lots suivants
 donnent des v2.x.
 
-14. **Lot 12 — Consolidation (v1.1)** — *à ouvrir.* Ce qui manque à une
-    application en production, sans fonctionnalité métier nouvelle. Mise en
-    service : tag et release réalignés (v1.0.1), copie par le presse-papiers et
-    `persist()` relevés en HTTPS, sauvegardes recopiées hors du VPS. Comptes :
-    changement de mot de passe dans l'application, liste de ses sessions et
-    révocation (`auth_session` n'a ni appareil ni dernière utilisation : une
-    révision si on veut les montrer), export complet du compte. Observabilité
-    minimale (journaux structurés, refus `/sync` comptés par motif). Service worker
-    en mode `prompt`, avec une mise à jour qui attend une file vide : les Lots 14
-    et suivants changeront Dexie et `/sync` en production. Dettes : tris sur
-    `fold_text`, état « catalogue en cours de chargement » à la première
-    connexion, légende des raccourcis `?`, flakiness vitest si elle revient.
+14. **Lot 12 — Consolidation (v1.1)** — *livré et testé le 2026-11-20, mise en
+    service (étape F) en cours.* Ce qui manque à une application en production,
+    sans fonctionnalité métier nouvelle, sur le handoff `docs/design-handoff/LOT12.md`.
+    Écran Compte (`#/compte`) aux deux largeurs : changement de mot de passe (les
+    autres sessions fermées), sessions ouvertes avec appareil et dernière
+    utilisation, fermeture d'une session ou de toutes les autres, export complet du
+    compte en JSON, accès à Synchronisation, versions de la coquille et de l'API.
+    Sessions glissantes, 14 jours sans usage et 90 jours au plus. Journaux JSON de
+    l'API, `scripts/sync_report.py`. Service worker en mode `prompt`, avec un
+    bandeau qui attend la file. Tris repliés des deux côtés, légende des raccourcis
+    `?`, état « catalogue en cours de chargement », corrections CSS du brief.
+    Sauvegardes recopiées sur le poste (`ops/fetch_backups.sh`) ; relevés HTTPS
+    faits le 2026-11-20. Ajoutés en cours de lot : contrôle de types des tests,
+    onglets Joués, Actifs, Brouillons, Archivés et Tous dans Decks. Une révision,
+    `c4e8a1f2d7b3` (R15) : 28 tables, quinze révisions. Contrat à 57 opérations sur
+    36 chemins, aucun type `/sync` nouveau, aucune version Dexie. Plan, livraisons
+    par étape (A0 à F) et écarts dans `docs/lot12-plan-consolidation.md`, décisions
+    et limites au §11. 3026 tests backend (2 `xfail` assumés, `ruff check` propre,
+    99 % des lignes de `app/` couvertes) ; 1720 tests vitest sur 97 fichiers, lint
+    et `tsc` (application, config Vite, tests) propres ; 98 tests Playwright (8
+    `chromium`, 51 `real-backend`, 3 `desktop`, 36 `desktop-real-backend`) ;
+    références CRAP vides des deux côtés ; deux `data-testid` disparus, justifiés.
+    Reste F : staging, essai de R15 sur une copie de la base servie, release
+    complète v1.1.0, production, vérification sur téléphone (session de la v1.0
+    renouvelée, montée d'une base IndexedDB existante, file rejouée).
 15. **Lot 13 — Partage (v1.2).** Lien public vers une decklist, vivant ou figé
     (première route publique sur une donnée privée ; conception et cinq points à
     trancher dans `docs/pistes-evolution.md`) ; export aux formats `TWD`, `JOL` et
@@ -2513,7 +2707,14 @@ donnent des v2.x.
     en impression à la demande ; checklist d'assemblage imprimable, une case par
     exemplaire, qui dit dans quel inventaire prendre chaque carte. Lectures
     dérivées, sans table prévue ; elles remplacent deux skills Claude que
-    l'utilisateur emploie aujourd'hui hors de l'application.
+    l'utilisateur emploie aujourd'hui hors de l'application. Renommage des
+    statuts de deck reporté ici le 2026-11-20 (décision de l'utilisateur) :
+    `active` devient « Monté » (« Montés » pour l'onglet), un deck prêt à
+    jouer en physique, `draft` « En préparation » ; libellés seuls,
+    codes inchangés. À trancher alors : la légalité qui bloque le passage à
+    `active`, le retour en brouillon de « Mettre à jour depuis VDB », et un
+    deck en préparation qui réserve quand même ses exemplaires réels (règles
+    gardées telles quelles en attendant).
 20. **Suggestions de decklists** — *fin de v2 ou v3, numéro attribué à
     l'ouverture.* Import rejouable de la TWDA de krcg
     (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03), suggestions

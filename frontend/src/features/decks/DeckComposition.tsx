@@ -10,6 +10,8 @@ import {
   type LocalDeck,
   type LocalDeckCard,
 } from "../../offline/vtes";
+import { CatalogLoadingComposition } from "../catalog/CatalogLoadingState";
+import { useCatalogLoading } from "../catalog/catalogContext";
 import { useCardSetOptions } from "../stock/useCardSetOptions";
 import { DeckTables } from "./DeckTables";
 import {
@@ -476,7 +478,13 @@ export function DeckComposition({
   const facts = useLastDefined(useDeckCardFacts(cardIds));
   const stock = useLastDefined(useDeckStockAvailability(cardIds));
   const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
+  const catalogLoading = useCatalogLoading();
 
+  // Lot 12 (A8) : tant que le catalogue arrive, les lignes seraient « Hors
+  // catalogue local » ; la composition attend, sans rien bloquer (1b-78).
+  if (lines !== undefined && lines.length > 0 && catalogLoading) {
+    return <CatalogLoadingComposition variant="list" />;
+  }
   if (lines === undefined || tables === null || stock === undefined) {
     return <LoadingState groups={2} caption="Lecture de la composition…" />;
   }

@@ -39,7 +39,16 @@ export async function goToDecksDesktop(page: Page): Promise<void> {
   await expect(page.getByTestId("decks-page")).toBeVisible();
 }
 
+/** Écran Compte au bureau : le menu du compte de la barre haute (Lot 12, écart 2). */
+export async function goToAccountDesktop(page: Page): Promise<void> {
+  await page.getByTestId("account-menu-toggle").click();
+  await page.getByTestId("account-menu-account").click();
+  await expect(page.getByTestId("account-page")).toBeVisible();
+}
+
+/** Synchronisation, ouverte depuis l'écran Compte depuis le Lot 12 (A11). */
 export async function goToSyncDesktop(page: Page): Promise<void> {
-  await page.getByTestId("topnav-sync").click();
+  await goToAccountDesktop(page);
+  await page.getByTestId("account-sync-row").click();
   await expect(page.getByTestId("sync-page")).toBeVisible();
 }

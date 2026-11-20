@@ -11,7 +11,8 @@ export {
   type ReferenceField,
   type ReferenceUse,
 } from "./references";
-export { containsFolded, foldText } from "./foldText";
+export { compareCodeUnits, compareFolded, compareFoldedKeys, containsFolded, foldText } from "./foldText";
+export { AppUpdateStore, appUpdateStore, type AppUpdateSnapshot } from "./appUpdate";
 export { requestPersistentStorage, type PersistResult } from "./storage";
 export {
   DuplicateOperationError,

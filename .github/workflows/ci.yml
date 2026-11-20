@@ -122,6 +122,12 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      # vitest et Playwright transpilent sans vérifier les types, et
+      # tsconfig.app.json ne couvre que src/ : tsconfig.test.json couvre tests/.
+      - name: Types des tests frontend (tsc -p tsconfig.test.json)
+        working-directory: frontend
+        run: npm run typecheck:tests
+
       # Détection dynamique des scripts npm disponibles plutôt que de les
       # présumer : au moment de la rédaction de ce workflow, qa-tests ajoute
       # en parallèle vitest et Playwright à frontend/package.json. Les scripts

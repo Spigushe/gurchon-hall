@@ -101,6 +101,12 @@ function Invoke-TestCommand {
         Push-Location $frontendDir
         try { npm run lint } finally { Pop-Location }
     }
+    # vitest et Playwright transpilent sans verifier les types : tsconfig.test.json
+    # couvre tests/ (Lot 12, E).
+    Invoke-Step "Frontend : types des tests (tsc -p tsconfig.test.json)" {
+        Push-Location $frontendDir
+        try { npm run typecheck:tests } finally { Pop-Location }
+    }
 
     if (Test-NpmScript "test") {
         Invoke-FrontendCrap
@@ -266,6 +272,14 @@ function Start-Servers {
         $env:SESSION_COOKIE_SECURE = "false"
     }
 
+    # Journaux de l'API (Lot 12, A5) : une ligne lisible plutot que du JSON en
+    # developpement, sauf si la variable est deja positionnee. Les journaux
+    # d'acces d'uvicorn sont coupes (--no-access-log) : l'API ecrit deja une
+    # ligne par requete.
+    if (-not $env:LOG_FORMAT) {
+        $env:LOG_FORMAT = "text"
+    }
+
     if ($Mode -eq "preview") {
         $frontLabel = "Frontend (preview)"
         $frontPort = $PreviewPort
@@ -292,7 +306,7 @@ function Start-Servers {
 
     Start-Process powershell -ArgumentList @(
         "-NoExit", "-Command",
-        "cd '$backendDir'; & '$backendPython' -m uvicorn app.main:app --reload --host 0.0.0.0 --port $BackendPort"
+        "cd '$backendDir'; & '$backendPython' -m uvicorn app.main:app --reload --no-access-log --host 0.0.0.0 --port $BackendPort"
     )
 
     Start-Process powershell -ArgumentList @(

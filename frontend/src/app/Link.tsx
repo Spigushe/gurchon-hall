@@ -15,6 +15,10 @@ export function Link({
   current?: boolean;
   className?: string;
   "data-testid"?: string;
+  /** Entrée d'un menu (`menuitem`, menu du compte au bureau). */
+  role?: string;
+  /** La navigation reste celle de l'ancre ; sert à refermer un menu au passage. */
+  onClick?: () => void;
 }) {
   return (
     <a href={hrefFor(to)} aria-current={current ? "page" : undefined} className={className} {...rest}>

@@ -14,6 +14,7 @@
     gurchon_release_tag: ""
     gurchon_import_catalog: true
     gurchon_backup_keep_days: 14
+    gurchon_log_level: INFO
 
     env_suffix: "{{ '-staging' if deploy_env == 'staging' else '' }}"
     backend_port: "{{ 8531 if deploy_env == 'staging' else 8031 }}"
@@ -98,9 +99,15 @@
       fastapi_backend_release_tag: "{{ gurchon_release_tag }}"
       fastapi_backend_git_branch: "{{ gurchon_git_branch }}"
       fastapi_backend_entrypoint: "app.main:app"
+      # UVICORN_ACCESS_LOG=false vaut --no-access-log (uvicorn lit ses options
+      # dans UVICORN_*) : l'API écrit déjà une ligne JSON par requête
+      # (http.request, Lot 12), le journal d'accès d'uvicorn la doublerait.
+      # Passé par l'environnement pour ne pas toucher le gabarit du rôle copié.
       fastapi_backend_env:
         BACKEND_CORS_ORIGINS: "https://{{ frontend_domain }}"
         FORWARDED_ALLOW_IPS: "127.0.0.1"
+        UVICORN_ACCESS_LOG: "false"
+        LOG_LEVEL: "{{ gurchon_log_level }}"
 
     - role: backend_website
       tags: [backend]

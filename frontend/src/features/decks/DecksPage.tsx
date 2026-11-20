@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRightIcon, ClockCountdownIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
-import { consumeIntent, navigate, type DecksIntent } from "../../app/routes";
+import { consumeIntent, navigate, replaceDecksFilter, type DecksFilter, type DecksIntent } from "../../app/routes";
 import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
@@ -10,7 +10,7 @@ import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { isInteractiveTarget, useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
-import { DECK_STATUS_LABELS, plural } from "../../labels";
+import { DECK_STATUS_LABELS, plural, type DeckStatus } from "../../labels";
 import { GlyphIcon } from "../../components/glyphs/Glyph";
 import { clanGlyph } from "../../components/glyphs/glyphs";
 import {
@@ -24,6 +24,8 @@ import {
   type DeckListState,
   type LocalDeck,
 } from "../../offline/vtes";
+import { CatalogLoadingComposition, CatalogLoadingNote } from "../catalog/CatalogLoadingState";
+import { useCatalogLoading } from "../catalog/catalogContext";
 import { ArchetypeChips } from "./ArchetypeChips";
 import { DeckLegalityTag } from "./DeckLegalityTag";
 import { DeckResults } from "./DeckResults";
@@ -33,11 +35,23 @@ import { useDeckCardFacts } from "./useDeckCardFacts";
 import { useLastDefined } from "./useLastDefined";
 import { DeckImportSheet } from "./vdb/DeckImportSheet";
 
-const STATES: Array<{ value: DeckListState; label: string }> = [
-  { value: "active", label: "En cours" },
-  { value: "archived", label: "Archivés" },
-  { value: "all", label: "Tous" },
+/**
+ * Onglets de la liste : un état d'archivage (comme `GET /decks?state=`), et un
+ * statut pour Actifs et Brouillons. « Joués » réunit les decks non archivés,
+ * actifs comme brouillons : c'était l'onglet « En cours ».
+ */
+const FILTERS: Array<{ value: DecksFilter; label: string; state: DeckListState; status?: DeckStatus }> = [
+  { value: "played", label: "Joués", state: "active" },
+  { value: "active", label: "Actifs", state: "active", status: "active" },
+  { value: "draft", label: "Brouillons", state: "active", status: "draft" },
+  { value: "archived", label: "Archivés", state: "archived" },
+  { value: "all", label: "Tous", state: "all" },
 ];
+
+function filterQuery(filter: DecksFilter): { state: DeckListState; status?: DeckStatus } {
+  const { state, status } = FILTERS.find((option) => option.value === filter) ?? FILTERS[0];
+  return { state, status };
+}
 
 /**
  * Feuille « Nouveau deck » : deux champs soulignés (bordés à partir de 1024px,
@@ -185,6 +199,7 @@ function DeckItem({
   selected,
   onSelect,
   summary,
+  catalogLoading,
 }: {
   deck: LocalDeck;
   isDesktop: boolean;
@@ -192,7 +207,15 @@ function DeckItem({
   onSelect: () => void;
   /** Comptes et clans (P7) ; `undefined` tant que les lignes ne sont pas lues. */
   summary: DeckListSummary | undefined;
+  /**
+   * Lot 12 (A8) : le catalogue arrive. Les comptes et les clans, faux tant
+   * qu'il manque, laissent la place à la mention, sous la méta (1b-77). Aussi
+   * au bureau, contre d49 qui la met en bout de ligne : la colonne de la liste
+   * fait 360 px (420 dans la maquette), et la mention y coupait le nom.
+   */
+  catalogLoading: boolean;
 }) {
+  const counts = catalogLoading ? undefined : summary;
   const content = (
     <>
       <span>
@@ -205,9 +228,9 @@ function DeckItem({
           {DECK_STATUS_LABELS[deck.status].toLowerCase()}
           {deck.archivedAt && " · archivé"}
           {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
-          {summary && (
+          {counts && (
             <span data-testid="deck-item-counts" title="Crypte / bibliothèque">
-              {` · ${summary.crypt} / ${summary.library}`}
+              {` · ${counts.crypt} / ${counts.library}`}
             </span>
           )}
         </span>
@@ -223,10 +246,15 @@ function DeckItem({
             En attente de synchronisation
           </span>
         )}
+        {catalogLoading && (
+          <span className="deck-item__catalog">
+            <CatalogLoadingNote />
+          </span>
+        )}
       </span>
-      {summary && summary.clans.length > 0 && (
+      {counts && counts.clans.length > 0 && (
         <span className="deck-item__clans" data-testid="deck-item-clans">
-          {summary.clans.map((clan) => {
+          {counts.clans.map((clan) => {
             const glyph = clanGlyph(clan);
             return glyph ? <GlyphIcon key={clan} glyph={glyph} label={clan} /> : null;
           })}
@@ -273,7 +301,11 @@ function DeckPreviewTables({ deck }: { deck: LocalDeck }) {
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
   const facts = useLastDefined(useDeckCardFacts(cardIds));
   const tables = useMemo(() => (lines && facts ? buildDeckTables(lines, facts) : null), [lines, facts]);
+  const catalogLoading = useCatalogLoading();
 
+  if (lines !== undefined && lines.length > 0 && catalogLoading) {
+    return <CatalogLoadingComposition variant="tables" />;
+  }
   if (lines === undefined || tables === null) {
     return <LoadingState groups={2} caption="Lecture de la composition…" />;
   }
@@ -360,17 +392,30 @@ const EMPTY_SUMMARY: DeckListSummary = { crypt: 0, library: 0, clans: [] };
  * précédente n'y figure plus (nouveau filtre, changement d'onglet, deck
  * supprimé…).
  */
-export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
+export function DecksPage({ intent, filter: routeFilter }: { intent?: DecksIntent; filter?: DecksFilter } = {}) {
   const searchId = useId();
   const stateName = useId();
-  const [state, setState] = useState<DeckListState>("active");
+  const [filter, setFilter] = useState<DecksFilter>(routeFilter ?? "played");
   const [term, setTerm] = useState("");
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [selectedKey, setSelectedKey] = useState<DeckKey | null>(null);
   const deferred = useDeferredValue(term.trim());
-  const decks = useLocalDecks({ state, q: deferred || undefined });
+  const decks = useLocalDecks({ ...filterQuery(filter), q: deferred || undefined });
+
+  // L'onglet suit l'adresse quand elle change (lien de l'Atelier, onglet Decks de
+  // la barre) ; un changement d'onglet sur la page la réécrit sans `hashchange`.
+  const [seenFilter, setSeenFilter] = useState(routeFilter);
+  if (routeFilter !== seenFilter) {
+    setSeenFilter(routeFilter);
+    setFilter(routeFilter ?? "played");
+  }
+  const chooseFilter = (next: DecksFilter) => {
+    setFilter(next);
+    replaceDecksFilter(next);
+  };
   const summaries = useDeckListSummaries();
+  const catalogLoading = useCatalogLoading();
   const isDesktop = useIsDesktop();
 
   // Intention portée par l'adresse (`#/decks?action=nouveau`, raccourci de
@@ -410,7 +455,9 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
   // l'active au lieu d'être confisquée par ce raccourci (qui appelait
   // `preventDefault`). `ignoreTarget` est propre à ce binding, l'ordre
   // `preventDefault` / `onTrigger` du hook reste le même pour tous les autres.
-  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], { enabled: !creating && !importing });
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true), legend: "Nouveau deck" }], {
+    enabled: !creating && !importing,
+  });
   useKeyboardShortcuts(
     [
       {
@@ -419,6 +466,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
         onTrigger: () => {
           if (selectedDeck) navigate({ name: "deck", key: selectedDeck.key });
         },
+        legend: "Ouvrir le deck sélectionné",
       },
     ],
     { enabled: isDesktop && !creating && !importing },
@@ -481,15 +529,15 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
             />
           </div>
 
-          <fieldset className="tabs tabs--fieldset" aria-label="Afficher">
-            {STATES.map((option) => (
+          <fieldset className="tabs tabs--fieldset tabs--scroll" aria-label="Afficher" data-testid="decks-filter">
+            {FILTERS.map((option) => (
               <label key={option.value} className="tab-option">
                 <input
                   type="radio"
                   name={stateName}
                   value={option.value}
-                  checked={state === option.value}
-                  onChange={() => setState(option.value)}
+                  checked={filter === option.value}
+                  onChange={() => chooseFilter(option.value)}
                 />
                 <span className="tab-option__label">{option.label}</span>
               </label>
@@ -499,7 +547,7 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
           {decks === undefined ? (
             <LoadingState />
           ) : decks.length === 0 ? (
-            deferred || state !== "active" ? (
+            deferred || filter !== "played" ? (
               <p className="empty-state__body" data-testid="decks-empty">
                 Aucun deck ne correspond.
               </p>
@@ -540,6 +588,8 @@ export function DecksPage({ intent }: { intent?: DecksIntent } = {}) {
                   selected={selectedDeck?.key === deck.key}
                   onSelect={() => setSelectedKey(deck.key)}
                   summary={summaries ? (summaries.get(deck.key) ?? EMPTY_SUMMARY) : undefined}
+                  // Un deck vide garde son « 0 / 0 », juste quel que soit le catalogue.
+                  catalogLoading={catalogLoading && summaries?.has(deck.key) !== false}
                 />
               ))}
             </ul>

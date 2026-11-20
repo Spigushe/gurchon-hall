@@ -22,11 +22,18 @@ import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
 export type StockIntent = "add" | "bundle";
 export type DecksIntent = "new" | "import";
 export type GamesIntent = "new";
+/**
+ * Onglet de la liste des decks : `played` (non archivés, actifs et brouillons,
+ * l'onglet par défaut), `active`, `draft`, `archived`, `all`. Contrairement à
+ * l'intention, il reste dans l'adresse (`#/decks?filtre=actifs`) : un retour
+ * arrière depuis un deck retrouve l'onglet, et l'Atelier peut viser le sien.
+ */
+export type DecksFilter = "played" | "active" | "draft" | "archived" | "all";
 
 export type Route =
   | { name: "home" }
   | { name: "stock"; intent?: StockIntent }
-  | { name: "decks"; intent?: DecksIntent }
+  | { name: "decks"; intent?: DecksIntent; filter?: DecksFilter }
   | { name: "deck"; key: DeckKey }
   | { name: "deckVersion"; key: DeckKey; number: number }
   | { name: "games"; intent?: GamesIntent }
@@ -36,6 +43,7 @@ export type Route =
   | { name: "bilan"; deck?: DeckKey }
   | { name: "notebook" }
   | { name: "sync" }
+  | { name: "account" }
   | { name: "search"; q?: string; deck?: DeckKey }
   | { name: "not-found" };
 
@@ -48,12 +56,43 @@ const STOCK_ACTION_PARAMS: Record<StockIntent, string> = { add: "ajouter", bundl
 const DECKS_ACTIONS: Record<string, DecksIntent> = { nouveau: "new", importer: "import" };
 const DECKS_ACTION_PARAMS: Record<DecksIntent, string> = { new: "nouveau", import: "importer" };
 const GAMES_ACTIONS: Record<string, GamesIntent> = { nouvelle: "new" };
+/** `played`, l'onglet par défaut, n'a pas de paramètre : `#/decks` nu. */
+const DECKS_FILTERS: Record<string, Exclude<DecksFilter, "played">> = {
+  actifs: "active",
+  brouillons: "draft",
+  archives: "archived",
+  tous: "all",
+};
+const DECKS_FILTER_PARAMS: Record<Exclude<DecksFilter, "played">, string> = {
+  active: "actifs",
+  draft: "brouillons",
+  archived: "archives",
+  all: "tous",
+};
 
-/** Valeur du paramètre `action` du hash, `null` s'il est absent ou inconnu de la table. */
-function actionOf<T>(hash: string, table: Record<string, T>): T | null {
+/** Valeur du paramètre `param` du hash, `null` s'il est absent ou inconnu de la table. */
+function actionOf<T>(hash: string, table: Record<string, T>, param = "action"): T | null {
   const query = hash.split("?")[1];
-  const value = query ? new URLSearchParams(query).get("action") : null;
+  const value = query ? new URLSearchParams(query).get(param) : null;
   return value !== null && Object.hasOwn(table, value) ? table[value] : null;
+}
+
+/** Liste des decks : intention d'ouverture (`action`) et onglet (`filtre`), chacun facultatif. */
+function decksRoute(hash: string): Route {
+  const route: Route & { name: "decks" } = { name: "decks" };
+  const intent = actionOf(hash, DECKS_ACTIONS);
+  const filter = actionOf(hash, DECKS_FILTERS, "filtre");
+  if (intent) route.intent = intent;
+  if (filter) route.filter = filter;
+  return route;
+}
+
+function decksHref(route: Route & { name: "decks" }): string {
+  const params = new URLSearchParams();
+  if (route.filter && route.filter !== "played") params.set("filtre", DECKS_FILTER_PARAMS[route.filter]);
+  if (route.intent) params.set("action", DECKS_ACTION_PARAMS[route.intent]);
+  const query = params.toString();
+  return query ? `#/decks?${query}` : "#/decks";
 }
 
 /**
@@ -113,10 +152,7 @@ export function parseHash(hash: string): Route {
     const intent = actionOf(hash, STOCK_ACTIONS);
     return intent ? { name: "stock", intent } : { name: "stock" };
   }
-  if (path === "/decks") {
-    const intent = actionOf(hash, DECKS_ACTIONS);
-    return intent ? { name: "decks", intent } : { name: "decks" };
-  }
+  if (path === "/decks") return decksRoute(hash);
   if (path === "/parties") {
     const intent = actionOf(hash, GAMES_ACTIONS);
     return intent ? { name: "games", intent } : { name: "games" };
@@ -124,6 +160,7 @@ export function parseHash(hash: string): Route {
   if (path === "/tournois") return { name: "tournaments" };
   if (path === "/carnet") return { name: "notebook" };
   if (path === "/synchronisation") return { name: "sync" };
+  if (path === "/compte") return { name: "account" };
   if (path === "/chercher") return searchRoute(hash);
   if (path === "/bilan") return bilanRoute(hash);
   const version = deckVersionRoute(path);
@@ -153,7 +190,7 @@ export function hrefFor(route: Route): string {
     case "stock":
       return route.intent ? `#/collection?action=${STOCK_ACTION_PARAMS[route.intent]}` : "#/collection";
     case "decks":
-      return route.intent ? `#/decks?action=${DECKS_ACTION_PARAMS[route.intent]}` : "#/decks";
+      return decksHref(route);
     case "deck":
       return `#/decks/${keySegment(route.key)}`;
     case "deckVersion":
@@ -172,6 +209,8 @@ export function hrefFor(route: Route): string {
       return "#/carnet";
     case "sync":
       return "#/synchronisation";
+    case "account":
+      return "#/compte";
     case "search": {
       const params = new URLSearchParams();
       if (route.q) params.set("q", route.q);
@@ -208,8 +247,19 @@ export function navigate(route: Route): void {
 export function consumeIntent(route: Route): void {
   if (route.name !== "stock" && route.name !== "decks" && route.name !== "games") return;
   if (!route.intent) return;
-  const bare = hrefFor({ name: route.name });
+  // L'onglet des decks n'est pas une intention : il reste dans l'adresse.
+  const bare = hrefFor(route.name === "decks" ? { name: "decks", filter: route.filter } : { name: route.name });
   if (window.location.hash !== bare) window.history.replaceState(window.history.state, "", bare);
+}
+
+/**
+ * Réécrit l'onglet des decks dans l'adresse, sans entrée d'historique ni
+ * `hashchange` (même mécanique que `replaceSearchQuery`) : changer d'onglet ne
+ * crée pas d'étape de retour arrière, mais ouvrir un deck puis revenir le retrouve.
+ */
+export function replaceDecksFilter(filter: DecksFilter): void {
+  const next = hrefFor({ name: "decks", filter });
+  if (window.location.hash !== next) window.history.replaceState(window.history.state, "", next);
 }
 
 function subscribe(listener: () => void): () => void {

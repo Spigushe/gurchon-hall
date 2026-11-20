@@ -11,6 +11,7 @@ import {
   expectCatalogDownloaded,
   expectPending,
   expectSynced,
+  goToAccount,
   goToStock,
   openApp,
   readOutbox,
@@ -224,8 +225,10 @@ test("deux comptes successifs dans le même navigateur : aucune donnée de l'un 
   await expectSynced(page);
   await expect(stockEntry(page, aura, "FR")).toHaveAttribute("data-quantity", "5");
 
-  // Déconnexion : file vide, donc directe (pas de `account-menu-warning`).
-  await page.getByTestId("account-menu-logout").click();
+  // Déconnexion : file vide, donc directe (pas d'avertissement). Au mobile, elle
+  // vit dans l'écran Compte depuis le Lot 12 (écart 1 du handoff).
+  await goToAccount(page);
+  await page.getByTestId("account-page-logout").click();
   await expect(page.getByTestId("auth-screen")).toHaveAttribute("data-mode", "gate");
 
   // D3 : la base de A est supprimée en entier à la déconnexion, pas seulement
@@ -276,7 +279,7 @@ test("deux comptes successifs dans le même navigateur : aucune donnée de l'un 
  *
  * Pour garder une opération « en attente » tout en restant **en ligne**
  * (`navigator.onLine` vrai : sans quoi le bouton serait simplement désactivé,
- * un cas différent couvert par `account-menu-offline-hint`, pas par
+ * un cas différent couvert par `account-page-offline-hint`, pas par
  * l'avertissement), la route `/sync` est bloquée côté navigateur
  * (`context.route`, comme `two-tabs.spec.ts`) plutôt que le réseau coupé en
  * entier.
@@ -300,17 +303,18 @@ test("déconnexion avec file non vide : avertissement, annulation sans perte, pu
   await addStock(page, { search: "aura", card: CARDS.aura, quantity: 1, language: "FR" });
   await page.keyboard.press("Escape"); // referme la feuille « Ajouter à la collection »
   await expectPending(page, 1);
-  await expect(page.getByTestId("account-menu-offline-hint")).toHaveCount(0);
+  await goToAccount(page);
+  await expect(page.getByTestId("account-page-offline-hint")).toHaveCount(0);
 
   // Premier clic : avertissement avec le nombre d'opérations, pas de
   // déconnexion.
-  await page.getByTestId("account-menu-logout").click();
-  await expect(page.getByTestId("account-menu-warning")).toContainText("1 opération");
+  await page.getByTestId("account-page-logout").click();
+  await expect(page.getByTestId("account-page-warning")).toContainText("1 opération");
   await expect(page.getByTestId("auth-screen")).toHaveCount(0);
 
   // Annuler : rien n'est perdu, la file est toujours là.
-  await page.getByTestId("account-menu-logout-cancel").click();
-  await expect(page.getByTestId("account-menu-warning")).toHaveCount(0);
+  await page.getByTestId("account-page-logout-cancel").click();
+  await expect(page.getByTestId("account-page-warning")).toHaveCount(0);
   await expectPending(page, 1);
   expect(await readOutbox(page)).toHaveLength(1);
 
@@ -325,9 +329,9 @@ test("déconnexion avec file non vide : avertissement, annulation sans perte, pu
     }
   });
 
-  await page.getByTestId("account-menu-logout").click();
-  await expect(page.getByTestId("account-menu-warning")).toBeVisible();
-  await page.getByTestId("account-menu-logout-confirm").click();
+  await page.getByTestId("account-page-logout").click();
+  await expect(page.getByTestId("account-page-warning")).toBeVisible();
+  await page.getByTestId("account-page-logout-confirm").click();
 
   await expect(page.getByTestId("auth-screen")).toHaveAttribute("data-mode", "gate");
   expect(logoutRequests).toHaveLength(1);

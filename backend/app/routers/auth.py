@@ -21,6 +21,13 @@ Les adresses sont comparées sous leur forme normalisée
 (`app.services.rate_limit`, P1) : au-delà du seuil, slowapi lève avant que le
 corps de la route ne s'exécute (429 + `Retry-After`, gérés par le handler
 enregistré dans `app.main`).
+
+**Lot 12** (`docs/lot12-plan-consolidation.md`, A1) : cinq routes sous
+`/moi`, toutes sous session et en ligne seulement : changer son mot de passe,
+lister et fermer ses sessions (étape B1), exporter son compte (étape B2,
+`app.services.account_export`). Depuis B1, la connexion et
+l'inscription notent l'appareil (`User-Agent`, A2) sur la session qu'elles
+ouvrent, et le changement de mot de passe est limité en débit comme elles.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -29,19 +36,36 @@ from app.routers.common import (
     CLEAR_SESSION_COOKIE,
     CONFLICT,
     FORBIDDEN_ORIGIN,
+    NOT_FOUND,
     SET_SESSION_COOKIE,
     TOO_MANY_REQUESTS,
     UNAUTHENTICATED,
+    CurrentSession,
     CurrentUser,
     DbSession,
+    PathId,
     SessionToken,
     clear_session_cookie,
+    no_content,
     set_session_cookie,
 )
-from app.schemas.account import UserLogIn, UserRead, UserSignUp
+from app.schemas.account import (
+    PasswordChange,
+    SessionRead,
+    UserLogIn,
+    UserRead,
+    UserSignUp,
+)
+from app.schemas.account_export import AccountExport
 from app.schemas.errors import ErrorResponse
+from app.services import account_export as export_service
 from app.services import auth as auth_service
-from app.services.rate_limit import limiter, login_rate_limit, signup_rate_limit
+from app.services.rate_limit import (
+    limiter,
+    login_rate_limit,
+    password_change_rate_limit,
+    signup_rate_limit,
+)
 
 router = APIRouter(tags=["comptes"])
 
@@ -81,7 +105,9 @@ def sign_up(
         username=payload.username,
         password=payload.password,
     )
-    session, token = auth_service.create_session(db, account)
+    session, token = auth_service.create_session(
+        db, account, user_agent=request.headers.get("user-agent")
+    )
     set_session_cookie(response, token, session.expires_at)
     return account
 
@@ -93,9 +119,9 @@ def sign_up(
     summary="Ouvrir une session",
     description=(
         "Vérifie l'adresse et le mot de passe, puis pose le cookie de session "
-        "(échéance fixe de 14 jours). Une adresse inconnue et un mauvais mot de "
-        "passe rendent le même 401, au même coût. Limité en débit par adresse "
-        "IP (429)."
+        "(14 jours sans usage, 90 jours au plus) et note l'appareil "
+        "(`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent "
+        "le même 401, au même coût. Limité en débit par adresse IP (429)."
     ),
     responses={
         200: {
@@ -119,7 +145,9 @@ def log_in(
     )
     if account is None:
         raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS)
-    session, token = auth_service.create_session(db, account)
+    session, token = auth_service.create_session(
+        db, account, user_agent=request.headers.get("user-agent")
+    )
     set_session_cookie(response, token, session.expires_at)
     return account
 
@@ -172,3 +200,159 @@ def log_out(token: SessionToken, response: Response, db: DbSession) -> Response:
 )
 def read_current_user(current_user: CurrentUser) -> UserRead:
     return current_user
+
+
+# ---------------------------------------------------------------------------
+# Lot 12 : mot de passe, sessions, export (`docs/lot12-plan-consolidation.md`)
+# ---------------------------------------------------------------------------
+
+
+_CONTENT_DISPOSITION = {
+    "Content-Disposition": {
+        "description": (
+            "`attachment; filename=\"gurchon-hall-<username>-<AAAA-MM-JJ>.json\"` :"
+            " le navigateur enregistre le fichier au lieu de l'afficher."
+        ),
+        "schema": {"type": "string"},
+    }
+}
+
+
+@router.post(
+    "/moi/mot-de-passe",
+    status_code=204,
+    response_class=Response,
+    operation_id="changePassword",
+    summary="Changer son mot de passe",
+    description=(
+        "Vérifie le mot de passe actuel, pose le nouveau (mêmes règles qu'à "
+        "l'inscription) et ferme toutes les **autres** sessions du compte, dans "
+        "une transaction ; la session de la requête reste ouverte (P2). Un "
+        "mot de passe actuel incorrect rend **422** « Mot de passe actuel "
+        "incorrect. », jamais 401 : la session, elle, est valide. Limité en "
+        "débit par adresse IP (429). En ligne seulement, hors `/sync`."
+    ),
+    responses={
+        204: {"description": "Mot de passe changé, autres sessions fermées."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+        **TOO_MANY_REQUESTS,
+    },
+)
+@limiter.limit(password_change_rate_limit)
+def change_password(
+    request: Request,
+    response: Response,
+    payload: PasswordChange,
+    session: CurrentSession,
+    db: DbSession,
+) -> Response:
+    auth_service.change_password(
+        db,
+        session.user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+        keep_session_id=session.id,
+    )
+    return no_content(response)
+
+
+@router.get(
+    "/moi/sessions",
+    response_model=list[SessionRead],
+    operation_id="listSessions",
+    summary="Sessions ouvertes du compte",
+    description=(
+        "Sessions non expirées du compte, la session de la requête en tête "
+        "(`current`), puis par dernière utilisation décroissante. Ni jeton ni "
+        "empreinte : l'appareil se reconnaît à `user_agent`, noté à la "
+        "connexion (P1)."
+    ),
+    responses={**UNAUTHENTICATED},
+)
+def list_sessions(session: CurrentSession, db: DbSession) -> list[SessionRead]:
+    return auth_service.list_sessions(db, session)
+
+
+@router.delete(
+    "/moi/sessions",
+    status_code=204,
+    response_class=Response,
+    operation_id="revokeOtherSessions",
+    summary="Fermer toutes les autres sessions",
+    description=(
+        "Ferme toutes les sessions du compte sauf celle de la requête. "
+        "Idempotente : 204 même s'il n'y en avait aucune autre."
+    ),
+    responses={
+        204: {"description": "Autres sessions fermées."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+    },
+)
+def revoke_other_sessions(
+    session: CurrentSession, db: DbSession, response: Response
+) -> Response:
+    auth_service.revoke_other_sessions(db, session)
+    return no_content(response)
+
+
+@router.delete(
+    "/moi/sessions/{session_id}",
+    status_code=204,
+    response_class=Response,
+    operation_id="revokeSession",
+    summary="Fermer une session",
+    description=(
+        "Ferme une autre session du compte : l'appareil qui la tenait reçoit "
+        "401 à sa requête suivante. 404 pour une session inconnue, expirée ou "
+        "d'un autre compte, avec le même message. **409 pour la session de la "
+        "requête** : elle se ferme par `POST /deconnexion`, seul chemin qui "
+        "fait purger la base locale du compte."
+    ),
+    responses={
+        204: {"description": "Session fermée."},
+        **UNAUTHENTICATED,
+        **FORBIDDEN_ORIGIN,
+        **NOT_FOUND,
+        **CONFLICT,
+    },
+)
+def revoke_session(
+    session_id: PathId, session: CurrentSession, db: DbSession, response: Response
+) -> Response:
+    auth_service.revoke_session(db, session, session_id)
+    return no_content(response)
+
+
+@router.get(
+    "/moi/export",
+    response_model=AccountExport,
+    operation_id="exportAccount",
+    summary="Exporter toutes ses données",
+    description=(
+        "Toutes les données du compte en un fichier JSON lisible sans la base "
+        "(P3) : compte, collection, decks archivés et supprimés avec leurs "
+        "lignes et leurs versions jouées, joueurs, lieux, tournois et parties "
+        "avec leurs tables. Ni hachage, ni session, ni journal de "
+        "synchronisation. Fabriqué depuis la base, en ligne seulement : une "
+        "saisie encore en file n'y figure pas. Servi en pièce jointe."
+    ),
+    responses={
+        200: {
+            "description": "Export du compte, en pièce jointe.",
+            "headers": _CONTENT_DISPOSITION,
+        },
+        **UNAUTHENTICATED,
+    },
+)
+def export_account(
+    user: CurrentUser, db: DbSession, response: Response
+) -> AccountExport:
+    export = export_service.export_account(db, user)
+    filename = export_service.export_filename(user.username, export.exported_at)
+    # Posé sur la `Response` injectée, que FastAPI fusionne avec la réponse
+    # qu'il fabrique, comme le `Cache-Control` et le cookie renouvelé de la
+    # dépendance de session.
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return export

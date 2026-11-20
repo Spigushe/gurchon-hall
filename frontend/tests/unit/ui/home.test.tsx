@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { renderApp, setOnline } from "./harness";
 
 /**
- * `HomePage` bascule sa liste « En cours » vers un tableau bureau (comptes,
+ * `HomePage` bascule sa liste « Joués » vers un tableau bureau (comptes,
  * légalité, Lot 5bis étape 5) par une lecture réactive de `window.innerWidth`
  * (`useIsDesktop`), pas par une media query CSS : jsdom n'applique aucune CSS
  * ici (`css: false`, `vitest.config.ts`), et la lecture par deck de la
@@ -65,7 +65,7 @@ describe("Atelier : disposition mobile (inchangée, Lot 5)", () => {
   });
 });
 
-describe("Atelier : tableau « En cours » bureau (d08, Lot 5bis étape 5)", () => {
+describe("Atelier : tableau « Joués » bureau (d08, Lot 5bis étape 5)", () => {
   it("affiche nom, comptes et verdict de légalité lus en ligne pour un deck actif", async () => {
     setViewportWidth(1440);
     const app = await renderApp({ online: true, catalog: true });
@@ -164,7 +164,7 @@ describe("Atelier : symétrie mobile / bureau (Lot 5c, étape 5)", () => {
     return app;
   }
 
-  it("mobile : la liste « En cours » affiche les comptes crypte / bibliothèque, calculés localement", async () => {
+  it("mobile : la liste « Joués » affiche les comptes crypte / bibliothèque, calculés localement", async () => {
     setViewportWidth(390);
     const app = await withComposedDeck();
     const counts = await screen.findByTestId("home-deck-counts");
@@ -174,13 +174,25 @@ describe("Atelier : symétrie mobile / bureau (Lot 5c, étape 5)", () => {
     expect(app.ui.requests).toEqual([]);
   });
 
-  it("bureau : discriminant et statut sous le nom dans le tableau « En cours »", async () => {
+  it("bureau : discriminant et statut sous le nom dans le tableau « Joués »", async () => {
     setViewportWidth(1440);
     await withComposedDeck();
     const row = await screen.findByTestId("home-deck-row");
     expect(within(row).getByTestId("home-deck-row-discriminator")).toHaveTextContent("numéro à l'attribution");
     expect(within(row).getByTestId("home-deck-row-status")).toHaveTextContent("brouillon");
     expect(within(row).getByTestId("home-deck-row-status")).toHaveAttribute("data-status", "draft");
+  });
+
+  it("les compteurs « decks actifs » et « brouillons » ouvrent l'onglet correspondant de Decks", async () => {
+    setViewportWidth(390);
+    await withComposedDeck();
+    expect(await screen.findByText("Joués")).toHaveClass("kicker");
+    await waitFor(() => expect(screen.getByTestId("home-drafts")).toHaveTextContent("1brouillon"));
+    expect(screen.getByTestId("home-decks")).toHaveAttribute("href", "#/decks?filtre=actifs");
+    expect(screen.getByTestId("home-drafts")).toHaveAttribute("href", "#/decks?filtre=brouillons");
+
+    fireEvent.click(screen.getByTestId("home-drafts"));
+    expect(await screen.findByLabelText("Brouillons")).toBeChecked();
   });
 
   it("raccourci « Ajouter une carte » : ouvre la feuille de saisie, une seule fois", async () => {

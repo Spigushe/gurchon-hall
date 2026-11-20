@@ -21,6 +21,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app import __version__
 from app.db import session as db_session
 from app.db.schema_check import enforce_schema_revision
+from app.observability import RequestLogMiddleware, configure_logging
 from app.routers.auth import router as auth_router
 from app.routers.catalog import router as catalog_router
 from app.routers.decks import router as decks_router
@@ -32,6 +33,7 @@ from app.routers.sync import router as sync_router
 from app.routers.tournaments import router as tournaments_router
 from app.routers.vdb import router as vdb_router
 from app.routers.venues import router as venues_router
+from app.services.auth import check_session_settings
 from app.services.errors import DomainError, InvalidRequestError
 from app.services.rate_limit import limiter
 
@@ -72,11 +74,20 @@ _WRITE_METHODS = {"POST", "PATCH", "DELETE"}
 GZIP_MINIMUM_SIZE = 1000
 GZIP_LEVEL = 6
 
+# Journaux (Lot 12, A5) : posés au chargement du module, donc après la
+# configuration des journaux d'uvicorn, qui ne touche pas au journal `app`.
+# Une valeur illisible de `LOG_LEVEL` ou `LOG_FORMAT` fait échouer l'import,
+# donc le démarrage, comme une base en retard.
+configure_logging()
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Refuse de démarrer si la base n'est pas à la révision Alembic du code
-    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route."""
+    (`app.db.schema_check`) : mieux vaut un arrêt net qu'un 500 par route.
+    Refuse aussi des durées de session incohérentes (Lot 12, A10 :
+    `SESSION_IDLE_DAYS` au-delà de `SESSION_MAX_DAYS`, ou illisibles)."""
+    check_session_settings()
     enforce_schema_revision(db_session.engine)
     yield
 
@@ -165,9 +176,15 @@ app.add_middleware(
     allow_headers=["*"],
     # Retry-After accompagne les 503 de POST /sync (cf. docs/lot3-sync-contrat.md)
     # et les 429 ci-dessus : sans expose_headers, un navigateur cross-origin ne
-    # peut pas le lire.
-    expose_headers=["Retry-After"],
+    # peut pas le lire. Content-Disposition porte le nom du fichier de
+    # `GET /moi/export` (Lot 12), que le client reprend pour le téléchargement.
+    expose_headers=["Retry-After", "Content-Disposition"],
 )
+
+# Journal des requêtes (Lot 12, A5), ajouté en dernier : c'est la couche la plus
+# extérieure (sous la gestion des erreurs de Starlette), qui mesure tout ce que
+# les autres répondent, 403, 429 et CORS compris (`app.observability`).
+app.add_middleware(RequestLogMiddleware)
 
 app.include_router(health_router)
 app.include_router(auth_router)

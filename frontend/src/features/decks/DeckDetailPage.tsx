@@ -266,7 +266,13 @@ function DeckView({ deck }: { deck: LocalDeck }) {
   // `R` recalcule le verdict de la pastille de l'en-tête bureau (DESKTOP.md
   // « d01 », `DECKS.md` d23) ; sans équivalent mobile (le bouton « recalculer » de
   // `DeckLegalityPanel` a déjà son propre raccourci-clic, pas de kbd dédié).
-  useKeyboardShortcuts([{ keys: ["r"], onTrigger: () => setLegalityRefreshToken((token) => token + 1) }], {
+  useKeyboardShortcuts([
+      {
+        keys: ["r"],
+        onTrigger: () => setLegalityRefreshToken((token) => token + 1),
+        legend: "Recalculer la légalité",
+      },
+    ], {
     enabled: isDesktop,
   });
 

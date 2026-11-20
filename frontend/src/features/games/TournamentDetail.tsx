@@ -257,8 +257,8 @@ export function TournamentDetail({
 
   useKeyboardShortcuts(
     [
-      ...(addNumber !== null ? [{ keys: ["r"], onTrigger: () => setEditing("round") }] : []),
-      ...(canFinal ? [{ keys: ["f"], onTrigger: () => setEditing("final") }] : []),
+      ...(addNumber !== null ? [{ keys: ["r"], onTrigger: () => setEditing("round"), legend: "Ajouter une ronde" }] : []),
+      ...(canFinal ? [{ keys: ["f"], onTrigger: () => setEditing("final"), legend: "Saisir la finale" }] : []),
     ],
     { enabled: isDesktop && shortcuts && editing === null && games !== undefined },
   );

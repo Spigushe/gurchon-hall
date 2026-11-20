@@ -37,12 +37,14 @@ ignoré par git, et le rôle met le clone à jour par `git reset` sans jamais le
 nettoyer : la base survit aux déploiements. Le front est cloné à part, dans
 `~/projects/gurchon.spigushe.com`, et construit sur place avec Node 22.
 
-L'API ne reçoit que deux variables, écrites dans l'unité systemd :
-`BACKEND_CORS_ORIGINS` (l'origine de la PWA) et `FORWARDED_ALLOW_IPS`
-(`127.0.0.1`). Pas de fichier `.env` : l'application lit son environnement
-par `os.getenv` et n'a aucun secret à recevoir, les sessions étant des jetons
-tirés au hasard dont seule l'empreinte est en base. Tout le reste garde sa
-valeur par défaut, en particulier `SESSION_COOKIE_SECURE` (vrai) et les coûts
+L'API reçoit quatre variables, écrites dans l'unité systemd :
+`BACKEND_CORS_ORIGINS` (l'origine de la PWA), `FORWARDED_ALLOW_IPS`
+(`127.0.0.1`), `LOG_LEVEL` (`INFO`, `-e gurchon_log_level=<niveau>` pour
+changer) et `UVICORN_ACCESS_LOG=false` (cf. « Journaux »). Pas de fichier
+`.env` : l'application lit son environnement par `os.getenv` et n'a aucun
+secret à recevoir, les sessions étant des jetons tirés au hasard dont seule
+l'empreinte est en base. Tout le reste garde sa valeur par défaut, en
+particulier `SESSION_COOKIE_SECURE` (vrai), `LOG_FORMAT` (`json`) et les coûts
 Argon2.
 
 La limitation de débit n'a pas eu à être reconfigurée derrière nginx, contre
@@ -141,21 +143,124 @@ Ansible). C'est ce compte qui peut ajouter une langue (`POST /langues`).
 Les autres commandes de `manage_accounts.py` (`set-password`, `set-role`,
 `revoke-sessions`…) se lancent de la même façon.
 
+## Journaux
+
+Depuis la v1.1 (Lot 12), l'API écrit ses journaux en JSON sur la sortie
+standard, une ligne par événement, que systemd range dans journald :
+
+- `http.request`, une par requête : `method`, `route` (le gabarit,
+  `/decks/{deck_id}`, jamais le chemin ni la requête), `status`,
+  `duration_ms`, et `user_id` quand une session a été reconnue ; niveau
+  `error` à partir de 500 ;
+- `sync.batch`, une par lot `/sync`, écrite après le `COMMIT` : `size`,
+  `applied`, `replayed`, `rejected`, refus par motif (`rejected_by_code`) et
+  par type d'opération ; niveau `warning` s'il y a des refus.
+
+Aucune ligne ne porte d'adresse, de mot de passe, de jeton, de corps de
+requête, de texte de recherche ni de nom de deck. Le journal d'accès
+d'uvicorn est coupé par `UVICORN_ACCESS_LOG=false` dans l'unité (uvicorn lit
+ses options dans les variables `UVICORN_*`, c'est l'équivalent de
+`--no-access-log`) : sans cela, chaque requête serait écrite deux fois. Le
+réglage passe par l'environnement pour ne pas modifier le gabarit du rôle
+`fastapi_backend`, copié de Barrin. uvicorn garde ses propres lignes de
+démarrage et d'arrêt, en texte.
+
+Les lire, en SSH :
+
+```bash
+journalctl -u gurchon-api -f                      # en continu
+journalctl -u gurchon-api -o cat --since today    # le message seul, sans l'en-tête de journald
+
+# les lots /sync (niveau warning : ceux qui ont eu des refus)
+journalctl -u gurchon-api -o cat --since "7 days ago" | grep '"event":"sync.batch"'
+journalctl -u gurchon-api -o cat --since "7 days ago" | grep '"event":"sync.batch"' | grep '"level":"warning"'
+
+# les erreurs 500
+journalctl -u gurchon-api -o cat --since "7 days ago" | grep '"level":"error"'
+```
+
+Les lignes sont compactes, sans espace après les deux-points : `grep` suffit,
+sans rien installer sur le VPS. journald range toute la sortie standard en
+priorité `info`, quel que soit le niveau écrit dans la ligne :
+`journalctl -p err` ne trouve donc rien, le niveau se lit dans le champ
+`level`.
+
+Pour compter les refus `/sync` sur une période plus longue que ce que garde
+journald, le journal d'idempotence fait foi : `scripts/sync_report.py` le lit
+en lecture seule, par motif, type d'opération et jour.
+
+```bash
+cd ~/projects/api-gurchon.spigushe.com/backend
+uv run python scripts/sync_report.py vtes.db --since 2026-11-01
+```
+
+Il marche aussi sur une sauvegarde rapatriée sur le poste (ci-dessous), depuis
+`backend/` du dépôt :
+`uv run python scripts/sync_report.py ../ops/sauvegardes/vtes-<date>.db`.
+
 ## Sauvegardes et restauration
 
 Deux sources de copies, toutes deux faites par l'API de sauvegarde de SQLite
 (`scripts/compare_db.py backup`), cohérentes même service en marche : une
 avant chaque déploiement, une chaque nuit à 03:30 UTC
-(`gurchon-hall-backup.timer`). Les copies de plus de quatorze jours sont
-effacées (`-e gurchon_backup_keep_days=<n>` pour changer). Elles restent sur
-le VPS : en cas de perte du serveur, elles partent avec lui. À recopier
-ailleurs de temps en temps, par exemple :
+(`gurchon-hall-backup.timer`), dans `~/backups/gurchon-hall/`. Les copies de
+plus de quatorze jours sont effacées sur le VPS
+(`-e gurchon_backup_keep_days=<n>` pour changer). Depuis la v1.1, une copie
+s'écrit sous un nom caché (`.vtes-<date>.db.part`), renommé une fois fini :
+un fichier `vtes-*.db` est toujours complet.
+
+### Seconde copie sur le poste
+
+Sur le VPS seul, les copies partiraient avec le serveur. `ops/fetch_backups.sh`
+(Lot 12, P6) les tire depuis le poste, dans WSL, avec la clé ssh du
+playbook : il liste les copies du serveur par `ssh`, recopie par `scp` celles
+qui manquent dans `ops/sauvegardes/`, vérifie la taille, puis renomme. Le
+dossier est ignoré par git. Rien n'est jamais supprimé, ni sur le poste ni sur
+le serveur : le poste garde tout ce qu'il a reçu, bien au-delà des quatorze
+jours du VPS (environ 4,5 Mo par copie au 2026-11-19, de l'ordre de 1,6 Go par
+an au rythme d'une copie par nuit). Une copie interrompue est retentée au
+passage suivant. Hôte et utilisateur viennent de `ops/hosts.ini`.
 
 ```bash
-scp spigushe.com:backups/gurchon-hall/vtes-<date>.db .
+bash ops/fetch_backups.sh --dry-run               # ce qui serait recopié, sans rien écrire
+bash ops/fetch_backups.sh                         # dans ops/sauvegardes/
+bash ops/fetch_backups.sh --environment staging   # copies d'avant déploiement du staging, dans ops/sauvegardes/staging/
+bash ops/fetch_backups.sh --destination <dossier> # ailleurs
 ```
 
-Restaurer une copie :
+`ssh` tourne en `BatchMode` : sans clé acceptée par le serveur, le script
+échoue tout de suite au lieu de demander un mot de passe.
+
+Ces copies contiennent tout : adresses des comptes, empreintes des mots de
+passe (Argon2id), collections, decks et parties, mais aucune session
+utilisable (seule l'empreinte des jetons est en base). C'est pourquoi
+`ops/sauvegardes/` est dans `.gitignore`, à ne jamais forcer dans un commit.
+
+Pour lancer la recopie chaque jour, par le planificateur de tâches de Windows
+qui appelle WSL, dans un PowerShell :
+
+```powershell
+$action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-e bash /mnt/c/Users/Martin/Desktop/gurchon-hall/ops/fetch_backups.sh"
+$trigger = New-ScheduledTaskTrigger -Daily -At 10:00
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
+Register-ScheduledTask -TaskName "gurchon-hall - sauvegardes" -Action $action -Trigger $trigger -Settings $settings
+```
+
+`-StartWhenAvailable` rattrape une exécution manquée, poste éteint à l'heure
+dite. La tâche tourne quand la session est ouverte ; un échec (serveur
+injoignable) se lit dans l'historique de la tâche et se rattrape au passage
+suivant, tant que la copie a moins de quatorze jours sur le VPS.
+
+Une copie rapatriée se vérifie sans rien installer de plus, depuis `backend/`
+du dépôt :
+
+```bash
+uv run python scripts/compare_db.py snapshot ../ops/sauvegardes/vtes-<date>.db releve.json   # integrity_check et foreign_key_check en tête de la sortie
+```
+
+### Restaurer une copie
+
+Sur le VPS :
 
 ```bash
 sudo systemctl stop gurchon-api
@@ -190,3 +295,14 @@ Ce que le réseau local en `http://` n'a jamais permis de relever (lots Chercher
 - « Copier » à l'export VDB, qui doit écrire dans le presse-papiers au lieu de
   sélectionner le texte ;
 - la montée de la base IndexedDB d'un appareil déjà utilisé, s'il y en a un.
+
+Après le déploiement de la v1.1 (Lot 12, F) :
+
+- `systemctl show gurchon-api -p Environment` cite `UVICORN_ACCESS_LOG=false`
+  et `LOG_LEVEL=INFO` ;
+- `journalctl -u gurchon-api -o cat -n 20` ne montre, pour une requête, que la
+  ligne JSON `http.request`, sans la ligne `INFO: … "GET /moi HTTP/1.1" 200`
+  d'uvicorn ;
+- après une saisie synchronisée depuis le téléphone, une ligne `sync.batch` ;
+- `bash ops/fetch_backups.sh` recopie la sauvegarde de la nuit suivante, et
+  aucun `.vtes-*.db.part` ne traîne dans `~/backups/gurchon-hall/`.

@@ -35,11 +35,16 @@ export function SearchDesktop({ page }: { page: SearchPageModel }) {
   };
 
   useKeyboardShortcuts([
-    { keys: ["f"], onTrigger: () => columnRef.current?.focus() },
-    { keys: ["arrowdown"], onTrigger: () => move(1), ignoreTarget: isInteractiveTarget },
-    { keys: ["arrowup"], onTrigger: () => move(-1), ignoreTarget: isInteractiveTarget },
-    { keys: ["enter"], onTrigger: () => detailTitleRef.current?.focus(), ignoreTarget: isInteractiveTarget },
-    { keys: ["n"], onTrigger: () => selected && setAdding(selected) },
+    { keys: ["f"], onTrigger: () => columnRef.current?.focus(), legend: "Filtres" },
+    { keys: ["arrowup"], onTrigger: () => move(-1), ignoreTarget: isInteractiveTarget, legend: "Parcourir les résultats" },
+    { keys: ["arrowdown"], onTrigger: () => move(1), ignoreTarget: isInteractiveTarget, legend: "Parcourir les résultats" },
+    {
+      keys: ["enter"],
+      onTrigger: () => detailTitleRef.current?.focus(),
+      ignoreTarget: isInteractiveTarget,
+      legend: "Ouvrir la fiche",
+    },
+    { keys: ["n"], onTrigger: () => selected && setAdding(selected), legend: "Ajouter la carte" },
   ], { enabled: adding === null });
 
   const select = (item: SearchableCard) => setSelectedId(item.card.id);

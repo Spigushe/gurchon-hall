@@ -59,12 +59,15 @@ test("n°1+2 : hors ligne, une saisie en file et aucun refus, l'alerte mène à 
   await addStock(page, { search: "awe", card: CARDS.awe, quantity: 1, language: "EN" });
   await expectPending(page, 1);
 
-  // Aucun refus : avant le Lot 5c, le lien n'existait que s'il y en avait.
+  // L'alerte de l'Atelier dit le problème mais n'a plus de lien (Lot 12, A11,
+  // qui revient sur le lien porté par le Lot 5c) : Synchronisation s'ouvre
+  // depuis l'écran Compte, et sa ligne donne l'état de la file.
   await page.getByTestId("nav-home").click();
-  const link = page.getByTestId("sync-alert-link");
-  await expect(link).toBeVisible();
-  await expect(link).toContainText("Voir la synchronisation");
-  await link.click();
+  await expect(page.getByTestId("sync-alert")).toContainText("Hors ligne");
+  await expect(page.getByTestId("sync-alert-link")).toHaveCount(0);
+  await page.getByTestId("account-menu-link").click();
+  await expect(page.getByTestId("account-sync-meta")).toHaveText("1 en attente · hors ligne");
+  await page.getByTestId("account-sync-row").click();
 
   await expect(page.getByTestId("sync-page")).toBeVisible();
   const list = page.getByTestId("sync-pending-list");
@@ -185,7 +188,7 @@ test("n°7 : le picker mobile annonce « Dans le deck : N » pour la carte et la
   await expect(form.getByTestId("deck-card-form-in-deck")).toHaveText("Dans le deck : 2");
 });
 
-test("n°17b : la liste « En cours » de l'Atelier mobile porte les comptes crypte et bibliothèque", async ({
+test("n°17b : la liste « Joués » de l'Atelier mobile porte les comptes crypte et bibliothèque", async ({
   page,
   api,
 }) => {

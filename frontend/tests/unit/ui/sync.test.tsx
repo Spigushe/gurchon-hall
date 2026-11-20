@@ -68,8 +68,8 @@ async function refusedDeckCard(app: App) {
 describe("file de synchronisation : états", () => {
   it("passe de « hors ligne » à « en attente » puis « tout est à jour »", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
-    await app.runtime.actions.saveStock({ cardId: 3, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     const bar = screen.getByTestId("sync-status");
     await waitFor(() => expect(bar).toHaveAttribute("data-pending", "2"));
@@ -88,7 +88,7 @@ describe("file de synchronisation : états", () => {
     const app = await renderApp({ online: true, catalog: true });
     app.server.next.networkFailure = true;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
 
@@ -107,7 +107,7 @@ describe("file de synchronisation : états", () => {
     const app = await renderApp({ online: true, catalog: true });
     app.server.next.status = 503;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
     const bar = screen.getByTestId("sync-status");
@@ -188,7 +188,7 @@ describe("opérations refusées", () => {
 
   it("« corriger et renvoyer » crée une nouvelle opération sous une nouvelle clé, à la même place", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
     const [refused] = await app.runtime.outbox.list("rejected");
 
@@ -227,7 +227,7 @@ describe("opérations refusées", () => {
     const app = await renderApp({ online: false, catalog: true });
     await refusedDeckCard(app);
     const [refused] = await app.runtime.outbox.list("rejected");
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 3 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 3 });
     await app.settle();
 
     fireEvent.click(screen.getByTestId("reissue-button"));
@@ -286,7 +286,7 @@ describe("opérations refusées", () => {
     expect(within(item).getByTestId("discard-button")).toBeInTheDocument();
   });
 
-  it("les refus s'annoncent par une alerte sur l'Atelier, qui mène à l'écran Synchronisation", async () => {
+  it("les refus s'annoncent par une alerte sur l'Atelier, qui dit de les corriger depuis Compte (A11)", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await refusedDeckCard(app);
 
@@ -306,7 +306,13 @@ describe("opérations refusées", () => {
     const alert = await screen.findByTestId("sync-alert");
     expect(alert).toHaveTextContent("1 opération refusée");
     expect(screen.queryByTestId("rejected-operations")).not.toBeInTheDocument();
-    fireEvent.click(within(alert).getByTestId("sync-alert-link"));
+    // Lot 12, A11 : plus de lien dans l'alerte, une indication ; l'écran s'ouvre depuis Compte.
+    expect(within(alert).queryByTestId("sync-alert-link")).not.toBeInTheDocument();
+    expect(within(alert).getByTestId("sync-alert-hint")).toHaveTextContent("À corriger depuis Compte › Synchronisation");
+    act(() => {
+      window.location.hash = hrefFor({ name: "account" });
+    });
+    fireEvent.click(await screen.findByTestId("account-sync-row"));
     expect(await screen.findByTestId("rejected-operations")).toBeInTheDocument();
   });
 
@@ -344,7 +350,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("affiche les deux colonnes, un bouton d'envoi toujours visible (désactivé hors ligne) et l'état vide du panneau", async () => {
     const app = await renderApp({ online: false, catalog: true, hash: "#/synchronisation" });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     expect(await screen.findByTestId("sync-columns")).toBeInTheDocument();
     const flush = screen.getByTestId("sync-flush");
@@ -362,7 +368,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("liste « En attente » : description à gauche, heure à droite", async () => {
     const app = await renderApp({ online: false, catalog: true, hash: "#/synchronisation" });
-    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 2 });
+    await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 2 });
 
     const list = await screen.findByTestId("sync-pending-list");
     const row = within(list).getByTestId("pending-operation");
@@ -372,7 +378,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("sélectionne (par repli) la première ligne refusée et affiche sa correction dans le panneau de droite", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
 
     const row = screen.getByTestId("rejected-operation");
@@ -460,7 +466,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/synchronisation" });
     app.server.next.networkFailure = true;
     await act(async () => {
-      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
+      await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
       await app.runtime.engine.whenIdle();
     });
     await screen.findByTestId("sync-flush");
@@ -472,7 +478,7 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 
   it("le raccourci « ⌘↵ » soumet la correction affichée dans le panneau de droite", async () => {
     const app = await renderApp({ online: false, catalog: true });
-    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", quantityOwned: 1 });
+    await app.runtime.actions.saveStock({ cardId: 2, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await refusedDeckCard(app);
 
     const form = await screen.findByTestId("correction-form");
@@ -486,35 +492,40 @@ describe("bureau (≥ 1024px) : disposition à deux colonnes", () => {
 });
 
 /**
- * Lot 5c, étape 2 : symétrie de l'écran Synchronisation. Mobile : lien de
- * l'alerte pour tout motif et liste En attente ; bureau : date de saisie des
- * refus.
+ * Lot 5c, étape 2 : symétrie de l'écran Synchronisation. Mobile : liste En
+ * attente ; bureau : date de saisie des refus. Le lien de l'alerte, porté au
+ * mobile par cette étape, a été retiré au Lot 12 (A11) : l'écran s'ouvre
+ * depuis Compte, aux deux largeurs.
  */
 describe("Lot 5c étape 2 : synchronisation aux deux largeurs", () => {
-  it("mobile : l'alerte hors ligne avec file mène à l'écran Synchronisation, qui liste l'attente", async () => {
+  it("mobile : l'alerte hors ligne avec file, sans lien ; Compte mène à Synchronisation, qui liste l'attente", async () => {
     const app = await renderApp({ online: false, catalog: true });
     await app.runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
 
     const alert = await screen.findByTestId("sync-alert");
     expect(alert).toHaveTextContent("Hors ligne");
-    const link = within(alert).getByTestId("sync-alert-link");
-    expect(link).toHaveTextContent("Voir la synchronisation");
-    expect(link).not.toHaveTextContent("Corriger");
+    expect(within(alert).queryByTestId("sync-alert-link")).not.toBeInTheDocument();
+    // Pas de refus : rien à corriger, donc pas d'indication.
+    expect(within(alert).queryByTestId("sync-alert-hint")).not.toBeInTheDocument();
 
-    fireEvent.click(link);
+    act(() => {
+      window.location.hash = hrefFor({ name: "account" });
+    });
+    const row = await screen.findByTestId("account-sync-row");
+    expect(within(row).getByTestId("account-sync-meta")).toHaveTextContent("1 en attente · hors ligne");
+    fireEvent.click(row);
     const list = await screen.findByTestId("sync-pending-list");
     expect(within(list).getByTestId("pending-operation")).toBeInTheDocument();
     expect(screen.queryByTestId("sync-columns")).not.toBeInTheDocument(); // colonne unique
   });
 
-  it("mobile : le libellé « Corriger maintenant → » reste pour des refus", async () => {
-    const app = await renderApp({ online: false, catalog: true });
-    await refusedDeckCard(app);
-    act(() => {
-      window.location.hash = hrefFor({ name: "home" });
-    });
-    const alert = await screen.findByTestId("sync-alert");
-    expect(within(alert).getByTestId("sync-alert-link")).toHaveTextContent("Corriger maintenant");
+  it("mobile : l'écran Synchronisation ramène à Compte par « ← Compte »", async () => {
+    await renderApp({ hash: "#/synchronisation" });
+    fireEvent.click(await screen.findByTestId("sync-back"));
+    expect(await screen.findByTestId("account-page")).toBeInTheDocument();
+    // Ni la tab bar ni la barre haute ne surlignent un onglet sur Compte.
+    expect(document.querySelector('.tabbar [aria-current="page"]')).toBeNull();
+    expect(document.querySelector('.topbar__nav [aria-current="page"]')).toBeNull();
   });
 
   it("bureau : la ligne refusée et le panneau de détail portent « Saisie du … »", async () => {

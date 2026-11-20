@@ -13,6 +13,12 @@ apparaître (« ％ » pleine chasse devient « % » en NFKD).
 Base cible : l'équivalent Postgres serait `unaccent(lower(colonne)) LIKE ...`
 (extension `unaccent`), à prévoir si la base migre (§2). La recherche locale du
 Lot 3 (IndexedDB) devra appliquer la même normalisation côté front.
+
+Depuis le Lot 12 (A7), le module porte aussi l'ordre d'affichage des noms :
+`folded_order` trie par nom replié, puis par nom brut pour départager deux noms
+qui ne diffèrent que par la casse ou un accent. Le miroir local suit la même
+règle (`compareFolded`), sur la table de cas commune
+`backend/tests/fixtures/folded_sort_cases.json`.
 """
 
 from sqlalchemy import ColumnElement, func
@@ -42,3 +48,17 @@ def equals_folded(column: InstrumentedAttribute, text: str) -> ColumnElement[boo
     donc aucun joker à neutraliser.
     """
     return func.fold_text(column) == fold_text(text)
+
+
+def folded_order(column: InstrumentedAttribute) -> tuple[ColumnElement, ...]:
+    """Clés de tri d'un nom : replié d'abord, brut ensuite (Lot 12, A7).
+
+    `ORDER BY name` suivait la collation binaire de SQLite : majuscules avant
+    minuscules, « Élan » après « Zoé ». Le nom replié range « Élan » entre
+    « Dame » et « Zoé » ; le nom brut, comparé point de code par point de code,
+    rend l'ordre stable entre « Abbot » et « abbot ». Les clés propres à chaque
+    liste (groupe, identifiant, langue…) suivent, à la charge de l'appelant.
+    `fold_text` s'appelle en Python pour chaque ligne : mesuré sur le catalogue
+    complet au Lot 12 (`docs/lot12-plan-consolidation.md`, « Livré à B4 »).
+    """
+    return (func.fold_text(column), column)

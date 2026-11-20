@@ -1,7 +1,9 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { shortcutLegendRegistry } from "../../../src/components/shortcutLegend";
 import {
   isInteractiveTarget,
+  suspendShortcuts,
   useKeyboardShortcuts,
   type ShortcutBinding,
 } from "../../../src/components/useKeyboardShortcuts";
@@ -199,5 +201,51 @@ describe("useKeyboardShortcuts : option `ignoreTarget` (Lot 5c, étape 7)", () =
     expect(isInteractiveTarget(programmatic)).toBe(false);
     expect(isInteractiveTarget(null)).toBe(false);
     expect(isInteractiveTarget(document)).toBe(false);
+  });
+
+  it("suspendu (légende ouverte, Lot 12) : seuls les appels marqués `ignoreSuspension` réagissent", () => {
+    const page = vi.fn();
+    const sheet = vi.fn();
+    function Both() {
+      useKeyboardShortcuts([{ keys: ["n"], onTrigger: page }]);
+      useKeyboardShortcuts([{ keys: ["escape"], onTrigger: sheet }], { ignoreSuspension: true });
+      return null;
+    }
+    render(<Both />);
+
+    const release = suspendShortcuts();
+    press("n");
+    press("Escape");
+    expect(page).not.toHaveBeenCalled();
+    expect(sheet).toHaveBeenCalledTimes(1);
+
+    release();
+    release(); // sans effet la seconde fois
+    press("n");
+    expect(page).toHaveBeenCalledTimes(1);
+  });
+
+  it("publie dans la légende les raccourcis libellés, actifs et montés seulement", () => {
+    const labels = () => shortcutLegendRegistry.getSnapshot().screen.map((line) => line.label);
+    function Labelled({ enabled }: { enabled: boolean }) {
+      useKeyboardShortcuts(
+        [
+          { keys: ["n"], onTrigger: () => {}, legend: "Nouveau" },
+          { keys: ["x"], onTrigger: () => {} },
+        ],
+        { enabled },
+      );
+      return null;
+    }
+    const view = render(<Labelled enabled />);
+    expect(labels()).toEqual(["Nouveau"]);
+
+    view.rerender(<Labelled enabled={false} />);
+    expect(labels()).toEqual([]);
+
+    view.rerender(<Labelled enabled />);
+    expect(labels()).toEqual(["Nouveau"]);
+    view.unmount();
+    expect(labels()).toEqual([]);
   });
 });

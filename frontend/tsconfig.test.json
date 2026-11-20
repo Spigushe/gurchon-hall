@@ -1,0 +1,18 @@
+{
+  // Contrôle de types des tests (Lot 12, E) : vitest et Playwright transpilent
+  // sans vérifier, et `tsconfig.app.json` ne couvre que `src/`. Mêmes règles que
+  // l'application, plus les types de Node (scripts de test, e2e, configs).
+  // Hors de `tsconfig.json` : `tsc -b` (le build, aussi celui du serveur) ne
+  // vérifie pas les tests. Lancé par `npx tsc --noEmit -p tsconfig.test.json`
+  // dans `scripts/run.ps1 test`, `scripts/run.sh test` et la CI.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "resolveJsonModule": true,
+    // Les tests importent deux scripts en JavaScript (`scripts/*.mjs`) : leurs
+    // types sont déduits, sans les vérifier eux-mêmes.
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["src", "tests", "playwright.config.ts", "vitest.config.ts"]
+}

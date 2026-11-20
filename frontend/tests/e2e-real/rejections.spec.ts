@@ -233,7 +233,7 @@ test("deck archivé entre-temps : la modification saisie hors ligne est refusée
   const refusedId = (await rejected(page).getAttribute("data-operation-id")) as string;
 
   // Le rafraîchissement qui suit le rejeu apprend l'archivage : la liste, elle,
-  // ne montre plus ce deck sous le filtre par défaut (« En cours »). Le radio
+  // ne montre plus ce deck sous le filtre par défaut (« Joués »). Le radio
   // lui-même est masqué (accessibilité par étiquette) : cliquer l'étiquette.
   await goToDecksList(page);
   await page.locator("label.tab-option").filter({ hasText: "Tous" }).click();

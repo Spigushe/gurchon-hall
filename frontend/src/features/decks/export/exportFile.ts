@@ -57,7 +57,12 @@ export function browserClipboard(): ClipboardEnvironment {
 
 /** Télécharge le texte en `.txt` UTF-8, par un lien temporaire. */
 export function downloadText(text: string, fileName: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  downloadBlob(new Blob([text], { type: "text/plain;charset=utf-8" }), fileName);
+}
+
+/** Télécharge un fichier par un lien temporaire (export VDB, export du compte au Lot 12). */
+export function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
   link.download = fileName;

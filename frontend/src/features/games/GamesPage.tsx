@@ -358,7 +358,7 @@ export function GamesPage({ intent }: { intent?: GamesIntent } = {}) {
     );
 
   // `N` ouvre la saisie ; inactif pendant qu'une feuille est ouverte (elle a ses propres raccourcis).
-  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true) }], {
+  useKeyboardShortcuts([{ keys: ["n"], onTrigger: () => setCreating(true), legend: "Nouvelle partie" }], {
     enabled: !creating && !filtersOpen && !detailEditing,
   });
 

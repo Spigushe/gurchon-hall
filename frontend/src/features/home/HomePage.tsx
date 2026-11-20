@@ -54,15 +54,16 @@ function SyncAlert() {
     <div className="sync-alert" data-testid="sync-alert">
       <p className="sync-alert__title">{title}</p>
       {/*
-       * Un seul lien, quel que soit le motif de l'alerte (Lot 5c, étape 2) :
-       * l'écran Synchronisation est le seul endroit où l'on voit la file en
-       * attente, sur mobile qui n'a pas d'onglet dédié. Même testid dans les
-       * deux cas — un seul point d'accroche pour les tests, le libellé seul
-       * change (« Corriger » n'a de sens que s'il y a des refus).
+       * Plus de lien vers Synchronisation (Lot 12, A11, voulu par l'utilisateur,
+       * qui revient sur le lien porté au mobile par le Lot 5c) : l'écran
+       * s'ouvre depuis Compte, aux deux largeurs. Avec des refus, l'alerte dit
+       * où les corriger ; « Synchroniser maintenant » agit sans quitter l'écran.
        */}
-      <Link to={{ name: "sync" }} className="btn-ghost" data-testid="sync-alert-link">
-        {status.rejected > 0 ? "Corriger maintenant →" : "Voir la synchronisation →"}
-      </Link>
+      {status.rejected > 0 && (
+        <p className="hint" data-testid="sync-alert-hint">
+          À corriger depuis Compte › Synchronisation
+        </p>
+      )}
       {status.online && status.pending > 0 && (
         <button
           type="button"
@@ -103,7 +104,7 @@ function legalityDisplay(
 }
 
 /**
- * Ligne du tableau « En cours » bureau (d08) : nom, comptes, légalité, flèche.
+ * Ligne du tableau « Joués » bureau (d08) : nom, comptes, légalité, flèche.
  * Verdict lu **en ligne** (`GET /decks/{id}/legalite`, comme
  * `DeckLegalityPanel`) : indisponible hors ligne plutôt que recalculé
  * localement, sans appel bloquant (l'effet se résout en arrière-plan). Rendue
@@ -151,7 +152,7 @@ function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
 }
 
 /**
- * Ligne de la liste « En cours » mobile : nom, puis discriminant, statut,
+ * Ligne de la liste « Joués » mobile : nom, puis discriminant, statut,
  * archétype et — depuis le Lot 5c (étape 5) — les comptes crypte / bibliothèque
  * du bureau. Comptes **locaux** (composition du miroir croisée avec la catégorie
  * du catalogue, `useLocalDeckCounts`) : pas de verdict de légalité ici, qui
@@ -206,7 +207,7 @@ function CurrentTournament({ tournament }: { tournament: LocalTournament }) {
   const label = next === null ? null : next.kind === "final" ? "Saisir la finale" : `Saisir la ronde ${next.number}`;
 
   useKeyboardShortcuts(
-    [{ keys: ["enter"], ignoreTarget: isInteractiveTarget, onTrigger: () => setEntering(true) }],
+    [{ keys: ["enter"], ignoreTarget: isInteractiveTarget, onTrigger: () => setEntering(true), legend: "Nouvelle partie" }],
     { enabled: isDesktop && next !== null && games !== undefined && !entering },
   );
 
@@ -253,7 +254,7 @@ function CurrentTournament({ tournament }: { tournament: LocalTournament }) {
   );
 }
 
-/** Point d'entrée : chiffres du jour, alerte de synchronisation, decks en cours. */
+/** Point d'entrée : chiffres du jour, alerte de synchronisation, decks joués (non archivés). */
 export function HomePage() {
   const stock = useLocalStock();
   const decks = useLocalDecks({ state: "active" });
@@ -300,14 +301,14 @@ export function HomePage() {
                 <span className="stat__value">{stock.length}</span>
                 <span className="stat__label">{plural(stock.length, "entrée")}</span>
               </Link>
-              <Link to={{ name: "decks" }} className="stat" data-testid="home-decks">
+              <Link to={{ name: "decks", filter: "active" }} className="stat" data-testid="home-decks">
                 <span className="stat__value">{activeCount ?? 0}</span>
                 <span className="stat__label">decks actifs</span>
               </Link>
-              <span className="stat">
+              <Link to={{ name: "decks", filter: "draft" }} className="stat" data-testid="home-drafts">
                 <span className="stat__value">{draftCount ?? 0}</span>
                 <span className="stat__label">brouillon{(draftCount ?? 0) > 1 ? "s" : ""}</span>
-              </span>
+              </Link>
             </div>
           )}
 
@@ -317,7 +318,7 @@ export function HomePage() {
 
           {decks !== undefined && decks.length > 0 && (
             <div>
-              <p className="kicker">En cours</p>
+              <p className="kicker">Joués</p>
               {isDesktop ? (
                 <div className="home-deck-table" data-testid="home-deck-table">
                   {decks.map((deck) => (

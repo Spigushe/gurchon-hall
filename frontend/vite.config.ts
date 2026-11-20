@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
+import packageJson from "./package.json" with { type: "json" };
 
 // PWA minimale (Lot 0) : app shell installable et utilisable hors-ligne.
 //
@@ -28,21 +29,24 @@ import { navigateFallbackDenylist } from "./src/offline/apiRoutes.ts";
 // endroit à adapter si Barrin utilise d'autres noms de ressources ou un
 // préfixe `/api`.
 
+// Version de la coquille (Lot 12, D1), lue dans `package.json` au build et
+// affichée en pied de l'écran Compte à côté de celle de l'API (`/health`).
+const appVersion: string = packageJson.version;
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   plugins: [
     react(),
     VitePWA({
-      // autoUpdate : le service worker active la nouvelle version dès
-      // qu'elle est prête, sans interaction utilisateur. Choisi plutôt que
-      // "prompt" car ce pilote n'a pas encore d'UI de notification de mise à
-      // jour (pas de composant "nouvelle version disponible" prévu au Lot 0),
-      // et parce qu'une appli de saisie de scores/decks n'a pas de risque
-      // fort à recharger la donnée statique (l'app shell) au prochain
-      // chargement. Le rechargement effectif reste piloté depuis
-      // `src/main.tsx` (écoute de l'événement de mise à jour), pas imposé de
-      // force au milieu d'une saisie en cours. À réévaluer pour Barrin si une
-      // UI de confirmation de mise à jour est requise en production.
-      registerType: "autoUpdate",
+      // prompt (Lot 12, A6) : une nouvelle version installée attend que
+      // l'utilisateur la prenne, depuis le bandeau « nouvelle version », qui
+      // ne la propose qu'une fois la file vidée de ses saisies en attente
+      // (P5). Les Lots 14 et suivants changeront Dexie et la forme des
+      // opérations `/sync` en production : une mise à jour imposée au milieu
+      // d'une file pleine ferait dépendre la nouvelle version de sa capacité à
+      // rejouer l'ancienne forme. Du Lot 0 à la v1.0 : `autoUpdate`. Le
+      // cycle de vie est piloté par `src/offline/registerServiceWorker.ts`.
+      registerType: "prompt",
       injectRegister: false, // enregistrement manuel dans src/main.tsx (contrôle explicite du cycle de vie)
       // Pas de `includeAssets` : apple-touch-icon.png est déjà couvert par
       // `globPatterns` (extension png), qui precache tout fichier de build

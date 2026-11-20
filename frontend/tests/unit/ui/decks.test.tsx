@@ -179,6 +179,47 @@ describe("decks : liste et création", () => {
     await waitFor(() => expect(screen.getAllByTestId("deck-item")).toHaveLength(1));
   });
 
+  it("sépare actifs et brouillons parmi les decks joués, et garde l'onglet dans l'adresse", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks" });
+    const active = await runtime.actions.createDeck({ name: "Ventrue" });
+    await runtime.actions.updateDeck(active.key, { status: "active" });
+    await runtime.actions.createDeck({ name: "Toreador" });
+    const archived = await runtime.actions.createDeck({ name: "Brujah" });
+    await runtime.actions.archiveDeck(archived.key);
+
+    const names = () => screen.getAllByTestId("deck-item").map((item) => item.querySelector(".row__name")?.textContent);
+    const filter = screen.getByTestId("decks-filter");
+    expect(within(filter).getAllByRole("radio").map((radio) => radio.closest("label")?.textContent)).toEqual([
+      "Joués",
+      "Actifs",
+      "Brouillons",
+      "Archivés",
+      "Tous",
+    ]);
+    // « Joués » par défaut : actifs et brouillons, pas l'archivé.
+    await waitFor(() => expect(names()).toEqual(["Toreador", "Ventrue"]));
+
+    fireEvent.click(screen.getByLabelText("Actifs"));
+    await waitFor(() => expect(names()).toEqual(["Ventrue"]));
+    expect(window.location.hash).toBe("#/decks?filtre=actifs");
+
+    fireEvent.click(screen.getByLabelText("Brouillons"));
+    await waitFor(() => expect(names()).toEqual(["Toreador"]));
+    expect(window.location.hash).toBe("#/decks?filtre=brouillons");
+
+    fireEvent.click(screen.getByLabelText("Joués"));
+    await waitFor(() => expect(names()).toEqual(["Toreador", "Ventrue"]));
+    expect(window.location.hash).toBe("#/decks");
+  });
+
+  it("ouvre l'onglet que l'adresse demande, et dit qu'aucun deck ne correspond", async () => {
+    const { runtime } = await renderApp({ online: false, hash: "#/decks?filtre=actifs" });
+    await runtime.actions.createDeck({ name: "Toreador" });
+
+    expect(await screen.findByLabelText("Actifs")).toBeChecked();
+    await waitFor(() => expect(screen.getByTestId("decks-empty")).toHaveTextContent("Aucun deck ne correspond."));
+  });
+
   it("route par deck.key : un lien de la liste ouvre le détail, une clé inconnue est introuvable (mobile)", async () => {
     setViewportWidth(390);
     const { runtime } = await renderApp({ online: false, hash: "#/decks" });

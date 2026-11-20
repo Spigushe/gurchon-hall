@@ -124,7 +124,7 @@ test("n°12 : « Changer » du picker bureau efface la carte choisie et rend la 
   await expect(picker.getByTestId("deck-card-form-selected")).toContainText(CARDS.awe);
 });
 
-test("n°17c : le tableau « En cours » de l'Atelier bureau montre discriminant et statut de chaque deck", async ({
+test("n°17c : le tableau « Joués » de l'Atelier bureau montre discriminant et statut de chaque deck", async ({
   page,
   api,
 }) => {

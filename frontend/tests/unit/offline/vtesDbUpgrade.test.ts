@@ -37,7 +37,7 @@ describe("montée de version 2 → 4 (Lot 4 : extension dans l'identité du stoc
     // file et une opération tranchée en attente de rafraîchissement.
     const before = new PreLot4Db(name);
     const outbox = new Outbox<VtesOperation>(before, { retainSettled: true });
-    await before.stock.put({
+    await before.table("stock").put({
       cardId: 1,
       languageCode: "FR",
       quantityOwned: 2,
@@ -47,7 +47,7 @@ describe("montée de version 2 → 4 (Lot 4 : extension dans l'identité du stoc
       foldedName: "elan vital",
       category: "library",
     });
-    await before.decks.put({
+    await before.table("decks").put({
       id: 1,
       name: "Malkavien",
       foldedName: "malkavien",
@@ -58,7 +58,7 @@ describe("montée de version 2 → 4 (Lot 4 : extension dans l'identité du stoc
       notes: null,
       archivedAt: null,
     });
-    await before.deckCards.put({
+    await before.table("deckCards").put({
       deckId: 1,
       cardId: 1,
       languageCode: "FR",
@@ -66,7 +66,7 @@ describe("montée de version 2 → 4 (Lot 4 : extension dans l'identité du stoc
       proxyQuantity: 0,
       cardName: "Élan vital",
     });
-    await before.cards.put({
+    await before.table("cards").put({
       id: 1,
       veknId: 100001,
       name: "Élan vital",

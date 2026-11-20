@@ -49,11 +49,16 @@ d'API généré. `vtes/runtime.ts` est le seul fichier qui assemble le tout.
 - `core/syncEngine.ts` : le moteur. `start`, `stop`, `flush`, `getStatus`,
   `subscribe`, `whenIdle`, `whenDrained`, `resumeAfterAuthentication` (Lot 6,
   cf. « Pause d'authentification » plus bas).
-- `core/foldText.ts` : `foldText` et `containsFolded`, le repli casse et accents.
+- `core/foldText.ts` : `foldText` et `containsFolded`, le repli casse et accents ;
+  `compareFolded` et `compareFoldedKeys` (Lot 12), le tri des noms.
+- `core/appUpdate.ts` (Lot 12) : `AppUpdateStore`, la version de la coquille qui
+  attend d'être prise (`offer`, `dismiss`, `apply`), sans rien savoir du service
+  worker.
 - `core/types.ts` : `SyncTransport`, `SyncVerdict`, `OutboxEntry`, `TransportResult`
   (dont l'état `unauthenticated`, Lot 6).
 - `react/` : `OfflineProvider`, `useSyncStatus`, `useConnectivity`,
-  `useRejectedOperations`, `useFlush`, `useLiveQuery`.
+  `useRejectedOperations`, `useFlush`, `useLiveQuery`, et `useAppUpdate` (Lot 12),
+  qui croise la version en attente avec l'état de la file.
 - `apiRoutes.ts` : la liste des préfixes de l'API. À adapter, c'est le seul endroit.
 
 Ce que le cœur suppose du serveur : chaque opération porte `operation_id`,
@@ -679,6 +684,16 @@ Le test `tests/unit/offline/foldText.test.ts` compare `foldText` au vrai `fold_t
 Python sur tous les points de code Unicode. Seul écart toléré : un caractère que le
 moteur JavaScript connaît et pas la version d'Unicode de Python.
 
+**Tri des noms (Lot 12, A7).** Les lectures rangent les noms comme l'API
+(`folded_order`) : nom replié d'abord, nom brut ensuite pour départager « Abbot » et
+« abbot », puis les clés propres à chaque liste (langue, extension, discriminant…).
+`compareFolded` replie à chaque comparaison ; `compareFoldedKeys` prend le nom replié
+déjà calculé (`foldedName` des miroirs), pour les 4 000 cartes de `searchCards`. Les
+clés qui ne sont pas des noms (langue, abréviation, date) restent comparées par unités
+de code (`compareCodeUnits`). La table de cas est commune aux deux suites
+(`backend/tests/fixtures/folded_sort_cases.json`, `tests/unit/offline/foldedSort.test.ts`) ;
+une évolution de la règle se fait dans la table et dans les deux implémentations.
+
 `searchCards` (le picker) reste un parcours de `db.cards`, nom anglais seulement. La
 recherche de l'écran Chercher, plus riche, filtre un catalogue gardé en mémoire : voir
 « Catalogue enrichi et Chercher ».
@@ -813,6 +828,29 @@ et le precache ne porte que les fichiers du build. Un test compare la liste à
 `contracts/openapi.json` : une nouvelle ressource au contrat sans entrée ici fait
 échouer la suite.
 
+**Mise à jour en mode `prompt` (Lot 12, A6).** Une nouvelle version installée attend
+(`registerType: "prompt"`). `onNeedRefresh` l'offre au store `appUpdateStore`, avec la
+fonction qui l'installe : `updateSW()` envoie `SKIP_WAITING` au service worker en
+attente, qui ne prend la main qu'à ce message (pas de `clientsClaim`). Quand il la
+prend, le plugin recharge **chaque onglet** qui l'avait vu attendre ; un filet recharge
+la page d'office après `RELOAD_FALLBACK_MS` (10 s) si rien ne l'a fait, pour qu'un
+appareil ne reste pas sur l'ancienne coquille sans le savoir.
+
+`useAppUpdate()` rend une vue (`appUpdateViewOf`, fonction pure) :
+
+| Vue | Quand | Le bandeau |
+| --- | --- | --- |
+| `hidden` | aucune version, ou « Plus tard » | rien |
+| `waiting` | une version attend et `pending > 0` | « s'installera une fois vos N saisies synchronisées », sans « Mettre à jour » ; `online` et `authRequired` pour dire pourquoi l'envoi n'avance pas |
+| `ready` | une version attend, file vidée de ses saisies en attente | « Mettre à jour » ; `rejected` compté, non bloquant |
+
+`apply()` ne fait rien hors de `ready` : une saisie arrivée entre l'affichage et le clic
+n'est pas suivie d'une installation. « Plus tard » vit en mémoire et ne dure que
+jusqu'au prochain démarrage. Pourquoi attendre la file : les lots qui changeront Dexie
+ou la forme des opérations `/sync` savent rejouer l'ancienne forme, mais une mise à
+jour n'a pas de raison d'en dépendre. Transition : un appareil resté en v1.0 a un
+service worker en `autoUpdate`, qui installe la v1.1 tout seul une dernière fois.
+
 Conséquence pour l'UI : ne pas nommer une route cliente comme une ressource de l'API
 (`/decks`), elle ne s'ouvrirait plus hors ligne à un rechargement. Préférer un préfixe
 dédié ou un routeur à hash.
@@ -831,9 +869,10 @@ dédié ou un routeur à hash.
   coûte que ce qui a changé.
 - Lot 7 : les compteurs des joueurs et des lieux, et les decks admis en finale, ne suivent
   pas la file ; ils redeviennent exacts au rafraîchissement.
-- Le tri local compare les chaînes par unités de code, comme le tri binaire de SQLite
-  pour la plupart des textes ; il partage la limite connue du back (majuscules avant
-  minuscules, accents en fin).
+- Le tri local des noms suit la règle repliée de l'API depuis le Lot 12 ; comme elle,
+  il laisse œ, ł ou ø, qui ne se décomposent pas, après z. Au-delà du plan multilingue
+  de base, JavaScript compare des unités UTF-16 et SQLite des octets UTF-8 : un nom
+  hors de ce plan pourrait se ranger différemment des deux côtés (aucun au catalogue).
 - Lot 6 : la mécanique (pause, base par compte, adoption, purge) est testée ici au
   niveau du paquet. `features/auth/`, hors de ce paquet, consomme
   `SyncStatus.authRequired` et `RefreshReport.authRequired` pour le mur et le bandeau de

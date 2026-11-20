@@ -19,6 +19,7 @@ from app.routers.common import (
     DbSession,
     PathId,
     QueryId,
+    no_content,
 )
 from app.schemas.play import (
     GameCreate,
@@ -149,6 +150,6 @@ def replace_game_participations(
     ),
     responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def delete_game(game_id: PathId, db: DbSession, user: CurrentUser):
+def delete_game(game_id: PathId, db: DbSession, user: CurrentUser, response: Response):
     games.delete_game(db, user.id, game_id)
-    return Response(status_code=204)
+    return no_content(response)

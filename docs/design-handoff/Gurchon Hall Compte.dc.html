@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="stylesheet" href="nocturne/styles.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
+<style>
+  body { margin: 0; background: #0d0e16; }
+  i[class^="ph"] { display: block; }
+  .lot12 * { box-sizing: border-box; }
+  .cap { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--color-neutral-400); }
+  .cap b { font-weight:400; font-family:var(--font-heading); font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--color-accent); color:var(--color-accent); }
+  .phone { width:390px; height:844px; border-radius:38px; background:var(--color-bg); box-shadow:var(--shadow-md); overflow:hidden; position:relative; display:flex; flex-direction:column; color:var(--color-text); font-family:var(--font-body); font-size:15px; line-height:1.5; }
+  .desk { width:1440px; height:900px; border-radius:12px; background:var(--color-bg); box-shadow:var(--shadow-md); overflow:hidden; position:relative; display:flex; flex-direction:column; color:var(--color-text); font-family:var(--font-body); font-size:15px; line-height:1.5; }
+  .sbar { display:flex; justify-content:space-between; align-items:center; padding:16px 26px 0; font-size:12px; color:var(--color-neutral-500); flex:none; }
+  .shell { display:flex; align-items:center; gap:12px; padding:14px 26px 0; font-size:11px; color:var(--color-neutral-500); flex:none; }
+  .shell .brand { letter-spacing:.16em; text-transform:uppercase; margin-right:auto; }
+  .acct { display:flex; align-items:center; gap:5px; font-family:var(--font-heading); font-size:12px; color:var(--color-text); }
+  .acct.on { color:var(--color-accent); }
+  .off { color:var(--color-accent-300); display:flex; align-items:center; gap:5px; }
+  .mpage { display:flex; flex-direction:column; gap:26px; padding:22px 26px 120px; }
+  .viewport { flex:1; overflow:hidden; position:relative; }
+  .h1 { font-family:var(--font-heading); font-weight:500; font-size:30px; line-height:1.15; letter-spacing:-.02em; margin:0; }
+  .h2 { font-family:var(--font-heading); font-weight:500; font-size:26px; line-height:1.15; letter-spacing:-.02em; margin:0; }
+  .meta { font-size:13px; color:var(--color-neutral-400); margin-top:4px; }
+  .kicker { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--color-neutral-500); margin:0 0 6px; }
+  .sec { display:flex; flex-direction:column; }
+  .sec-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .row { padding:16px 0; border-top:1px solid var(--color-divider); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .row.first { border-top:none; }
+  .rn { font-family:var(--font-heading); font-size:17px; line-height:1.2; }
+  .rm { font-size:12px; color:var(--color-neutral-500); margin-top:3px; }
+  .arrow { color:var(--color-accent); font-size:18px; }
+  .hint { font-size:13px; color:var(--color-neutral-400); text-wrap:pretty; }
+  .small { font-size:12px; color:var(--color-neutral-500); }
+  .err { font-size:13px; color:var(--color-accent-200); }
+  .ok { font-size:13px; color:var(--color-accent-200); display:flex; gap:6px; align-items:flex-start; }
+  .bt { font-size:13px; color:var(--color-accent-300); display:inline-flex; align-items:center; gap:4px; min-height:44px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:8px 16px; border-radius:var(--radius-md); border:1px solid transparent; font-family:var(--font-heading); font-size:14px; color:var(--color-text); align-self:flex-start; }
+  .btn.p { color:var(--color-accent); border-color:var(--color-accent); }
+  .btn.s { border-color:var(--color-divider); }
+  .dis { opacity:.45; }
+  .ca { display:inline-flex; align-items:center; justify-content:center; min-height:40px; padding:0 16px; border-radius:999px; font-size:13px; flex:none; white-space:nowrap; }
+  .ca.a { border:1px solid var(--color-accent); color:var(--color-accent); }
+  .ca.n { border:1px solid var(--color-divider); color:var(--color-text); }
+  .tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:var(--radius-sm); font-size:12px; line-height:1.5; flex:none; white-space:nowrap; }
+  .tag.u { border:1px solid var(--color-divider); color:var(--color-neutral-400); }
+  .tag.l { background:var(--color-accent-800); color:var(--color-accent-100); }
+  .alert { border-left:2px solid var(--color-accent); padding:2px 0 2px 14px; display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+  .alert .t { font-family:var(--font-heading); font-size:15px; line-height:1.4; color:var(--color-accent-200); }
+  .alert .acts { display:flex; gap:18px; flex-wrap:wrap; }
+  .alert .acts span { font-size:13px; color:var(--color-accent-300); min-height:32px; display:flex; align-items:center; gap:4px; }
+  .kbd { display:inline-flex; align-items:center; justify-content:center; height:17px; padding:0 5px; border:1px solid var(--color-divider); border-radius:var(--radius-sm); font-size:11px; line-height:17px; color:var(--color-neutral-400); white-space:nowrap; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  .field label { font-size:12px; color:var(--color-neutral-400); }
+  .uf { min-height:44px; border-bottom:1px solid var(--color-divider); padding:0 2px 10px; display:flex; align-items:flex-end; font-size:15px; letter-spacing:.1em; }
+  .uf.focus { border-bottom-color:var(--color-accent); }
+  .uf.bad { border-bottom-color:var(--color-accent-300); }
+  .caret { width:1px; height:18px; background:var(--color-accent); margin-left:2px; display:inline-block; }
+  .rules { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-direction:column; gap:4px; }
+  .rules li { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--color-neutral-400); }
+  .rules li.met { color:var(--color-accent-300); }
+  .rules li i { font-size:15px; }
+  .pill { min-height:50px; border-radius:999px; border:1px solid var(--color-accent); background:var(--color-bg); box-shadow:var(--shadow-md); display:flex; align-items:center; justify-content:center; gap:8px; font-family:var(--font-heading); font-size:16px; color:var(--color-accent); }
+  .confirm { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  .skel { display:block; border-radius:var(--radius-sm); background:var(--color-neutral-900); }
+  .loading { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--color-neutral-500); }
+  .spin { width:13px; height:13px; border-radius:50%; border:1.5px solid var(--color-neutral-700); border-top-color:var(--color-accent-300); flex:none; }
+  .tabs { display:flex; gap:18px; border-bottom:1px solid var(--color-divider); font-size:13px; }
+  .tabs span { padding-bottom:9px; color:var(--color-neutral-500); }
+  .tabs span.on { color:var(--color-text); font-family:var(--font-heading); box-shadow:inset 0 -2px 0 var(--color-accent); }
+  /* bureau */
+  .top { height:56px; flex:none; border-bottom:1px solid var(--color-divider); display:flex; justify-content:center; }
+  .top-in { flex:1; max-width:1200px; display:flex; align-items:center; gap:40px; }
+  .tabsd { display:flex; gap:28px; align-self:stretch; }
+  .tabsd span { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--color-neutral-400); }
+  .tabsd span.on { color:var(--color-text); box-shadow:inset 0 -2px 0 var(--color-accent); }
+  .search { width:280px; height:34px; display:flex; align-items:center; gap:10px; padding:0 10px; border-radius:var(--radius-md); border:1px solid var(--color-divider); background:var(--color-surface); font-size:13px; color:var(--color-neutral-500); }
+  .dpage { flex:1; display:flex; justify-content:center; overflow:hidden; position:relative; }
+  .dcol { flex:1; max-width:1200px; padding:28px 0; display:flex; flex-direction:column; gap:24px; }
+  .panel { position:absolute; top:56px; right:0; bottom:0; width:460px; background:var(--color-surface); box-shadow:var(--shadow-lg); padding:28px 32px; display:flex; flex-direction:column; gap:24px; }
+  .dim { opacity:.35; }
+  .card { background:var(--color-surface); border-radius:var(--radius-md); padding:20px 22px; display:flex; flex-direction:column; gap:12px; }
+  .th { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--color-neutral-500); }
+  .grid { display:grid; align-items:center; gap:16px; }
+  .krow { display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:40px; border-top:1px solid var(--color-divider); font-size:14px; }
+  .krow:first-of-type { border-top:none; }
+  .keys { display:flex; gap:4px; align-items:center; }
+  .menu { position:absolute; top:52px; width:240px; background:var(--color-surface); border-radius:var(--radius-md); box-shadow:var(--shadow-md); padding:6px; display:flex; flex-direction:column; z-index:5; }
+  .menu span { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 10px; border-radius:var(--radius-sm); font-size:14px; }
+</style>
+</helmet>
+
+<section class="lot12" style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:56px;font-family:var(--font-body);color:var(--color-text)">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:760px">
+    <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--color-neutral-500)">Gurchon Hall · Lot 12 · mobile 390 · direction 1b</div>
+    <h2 style="font-size:30px;margin:0">Consolidation — le compte, la mise à jour, le catalogue</h2>
+    <p style="margin:0;color:var(--color-neutral-400);font-size:15px;max-width:66ch;text-wrap:pretty">Écran Compte ouvert depuis le nom dans la barre haute, sans sixième onglet. Feuille du mot de passe. Bandeau « nouvelle version » sur le patron du bandeau de reconnexion. État « Catalogue en cours de chargement » à la place des comptes et des tableaux. Aucun token nouveau.</p>
+  </div>
+  
+  <div id="lot12-compte" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Lot 12</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Compte — écrans 59 à 64</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">lea-v · 4 sessions au 18 novembre</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-59</b>Compte, haut</span>
+        <div id="shot-1b-59-compte" data-screen-label="1b-59 Compte, haut" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">4</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><div class="row"><div style="min-width:0"><div class="rn">Firefox sur Windows</div>
+            <div class="rm">Connecté le 20 septembre</div><div class="rm" style="margin-top:0">Utilisé il y a 3 jours</div><div class="rm" style="margin-top:0">Expire le 29 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Safari sur iPhone</div>
+            <div class="rm">Connecté le 28 octobre</div><div class="rm" style="margin-top:0">Utilisé il y a 12 jours</div><div class="rm" style="margin-top:0">Expire le 20 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Appareil inconnu</div>
+            <div class="rm">Connecté le 10 novembre</div><div class="rm" style="margin-top:0">Jamais revu depuis</div><div class="rm" style="margin-top:0">Expire le 24 novembre</div></div><span class="ca n">Fermer</span></div><div style="border-top:1px solid var(--color-divider)"><span class="bt">Fermer toutes les autres sessions</span></div>
+            <p class="small" style="text-wrap:pretty">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-60</b>Compte, bas</span>
+        <div id="shot-1b-60-compte-bas" data-screen-label="1b-60 Compte, bas" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:-600px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">4</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><div class="row"><div style="min-width:0"><div class="rn">Firefox sur Windows</div>
+            <div class="rm">Connecté le 20 septembre</div><div class="rm" style="margin-top:0">Utilisé il y a 3 jours</div><div class="rm" style="margin-top:0">Expire le 29 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Safari sur iPhone</div>
+            <div class="rm">Connecté le 28 octobre</div><div class="rm" style="margin-top:0">Utilisé il y a 12 jours</div><div class="rm" style="margin-top:0">Expire le 20 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Appareil inconnu</div>
+            <div class="rm">Connecté le 10 novembre</div><div class="rm" style="margin-top:0">Jamais revu depuis</div><div class="rm" style="margin-top:0">Expire le 24 novembre</div></div><span class="ca n">Fermer</span></div><div style="border-top:1px solid var(--color-divider)"><span class="bt">Fermer toutes les autres sessions</span></div>
+            <p class="small" style="text-wrap:pretty">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-61</b>Compte hors ligne</span>
+        <div id="shot-1b-61-compte-hors-ligne" data-screen-label="1b-61 Compte hors ligne" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span class="off"><i class="ph ph-wifi-slash" style="font-size:13px"></i>Hors ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first dis"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-neutral-500)"></i></div>
+          <p class="hint">Indisponible hors ligne.</p></section><section class="sec" style="gap:8px"><div class="sec-head"><p class="kicker">Sessions ouvertes</p></div>
+          <div class="alert" style="border-left-color:var(--color-divider)"><span class="t" style="color:var(--color-text)">Liste indisponible hors ligne</span>
+          <span class="hint">Les sessions se lisent sur le serveur. Elles s'afficheront au retour du réseau.</span></div></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s dis"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span><p class="hint">Indisponible hors ligne.</p></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <span class="btn s dis">Se déconnecter</span><p class="hint">Déconnexion indisponible hors ligne.</p></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-62</b>Session fermée</span>
+        <div id="shot-1b-62-session-fermee" data-screen-label="1b-62 Session fermée" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">3</span></div>
+          <p class="ok" style="margin-bottom:6px"><i class="ph ph-check-circle" style="font-size:15px;margin-top:2px"></i>Session fermée : Firefox sur Windows.</p><div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><div class="row"><div style="min-width:0"><div class="rn">Safari sur iPhone</div>
+            <div class="rm">Connecté le 28 octobre</div><div class="rm" style="margin-top:0">Utilisé il y a 12 jours</div><div class="rm" style="margin-top:0">Expire le 20 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Appareil inconnu</div>
+            <div class="rm">Connecté le 10 novembre</div><div class="rm" style="margin-top:0">Jamais revu depuis</div><div class="rm" style="margin-top:0">Expire le 24 novembre</div></div><span class="ca n">Fermer</span></div><div style="border-top:1px solid var(--color-divider)"><span class="bt">Fermer toutes les autres sessions</span></div>
+            <p class="small" style="text-wrap:pretty">Un appareil dont la session est fermée est déconnecté à sa prochaine requête. Ses saisies en attente ne sont pas perdues : elles partiront après reconnexion.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-63</b>Fermer les autres, confirmation</span>
+        <div id="shot-1b-63-fermer-autres" data-screen-label="1b-63 Fermer les autres, confirmation" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:-240px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">4</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><div class="row"><div style="min-width:0"><div class="rn">Firefox sur Windows</div>
+            <div class="rm">Connecté le 20 septembre</div><div class="rm" style="margin-top:0">Utilisé il y a 3 jours</div><div class="rm" style="margin-top:0">Expire le 29 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Safari sur iPhone</div>
+            <div class="rm">Connecté le 28 octobre</div><div class="rm" style="margin-top:0">Utilisé il y a 12 jours</div><div class="rm" style="margin-top:0">Expire le 20 novembre</div></div><span class="ca n">Fermer</span></div><div class="row"><div style="min-width:0"><div class="rn">Appareil inconnu</div>
+            <div class="rm">Connecté le 10 novembre</div><div class="rm" style="margin-top:0">Jamais revu depuis</div><div class="rm" style="margin-top:0">Expire le 24 novembre</div></div><span class="ca n">Fermer</span></div><div style="padding-top:14px;border-top:1px solid var(--color-divider);display:flex;flex-direction:column;gap:10px">
+            <p class="hint" style="color:var(--color-text)">3 appareils seront déconnectés. Leurs saisies en attente partiront après reconnexion.</p>
+            <div class="confirm"><span class="ca a">Fermer les 3 sessions</span><span class="ca n">Annuler</span></div></div></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-64</b>Une seule session</span>
+        <div id="shot-1b-64-une-session" data-screen-label="1b-64 Une seule session" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">1</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><p class="hint" style="padding-top:12px;border-top:1px solid var(--color-divider)">Aucune autre session ouverte.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="lot12-mdp" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Lot 12</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Mot de passe — écrans 65 à 69</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">feuille plein écran</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-65</b>Mot de passe, vide</span>
+        <div id="shot-1b-65-mdp-vide" data-screen-label="1b-65 Mot de passe, vide" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="viewport"><div class="mpage" style="gap:22px;padding-bottom:40px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2">Changer le mot de passe</h2></div>
+          <span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf focus"><span class="caret"></span></div></div>
+        <div class="field"><label>Nouveau mot de passe</label><div class="uf"></div><ul class="rules" aria-label="Règles du mot de passe"><li class=""><i class="ph ph-circle"></i>De 12 à 128 caractères</li><li class=""><i class="ph ph-circle"></i>Une minuscule</li><li class=""><i class="ph ph-circle"></i>Une majuscule</li><li class=""><i class="ph ph-circle"></i>Un chiffre</li><li class=""><i class="ph ph-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf"></div></div>
+        
+      </div></div>
+      <div style="position:absolute;left:26px;right:26px;bottom:34px;display:flex;flex-direction:column;gap:10px">
+        <div class="pill dis">Enregistrer</div>
+        <p class="small" style="text-align:center">Vos autres appareils devront se reconnecter.</p></div>
+          
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-66</b>En cours de saisie</span>
+        <div id="shot-1b-66-mdp-saisie" data-screen-label="1b-66 En cours de saisie" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="viewport"><div class="mpage" style="gap:22px;padding-bottom:40px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2">Changer le mot de passe</h2></div>
+          <span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf">••••••••••••••</div></div>
+        <div class="field"><label>Nouveau mot de passe</label><div class="uf focus">Nuit-de-Lyon7<span class="caret"></span></div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf"></div></div>
+        
+      </div></div>
+      <div style="position:absolute;left:26px;right:26px;bottom:34px;display:flex;flex-direction:column;gap:10px">
+        <div class="pill dis">Enregistrer</div>
+        <p class="small" style="text-align:center">Vos autres appareils devront se reconnecter.</p></div>
+          
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-67</b>Actuel incorrect</span>
+        <div id="shot-1b-67-mdp-actuel-incorrect" data-screen-label="1b-67 Actuel incorrect" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="viewport"><div class="mpage" style="gap:22px;padding-bottom:40px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2">Changer le mot de passe</h2></div>
+          <span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf bad">••••••••••••••</div></div><p class="err">Mot de passe actuel incorrect.</p>
+        <div class="field"><label>Nouveau mot de passe</label><div class="uf">•••••••••••••</div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf">•••••••••••••</div></div>
+        
+      </div></div>
+      <div style="position:absolute;left:26px;right:26px;bottom:34px;display:flex;flex-direction:column;gap:10px">
+        <div class="pill">Enregistrer</div>
+        <p class="small" style="text-align:center">Vos autres appareils devront se reconnecter.</p></div>
+          
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-68</b>Trop d'essais</span>
+        <div id="shot-1b-68-mdp-trop-essais" data-screen-label="1b-68 Trop d'essais" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="viewport"><div class="mpage" style="gap:22px;padding-bottom:40px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+          <div><p class="kicker">Compte</p><h2 class="h2">Changer le mot de passe</h2></div>
+          <span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--color-neutral-400)"><i class="ph ph-x" style="font-size:20px"></i></span></div>
+        <div class="field"><label>Mot de passe actuel</label><div class="uf">••••••••••••••</div></div>
+        <div class="field"><label>Nouveau mot de passe</label><div class="uf">•••••••••••••</div><ul class="rules" aria-label="Règles du mot de passe"><li class="met"><i class="ph ph-check-circle"></i>De 12 à 128 caractères</li><li class="met"><i class="ph ph-check-circle"></i>Une minuscule</li><li class="met"><i class="ph ph-check-circle"></i>Une majuscule</li><li class="met"><i class="ph ph-check-circle"></i>Un chiffre</li><li class="met"><i class="ph ph-check-circle"></i>Un symbole</li></ul></div>
+        <div class="field"><label>Confirmation</label><div class="uf">•••••••••••••</div></div>
+        <div class="alert"><span class="t">Trop d'essais.</span><span class="hint">Réessayez dans 42 secondes.</span></div>
+      </div></div>
+      <div style="position:absolute;left:26px;right:26px;bottom:34px;display:flex;flex-direction:column;gap:10px">
+        <div class="pill dis">Enregistrer</div>
+        <p class="small" style="text-align:center">Vos autres appareils devront se reconnecter.</p></div>
+          
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-69</b>Mot de passe changé</span>
+        <div id="shot-1b-69-mdp-change" data-screen-label="1b-69 Mot de passe changé" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div><p class="ok"><i class="ph ph-check-circle" style="font-size:15px;margin-top:2px"></i>Mot de passe changé. Vos autres appareils devront se reconnecter.</p></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">1</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><p class="hint" style="padding-top:12px;border-top:1px solid var(--color-divider)">Aucune autre session ouverte.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="lot12-donnees" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Lot 12</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Mes données — écrans 70 et 71</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">export JSON</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-70</b>Export en cours, saisies en attente</span>
+        <div id="shot-1b-70-export-en-cours" data-screen-label="1b-70 Export en cours, saisies en attente" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:-470px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">1</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><p class="hint" style="padding-top:12px;border-top:1px solid var(--color-divider)">Aucune autre session ouverte.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><p class="hint" style="color:var(--color-accent-200)">3 saisies pas encore synchronisées n'y seront pas.</p>
+            <span class="btn s dis"><span class="spin"></span>Préparation du fichier…</span></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.1.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-71</b>Export fait · écart de versions</span>
+        <div id="shot-1b-71-export-fait" data-screen-label="1b-71 Export fait · écart de versions" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct on"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:-470px"><div><p class="kicker">Compte</p><h1 class="h1">lea-v</h1><p class="meta">lea@example.org</p></div><section class="sec"><p class="kicker">Mot de passe</p>
+          <div class="row first"><div><div class="rn">Changer le mot de passe</div><div class="rm">Ferme vos autres sessions</div></div><i class="ph ph-caret-right" style="font-size:18px;color:var(--color-accent)"></i></div></section><section class="sec"><div class="sec-head"><p class="kicker">Sessions ouvertes</p><span class="small">1</span></div>
+          <div class="row first"><div style="min-width:0"><div class="rn">Chrome sur Android</div>
+            <div class="rm">Connecté le 2 novembre</div><div class="rm" style="margin-top:0">Utilisé aujourd'hui</div><div class="rm" style="margin-top:0">Expire le 2 décembre</div></div><span class="tag u">Cet appareil</span></div><p class="hint" style="padding-top:12px;border-top:1px solid var(--color-divider)">Aucune autre session ouverte.</p></section><section class="sec" style="gap:12px"><p class="kicker" style="margin:0">Mes données</p>
+          <p class="hint">Un fichier JSON avec votre collection, vos decks (supprimés compris), leurs versions jouées, vos parties, tournois, joueurs et lieux.</p><span class="btn s"><i class="ph ph-download-simple" style="font-size:16px"></i>Exporter mes données</span>
+            <p class="ok"><i class="ph ph-check-circle" style="font-size:15px;margin-top:2px"></i>Fichier téléchargé : gurchon-hall-lea-v-2026-11-18.json</p></section><section class="sec" style="gap:10px"><p class="kicker" style="margin:0">Déconnexion</p>
+          <p class="hint">Vide les données de cet appareil. Elles se rechargent à la prochaine connexion.</p>
+          <span class="btn s">Se déconnecter</span></section><p class="small" style="font-variant-numeric:tabular-nums">Application 1.0.0 · Serveur 1.1.0</p></div></div>
+          <dc-import name="TabBar" active="none" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="lot12-bandeau" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Lot 12</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Nouvelle version — écrans 72 à 76</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">bandeau dans la coquille</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-72</b>Nouvelle version, file vide</span>
+        <div id="shot-1b-72-maj-disponible" data-screen-label="1b-72 Nouvelle version, file vide" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="acct" style="margin-left:auto"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div class="alert" role="status"><span class="t">Une nouvelle version est disponible.</span>
+          <div class="acts"><span>Mettre à jour</span><span>Plus tard</span></div></div>
+        <div><p class="kicker">Gurchon Hall</p><h1 class="h1">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <section class="sec"><p class="kicker">En cours</p>
+          <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+          <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></section></div></div>
+          <dc-import name="TabBar" active="atelier" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-73</b>Saisies en attente</span>
+        <div id="shot-1b-73-maj-en-attente" data-screen-label="1b-73 Saisies en attente" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="acct" style="margin-left:auto"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div class="alert" role="status"><span class="t">Nouvelle version prête. Elle s'installera une fois vos 3 saisies synchronisées.</span>
+          <div class="acts"><span>Synchronisation →</span><span>Plus tard</span></div></div>
+        <div><p class="kicker">Gurchon Hall</p><h1 class="h1">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <section class="sec"><p class="kicker">En cours</p>
+          <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+          <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></section></div></div>
+          <dc-import name="TabBar" active="atelier" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-74</b>En attente, hors ligne</span>
+        <div id="shot-1b-74-maj-hors-ligne" data-screen-label="1b-74 En attente, hors ligne" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-slash"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="acct" style="margin-left:auto"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span class="off"><i class="ph ph-wifi-slash" style="font-size:13px"></i>Hors ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div class="alert" role="status"><span class="t">Nouvelle version prête. Elle s'installera une fois vos 3 saisies synchronisées.</span><span class="hint">Hors ligne : l'envoi reprendra au retour du réseau.</span>
+          <div class="acts"><span>Synchronisation →</span><span>Plus tard</span></div></div>
+        <div><p class="kicker">Gurchon Hall</p><h1 class="h1">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <section class="sec"><p class="kicker">En cours</p>
+          <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+          <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></section></div></div>
+          <dc-import name="TabBar" active="atelier" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-75</b>Saisies refusées seulement</span>
+        <div id="shot-1b-75-maj-refusees" data-screen-label="1b-75 Saisies refusées seulement" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="acct" style="margin-left:auto"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div class="alert" role="status"><span class="t">Une nouvelle version est disponible.</span>
+          <span class="hint">2 saisies refusées restent à régler ; elles seront conservées.</span>
+          <div class="acts"><span>Mettre à jour</span><span>Plus tard</span></div></div>
+        <div><p class="kicker">Gurchon Hall</p><h1 class="h1">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <section class="sec"><p class="kicker">En cours</p>
+          <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+          <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></section></div></div>
+          <dc-import name="TabBar" active="atelier" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-76</b>Sous le bandeau de reconnexion</span>
+        <div id="shot-1b-76-maj-sous-reconnexion" data-screen-label="1b-76 Sous le bandeau de reconnexion" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="acct" style="margin-left:auto"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div class="alert" role="alert"><span class="t">Reconnexion nécessaire pour reprendre l'envoi</span>
+          <div class="acts"><span>Se reconnecter →</span></div></div><div class="alert" role="status"><span class="t">Nouvelle version prête. Elle s'installera une fois vos 3 saisies synchronisées.</span>
+          <div class="acts"><span>Synchronisation →</span><span>Plus tard</span></div></div>
+        <div><p class="kicker">Gurchon Hall</p><h1 class="h1">Atelier</h1><p class="meta">Mercredi 18 novembre · tout est local</p></div>
+        <section class="sec"><p class="kicker">En cours</p>
+          <div class="row first"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · 12 crypte · 80 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div>
+          <div class="row"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · 12 crypte · 76 bibliothèque</div></div><i class="ph ph-arrow-up-right" style="font-size:18px;color:var(--color-accent)"></i></div></section></div></div>
+          <dc-import name="TabBar" active="atelier" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="lot12-catalogue" style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:var(--font-heading);font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--color-accent);color:var(--color-accent)">1b · Lot 12</span>
+      <span style="font-family:var(--font-heading);font-size:19px">Catalogue en cours de chargement — écrans 77 et 78</span>
+      <span style="font-size:13px;color:var(--color-neutral-500)">juste après la première connexion</span>
+    </div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-77</b>Liste des decks</span>
+        <div id="shot-1b-77-catalogue-decks" data-screen-label="1b-77 Liste des decks" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div><h1 class="h1">Decks</h1><p class="meta">2 decks · lecture locale</p></div>
+        <div class="tabs"><span class="on">En cours</span><span>Archivés</span><span>Tous</span></div>
+        <section class="sec"><div class="row first" style="align-items:flex-start"><div><div class="rn">Banu Princes</div><div class="rm">#0007 · actif · Bleed</div>
+              <div style="margin-top:6px"><span class="loading"><span class="spin"></span>Catalogue en cours de chargement</span></div></div></div><div class="row" style="align-items:flex-start"><div><div class="rn">Toreador Mass Vote</div><div class="rm">#0003 · actif · Vote</div>
+              <div style="margin-top:6px"><span class="loading"><span class="spin"></span>Catalogue en cours de chargement</span></div></div></div></section></div></div>
+          <dc-import name="TabBar" active="decks" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <span class="cap"><b>1b-78</b>Détail d'un deck</span>
+        <div id="shot-1b-78-catalogue-deck" data-screen-label="1b-78 Détail d'un deck" class="phone">
+          <div class="sbar"><span>10:12</span><span style="display:flex;gap:6px"><i class="ph ph-wifi-high"></i><i class="ph ph-battery-high"></i></span></div>
+          <div class="shell"><span class="brand">Gurchon Hall</span>
+            <span class="acct"><i class="ph ph-user-circle" style="font-size:16px"></i>lea-v</span><span>En ligne</span></div><div class="viewport"><div class="mpage" style="margin-top:0px"><div style="display:flex;align-items:center;gap:6px;color:var(--color-neutral-400);font-size:14px;min-height:44px;margin-bottom:-18px"><i class="ph ph-arrow-left" style="font-size:16px"></i>Decks</div>
+        <div><p class="kicker">Deck actif · #0007</p><h1 class="h1">Banu Princes</h1><p class="meta">Bleed · proxies autorisés</p></div>
+        <section class="sec" style="gap:12px" aria-busy="true">
+          <div class="sec-head"><span style="font-family:var(--font-heading);font-size:16px">Composition</span></div>
+          <div><div style="display:flex;align-items:center;gap:14px;height:40px;border-bottom:1px solid var(--color-divider)">
+              <span class="skel" style="height:12px;width:52%"></span><span class="skel" style="height:12px;width:12%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:14px;height:40px;border-bottom:1px solid var(--color-divider)">
+              <span class="skel" style="height:12px;width:40%"></span><span class="skel" style="height:12px;width:12%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:14px;height:40px;border-bottom:1px solid var(--color-divider)">
+              <span class="skel" style="height:12px;width:58%"></span><span class="skel" style="height:12px;width:12%;margin-left:auto"></span></div><div style="display:flex;align-items:center;gap:14px;height:40px;border-bottom:1px solid var(--color-divider)">
+              <span class="skel" style="height:12px;width:34%"></span><span class="skel" style="height:12px;width:12%;margin-left:auto"></span></div></div>
+          <span class="loading"><span class="spin"></span>Catalogue en cours de chargement</span>
+          <p class="hint">Les cartes s'enregistrent sur cet appareil. La composition s'affichera d'elle-même dans quelques secondes.</p></section></div></div>
+          <dc-import name="TabBar" active="decks" style="position:absolute;left:0;right:0;bottom:0" hint-size="100%,82px"></dc-import>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

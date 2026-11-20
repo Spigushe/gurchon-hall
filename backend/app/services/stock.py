@@ -56,7 +56,7 @@ from app.schemas.collection import (
 from app.services import catalog
 from app.services.errors import ConflictError, NotFoundError
 from app.services.persistence import commit_or_conflict
-from app.services.text_search import contains_folded
+from app.services.text_search import contains_folded, folded_order
 
 
 def allocated_real(
@@ -123,7 +123,7 @@ def list_stock(
         stmt = stmt.where(contains_folded(Card.name, q))
     stmt = (
         stmt.order_by(
-            Card.name,
+            *folded_order(Card.name),
             Card.group_code,
             Card.id,
             CardCopy.language_code,

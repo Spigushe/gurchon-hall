@@ -110,8 +110,8 @@ export function GameDetail({
   const canEditTable = game.table !== null;
   useKeyboardShortcuts(
     [
-      { keys: ["e"], onTrigger: () => setEditing("game") },
-      ...(canEditTable ? [{ keys: ["t"], onTrigger: () => setEditing("table") }] : []),
+      { keys: ["e"], onTrigger: () => setEditing("game"), legend: "Modifier la partie" },
+      ...(canEditTable ? [{ keys: ["t"], onTrigger: () => setEditing("table"), legend: "Modifier la table" }] : []),
     ],
     { enabled: isDesktop && shortcuts && editing === null },
   );

@@ -124,16 +124,23 @@ export async function goToDecksList(page: Page): Promise<void> {
 }
 
 /**
- * Va à la page Synchronisation (Lot 5) : les opérations refusées
- * (`rejected-operation(s)`) ne vivent plus dans la coquille ni sur la page
- * Decks, seulement sur `#/synchronisation`. L'alerte qui y mène
- * (`sync-alert-link`) n'apparaît sur l'Atelier que si quelque chose ne va pas
- * (refus, ou file en attente hors ligne) — toujours vrai quand ce helper est
- * appelé, dans ces scénarios.
+ * Écran Compte (Lot 12, D1), au mobile : le nom du compte dans la barre haute y
+ * mène. Il s'ouvre hors ligne (en-tête local, ligne Synchronisation).
+ */
+export async function goToAccount(page: Page): Promise<void> {
+  await page.getByTestId("account-menu-link").click();
+  await expect(page.getByTestId("account-page")).toBeVisible();
+}
+
+/**
+ * Va à la page Synchronisation : les opérations refusées
+ * (`rejected-operation(s)`) ne vivent que sur `#/synchronisation` (Lot 5).
+ * Depuis le Lot 12 (A11), l'écran s'ouvre par la ligne « Synchronisation » de
+ * l'écran Compte, et non plus par l'alerte de l'Atelier.
  */
 export async function goToRejectedOperations(page: Page): Promise<void> {
-  await page.getByTestId("nav-home").click();
-  await page.getByTestId("sync-alert-link").click();
+  await goToAccount(page);
+  await page.getByTestId("account-sync-row").click();
   await expect(page.getByTestId("sync-page")).toBeVisible();
 }
 

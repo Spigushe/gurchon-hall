@@ -1,0 +1,57 @@
+{
+ "v": 3,
+ "layout": "files",
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-18T11:32:54Z"
+ },
+ "title": "Nocturne — Gurchon Hall",
+ "namespace": "Nocturne",
+ "libraries": [],
+ "sections": {},
+ "groups": [
+  "Logos"
+ ],
+ "assetGroups": {
+  "Logos": {
+   "name": "Logos",
+   "tile": "m",
+   "order": [
+    "pwa-512.png",
+    "pwa-maskable-512.png",
+    "apple-touch-icon.png"
+   ],
+   "files": {
+    "pwa-512.png": {
+     "name": "pwa-512.png",
+     "blob": "fd5347b4fb98867956a806da01b4e1f0",
+     "size": 9937,
+     "type": "image/png"
+    },
+    "pwa-maskable-512.png": {
+     "name": "pwa-maskable-512.png",
+     "blob": "33a569ae7535359f002a34b42dde720e",
+     "size": 7959,
+     "type": "image/png"
+    },
+    "apple-touch-icon.png": {
+     "name": "apple-touch-icon.png",
+     "blob": "e9ca5dc086acc90625bfe0066390a120",
+     "size": 3095,
+     "type": "image/png"
+    }
+   }
+  }
+ },
+ "blobs": {},
+ "docs": {
+  "readme": "project/README.md",
+  "sections": []
+ },
+ "lastChange": {
+  "by": "Claude",
+  "at": "2026-11-18T11:32:54Z",
+  "via": "GitHub · spigushe/gurchon-hall@0ed427a",
+  "note": "Extrait de frontend/src/index.css pour le handoff du Lot 12 : 27 couleurs, 13 styles de texte, 16 composants en aperçu statique."
+ }
+}

@@ -143,6 +143,12 @@ EXPECTED_OPERATIONS = {
     ("delete", "/parties/{game_id}"): "deleteGame",
     # Lot 9 : lecture d'un deck VDB par le serveur (A7).
     ("get", "/vdb/decks/{vdb_deck_id}"): "readVdbDeck",
+    # Lot 12, étape A1 : mot de passe, sessions et export du compte (A1).
+    ("post", "/moi/mot-de-passe"): "changePassword",
+    ("get", "/moi/sessions"): "listSessions",
+    ("delete", "/moi/sessions"): "revokeOtherSessions",
+    ("delete", "/moi/sessions/{session_id}"): "revokeSession",
+    ("get", "/moi/export"): "exportAccount",
 }
 
 

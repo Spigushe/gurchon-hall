@@ -58,6 +58,48 @@ def test_backup_copies_and_never_overwrites(tmp_path, capsys):
     assert "rien n'est écrasé" in capsys.readouterr().err
 
 
+def test_backup_writes_under_a_hidden_name_then_renames(tmp_path, monkeypatch):
+    """Lot 12, D3 : pas de `vtes-*.db` visible tant que la copie n'est pas finie."""
+    base = make_base(tmp_path / "base.db")
+    copy = tmp_path / "vtes-20261119T033000Z.db"
+    partial = tmp_path / ".vtes-20261119T033000Z.db.part"
+    assert compare_db.partial_path(copy) == partial
+    partial.write_bytes(b"reste d'une copie interrompue")
+    seen_during_copy = []
+    real_connect = sqlite3.connect
+
+    def spying_connect(target, *args, **kwargs):
+        seen_during_copy.append(sorted(p.name for p in tmp_path.glob("vtes-*.db")))
+        return real_connect(target, *args, **kwargs)
+
+    monkeypatch.setattr(compare_db.sqlite3, "connect", spying_connect)
+    compare_db.backup(base, copy)
+
+    assert seen_during_copy == [[], []]
+    assert copy.exists() and not partial.exists()
+    with closing(real_connect(copy)) as connection:
+        assert connection.execute("SELECT name FROM deck").fetchall() == [
+            ("Banu Princes",)
+        ]
+
+
+def test_a_failed_backup_leaves_no_file(tmp_path, monkeypatch):
+    base = make_base(tmp_path / "base.db")
+    copy = tmp_path / "vtes-20261119T033000Z.db"
+
+    class BrokenSource:
+        def backup(self, copy):
+            raise sqlite3.OperationalError("disque plein")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(compare_db, "_read_only", lambda _path: BrokenSource())
+    with pytest.raises(sqlite3.OperationalError):
+        compare_db.backup(base, copy)
+    assert list(tmp_path.glob("*vtes-*")) == []
+
+
 def test_snapshot_reads_the_revision_apart_and_the_health(tmp_path):
     taken = json.loads(snapshot_file(tmp_path, "a").read_text(encoding="utf-8"))
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useConnectivity, useLiveQuery } from "../../offline/react";
 import { readCatalogState, useVtesOffline } from "../../offline/vtes";
 import { CatalogContext, type CatalogState } from "./catalogContext";
+import { isCatalogLoading } from "./catalogLoading";
 
 /**
  * État du catalogue (miroir local des ~4 000 cartes) et son téléchargement.
@@ -74,9 +75,10 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
     }
   }, [online, mirror, update]);
 
+  const loading = isCatalogLoading(mirror, status);
   const value = useMemo(
-    () => ({ count, detailsComplete, status, error, authRequired, update }),
-    [count, detailsComplete, status, error, authRequired, update],
+    () => ({ count, detailsComplete, loading, status, error, authRequired, update }),
+    [count, detailsComplete, loading, status, error, authRequired, update],
   );
   return <CatalogContext.Provider value={value}>{children}</CatalogContext.Provider>;
 }

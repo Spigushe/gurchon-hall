@@ -2,7 +2,17 @@ import { describe, expect, it } from "vitest";
 import { illegalReason, legalityTag } from "../../../../src/features/decks/legalityTagModel";
 import type { DeckLegality } from "../../../../src/features/decks/useDeckLegality";
 
-const card = (id: number) => ({ id, name: `Carte ${id}`, category: "library" as const, group_code: null, advanced: false });
+const card = (id: number): DeckLegality["banned_cards"][number] => ({
+  id,
+  vekn_id: 100000 + id,
+  name: `Carte ${id}`,
+  category: "library",
+  clan: null,
+  capacity: null,
+  group_code: null,
+  advanced: false,
+  image_url: null,
+});
 
 const LEGAL: DeckLegality = {
   deck_id: 1,

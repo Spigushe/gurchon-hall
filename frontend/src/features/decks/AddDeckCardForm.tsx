@@ -178,12 +178,18 @@ export function AddDeckCardForm({ deck, onClose }: { deck: LocalDeck; onClose?: 
           searchInputRef.current?.focus();
         },
         allowInEditableTarget: true,
+        legend: "Chercher une carte à ajouter",
       },
-      { keys: ["arrowdown"], onTrigger: () => moveNav(1), allowInEditableTarget: true },
-      { keys: ["arrowup"], onTrigger: () => moveNav(-1), allowInEditableTarget: true },
-      { keys: ["+"], onTrigger: () => chosen && changeCopies(copies + 1) },
-      { keys: ["-"], onTrigger: () => chosen && changeCopies(copies - 1) },
-      { keys: ["escape"], onTrigger: () => chosen && clearChosen(), allowInEditableTarget: true },
+      { keys: ["arrowup"], onTrigger: () => moveNav(-1), allowInEditableTarget: true, legend: "Parcourir les cartes" },
+      { keys: ["arrowdown"], onTrigger: () => moveNav(1), allowInEditableTarget: true, legend: "Parcourir les cartes" },
+      { keys: ["+"], onTrigger: () => chosen && changeCopies(copies + 1), legend: "Une copie de plus ou de moins" },
+      { keys: ["-"], onTrigger: () => chosen && changeCopies(copies - 1), legend: "Une copie de plus ou de moins" },
+      {
+        keys: ["escape"],
+        onTrigger: () => chosen && clearChosen(),
+        allowInEditableTarget: true,
+        legend: "Changer de carte",
+      },
     ],
     { enabled: isDesktop },
   );

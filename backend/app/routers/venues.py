@@ -14,6 +14,7 @@ from app.routers.common import (
     CurrentUser,
     DbSession,
     PathId,
+    no_content,
 )
 from app.schemas.reference import VenueCreate, VenueRead, VenueUpdate
 from app.services import venues
@@ -91,6 +92,11 @@ def update_venue(
     description="409 tant qu'une partie ou un tournoi se déroule dans ce lieu.",
     responses={**NOT_FOUND, **CONFLICT, **FORBIDDEN_ORIGIN},
 )
-def delete_venue(venue_id: PathId, db: DbSession, user: CurrentUser):
+def delete_venue(
+    venue_id: PathId,
+    db: DbSession,
+    user: CurrentUser,
+    response: Response,
+):
     venues.delete_venue(db, user.id, venue_id)
-    return Response(status_code=204)
+    return no_content(response)

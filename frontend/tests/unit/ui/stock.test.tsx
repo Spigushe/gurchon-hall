@@ -267,7 +267,7 @@ describe("collection : saisie hors ligne", () => {
 
   it("supprime une entrée après confirmation", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
     await screen.findByTestId("stock-entry");
 
     // La suppression vit dans la feuille de modification (handoff Nocturne), plus dans la liste.
@@ -287,9 +287,9 @@ describe("collection : saisie hors ligne", () => {
 
   it("filtre par nom (casse et accents ignorés) et par langue", async () => {
     const { runtime } = await renderApp({ online: false, hash: "#/collection", catalog: true });
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", quantityOwned: 1 });
-    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", quantityOwned: 1 });
-    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "FR", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 1, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
+    await runtime.actions.saveStock({ cardId: 3, languageCode: "EN", cardSetId: 9, quantityOwned: 1 });
     await waitFor(() => expect(screen.getAllByTestId("stock-entry")).toHaveLength(3));
 
     fireEvent.change(screen.getByTestId("stock-search"), { target: { value: "ÉLAN" } });

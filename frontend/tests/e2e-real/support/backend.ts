@@ -287,6 +287,10 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
           // silencieusement muette (pas de cookie posé, 401 ensuite).
           SESSION_COOKIE_SECURE: "false",
           VDB_STUB_DIR: vdbStubDir,
+          // Journaux de l'API (Lot 12, A5) au même niveau qu'uvicorn
+          // (`--log-level warning`) : sans quoi une ligne par requête remplirait
+          // les 4000 caractères gardés pour expliquer un échec.
+          LOG_LEVEL: "WARNING",
           PYTHONUNBUFFERED: "1",
           PYTHONIOENCODING: "utf-8",
         },

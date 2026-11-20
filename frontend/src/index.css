@@ -1066,7 +1066,13 @@ main:focus {
   flex: 1 1 10rem;
 }
 
+/* `border: 0` d'abord (Lot 12, D4) : sans remise à zéro des bordures d'`input`
+   et de `select`, le navigateur gardait sa bordure inset sur les trois autres
+   côtés. Les règles qui encadrent le champ (`.sheet`, picker du deckbuilder,
+   correction de Synchronisation, `textarea`) sont plus spécifiques et
+   l'emportent toujours. */
 .underline-field {
+  border: 0;
   border-bottom: 1px solid var(--color-divider);
   padding: 0 2px 10px;
   min-height: 44px;
@@ -1162,6 +1168,16 @@ textarea.underline-field:focus-visible {
   border: none;
   padding: 0;
   margin: 0;
+}
+
+/* Rangée d'onglets qui défile plutôt que de passer à la ligne (filtres des decks). */
+.tabs--scroll {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.tabs--scroll .tab-option__label {
+  white-space: nowrap;
 }
 
 .tab-option {
@@ -1369,7 +1385,12 @@ fieldset:disabled .chip {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
+/* Fond et bordure remis à zéro (Lot 12, D4) : sur un `<button>` sans `.btn`
+   (« Se reconnecter → », « Effacer les filtres »), le navigateur gardait son
+   fond et sa bordure de bouton. */
 .btn-ghost {
+  background: transparent;
+  border: 0;
   color: var(--color-accent-300);
   padding-inline: 4px;
   min-height: auto;
@@ -1438,7 +1459,11 @@ fieldset:disabled .chip {
   background: color-mix(in srgb, var(--color-text) 7%, transparent);
 }
 
+/* Bordure remise à zéro (Lot 12, D4) : `.chip-action` pose le fond
+   transparent mais pas la bordure, que « Abandonner » gardait. */
 .chip-action--text {
+  background: transparent;
+  border: 0;
   color: var(--color-accent-300);
   padding: 0 4px;
 }
@@ -1818,7 +1843,7 @@ fieldset:disabled .chip {
   width: 100%;
 }
 
-/* Tableau « En cours » (bureau uniquement, cf. `HomePage.tsx`) : nom, comptes, légalité, flèche. */
+/* Tableau « Joués » (bureau uniquement, cf. `HomePage.tsx`) : nom, comptes, légalité, flèche. */
 .home-deck-table {
   display: flex;
   flex-direction: column;
@@ -6817,4 +6842,618 @@ fieldset:disabled .chip {
 .deck-refresh__change--remade .deck-refresh__detail,
 .deck-refresh__change--removed .deck-refresh__kind {
   color: var(--color-accent-200);
+}
+
+/* — Lot 12, D1 : écran Compte, menu du compte (handoff LOT12.md, 1b-59 à 1b-71, d35 à d43) — */
+
+/* Mobile : marque à gauche, nom du compte et état du réseau à droite. */
+.shell-bar__end {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Au bureau, la barre haute porte la marque, l'état du réseau et le menu (écart 2). */
+@media (min-width: 1024px) {
+  .shell-bar {
+    display: none;
+  }
+}
+
+.account-menu__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 13px;
+  /* Cible tactile élargie sans décaler la barre. */
+  padding: 8px 0;
+  margin: -8px 0;
+}
+
+.account-menu__link[aria-current="page"],
+.account-menu__link[aria-current="page"] .account-menu__name {
+  color: var(--color-accent-300);
+}
+
+.account-menu__link .account-menu__name {
+  font-family: var(--font-body);
+  font-weight: 500;
+}
+
+/* Menu du compte, au bureau (d36). */
+.account-dropdown {
+  position: relative;
+}
+
+.account-dropdown__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 14px;
+  color: var(--color-neutral-300);
+  cursor: pointer;
+  box-shadow: inset 0 -2px 0 transparent;
+}
+
+.account-dropdown__toggle:hover,
+.account-dropdown__toggle[aria-expanded="true"] {
+  color: var(--color-text);
+}
+
+.account-dropdown__toggle[data-current] {
+  color: var(--color-accent-300);
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.account-dropdown__toggle .account-menu__name {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: inherit;
+}
+
+.account-dropdown__panel {
+  position: absolute;
+  /* Sous la barre haute (56 px), la bascule faisant 32 px au milieu. */
+  top: calc(100% + 14px);
+  right: 0;
+  width: 240px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 60;
+}
+
+.account-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-dropdown__item:hover,
+.account-dropdown__item:focus-visible {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.account-dropdown__rule {
+  border: 0;
+  border-top: 1px solid var(--color-divider);
+  margin: 4px 0;
+}
+
+.account-dropdown__logout {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding-left: 10px;
+  color: var(--color-accent-300);
+}
+
+.account-dropdown__logout .account-dropdown__item {
+  flex: 1;
+  padding-left: 10px;
+  color: var(--color-accent-300);
+}
+
+.account-dropdown__logout .confirm-row {
+  padding: 8px 10px;
+}
+
+.account-dropdown__hint {
+  padding: 10px;
+}
+
+/* La page. */
+.account-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.account-main {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+@media (min-width: 1024px) {
+  .account-columns {
+    display: grid;
+    grid-template-columns: 400px minmax(0, 1fr);
+    gap: 56px;
+    align-items: start;
+  }
+
+  .account-main {
+    gap: 26px;
+  }
+}
+
+.account-header__email {
+  font-size: 15px;
+  color: var(--color-neutral-300);
+  margin-top: 6px;
+}
+
+.account-header__role {
+  margin-top: 10px;
+}
+
+.account-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-section > .kicker {
+  margin: 0;
+}
+
+.account-text {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-neutral-300);
+}
+
+@media (min-width: 1024px) {
+  .account-header__email,
+  .account-text {
+    font-size: 13px;
+  }
+}
+
+/* Ligne cliquable « Changer le mot de passe », « Synchronisation » (patron `.row--interactive`). */
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-row:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.account-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.account-row .row__meta {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.account-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.account-feedback {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.account-feedback svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.account-warning {
+  font-size: 13px;
+  color: var(--color-accent-200);
+}
+
+.account-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-neutral-500);
+}
+
+.account-versions {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+/* Sessions. */
+.account-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-sessions .kicker {
+  margin: 0;
+}
+
+.account-sessions__count {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.account-sessions__title {
+  font-size: 16px;
+}
+
+.account-sessions__foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 12px;
+}
+
+.account-session {
+  flex-wrap: nowrap;
+}
+
+.account-session__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.account-session .row__meta {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+  margin: 0;
+}
+
+.account-offline-block {
+  border-left: 2px solid var(--color-divider);
+  padding: 2px 0 2px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-offline-block__title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+  color: var(--color-neutral-300);
+}
+
+/* Bureau : carte sur la surface, tableau (1fr / 130 / 140 / 120 / 96). */
+.account-sessions--card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+}
+
+.account-sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+}
+
+.account-sessions-table th {
+  height: 30px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-neutral-500);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.account-sessions-table th:nth-child(2) {
+  width: 130px;
+}
+
+.account-sessions-table th:nth-child(3) {
+  width: 140px;
+}
+
+.account-sessions-table th:nth-child(4) {
+  width: 120px;
+}
+
+.account-sessions-table th:nth-child(5) {
+  width: 96px;
+}
+
+.account-sessions-table td {
+  height: 52px;
+  color: var(--color-neutral-300);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.account-sessions-table__device {
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-sessions-table__action {
+  text-align: right;
+}
+
+/* Feuille du mot de passe : règles cochées au fil de la saisie. */
+/* Champ refusé (actuel incorrect, 1b-67) : le filet passe en accent. */
+.underline-field[aria-invalid="true"] {
+  border-bottom-color: var(--color-accent-300);
+}
+
+.password-rules {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.password-rules__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-neutral-400);
+}
+
+.password-rules__item[data-met="true"] {
+  color: var(--color-accent-100);
+}
+
+.password-rules__item[data-met="true"] svg {
+  color: var(--color-accent-300);
+}
+
+.password-sheet__footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.password-sheet__note {
+  text-align: center;
+}
+
+/* — Lot 12, D2 — */
+
+/* Bandeaux de la coquille (reconnexion, nouvelle version), dans la colonne de
+   la page ; masqués quand aucun ne s'affiche. Écart de page entre deux
+   bandeaux (1b-76, d48). */
+.shell-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 22px var(--page-padding) 0;
+  width: 100%;
+}
+
+.shell-banners:empty {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .shell-banners {
+    max-width: var(--page-max-width-desktop);
+    padding: 28px var(--page-padding-desktop) 0;
+  }
+}
+
+/* Bandeau « nouvelle version » (1b-72 à 1b-75, d47) : actions `btn-ghost` en
+   13 px, côte à côte. */
+.app-update-banner .hint {
+  margin: 0;
+}
+
+.app-update-banner .error-text {
+  margin: 0;
+}
+
+.app-update-banner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.app-update-banner__actions .btn-ghost {
+  min-height: 32px;
+}
+
+/* « Catalogue en cours de chargement » (1b-77, 1b-78, d49) : 13 px, un anneau
+   de 13 px dont le quart haut est en accent. */
+.catalog-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-neutral-500);
+}
+
+.catalog-loading__ring {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-neutral-700);
+  border-top-color: var(--color-accent-300);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .catalog-loading__ring {
+    animation: catalog-loading-spin 0.9s linear infinite;
+  }
+}
+
+@keyframes catalog-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.catalog-loading-composition {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.catalog-loading-composition .hint {
+  margin: 0;
+}
+
+.catalog-loading__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 40px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.catalog-loading__row .skeleton {
+  height: 12px;
+}
+
+.catalog-loading__row .catalog-loading__count {
+  width: 12%;
+  margin-left: auto;
+}
+
+.catalog-loading__card .catalog-loading__rows {
+  padding: 4px var(--space-4) var(--space-4);
+}
+
+.catalog-loading__card .catalog-loading__row {
+  height: 36px;
+}
+
+/* Liste des decks : la mention sous la méta, à la place des comptes et des
+   clans, aux deux largeurs (12 px au bureau, comme la méta). */
+.deck-item__catalog {
+  display: block;
+  margin-top: 6px;
+}
+
+@media (min-width: 1024px) {
+  .deck-item__catalog .catalog-loading {
+    font-size: 12px;
+  }
+}
+
+/* Menu du compte : « Raccourcis » et sa touche, à droite (d36). */
+.account-dropdown__kbd {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+/* Légende des raccourcis (d44 à d46) : sections à kicker, lignes de 40 px,
+   description à gauche, touches à droite. */
+.shortcuts-legend .sheet__inner {
+  gap: 22px;
+}
+
+.shortcuts-legend__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcuts-legend__title {
+  margin: 0 0 4px;
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+.shortcuts-legend__note {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--color-neutral-400);
+}
+
+.shortcuts-legend__section .hint {
+  margin: 0;
+}
+
+.shortcuts-legend__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.shortcuts-legend__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 40px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 14px;
+}
+
+.shortcuts-legend__row:first-child {
+  border-top: none;
+}
+
+.shortcuts-legend__keys {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: none;
 }

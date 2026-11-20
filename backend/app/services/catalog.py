@@ -31,7 +31,7 @@ from app.schemas.catalog import (
 from app.schemas.reference import LanguageCreate
 from app.services.errors import ConflictError, NotFoundError
 from app.services.persistence import commit_or_conflict
-from app.services.text_search import contains_folded
+from app.services.text_search import contains_folded, folded_order
 from app.services.vtes_rules import library_requirement
 
 
@@ -233,7 +233,7 @@ def list_cards(
         stmt = stmt.where(Card.category == category)
     if clan_id is not None:
         stmt = stmt.where(Card.clan_id == clan_id)
-    stmt = stmt.order_by(Card.name, Card.group_code, Card.id)
+    stmt = stmt.order_by(*folded_order(Card.name), Card.group_code, Card.id)
     stmt = stmt.limit(limit).offset(offset)
     return [_card_read(card, CardSearchItem) for card in db.scalars(stmt)]
 

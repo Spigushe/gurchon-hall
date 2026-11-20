@@ -159,6 +159,16 @@ _PROTECTED_ROUTES = [
     ("DELETE", "/parties/1", None),
     # Lot 9, étape A1 : lecture d'un deck VDB par le serveur (A7).
     ("GET", "/vdb/decks/4fc0ee5e9", None),
+    # Lot 12, étape A1 : mot de passe, sessions et export du compte (A1).
+    (
+        "POST",
+        "/moi/mot-de-passe",
+        {"current_password": "Sup3r-Secret-1!", "new_password": "N0uveau-Secret!"},
+    ),
+    ("GET", "/moi/sessions", None),
+    ("DELETE", "/moi/sessions", None),
+    ("DELETE", "/moi/sessions/1", None),
+    ("GET", "/moi/export", None),
 ]
 
 
