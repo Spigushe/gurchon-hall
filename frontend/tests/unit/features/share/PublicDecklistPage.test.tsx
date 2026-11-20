@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiClientContext } from "../../../../src/app/apiClientContext";
 import { PublicDecklistPage } from "../../../../src/features/share/PublicDecklistPage";
 import type { ApiClient } from "../../../../src/offline/vtes";
+import { crypt, library } from "../../offline/fixtures/syntheticCatalog";
 
 const LIST = {
   name: "Banu Princes",
@@ -12,8 +13,8 @@ const LIST = {
   author: "alice",
   notes: null,
   cards: [
-    { card: { id: 1 }, quantity: 12 },
-    { card: { id: 2 }, quantity: 1 },
+    { card: crypt({ id: 1, name: "Anson" }), quantity: 12 },
+    { card: library({ id: 2, name: "Vessel" }), quantity: 1 },
   ],
   reprinted_card_ids: [],
 };

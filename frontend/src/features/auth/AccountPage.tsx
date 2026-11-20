@@ -12,6 +12,7 @@ import { syncRowMeta, unsyncedExportWarning, versionsLine } from "./accountModel
 import { AccountSessions } from "./AccountSessions";
 import { ChangePasswordSheet } from "./ChangePasswordSheet";
 import { LogoutControl } from "./LogoutControl";
+import { AccountShares } from "../share/AccountShares";
 
 const OFFLINE_REASON = "Indisponible hors ligne.";
 const PASSWORD_CHANGED = "Mot de passe changé. Vos autres appareils devront se reconnecter.";
@@ -47,6 +48,7 @@ export function AccountPage() {
   };
 
   const sessions = <AccountSessions online={status.online} isDesktop={isDesktop} reloadKey={sessionsKey} />;
+  const shares = <AccountShares online={status.online} />;
 
   return (
     <div className={isDesktop ? "page account-page account-page--desktop" : "page account-page"} data-testid="account-page">
@@ -117,6 +119,8 @@ export function AccountPage() {
             </Link>
           </section>
 
+          {!isDesktop && shares}
+
           <ExportSection account={account ?? null} online={status.online} pending={status.pending} />
 
           <section className="account-section" aria-labelledby="account-logout-title">
@@ -130,7 +134,12 @@ export function AccountPage() {
           <Versions online={status.online} />
         </div>
 
-        {isDesktop && <div className="account-side">{sessions}</div>}
+        {isDesktop && (
+          <div className="account-side">
+            {sessions}
+            {shares}
+          </div>
+        )}
       </div>
 
       {passwordOpen && <ChangePasswordSheet onClose={() => setPasswordOpen(false)} onChanged={onPasswordChanged} />}

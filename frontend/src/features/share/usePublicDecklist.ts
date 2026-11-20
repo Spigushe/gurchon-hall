@@ -10,8 +10,23 @@ export type PublicDecklistState =
   | { kind: "not-found" }
   /** Réseau absent ou injoignable : le message dit que la page en a besoin. */
   | { kind: "offline" }
-  /** 429, 5xx (dont le 501 de la garde provisoire), forme inattendue. */
+  /** 429 : `retryAfter` en secondes quand l'en-tête `Retry-After` est lisible. */
+  | { kind: "rate-limited"; retryAfter: number | null }
+  /** 5xx, forme inattendue. */
   | { kind: "error" };
+
+/** Secondes d'attente annoncées par `Retry-After` (forme entière seulement), `null` sinon. */
+export function retryAfterSeconds(response: Pick<Response, "headers"> | undefined): number | null {
+  const raw = response?.headers?.get("Retry-After");
+  if (!raw || !/^\d+$/.test(raw.trim())) return null;
+  return Number(raw);
+}
+
+function failureOf(response: Response): PublicDecklistState {
+  if (response.status === 404) return { kind: "not-found" };
+  if (response.status === 429) return { kind: "rate-limited", retryAfter: retryAfterSeconds(response) };
+  return { kind: "error" };
+}
 
 /**
  * `GET /listes/{token}` : lecture publique, **sans cookie** (`credentials:
@@ -31,7 +46,7 @@ export function usePublicDecklist(token: string): PublicDecklistState {
       .GET("/listes/{token}", { params: { path: { token } }, credentials: "omit" })
       .then((result) => {
         if (result.data) settle({ kind: "ready", list: result.data });
-        else settle({ kind: result.response.status === 404 ? "not-found" : "error" });
+        else settle(failureOf(result.response));
       })
       .catch(() => settle({ kind: "offline" }));
     return () => {
