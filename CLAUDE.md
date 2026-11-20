@@ -1862,7 +1862,8 @@ Limites connues à la clôture du lot Chercher :
   et à la collection, synchronisés à la sortie du mode avion. Non relevés : la réponse
   de `persist()`, et le service worker avec elle, parce qu'une page en `http://` sur
   une IP n'est pas un contexte sécurisé (`navigator.storage` absent, la fonction rend
-  `unsupported`) ; il faudra HTTPS, au plus tard au Lot 11. Et la montée en version 6
+  `unsupported`) ; il faudra HTTPS, au plus tard au Lot 11 (*relevé en HTTPS le
+  2026-11-20 : `persisted`*, Lot 12). Et la montée en version 6
   d'une base déjà en service, l'origine `:4173` partant sans doute d'une base neuve ;
   elle reste couverte par `vtesDbV6.test.ts` et les e2e Dexie 5. Les mesures de
   l'étape E3, sur Chromium ralenti (150 ms, 1,6 Mbit/s, processeur divisé par
@@ -2272,7 +2273,8 @@ Limites connues après la première mise en ligne :
 
 - **Vérifications HTTPS encore à relever** : la copie par le presse-papiers à
   l'export VDB (Lot 9) et la réponse de `persist()` (lot Chercher). *Relevées le
-  2026-11-20 sur la production v1.0 (Lot 12, A0) : conformes.*
+  2026-11-20 sur la production v1.0 (Lot 12, A0) : copie conforme, `persist()` à
+  `persisted` dans la PWA installée sur un poste Windows.*
 - **Tag et release à réaligner** : la v1.0.0 a été coupée avant la correction du
   domaine dans `ops/` et la doc ; le code déployé n'en dépend pas (le playbook
   tourne depuis le poste), mais la release ne reflète pas l'état du dépôt. *À solder

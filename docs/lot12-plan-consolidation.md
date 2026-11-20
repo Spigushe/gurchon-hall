@@ -1522,9 +1522,12 @@ Checklist arrêtée le 2026-11-20. Les étapes sont dans l'ordre où elles se fo
 **0. Sur le téléphone, avant la production** — *fait le 2026-11-20* :
 
 - relevés HTTPS sur la production v1.0 (A0) : « Copier » de l'export VDB écrit
-  bien dans le presse-papiers, `persist()` répond, le panneau Application montre
-  le manifeste et un service worker *activated* : conformes, d'après
-  l'utilisateur ;
+  bien dans le presse-papiers, le panneau Application montre le manifeste et un
+  service worker *activated* : conformes, d'après l'utilisateur. `persist()` :
+  **`persisted`** (`[offline] stockage persistant : persisted` en console), lu
+  sur `gurchon.spigushe.com` dans la PWA installée sur le poste Windows, et de
+  même sur `gurchon-staging.spigushe.com` ; la valeur du téléphone n'a pas été
+  lue (elle demande le débogage USB) ;
 - la session v1.0 du téléphone est gardée telle quelle jusqu'à la mise en
   production, et une saisie hors ligne y sera laissée en file juste avant, pour
   vérifier son rejeu après la mise à jour (§3 de CLAUDE.md) ;
