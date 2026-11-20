@@ -18,6 +18,7 @@ import { DeckTables } from "./DeckTables";
 import { VersionExport } from "./export/DeckExport";
 import { noChanges, versionChanges, versionLines, type VersionChange, type VersionChanges } from "./deckVersionModel";
 import { useDeckCardFacts } from "./useDeckCardFacts";
+import { ShareButton, ShareOfflineHint } from "../share/ShareButton";
 
 /** Retour à l'écran d'où l'on vient (partie, deck, bilan, tournoi), le deck à défaut. */
 function goBack(deckKey: DeckKey) {
@@ -206,7 +207,7 @@ export function DeckVersionPage({ deckKey, number }: { deckKey: DeckKey; number:
           </p>
         )}
         {version && (
-          <p>
+          <div className="confirm-row">
             <button
               type="button"
               className="btn btn-secondary"
@@ -215,8 +216,11 @@ export function DeckVersionPage({ deckKey, number }: { deckKey: DeckKey; number:
             >
               Exporter
             </button>
-          </p>
+            {/* Une version se partage en figé ; un deck supprimé n'a plus de page où le faire (Lot 13, D2). */}
+            {deck && <ShareButton deck={deck} versionNumber={number} />}
+          </div>
         )}
+        {version && deck && <ShareOfflineHint deck={deck} testId="deck-version-share-offline" />}
       </div>
       {isDesktop && versions.length > 1 && <VersionTabs deckKey={deckKey} versions={versions} current={number} />}
       {version ? (

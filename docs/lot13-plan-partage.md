@@ -1,10 +1,11 @@
 # Lot 13 — Partage (v1.2) : plan d'implémentation
 
 Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
-décisions de conception reprises en conséquence ; **A1, B1, B2, C1, D1 et D4
-livrées le 2026-11-20** (cf. « Livré à … » et « Vérification d'intégration
-après B1, B2 et C1 »), A1, D1 et D4 commitées (`a33e5e6`) ; **D2 et D3 en
-cours**, D5 et D6 après D3. Rédigé sur la
+décisions de conception reprises en conséquence ; **A1, B1, B2, C1, D1, D2,
+D3 et D4 livrées le 2026-11-20** (cf. « Livré à … » et « Vérification
+d'intégration après B1, B2 et C1 »), A1, D1 et D4 commitées (`a33e5e6`), B1,
+B2 et C1 (`236b9b7`) ; D2 et D3 corrigées après relecture des captures ;
+**D5 et D6 à venir**. Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
@@ -697,8 +698,8 @@ demande).
 | B2 | route publique : limite, cache, 404 uniforme, matrice d'autorisation ; filtre `ids` ; export du compte — **fait le 2026-11-20** (cf. « Livré à B2 ») | backend-fastapi |
 | C1 | `API_ROUTE_PREFIXES`, interception de `#/liste/` dans `main.tsx` sans base ni moteur — **fait le 2026-11-20** (cf. « Livré à C1 ») | pwa-offline |
 | D1 | exports `TWD`, `JOL`, `LACKEY` et choix du format dans la feuille d'export — **fait le 2026-11-20** (cf. « Livré à D1 ») | frontend-react |
-| D2 | feuille de partage (deck, version), « Listes partagées » et ses purges dans l'écran Compte | frontend-react |
-| D3 | page publique, aux deux largeurs | frontend-react |
+| D2 | feuille de partage (deck, version), « Listes partagées » et ses purges dans l'écran Compte — **fait le 2026-11-20** (cf. « Livré à D2 ») | frontend-react |
+| D3 | page publique, aux deux largeurs — **fait le 2026-11-20** (cf. « Livré à D3 ») | frontend-react |
 | D4 | art de l'extension dans la Collection — **fait le 2026-11-20** (cf. « Livré à D4 ») | frontend-react |
 | D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
 | D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision | frontend-react |
@@ -1049,6 +1050,173 @@ propres. 1753 tests vitest sur 99 fichiers (1720 sur 97 à la clôture du Lot 12
 +32 tests de D1 et D4, +2 fichiers). Contrôle CRAP : « Aucune régression ».
 `testid-census --check` : aucun identifiant disparu. Aucun e2e Playwright ajouté
 ni modifié.
+
+### Livré à D3 (2026-11-20)
+
+Page publique d'une liste partagée, aux deux largeurs, front seul : aucune route,
+aucun champ de contrat, aucun type `/sync`, aucune migration, aucune version Dexie.
+
+- **Mise en page** (`PublicDecklistPage.tsx`) : la carte d'authentification
+  provisoire de C1 est remplacée par `main.public-list` (colonne bornée à 1200 px,
+  marges du bureau à partir de 1024 px, pied collé en bas). Nom, puis
+  « par @auteur · archétype · N cartes » (libellés de `DECK_ARCHETYPE_LABELS`), pour
+  un figé « Liste du 20 novembre 2026 » (date en UTC), notes sous un `deck-notes`
+  (sauts de ligne gardés, Markdown brut), puis `DeckTables` en lecture seule.
+  Bureau : crypte et bibliothèque côte à côte en 3 fr / 2 fr (à parts égales, les
+  cinq colonnes de disciplines rognaient les noms de crypte) ; mobile : empilées.
+  Règles dans un bloc « Lot 13 D3 » à la fin de `src/index.css`.
+- **Montage inchangé** : `<LoadedList key={token}>`, `credentials: "omit"`, aucune
+  base, aucune session, aucun catalogue local ; les tests d'`indexedDB.open` de C1
+  passent tels quels.
+- **Conversion pure** (`sharedDecklistModel.ts`) : `sharedListLines` (une ligne
+  `LocalDeckCard` par carte, quantité totale, `proxyQuantity` 0, langue `EN`
+  jamais affichée, extension = `latest_card_set_id`), `sharedListFacts`
+  (`cardRowOf` et `cardDetailRowOf` sur `cards[].card`), `buildSharedListModel`
+  (`buildDeckTables` et total), `sharedListTexts` (quatre formats par `exportAs`, `(G6)`
+  par `reprinted_card_ids`, notes en description quand le lien les montre, en-tête
+  d'événement du TWD vide), `sharedListFileName` (sans discriminant), `formatListDate`.
+  `showProxies` est faux : ni colonne ni total de proxies.
+- **Export** : `DeckExportSheet` (D1) est déjà pure, elle reçoit les textes et le
+  nom de fichier ; **`features/decks/export/` n'est pas modifié**. Bouton
+  « Exporter » (`public-list-export`) qui ouvre la feuille aux quatre formats.
+- **États** : chargement, hors ligne, 404 « Liste introuvable. », **429** (« Trop de
+  demandes, réessayez dans N s » d'après `Retry-After` en secondes entières, « dans un
+  moment » sinon ; `usePublicDecklist` gagne l'état `rate-limited`, et le message garde
+  le `data-testid` `public-list-error` avec `data-reason="rate-limited"` pour les tests
+  de C1), jeton invalide, erreur générique. Pied et lien vers l'application dans tous les états.
+- **Document** : `<title>` = nom du deck (« Liste introuvable. » sur un 404), et
+  `<meta name="robots" content="noindex">` posé puis retiré par la page, sans toucher
+  à `index.html`.
+- **Emplacements D5 et D6 : omis.** Pas de bouton désactivé ni de lien
+  « Se connecter pour… » : la page n'a rien à dire tant qu'ils ne font rien.
+  `public-list-actions` contient seulement « Exporter » ; D5 y ajoute « Dupliquer » et
+  « Comparer » (visibles si `readActiveAccountId` donne un compte, lien vers
+  `#/decks?action=dupliquer&liste=<jeton>` qui **recharge**, C1), sinon un lien
+  « Se connecter pour dupliquer ou comparer » ; D6 y ajoute « Réviser » et lit
+  `revision` de `parsePublicListHash`, déjà rendu brut.
+- **Écart au cache** : la route publique porte `Cache-Control: public, max-age=60` : un
+  rechargement dans la minute resert la liste d'avant une modification du deck. Normal
+  (B2), mais l'e2e doit lire dans un contexte neuf.
+- **Tests** : `sharedDecklistModel.test.ts` (conversion sur une table de trois cas,
+  faits, exports, nom de fichier, date) et `PublicDecklistPageD3.test.tsx` (en-tête,
+  tableaux en lecture seule, figé daté et notes, titre et `noindex`, aucune base et
+  aucun cookie, export TEXT avec `(G6)` copié, JOL, TWD, LACKEY, téléchargement, 429
+  avec et sans `Retry-After`, 404) ; fixture de `PublicDecklistPage.test.tsx` (C1)
+  complétée de vraies cartes (`crypt` et `library`), les tests eux-mêmes inchangés.
+  e2e réel `lot13-liste-publique` aux deux largeurs (`tests/e2e-real/` et
+  `tests/e2e-desktop-real/`, scénario dans `support/lot13share.ts`) : deck, lien vivant
+  et lien figé créés sous session, lus dans un contexte sans cookie ni base IndexedDB ;
+  le vivant suit une carte ajoutée, le figé non ; export JOL ; jeton inconnu en 404.
+- **Captures** (`tests/visual-baseline/lot13-d3.spec.ts`, sortie
+  `docs/qa-baselines/lot13-d3/mobile-390x844/` et `desktop-1440x900/`) : `01` liste
+  vivante sans notes, `02` figée avec notes, `03` feuille d'export (TEXT), `04` TWD,
+  `05` « Liste introuvable », `06` hors ligne.
+- **`data-testid`** ajoutés : `public-list-actions`, `public-list-export`,
+  `public-list-frozen`, `public-list-notes`. Aucun disparu.
+- **Correctifs du 2026-11-20, après relecture des captures** :
+  1. *Crypte au mobile.* Cause : sous 440 px, au-delà de cinq colonnes de disciplines
+     (P5) elles passent sous le nom, mais la grille gardait 19 px par colonne et
+     débordait sur le clan et le groupe dès que la crypte en comptait beaucoup. Le
+     défaut existait aussi dans l'application (détail d'un deck à 390 px, où le stepper
+     retire 40 px de plus). Corrigé dans `DeckTables` pour les deux usages. Un premier
+     correctif réduisait les glyphes à la place restante, jusqu'à 9 px, illisibles.
+     Choix de l'utilisateur : garder les six premières et ajouter « … » au besoin.
+     Garder les six premières *colonnes* pouvait ne laisser à un vampire que « … »
+     (les colonnes sont communes à la crypte) : ce sont donc les six premières
+     disciplines **de chaque vampire**. Sous le nom (section de moins de 440 px, plus
+     de cinq colonnes), les disciplines ne s'alignent plus : cases vides et
+     disciplines au-delà de la sixième cachées (`deck-table__disc-slot--empty`,
+     `--overflow`), glyphes à 19 px, et un « … » (`deck-table-disc-more`) dont le nom
+     accessible et l'infobulle donnent les disciplines cachées. Au-delà de 440 px,
+     rien ne change. `cryptDisciplineColumns` est intact ; un test de
+     `PublicDecklistPageD3.test.tsx` couvre le « … ».
+  2. *Barre haute du bureau.* Cause : puces `Kbd`, « En ligne » et nom du compte
+     pouvaient se replier quand l'alerte « serveur injoignable » prenait la place.
+     Corrigé en fin de `index.css` : `nowrap` sur onglets, puces, état et compte,
+     éléments de `.topbar__actions` à `flex: none`, et seul le champ de recherche
+     rétrécit (`flex: 0 1 280px`, `min-width: 120px`).
+  3. Captures refaites aux deux largeurs, avec `07-application-detail-deck` (détail du
+     même deck dans l'application, tableaux seuls) et, au bureau,
+     `08-barre-haute-alerte` (alerte « serveur injoignable », barre sur une ligne).
+     Le spec des captures a un délai de 240 s : la machine était saturée par d'autres
+     passes.
+
+### Livré à D2 (2026-11-20)
+
+Feuille de partage et « Listes partagées », front seul : aucune route, aucun champ
+de contrat, aucun type `/sync`, aucune version Dexie. Tout vit dans
+`features/share/`, avec la page publique de D3 (déplacé de `features/sharing/` le 2026-11-20, cf. correctifs).
+
+- **Lectures et écritures directes**, hors miroir et hors file (P4) : `shareApi.ts`
+  (quatre appels sur le client typé, même forme de résultat que `accountApi.ts`,
+  dont `attempt` et `failureOf` sont désormais exportés), `useShares` (avec
+  `deckId` : liens du deck ; sans : tous ceux du compte ; `create`, `purge` qui
+  relit la liste après coup, un 404 ou 409 de sélection voulant dire qu'elle est
+  périmée).
+- **« Partager »** à côté d'« Exporter », dans le détail d'un deck (aux deux
+  largeurs) et sur la page d'une version jouée. Grisé hors ligne, avec la raison
+  en infobulle et dessous, et pour un deck créé hors ligne et pas encore connu du
+  serveur ; présent pour un deck archivé ; absent d'un deck supprimé, qui n'a pas
+  de page.
+- **Feuille** (`ShareSheet`) : les liens du deck (genre, date, version d'origine,
+  case, « Copier le lien »), « Purger la sélection » confirmée avec le nombre,
+  puis « Nouveau lien » (vivant ou figé, « Montrer les notes » éteint, aperçu de
+  ce qui sera public). Depuis une version jouée : un figé de cette version, sans
+  choix de genre (`deck_version_number`).
+- **Le figé attend la file** (P4) : `pendingOperationsOnDeck` compte, dans
+  `usePendingOperations`, les `deck.create`, `deck.update`, `deck.delete` et
+  `deck_card.*` du deck (par identifiant ou par `client_ref`) ; « Créer » est
+  désactivé avec « N modification(s) à synchroniser avant de figer la liste ». Le
+  vivant n'attend pas. **Écart voulu** : depuis une version jouée, la file
+  n'empêche rien, la version étant déjà connue du serveur.
+- **Copie** : `${origin}/#/liste/<jeton>`, repli de l'export (lien sélectionné et
+  dit hors contexte sécurisé).
+- **Écran Compte** : section « Listes partagées » (`AccountShares`) : liens groupés
+  par deck, ceux des decks supprimés à part, sans case ; trois purges confirmées
+  avec le nombre de liens visés ; retour (`revoked`) ; sélection refusée (404,
+  409) : liste relue. Mobile : après Synchronisation ; bureau : colonne de droite,
+  sous les sessions.
+- **Confirmation de suppression d'un deck** (`DeleteSharesNote`) : en ligne, le
+  nombre de liens figés qui resteront publics et de vivants révoqués, avec un lien
+  vers « Listes partagées » ; rien si le deck n'a aucun lien ; hors ligne, une
+  phrase prudente sans nombre.
+- **Tests** : `tests/unit/ui/shares.test.tsx` (30 : bouton hors ligne, deck non
+  synchronisé, archivé, mobile ; feuille vide et aperçu, liens, création vivant,
+  figé avec notes, file non vide, copie sécurisée et repli, purge de la sélection,
+  404, échecs de lecture et de création ; version jouée ; confirmation de
+  suppression ; écran Compte, trois purges, 409, vide, hors ligne, mobile) et
+  `tests/unit/features/share/shareModel.test.ts` (13) ; le banc d'essai
+  `harness.tsx` gagne `ui.shares` (les quatre routes).
+- **Captures** (`tests/visual-baseline/lot13-d2.spec.ts`, back jetable, sortie
+  `docs/qa-baselines/lot13-d2/mobile-390x844/` et `desktop-1440x900/`, dix chacune) :
+  `01` feuille vide, aperçu sans notes ; `02` figé avec notes ; `03` deux liens ;
+  `04` confirmation d'une purge ; `05` figé bloqué par la file ; `06` depuis une
+  version jouée ; `07` Compte, « Listes partagées » avec un deck supprimé ; `08`
+  et `09` confirmations de purge (sélection, decks supprimés) ; `10` suppression
+  d'un deck qui a des figés. Au bureau, les captures du Compte restent à
+  1440 × 900 : une capture pleine page redimensionne la fenêtre et remonte
+  l'écran Compte, qui perd alors sa confirmation en cours (cause non
+  recherchée, sans effet hors capture).
+- **`data-testid`** ajoutés : `deck-share`, `deck-version-share`, `deck-share-offline`,
+  `deck-version-share-offline`, `deck-delete-shares`, `deck-delete-shares-link`, et les
+  préfixes `share-…` (feuille et lignes) et `account-shares-…` (écran Compte). Aucun
+  disparu (777 en référence).
+- **Chiffres** : lint, `tsc` (application et tests) propres ; vitest 1858 verts sur
+  106 fichiers (arbre partagé avec D3 en cours) ; contrôle CRAP sans régression sur
+  les fichiers de D2 (`ShareSheet`, à 33 au premier passage, a été découpé dans
+  `ShareSheetParts.tsx`).
+- **Correctifs du 2026-11-20, après relecture des captures** : les cases à cocher
+  (carrés blancs du navigateur) prennent le style Nocturne, aucune case stylée
+  n'existant dans l'application (les puces des filtres cachent leur `input`) :
+  `appearance: none`, case de 22 px à bordure `--color-neutral-600`, cochée en
+  `--color-accent` avec une coche, focus visible, dans un `<label>` de 44 px pour
+  la cible tactile, libellé accessible gardé (`aria-label` de chaque case) ;
+  règles dans le bloc « Lot 13 D2 » de `index.css`. Les fichiers de D2 quittent
+  `features/sharing/` pour `features/share/` (mêmes noms, aucune collision), les
+  tests pour `tests/unit/features/share/`. Les dix captures de chaque largeur sont
+  refaites, la feuille n'étant prise qu'une fois sa transition d'ouverture finie
+  (opacité à 1, position stable) ; la `03` du bureau avait été prise en
+  transparence.
 
 ### Vérification d'intégration après B1, B2 et C1 (2026-11-20)
 

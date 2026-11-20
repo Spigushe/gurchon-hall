@@ -58,8 +58,22 @@ function Disciplines({ disciplines }: { disciplines: readonly CardDisciplineDeta
 }
 
 /**
+ * Au téléphone, quand les disciplines passent sous le nom, elles ne sont plus
+ * alignées : chaque vampire montre ses six premières, puis « … », qui porte
+ * le nom des suivantes (Lot 13, retour sur D3).
+ */
+const MAX_STACKED_DISCIPLINES = 6;
+
+const slotClass = (owned: boolean, overflow: boolean) =>
+  ["deck-table__disc-slot", owned ? null : "deck-table__disc-slot--empty", overflow ? "deck-table__disc-slot--overflow" : null]
+    .filter(Boolean)
+    .join(" ");
+
+/**
  * Disciplines d'un vampire rangées dans les colonnes de la crypte (P5, d'après
  * VDB) : une case par colonne, vide quand le vampire n'a pas la discipline.
+ * Les cases au-delà de sa sixième discipline et le « … » sont toujours rendus ;
+ * c'est la feuille de style qui choisit, selon la largeur de la section.
  */
 function AlignedDisciplines({
   columns,
@@ -69,19 +83,37 @@ function AlignedDisciplines({
   disciplines: readonly CardDisciplineDetail[];
 }) {
   const byCode = new Map(disciplines.map((discipline) => [discipline.code, discipline]));
+  const label = (discipline: CardDisciplineDetail) =>
+    disciplineLabel(discipline.name, discipline.superior, discipline.code);
+  const owned = columns.flatMap((code) => {
+    const discipline = byCode.get(code);
+    return discipline ? [discipline] : [];
+  });
+  const ownedCodes = owned.map((discipline) => discipline.code);
+  const hidden = owned.slice(MAX_STACKED_DISCIPLINES).map(label);
   return (
     <span className="deck-table__disc-grid" style={{ "--disc-cols": columns.length } as CSSProperties}>
       {columns.map((code) => {
         const discipline = byCode.get(code);
         const glyph = discipline ? disciplineGlyph(discipline.code, discipline.superior) : null;
+        const overflow = ownedCodes.indexOf(code) >= MAX_STACKED_DISCIPLINES;
         return (
-          <span key={code} className="deck-table__disc-slot">
-            {discipline && glyph && (
-              <GlyphIcon glyph={glyph} label={disciplineLabel(discipline.name, discipline.superior, discipline.code)} />
-            )}
+          <span key={code} className={slotClass(discipline !== undefined, overflow)}>
+            {discipline && glyph && <GlyphIcon glyph={glyph} label={label(discipline)} />}
           </span>
         );
       })}
+      {hidden.length > 0 && (
+        <span
+          className="deck-table__disc-more"
+          role="img"
+          aria-label={`Autres disciplines : ${hidden.join(", ")}`}
+          title={hidden.join(", ")}
+          data-testid="deck-table-disc-more"
+        >
+          …
+        </span>
+      )}
     </span>
   );
 }

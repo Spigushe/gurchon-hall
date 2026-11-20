@@ -31,6 +31,8 @@ import { LiveDeckExport } from "./export/DeckExport";
 import { vdbDeckUrl } from "./import/vdbLinks";
 import { DeckRefreshSheet } from "./vdb/DeckRefreshSheet";
 import { refreshBlockedReason } from "./vdb/deckRefreshModel";
+import { DeleteSharesNote } from "../share/DeleteSharesNote";
+import { ShareButton, ShareOfflineHint } from "../share/ShareButton";
 
 /** Feuille « Modifier le deck » (handoff Nocturne) : nom, archétype, notes, autorisation de proxy. */
 function DeckEditForm({ deck, onClose }: { deck: LocalDeck; onClose: () => void }) {
@@ -219,9 +221,12 @@ function DeckActions({
         <button type="button" className="btn btn-secondary" data-testid="deck-export" onClick={onExport}>
           Exporter
         </button>
+        {/* Un lien se crée en ligne, y compris pour un deck archivé (Lot 13, D2). */}
+        <ShareButton deck={deck} />
         {deck.vdbDeckId && <VdbRefreshButton deck={deck} pending={action.pending} onRefresh={onRefresh} />}
       </div>
       {deck.vdbDeckId && <VdbRefreshHint deck={deck} />}
+      <ShareOfflineHint deck={deck} testId="deck-share-offline" />
       {!archived && deck.status === "draft" && (
         <p className="hint">Seul un deck légal peut être activé.</p>
       )}
@@ -426,6 +431,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             La suppression est définitive côté decks : la composition est figée et les exemplaires
             réservés sont rendus à la collection. L'historique des parties reste.
           </p>
+          {confirmingDelete && <DeleteSharesNote deck={deck} />}
           {confirmingDelete ? (
             <div className="confirm-row" role="group" aria-label="Confirmer la suppression">
               <button

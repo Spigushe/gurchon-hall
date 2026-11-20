@@ -2087,6 +2087,11 @@ fieldset:disabled .chip {
   min-width: var(--disc-size);
 }
 
+/* « … » des disciplines cachées : seulement en section étroite (voir plus bas). */
+.deck-table__disc-more {
+  display: none;
+}
+
 .deck-table__sect {
   display: none;
   text-decoration: none;
@@ -2274,6 +2279,36 @@ fieldset:disabled .chip {
 
   .deck-table__body--many-disc .deck-table__row--crypt > .deck-table__disc {
     justify-self: start;
+  }
+
+  /*
+   * Lot 13 : sous le nom, les disciplines ne s'alignent plus. Chaque vampire
+   * montre les siennes, six au plus, à leur taille ; « … » signale les
+   * suivantes, au lieu de déborder sur le clan et le groupe. Six glyphes et le
+   * « … » tiennent dans 338px de section avec le stepper.
+   */
+  .deck-table__body--many-disc .deck-table__disc-grid {
+    display: flex;
+    flex-wrap: nowrap;
+  }
+
+  .deck-table__body--many-disc .deck-table__disc-slot--empty,
+  .deck-table__body--many-disc .deck-table__disc-slot--overflow {
+    display: none;
+  }
+
+  .deck-table__body--many-disc .deck-table__disc-more {
+    display: inline-flex;
+    align-items: center;
+    padding-left: 2px;
+    color: var(--color-neutral-400);
+    line-height: 1;
+    cursor: help;
+  }
+
+  .deck-table__body--many-disc .deck-table__row--crypt > .deck-table__disc {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .deck-table__row--crypt > .deck-table__qty {
@@ -7492,4 +7527,297 @@ fieldset:disabled .chip {
   gap: 4px;
   align-items: center;
   flex: none;
+}
+
+/* — Lot 13 D3 : page publique d'une liste partagée (`#/liste/<jeton>`), sans coquille — */
+.public-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100vh;
+  width: 100%;
+  max-width: var(--page-max-width-desktop);
+  margin: 0 auto;
+  padding: var(--space-8) var(--page-padding) var(--space-8);
+}
+
+.public-list__brand {
+  margin: 0;
+}
+
+.public-list__header .page-title {
+  overflow-wrap: anywhere;
+}
+
+.public-list__frozen {
+  margin: var(--space-2) 0 0;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.public-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.public-list__notes {
+  margin: 0;
+}
+
+.public-list__message {
+  padding: var(--space-6) 0;
+}
+
+.public-list__footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-divider);
+}
+
+@media (min-width: 1024px) {
+  .public-list {
+    padding-left: var(--page-padding-desktop);
+    padding-right: var(--page-padding-desktop);
+  }
+
+  /* Crypte plus large que la bibliothèque : ses cinq colonnes de disciplines rognaient les noms. */
+  .public-list .deck-tables {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+/* — Lot 13 D2 : feuille de partage et « Listes partagées » (écran Compte) — */
+.account-side {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.share-sheet {
+  gap: 26px;
+}
+
+.share-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.share-section > .kicker {
+  margin: 0;
+}
+
+.share-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--color-divider);
+}
+
+.share-list > .share-row:first-child {
+  border-top: none;
+}
+
+/* Case à cocher Nocturne : cible de 44 px (le libellé), case de 22 px dessinée aux jetons du thème. */
+.share-row__pick {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
+  cursor: pointer;
+}
+
+.share-row__check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 1.5px solid var(--color-neutral-600);
+  border-radius: 6px;
+  background: transparent center / 14px 14px no-repeat;
+  cursor: pointer;
+  transition: border-color 140ms ease-out, background-color 140ms ease-out;
+}
+
+.share-row__pick:hover .share-row__check:not(:checked) {
+  border-color: var(--color-neutral-400);
+}
+
+.share-row__check:checked {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='%23161826' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 7.5l3 3 6-7'/%3E%3C/svg%3E");
+}
+
+.share-row__check:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 2px;
+}
+
+.share-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.share-row .row__meta {
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.share-row__token {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  overflow-wrap: anywhere;
+}
+
+.share-row .chip-action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-copied {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-copied__link {
+  width: 100%;
+}
+
+.share-purge,
+.share-purges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.share-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--color-accent-700);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+}
+
+.share-preview .kicker {
+  margin: 0;
+}
+
+.share-preview__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.share-preview__list > div {
+  display: flex;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.share-preview__list dt {
+  flex: none;
+  width: 84px;
+  color: var(--color-neutral-400);
+}
+
+.share-preview__list dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.share-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.share-group__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 15px;
+}
+
+.share-group__tag {
+  font-family: var(--font-body);
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
+.share-group--deleted {
+  padding-top: 8px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.share-deleted-item__deck {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.share-delete-note {
+  margin: 0 0 10px;
+}
+
+/*
+ * Lot 13 D3 (correctif) : la barre haute du bureau reste sur une ligne, même avec
+ * l'alerte « serveur injoignable ». Rien n'y passe à la ligne (puces de raccourci,
+ * état de connexion, nom du compte) ; c'est le champ de recherche qui cède la place.
+ */
+.topbar__nav,
+.topbar__brand {
+  flex: none;
+}
+
+.topbar__tab,
+.topbar__actions .kbd,
+.topbar__actions .shell-bar__status,
+.topbar__actions .account-menu,
+.topbar__actions .account-menu__name {
+  white-space: nowrap;
+}
+
+.topbar__tab .kbd {
+  flex: none;
+}
+
+.topbar__actions {
+  min-width: 0;
+}
+
+.topbar__actions > * {
+  flex: none;
+}
+
+.topbar__actions > .topbar-search {
+  flex: 0 1 280px;
+  min-width: 120px;
+  width: auto;
 }
