@@ -1517,56 +1517,191 @@ locale filtrant déjà par statut (`DeckQuery.status`).
 
 ### Avancement de F
 
-Checklist arrêtée le 2026-11-20. Les étapes sont dans l'ordre où elles se font.
+Checklist arrêtée le 2026-11-20, tenue à jour au fil de la mise en service. Les étapes sont dans l'ordre où elles se font. Les commandes viennent de [deploiement.md](deploiement.md) et de ce plan ; les commandes `ansible-playbook` se lancent depuis `ops/`, les commandes `uv` depuis `backend/`.
 
-**0. Sur le téléphone, avant la production** — *fait le 2026-11-20* :
+#### 0. Sur le téléphone, avant de toucher à la production (toi)
 
-- relevés HTTPS sur la production v1.0 (A0) : « Copier » de l'export VDB écrit
-  bien dans le presse-papiers, le panneau Application montre le manifeste et un
-  service worker *activated* : conformes, d'après l'utilisateur. `persist()` :
-  **`persisted`** (`[offline] stockage persistant : persisted` en console), lu
-  sur `gurchon.spigushe.com` dans la PWA installée sur le poste Windows, et de
-  même sur `gurchon-staging.spigushe.com` ; la valeur du téléphone n'a pas été
-  lue (elle demande le débogage USB) ;
-- la session v1.0 du téléphone est gardée telle quelle jusqu'à la mise en
-  production, et une saisie hors ligne y sera laissée en file juste avant, pour
-  vérifier son rejeu après la mise à jour (§3 de CLAUDE.md) ;
-- sessions relevées dans la base de production avant le déploiement : deux, du
-  compte 1, ouvertes le 2026-11-17 à 12:37 et 12:39 UTC, échéance le 2026-12-01
-  à la même heure (14 jours fixes de la v1.0, `last_used_at` absent).
+Ces relevés ont besoin d'un appareil encore en v1.0 : une fois la v1.1 déployée, il sera trop tard.
 
-**1. Préparation sur le poste** — *fait le 2026-11-20* : versions à `1.1.0`
-dans `frontend/package.json`, `package-lock.json`, `backend/pyproject.toml` et
-`uv.lock`, contrat réexporté (seule sa version change ; client TS inchangé) ;
-CLAUDE.md à jour (en-tête, commandes et chiffres, §4, §6, §7, §11 « Tranchées
-pendant le Lot 12 » et ses limites, limites antérieures soldées, §12).
+- [X] **Relevés HTTPS d'A0**, faisables dès maintenant sur la v1.0 :
+  - « Copier » de l'export VDB écrit dans le presse-papiers ;
+  - réponse de `persist()` ;
+  - panneau Application : manifeste, service worker *activated*.
 
-**2. Fusion et staging** : PR de `lot12-consolidation` vers `main`, CI verte,
-fusion ; `ansible-playbook gurchon_hall.yml -e deploy_env=staging` (R15
-appliquée) ; parcours sur `gurchon-staging.spigushe.com` (Compte, sessions, mot
-de passe, export, Synchronisation, légende `?`, onglets de Decks, versions en
-pied de Compte comparées à `/health`) ; le mode `prompt` se voit sur le staging
-par un second passage après un commit sur `main`.
+  Résultat : « Copier » écrit bien dans le presse-papiers, le panneau Application montre le manifeste et un service worker *activated*. `persist()` rend **`persisted`** (`[offline] stockage persistant : persisted` en console), lu sur `gurchon.spigushe.com` dans la PWA installée sur le poste Windows, et de même sur `gurchon-staging.spigushe.com` ; la valeur du téléphone n'a pas été lue (elle demande le débogage USB).
+- [X] **Garder la session v1.0 du téléphone** : ne pas se déconnecter ni se reconnecter d'ici la mise en production. *Non tenu : les sessions relevées ci-dessous avaient disparu avant le déploiement (étape 5).*
+- [X] **Laisser une saisie hors ligne en file** juste avant la mise en production (recommandé). On vérifiera qu'elle se rejoue sans perte après la mise à jour (§3 de CLAUDE.md).
+- [X] **Relever l'échéance de la session en base**, sur le VPS :
 
-**3. Essai de R15 sur une copie de la production** : `bash ops/fetch_backups.sh`,
-puis sur une copie de la copie `compare_db.py snapshot`, `upgrade head` avec
-`DATABASE_URL` vérifiée, second relevé, `diff --same` sur toutes les tables sauf
-`auth_session` ; `integrity_check` à `ok`, `foreign_key_check` vide.
+  ```bash
+  cd ~/projects/api-gurchon.spigushe.com/backend
+  uv run python -c "import sqlite3; c=sqlite3.connect('vtes.db'); print(c.execute('select id, user_id, created_at, expires_at from auth_session').fetchall())"
+  >>> [(1, 1, '2026-11-17 12:37:36.514852', '2026-12-01 12:37:36.514852'), (2, 1, '2026-11-17 12:39:22.076554', '2026-12-01 12:39:22.076554')]
+  ```
 
-**4. Release et production** : tag `v1.1.0` sur `main`, release complète ;
-`ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend` ;
-sauvegarde `vtes-avant-deploiement-<date>.db` vérifiée (retour arrière :
-`-e gurchon_release_tag=v1.0.0` et restauration de cette copie).
+#### 1. Préparation sur ce poste (moi, sur ton feu vert)
 
-**5. Vérifications en production** : sur le téléphone, la v1.1 installée, la
-base IndexedDB montée sans perte, la saisie en file rejouée, la session v1.0
-renouvelée (`expires_at`, `last_used_at`, `user_agent` relus en base) ; sur le
-VPS, l'environnement de l'unité, `journalctl` (seulement du JSON, une ligne
-`sync.batch`), `sync_report.py` lancé une fois ; le lendemain,
-`fetch_backups.sh` recopie la sauvegarde de la nuit, sans `.part`.
+- [X] Versions à `1.1.0` dans `frontend/package.json` et `backend/pyproject.toml`, puis les lockfiles. Contrat réexporté : seule sa version change, client TS inchangé.
+- [X] **CLAUDE.md** :
+  - en-tête : état, chiffres de tests, 57 opérations au contrat, quinze révisions ;
+  - commande de recensement vers `testids-lot12-cloture.txt` ;
+  - §7 : cinq routes sous `/moi` ;
+  - §11 « Tranchées pendant le Lot 12 » et limites, filtres des decks compris ;
+  - §12 ;
+  - [deploiement.md](deploiement.md) si besoin.
+- [X] `run.ps1 test` vert après ces changements.
 
-**6. Clôture** : résultats consignés ici et dans CLAUDE.md, statut du lot et du
-§12 passés à « clos », limite « tag et release » du Lot 11 soldée.
+#### 2. Fusion et staging (toi)
+
+- [X] PR #62 `lot12-consolidation` → `main`, CI verte, fusion.
+- [X] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R15 s'y applique.
+- [X] Sur `gurchon-staging.spigushe.com`, parcourir :
+  - l'écran Compte : sessions, mot de passe, export ;
+  - Synchronisation, atteinte depuis Compte ;
+  - la légende `?` ;
+  - les nouveaux onglets de Decks ;
+  - la version de la coquille en pied de Compte, comparée à `/health`.
+- [X] Mode `prompt` à voir sur le staging : un second passage du playbook après un commit trivial sur `main` doit afficher le bandeau. En production, la v1.0 passera à la v1.1 sans bandeau, une dernière fois en `autoUpdate` (A6).
+
+#### 3. Essai de R15 sur une copie de la production (toi ou moi)
+
+- [X] `bash ops/fetch_backups.sh` pour rapatrier une copie récente.
+- [X] Sur une **copie de la copie** :
+
+  ```powershell
+  $dir = "..\ops\sauvegardes\essai-r15"
+  New-Item -ItemType Directory -Force $dir | Out-Null
+
+  # copie de la copie (refuse d'écraser un fichier existant)
+  uv run python scripts/compare_db.py backup ..\ops\sauvegardes\vtes-20261120T033000Z.db $dir\copie.db
+  uv run python scripts/compare_db.py snapshot $dir\copie.db $dir\avant.json
+
+  # migration, variable retirée quoi qu'il arrive
+  $env:DATABASE_URL = "sqlite:///" + ((Resolve-Path $dir\copie.db).Path -replace '\\','/')
+  try { uv run alembic upgrade head } finally { Remove-Item Env:DATABASE_URL }
+
+  uv run python scripts/compare_db.py snapshot $dir\copie.db $dir\apres.json
+  uv run python scripts/compare_db.py diff $dir\avant.json $dir\apres.json --same bundle card card_copy card_discipline_link card_printing card_printing_occurrence card_set card_translation card_type card_type_link clan deck deck_card deck_version deck_version_card deleted_deck_card discipline game language participation player sect sync_operation tournament tournament_deck_version user_account venue
+  ```
+
+  ```powershell
+  copie écrite : ..\ops\sauvegardes\essai-r15\copie.db
+  {"meta": {"alembic": ["5f2b8e9d0c41"], "integrity": "ok", "foreign_keys": []}, "rows": {"auth_session": 2, "bundle": 115, "card": 4212, "card_copy": 0, "card_discipline_link": 7880, "card_printing": 10131, "card_printing_occurrence": 11061, "card_set": 51, "card_translation": 856, "card_type": 14, "card_type_link": 4293, "clan": 47, "deck": 10, "deck_card": 350, "deck_version": 0, "deck_version_card": 0, "deleted_deck_card": 0, "discipline": 39, "game": 0, "language": 4, "participation": 0, "player": 1, "sect": 6, "sync_operation": 371, "tournament": 0, "tournament_deck_version": 0, "user_account": 1, "venue": 0}}
+  INFO  [alembic.runtime.migration] Context impl SQLiteImpl.
+  INFO  [alembic.runtime.migration] Will assume non-transactional DDL.
+  INFO  [alembic.runtime.migration] Running upgrade 5f2b8e9d0c41 -> c4e8a1f2d7b3, Appareil et dernière utilisation des sessions
+  {"meta": {"alembic": ["c4e8a1f2d7b3"], "integrity": "ok", "foreign_keys": []}, "rows": {"auth_session": 2, "bundle": 115, "card": 4212, "card_copy": 0, "card_discipline_link": 7880, "card_printing": 10131, "card_printing_occurrence": 11061, "card_set": 51, "card_translation": 856, "card_type": 14, "card_type_link": 4293, "clan": 47, "deck": 10, "deck_card": 350, "deck_version": 0, "deck_version_card": 0, "deleted_deck_card": 0, "discipline": 39, "game": 0, "language": 4, "participation": 0, "player": 1, "sect": 6, "sync_operation": 371, "tournament": 0, "tournament_deck_version": 0, "user_account": 1, "venue": 0}}
+  auth_session                      2 ->      2  2 modifiée(s), colonnes {'last_used_at': 2, 'user_agent': 2}
+  bundle                          115 ->    115  identique
+  card                           4212 ->   4212  identique
+  card_copy                         0 ->      0  identique
+  card_discipline_link           7880 ->   7880  identique
+  card_printing                 10131 ->  10131  identique
+  card_printing_occurrence      11061 ->  11061  identique
+  card_set                         51 ->     51  identique
+  card_translation                856 ->    856  identique
+  card_type                        14 ->     14  identique
+  card_type_link                 4293 ->   4293  identique
+  clan                             47 ->     47  identique
+  deck                             10 ->     10  identique
+  deck_card                       350 ->    350  identique
+  deck_version                      0 ->      0  identique
+  deck_version_card                 0 ->      0  identique
+  deleted_deck_card                 0 ->      0  identique
+  discipline                       39 ->     39  identique
+  game                              0 ->      0  identique
+  language                          4 ->      4  identique
+  participation                     0 ->      0  identique
+  player                            1 ->      1  identique
+  sect                              6 ->      6  identique
+  sync_operation                  371 ->    371  identique
+  tournament                        0 ->      0  identique
+  tournament_deck_version           0 ->      0  identique
+  user_account                      1 ->      1  identique
+  venue                             0 ->      0  identique
+  révision ['5f2b8e9d0c41'] -> ['c4e8a1f2d7b3'] ; integrity_check ok ; foreign_key_check 0 écart(s)
+  ```
+
+- [X] `integrity_check` à `ok`, `foreign_key_check` vide, seule `auth_session` gagne ses deux colonnes.
+
+#### 4. Release et production (toi)
+
+- [X] Avant le tag, les deux mises à jour Dependabot du jour passent sur `main` (back `f4aa179`, front `606ad0f`, dont jsdom 31), avec le correctif qu'exigeait jsdom 31 (PR #66, `ddb2cf3`). Le champ « Ex. » du tableau de la collection passait en `disabled` pendant l'enregistrement ; le `blur` que jsdom 31 et les navigateurs récents envoient alors rendait le focus à `<body>` au lieu de la cellule. Il passe en `readOnly`, avec un test qui retient l'écriture pour ne plus dépendre de la vitesse de la machine.
+- [X] Tag `v1.1.0` sur `main` (`ddb2cf3`), **release complète, pas en pré-release** : `fastapi_backend` ignore les pré-releases. Release « On the Qui Vive v1.1.0 » publiée le 2026-11-20 à 12:20 UTC.
+- [X] `ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend` (`--tags deploy` ne marche pas).
+- [X] Vérifier que `vtes-avant-deploiement-<date>.db` existe dans `~/backups/gurchon-hall/`. Retour arrière possible : `-e gurchon_release_tag=v1.0.0` et restauration de cette copie. Présente : `vtes-avant-deploiement-20261120T122145Z.db`, déjà recopiée sur le poste.
+
+#### 5. Vérifications en production
+
+Sur le téléphone :
+
+- [X] La v1.1 s'installe, sans bandeau (dernier passage en `autoUpdate`, A6) ; la saisie restée en file se rejoue sans refus ni perte (12:25:04 UTC).
+- [X] La base IndexedDB déjà utilisée monte sans perte.
+- [X] La connexion note l'appareil : l'écran Compte liste « Chrome sur Windows » (« Cet appareil ») et « Chrome sur Android » (« Fermer »), pied de page « Application 1.1.0 · Serveur 1.1.0 ».
+- [ ] **Renouvellement d'une session de plus de 24 heures**, à relever **après le 2026-11-21 à 12:29 UTC** (13:29 à Paris) : ouvrir l'application sur le téléphone, puis relancer la commande. Attendu pour l'`id` 2 : `last_used_at` à l'heure de l'ouverture, `expires_at` à cette heure + 14 jours (vers le 5 décembre).
+
+  ```bash
+  cd ~/projects/api-gurchon.spigushe.com/backend
+  uv run python -c "import sqlite3; c=sqlite3.connect('vtes.db'); print(c.execute('select id, user_id, created_at, last_used_at, expires_at, user_agent from auth_session').fetchall())"
+  >>> [(2, 1, '2026-11-20 12:29:02.300661', None, '2026-12-04 12:29:02.300661', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36'), (3, 1, '2026-11-20 12:29:33.601318', None, '2026-12-04 12:29:33.601318', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36')]
+  ```
+
+  Il ne reste **aucune session v1.0** : le relevé prévu (« la session v1.0 est renouvelée à sa première requête ») ne peut plus se faire. Les deux sessions du 2026-11-17 relevées à l'étape 0 existaient encore dans la sauvegarde de 03:30 UTC (étape 3) ; une session sans appareil, ouverte par l'API v1.0 le 2026-11-20 à 10:08 UTC, les avait remplacées avant le déploiement, puis a été fermée après 12:29:02 UTC. Les deux sessions restantes ont été ouvertes par la v1.1 à 12:29. Le renouvellement d'une session v1.1 passe par le même code (`renew_session` : `last_used_at` absent, donc `created_at`, et `user_agent` jamais lu) : seul le délai de 24 heures reste à attendre.
+
+Sur le VPS :
+
+- [X] L'environnement de l'unité cite `UVICORN_ACCESS_LOG=false` et `LOG_LEVEL=INFO`.
+
+  ```bash
+  systemctl show gurchon-api -p Environment --value | tr ' ' '\n'
+  BACKEND_CORS_ORIGINS=https://gurchon.spigushe.com
+  FORWARDED_ALLOW_IPS=127.0.0.1
+  UVICORN_ACCESS_LOG=false
+  LOG_LEVEL=INFO
+  ```
+
+- [X] `journalctl` ne montre que des lignes JSON (aucune ligne d'accès d'uvicorn) ; chaque saisie du téléphone donne une ligne `sync.batch` suivie du `POST /sync`. `user_id` figure sur les routes sous session, pas sur les routes publiques ; les chemins sont des gabarits (`/decks/{deck_id}`).
+
+  Après un lot, l'application relit ses miroirs (une quinzaine de `GET` dans la seconde) : `-n 5` ne montre plus `sync.batch`. Chercher la ligne par `grep` :
+
+  ```bash
+  journalctl -u gurchon-api -o cat --since today | grep -E '"route":"/sync"|sync.batch|Logging error'
+  {"ts":"2026-11-20T12:25:04.923Z","level":"info","logger":"app.sync","event":"sync.batch","user_id":1,"batch_id":"2d2bb225-3399-4d8f-8a67-c4ab439eaf25","size":1,"applied":1,"replayed":0,"rejected":0,"rejected_by_code":{},"rejected_by_type":{}}
+  {"ts":"2026-11-20T12:25:04.926Z","level":"info","logger":"app.access","event":"http.request","method":"POST","route":"/sync","status":200,"duration_ms":75.2,"user_id":1}
+  {"ts":"2026-11-20T12:38:34.374Z","level":"info","logger":"app.sync","event":"sync.batch","user_id":1,"batch_id":"0a07e6c9-acbc-49d5-ae8a-0794f2bab472","size":1,"applied":1,"replayed":0,"rejected":0,"rejected_by_code":{},"rejected_by_type":{}}
+  {"ts":"2026-11-20T12:38:34.378Z","level":"info","logger":"app.access","event":"http.request","method":"POST","route":"/sync","status":200,"duration_ms":51.9,"user_id":1}
+  {"ts":"2026-11-20T12:38:56.928Z","level":"info","logger":"app.sync","event":"sync.batch","user_id":1,"batch_id":"6beafadc-e797-4ec7-9770-fe674679c28f","size":1,"applied":1,"replayed":0,"rejected":0,"rejected_by_code":{},"rejected_by_type":{}}
+  {"ts":"2026-11-20T12:38:56.931Z","level":"info","logger":"app.access","event":"http.request","method":"POST","route":"/sync","status":200,"duration_ms":25.1,"user_id":1}
+  {"ts":"2026-11-20T12:38:58.099Z","level":"info","logger":"app.sync","event":"sync.batch","user_id":1,"batch_id":"0f3b14d9-8e21-47d9-9aee-7f64cd637552","size":1,"applied":1,"replayed":0,"rejected":0,"rejected_by_code":{},"rejected_by_type":{}}
+  {"ts":"2026-11-20T12:38:58.101Z","level":"info","logger":"app.access","event":"http.request","method":"POST","route":"/sync","status":200,"duration_ms":15.0,"user_id":1}
+  ```
+
+  Le lot de 12:25:04 est la saisie laissée en file avant le déploiement ; les trois suivants, des saisies faites pour ce relevé.
+
+- [X] `sync_report.py` lancé (avant puis après les trois saisies du relevé : 372 puis 375 opérations, toutes appliquées, aucun refus).
+
+  ```bash
+  uv run python scripts/sync_report.py vtes.db
+
+  Journal /sync de vtes.db, du le début à aujourd'hui
+  Opérations tranchées : 372 (appliquées 372, refusées 0)
+  Premier verdict : 2026-11-17 17:19:11.728564 UTC ; dernier : 2026-11-20 12:25:04.878199 UTC
+  Aucun refus sur la période.
+
+  Par jour (UTC) :    appliquées  refusées
+    2026-11-17         259         0
+    2026-11-19         112         0
+    2026-11-20           1         0
+  ```
+
+  L'en-tête écrit « du le début » quand `--since` manque ; laissé tel quel (décision du 2026-11-20).
+
+- [ ] **Le 2026-11-21**, `bash ops/fetch_backups.sh` recopie la sauvegarde de la nuit (`vtes-20261121T0330…Z.db`), et aucun `.vtes-*.db.part` ne traîne. La copie d'avant déploiement (`vtes-avant-deploiement-20261120T122145Z.db`) est déjà sur le poste.
+
+#### 6. Clôture (moi)
+
+- [ ] Résultats des relevés consignés dans CLAUDE.md, limites connues comprises ; statut du lot et du §12 passés à « clos ».
+- [X] Tag et release alignés sur le dépôt : `v1.1.0` vise `ddb2cf3`, tête de `main` au déploiement, release complète « On the Qui Vive v1.1.0 » publiée le 2026-11-20 à 12:20 UTC. La limite du Lot 11 est soldée.
 
 ## Tests attendus (E)
 
