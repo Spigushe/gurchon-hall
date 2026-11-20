@@ -2,8 +2,9 @@
 
 Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
 écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
-livrées le 2026-11-18, D1, D5, D2 et D3 le 2026-11-19** (cf. « Livré à A1 »
-à « Livré à D3 ») ; il ne reste d'A0 que les relevés HTTPS sur téléphone.
+livrées le 2026-11-18, D1, D5, D2 et D3 le 2026-11-19, E le 2026-11-20**
+(cf. « Livré à A1 » à « Livré à E ») ; relevés HTTPS d'A0 faits le 2026-11-20 ;
+F en cours (cf. « Avancement de F »).
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -721,7 +722,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 
 | Étape | Agent | Contenu | Dépend de |
 | --- | --- | --- | --- |
-| A0 | utilisateur, orchestrateur | trancher P1 à P10 et écrire le brief Claude Design (P9, `docs/design-handoff/lot12-brief-claude-design.md`) : **faits le 2026-11-18** ; relever en HTTPS sur téléphone la copie par le presse-papiers, `persist()` et la montée d'une base IndexedDB déjà utilisée, consigner les résultats ici | — |
+| A0 | utilisateur, orchestrateur | trancher P1 à P10 et écrire le brief Claude Design (P9, `docs/design-handoff/lot12-brief-claude-design.md`) : **faits le 2026-11-18** ; relever en HTTPS sur téléphone la copie par le presse-papiers, `persist()` et la montée d'une base IndexedDB déjà utilisée, consigner les résultats ici : **presse-papiers et `persist()` relevés le 2026-11-20**, la montée d'une base existante se relève à F, après la mise à jour (cf. « Avancement de F ») | — |
 | D0 | utilisateur, Claude Design | handoff mobile et bureau (écran Compte, bandeau de mise à jour, légende `?`, état du catalogue), versé dans `docs/design-handoff/` : **fait le 2026-11-18**, en deux envois (corrections demandées et design system, puis `LOT12.md`, prototypes et captures, P9 « Handoff reçu ») ; choix du designer et écarts 1 et 2 retenus le 2026-11-18 | A0 |
 | A1 | architecte-contrat | schémas et routes déclarées (A1), R15 et ses tests d'aller-retour (A2), `AccountExport` (A4), contrat exporté, client TS régénéré — **fait le 2026-11-18** (cf. « Livré à A1 ») | A0 |
 | B1 | backend-fastapi | mot de passe, sessions, `user_agent` écrit à la connexion (A1 à A3), renouvellement des sessions (A10) — **fait le 2026-11-18** (cf. « Livré à B1 ») | A1 |
@@ -1447,7 +1448,8 @@ Synchronisation.
   `real-backend`, 3 `desktop`, 36 `desktop-real-backend`. Ceux que D1, D5 et
   C1 avaient repris (`lot6-comptes`, `lot5c-symetrie`, `navigation`,
   passages par l'écran Compte, prise de contrôle du service worker) passent
-  avec le reste.
+  avec le reste. Relancée après les filtres des decks (`a724558`), venus
+  après ce premier passage : de nouveau **98 tests verts** (21 minutes).
 - **Flakiness vitest** : non reproduite. La suite complète lancée cinq fois
   sous PowerShell depuis le dossier du front, en `C:`, une fois sous
   couverture (1716 tests) puis quatre fois sans, après les filtres des decks
@@ -1512,6 +1514,56 @@ locale filtrant déjà par statut (`DeckQuery.status`).
   collée hors ligne, `desktop-real-backend`) : processus de Playwright tombé
   (`0xC0000409`), avant toute vérification. Deux instabilités de
   l'environnement e2e à surveiller, à côté de la flakiness vitest.
+
+### Avancement de F
+
+Checklist arrêtée le 2026-11-20. Les étapes sont dans l'ordre où elles se font.
+
+**0. Sur le téléphone, avant la production** — *fait le 2026-11-20* :
+
+- relevés HTTPS sur la production v1.0 (A0) : « Copier » de l'export VDB écrit
+  bien dans le presse-papiers, `persist()` répond, le panneau Application montre
+  le manifeste et un service worker *activated* : conformes, d'après
+  l'utilisateur ;
+- la session v1.0 du téléphone est gardée telle quelle jusqu'à la mise en
+  production, et une saisie hors ligne y sera laissée en file juste avant, pour
+  vérifier son rejeu après la mise à jour (§3 de CLAUDE.md) ;
+- sessions relevées dans la base de production avant le déploiement : deux, du
+  compte 1, ouvertes le 2026-11-17 à 12:37 et 12:39 UTC, échéance le 2026-12-01
+  à la même heure (14 jours fixes de la v1.0, `last_used_at` absent).
+
+**1. Préparation sur le poste** — *fait le 2026-11-20* : versions à `1.1.0`
+dans `frontend/package.json`, `package-lock.json`, `backend/pyproject.toml` et
+`uv.lock`, contrat réexporté (seule sa version change ; client TS inchangé) ;
+CLAUDE.md à jour (en-tête, commandes et chiffres, §4, §6, §7, §11 « Tranchées
+pendant le Lot 12 » et ses limites, limites antérieures soldées, §12).
+
+**2. Fusion et staging** : PR de `lot12-consolidation` vers `main`, CI verte,
+fusion ; `ansible-playbook gurchon_hall.yml -e deploy_env=staging` (R15
+appliquée) ; parcours sur `gurchon-staging.spigushe.com` (Compte, sessions, mot
+de passe, export, Synchronisation, légende `?`, onglets de Decks, versions en
+pied de Compte comparées à `/health`) ; le mode `prompt` se voit sur le staging
+par un second passage après un commit sur `main`.
+
+**3. Essai de R15 sur une copie de la production** : `bash ops/fetch_backups.sh`,
+puis sur une copie de la copie `compare_db.py snapshot`, `upgrade head` avec
+`DATABASE_URL` vérifiée, second relevé, `diff --same` sur toutes les tables sauf
+`auth_session` ; `integrity_check` à `ok`, `foreign_key_check` vide.
+
+**4. Release et production** : tag `v1.1.0` sur `main`, release complète ;
+`ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend` ;
+sauvegarde `vtes-avant-deploiement-<date>.db` vérifiée (retour arrière :
+`-e gurchon_release_tag=v1.0.0` et restauration de cette copie).
+
+**5. Vérifications en production** : sur le téléphone, la v1.1 installée, la
+base IndexedDB montée sans perte, la saisie en file rejouée, la session v1.0
+renouvelée (`expires_at`, `last_used_at`, `user_agent` relus en base) ; sur le
+VPS, l'environnement de l'unité, `journalctl` (seulement du JSON, une ligne
+`sync.batch`), `sync_report.py` lancé une fois ; le lendemain,
+`fetch_backups.sh` recopie la sauvegarde de la nuit, sans `.part`.
+
+**6. Clôture** : résultats consignés ici et dans CLAUDE.md, statut du lot et du
+§12 passés à « clos », limite « tag et release » du Lot 11 soldée.
 
 ## Tests attendus (E)
 
