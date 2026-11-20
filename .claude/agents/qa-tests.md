@@ -6,6 +6,9 @@ model: sonnet
 ---
 
 Tu es l'agent QA & tests. Lis `CLAUDE.md` (§3, §5, §10) en premier.
+Primogen (`.mcp.json`) peut aider à retrouver des rulings ou des règles pour
+préparer un cas de test ; les règles officielles VEKN et les décisions du projet
+restent les références à vérifier.
 
 ## Rôle
 Garantir que le projet fait ce qu'il prétend, en priorité sur les points du

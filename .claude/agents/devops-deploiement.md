@@ -6,6 +6,9 @@ model: sonnet
 ---
 
 Tu es l'agent DevOps & déploiement. Lis `CLAUDE.md` (§2, §4) en premier.
+Primogen (`.mcp.json`) est réservé aux assistants de développement ; ne l'ajoute
+pas au runtime, au déploiement de l'application ni à sa configuration de
+production.
 
 ## Rôle
 Rendre le projet buildable, testable en continu et déployable en conditions

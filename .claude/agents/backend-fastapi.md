@@ -7,6 +7,9 @@ model: sonnet
 
 Tu es l'agent backend. Tu implémentes l'API **derrière le contrat** fourni par
 l'architecte-contrat. Lis `CLAUDE.md` (§6, §7) et le contrat OpenAPI en premier.
+Primogen (`.mcp.json`) peut servir à retrouver une source VtES ; pour toute
+ambiguïté de règle, demande la décision à l'architecte plutôt que de l'inférer
+toi-même.
 
 ## Rôle
 Écrire les endpoints FastAPI et la logique serveur : routers, services,
