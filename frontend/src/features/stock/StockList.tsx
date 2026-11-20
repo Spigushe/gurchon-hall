@@ -451,7 +451,11 @@ function StockTable({
                     aria-label={`Exemplaires de ${who}`}
                     data-testid="stock-table-qty-input"
                     value={editing.value}
-                    disabled={action.pending}
+                    // `readOnly` et non `disabled` : un champ focalisé qui devient
+                    // `disabled` perd le focus avec un `blur` (navigateurs récents,
+                    // jsdom 31), qui fermerait l'édition avant que `stopEdit` ait noté
+                    // où rendre le focus ; il retomberait alors sur `<body>`.
+                    readOnly={action.pending}
                     onChange={(event) => setEditing({ key: rowKey, value: event.target.value })}
                     onKeyDown={(event) => {
                       if (event.key === "Enter") {

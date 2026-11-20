@@ -1,5 +1,5 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createFakeServer } from "../offline/fakeServer";
 import { renderApp, setOnline } from "./harness";
 
@@ -945,6 +945,37 @@ describe("collection : tableau bureau au clavier (Lot 5c, étape 7)", () => {
       type: "stock.upsert",
       data: { quantity_owned: 4 },
     });
+  });
+
+  it("pendant l'enregistrement, le champ garde le focus (lecture seule) puis le rend à la cellule", async () => {
+    // L'écriture est retenue pour que le rendu « en cours » ait lieu à coup sûr : sans
+    // cela, le test dépend de la vitesse de la machine (vert en CI, rouge en local).
+    const { runtime, entry } = await oneRow();
+    const realSave = runtime.actions.saveStock;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const spy = vi.spyOn(runtime.actions, "saveStock").mockImplementation(async (...args) => {
+      await held;
+      return realSave(...args);
+    });
+    try {
+      const cell = within(entry).getByTestId("stock-entry-quantity-cell");
+      cell.focus();
+      fireEvent.keyDown(cell, { key: "Enter" });
+      const input = within(entry).getByTestId("stock-table-qty-input");
+      fireEvent.change(input, { target: { value: "3" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      await waitFor(() => expect(input).toHaveAttribute("readonly"));
+      expect(input).not.toBeDisabled();
+      expect(input).toHaveFocus();
+
+      await act(async () => release());
+      await waitFor(() => expect(within(entry).getByTestId("stock-entry-quantity")).toHaveTextContent("3"));
+      await waitFor(() => expect(cell).toHaveFocus());
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("Échap annule sans écrire et rend le focus à la cellule ; ↵ dans le champ ne rouvre rien", async () => {
