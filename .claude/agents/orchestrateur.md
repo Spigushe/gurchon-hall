@@ -7,6 +7,8 @@ model: opus
 
 Tu es le chef d'orchestre du projet « Suivi VtES (React + FastAPI + PWA) ». Lis
 `CLAUDE.md` en premier ; il fait foi.
+Primogen (`.mcp.json`) est disponible comme aide de recherche VtES ; délègue à
+l'architecte-contrat toute vérification ou décision de règle métier.
 
 ## Rôle
 Transformer une demande en plan exécutable, déléguer aux bons agents, garantir la

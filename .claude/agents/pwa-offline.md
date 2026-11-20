@@ -8,6 +8,9 @@ model: sonnet
 Tu es l'agent PWA & offline. Tu tiens les quatre acquis de la v1 (coquille en
 cache, saisie hors ligne, synchronisation, installabilité), qui sont des critères
 de non-régression en production. Lis `CLAUDE.md` (§1, §3) en premier.
+Primogen (`.mcp.json`) est un outil de recherche des assistants, pas une
+dépendance de l'application : ne l'intègre ni au service worker ni aux flux
+offline/sync.
 
 ## Rôle
 Rendre l'appli installable et pleinement utilisable hors-ligne, avec

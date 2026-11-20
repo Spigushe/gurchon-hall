@@ -19,6 +19,10 @@ agents et skills Claude Code, feuille de route) est dans
 [CLAUDE.md](CLAUDE.md). Les conventions de travail pour les agents sont dans
 [AGENTS.md](AGENTS.md).
 
+Les assistants compatibles MCP peuvent utiliser Primogen, le serveur public de
+KRCG pour les cartes, les règles et leurs rulings. Il est configuré au niveau du
+projet dans [`.mcp.json`](.mcp.json) et n'est pas une dépendance de l'application.
+
 ## État actuel
 
 Livré jusqu'au Lot 12 (détail et limites connues au §12 de CLAUDE.md) :

@@ -339,6 +339,16 @@ Repères de conception. Les points **[à confirmer]** doivent être vérifiés d
 règlement officiel VEKN en vigueur avant d'être codés en règles dures — donnés
 ici comme repères, pas comme vérités arrêtées.
 
+Le serveur MCP **Primogen** est disponible aux assistants du projet via
+`.mcp.json` (`https://mcp.krcg.org/mcp`). Il peut aider à rechercher des cartes,
+des rulings et des règles VtES. C'est une source de recherche complémentaire :
+les règles officielles VEKN restent l'autorité, et les décisions déjà tranchées
+dans ce fichier priment sur une réponse externe. Vérifier les règles incertaines
+dans leur source officielle avant d'en faire une règle du produit. Le serveur
+propose aussi `vtes_feedback`, qui publie un ticket public : ne l'utiliser que
+sur demande explicite de l'utilisateur. Aucun appel au MCP ne fait partie de
+l'application, de son API ou de son fonctionnement hors ligne.
+
 Les règles de partie et de tournoi (de « Partie » à « Mono / multi-deck »
 ci-dessous) ont été relues le 2026-10-28 dans les règles de tournoi de la VEKN
 (vekn.net/tournament-rules, sections citées entre parenthèses) et adoptées par
@@ -873,7 +883,7 @@ skill a un **agent propriétaire** (owner) et des **agents consommateurs**.
 | `modele-donnees` | schéma relationnel, SQLAlchemy 2.0, conventions de nommage | Architecte | Backend |
 | `contrat-openapi` | contract-first : Pydantic ↔ OpenAPI ↔ client TS typé | Architecte | Backend, Frontend |
 | `migrations-alembic` | créer / appliquer / relire des migrations sûres | Architecte | Backend |
-| `regles-vtes` | règles métier (légalité deck, VP/GW, tournoi mono/multi) | Architecte | Backend, QA |
+| `regles-vtes` | règles métier (légalité deck, VP/GW, tournoi mono/multi) et recherche sourcée par Primogen | Architecte | Backend, QA |
 | `fastapi-endpoint` | pattern endpoint (router + schema + service + test) | Backend | — |
 | `react-feature` | pattern composant / état / formulaire / consommation client | Frontend | PWA |
 | `pwa-offline` | service worker Workbox, IndexedDB/Dexie, sync, installabilité | PWA | QA, DevOps |
