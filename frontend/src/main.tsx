@@ -4,10 +4,14 @@ import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "./index.css";
 import { preloadGlyphFonts } from "./components/glyphs/preloadGlyphFonts";
-import { AuthGate } from "./features/auth/AuthGate.tsx";
+import { Root } from "./app/Root";
 import { requestPersistentStorage } from "./offline/core/storage";
 import { registerServiceWorker } from "./offline/registerServiceWorker";
 
+// Lot 13 (C1) : `Root` aiguille `#/liste/<jeton>` vers la page publique, sans
+// `AuthGate` (donc sans session, base ni moteur de sync) ; tout autre hash passe
+// par `AuthGate`, comme avant.
+//
 // Couche offline (Lot 3) et comptes (Lot 6) : `AuthGate` décide, avant tout,
 // s'il existe un compte connu sur cet appareil, ouvre le runtime offline (base
 // IndexedDB, file d'écritures, rejeu vers `POST /sync`) du bon compte le cas
@@ -16,7 +20,7 @@ import { registerServiceWorker } from "./offline/registerServiceWorker";
 // § P3).
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
-    <AuthGate />
+    <Root />
   </StrictMode>,
 );
 

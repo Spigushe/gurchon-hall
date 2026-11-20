@@ -59,3 +59,15 @@ def vdb_rate_limit() -> str:
     ou une mise à jour à la main, et empêchent la route de servir de relais
     en boucle."""
     return os.getenv("VDB_RATE_LIMIT", _DEFAULT_VDB_RATE_LIMIT)
+
+
+_DEFAULT_SHARED_LIST_RATE_LIMIT = "60/minute"
+
+
+def shared_list_rate_limit() -> str:
+    """Débit autorisé pour `GET /listes/{token}` (`SHARED_LIST_RATE_LIMIT`,
+    Lot 13, A4) : la route lit une donnée privée sans session, derrière un jeton
+    de huit caractères (63⁸). C'est cette limite par adresse IP, plus que la
+    taille de l'espace, qui rend l'énumération vaine ; soixante par minute
+    laissent largement ouvrir une page et ses rechargements."""
+    return os.getenv("SHARED_LIST_RATE_LIMIT", _DEFAULT_SHARED_LIST_RATE_LIMIT)

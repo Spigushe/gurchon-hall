@@ -256,6 +256,7 @@ def test_the_export_covers_every_private_domain_but_the_journal(schema):
         "venues",
         "tournaments",
         "games",
+        "shares",
     }
     assert set(export["required"]) == set(export["properties"])
     deck = schema["components"]["schemas"]["ExportedDeck"]["properties"]
@@ -276,16 +277,17 @@ def test_the_export_carries_no_secret_and_no_account_identifier(schema):
     assert set(account) == {"email", "username", "role", "created_at"}
 
 
-def test_the_export_format_version_is_pinned_to_one(schema):
-    assert ACCOUNT_EXPORT_FORMAT_VERSION == 1
+def test_the_export_format_version_is_two_and_still_describes_one(schema):
+    # Passée de 1 à 2 au Lot 13 (A5), à l'ajout des liens publics.
+    assert ACCOUNT_EXPORT_FORMAT_VERSION == 2
     version = schema["components"]["schemas"]["AccountExport"]["properties"][
         "format_version"
     ]
-    assert version["const"] == 1
+    assert version["enum"] == [1, 2]
     with pytest.raises(ValidationError):
         AccountExport.model_validate(
             {
-                "format_version": 2,
+                "format_version": 3,
                 "exported_at": "2026-11-18T10:00:00Z",
                 "schema_revision": "c4e8a1f2d7b3",
                 "account": {

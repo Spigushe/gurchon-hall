@@ -13,18 +13,15 @@ Cinq opérations :
   route du contrat qui lit une donnée privée sans session, derrière un jeton
   de huit caractères (P3, A4).
 
-**Étape A1** : les cinq routes sont au contrat, avec leurs schémas et leurs
-réponses. Leur corps rend **501** tant que les étapes B1 (service des liens,
-routes sous session, purges) et B2 (route publique : limite de débit, cache,
-404 uniforme) ne sont pas livrées, après le contrôle de session, la
-validation du corps, du chemin et de la requête, et le contrôle croisé de
-`scope` et `share_id`. Ces gardes sont à retirer avec leurs tests
-(`test_lot13_contract.py`).
+**Étapes B1 et B2** : le service est `app.services.shares`. Les quatre routes
+sous session passent par `CurrentUser` (401 avant tout, 404 pour le deck ou le
+lien d'un autre compte). La route publique n'a aucune dépendance de session :
+ordre des contrôles 422 (forme du jeton), 429 (limite par IP), 404.
 """
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Path, Query, Response
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from pydantic import Field
 
 from app.models.share import SHARE_TOKEN_LENGTH
@@ -49,7 +46,9 @@ from app.schemas.share import (
     SharePurgeResult,
     SharePurgeScope,
 )
-from app.services.errors import InvalidRequestError
+from app.services import shares
+from app.services.errors import InvalidRequestError, NotFoundError
+from app.services.rate_limit import limiter, shared_list_rate_limit
 
 router = APIRouter(tags=["partages"])
 
@@ -91,15 +90,6 @@ _PUBLIC_LIST_HEADERS = {
 }
 
 
-def _not_yet_delivered(step: str) -> HTTPException:
-    """Garde provisoire de l'étape A1 : la route est au contrat, son corps
-    vient à l'étape `step`. À retirer à B1 et B2."""
-    return HTTPException(
-        status_code=501,
-        detail=f"Route pas encore livrée (Lot 13, étape {step}).",
-    )
-
-
 def check_purge_selection(
     scope: SharePurgeScope, share_ids: list[int] | None
 ) -> list[int]:
@@ -135,7 +125,7 @@ def check_purge_selection(
     responses={**UNAUTHENTICATED, **NOT_FOUND},
 )
 def list_deck_shares(deck_id: PathId, db: DbSession, user: CurrentUser):
-    raise _not_yet_delivered("B1")
+    return shares.list_deck_shares(db, user.id, deck_id)
 
 
 @router.post(
@@ -159,7 +149,7 @@ def list_deck_shares(deck_id: PathId, db: DbSession, user: CurrentUser):
 def create_deck_share(
     deck_id: PathId, payload: DeckShareCreate, db: DbSession, user: CurrentUser
 ):
-    raise _not_yet_delivered("B1")
+    return shares.create_deck_share(db, user.id, deck_id, payload)
 
 
 @router.get(
@@ -176,7 +166,7 @@ def create_deck_share(
     responses={**UNAUTHENTICATED},
 )
 def list_my_shares(db: DbSession, user: CurrentUser):
-    raise _not_yet_delivered("B1")
+    return shares.list_my_shares(db, user.id)
 
 
 @router.delete(
@@ -210,8 +200,8 @@ def purge_shares(
     ],
     share_id: ShareIds = None,
 ):
-    check_purge_selection(scope, share_id)
-    raise _not_yet_delivered("B1")
+    selection = check_purge_selection(scope, share_id)
+    return SharePurgeResult(revoked=shares.purge_shares(db, user.id, scope, selection))
 
 
 @router.get(
@@ -235,5 +225,15 @@ def purge_shares(
         **TOO_MANY_REQUESTS,
     },
 )
-def read_shared_decklist(token: ShareTokenPath, db: DbSession, response: Response):
-    raise _not_yet_delivered("B2")
+@limiter.limit(shared_list_rate_limit)
+def read_shared_decklist(
+    request: Request, token: ShareTokenPath, db: DbSession, response: Response
+):
+    try:
+        decklist = shares.read_shared_decklist(db, token)
+    except NotFoundError as error:
+        raise HTTPException(status_code=404, detail=error.message) from error
+    # Aucune session n'est lue : jamais `private, no-store` (A4).
+    response.headers["Cache-Control"] = "public, max-age=60"
+    response.headers["X-Robots-Tag"] = "noindex"
+    return decklist
