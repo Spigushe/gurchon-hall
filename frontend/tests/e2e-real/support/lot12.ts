@@ -217,7 +217,7 @@ export async function exportDownloaded({ page, api }: { page: Page; api: Api }, 
     collection: { card_name: string; language_code: string; quantity_owned: number }[];
     players: { name: string; is_me: boolean }[];
   };
-  expect(exported.format_version).toBe(1);
+  expect(exported.format_version).toBe(2);
   expect(exported.schema_revision).toMatch(/^[0-9a-f]{12}$/);
   expect(exported.account).toMatchObject({ email: account.email, username: account.username });
   expect(exported.collection).toEqual([

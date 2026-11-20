@@ -81,7 +81,7 @@ from app.schemas.collection import (
     DeckVersionLegality,
     DeckVersionRead,
 )
-from app.services import catalog, deck_versions, stock, vtes_rules
+from app.services import catalog, deck_versions, shares, stock, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict
 from app.services.text_search import contains_folded, folded_order
@@ -476,7 +476,8 @@ def delete_deck(db: Session, user_id: int, deck_id: int) -> None:
     En une transaction : la decklist est recopiée dans `deleted_deck_card`, les
     lignes vivantes sont supprimées (le stock est libéré, proxies compris) et
     `deleted_at` est posé. Le deck et ses participations restent en base : un
-    deck joué garde son historique.
+    deck joué garde son historique. Ses liens publics vivants sont retirés dans la
+    même transaction, ses liens figés restent (Lot 13, P5).
     """
     deck = _get_live_deck(db, user_id, deck_id)
     if deck.archived_at is None:
@@ -496,6 +497,8 @@ def delete_deck(db: Session, user_id: int, deck_id: int) -> None:
         )
         db.delete(line)
     deck.deleted_at = utcnow()
+    # Lot 13, P5 : les liens vivants tombent avec le deck, ses figés restent.
+    shares.revoke_live_shares(db, deck_id)
     db.commit()
 
 

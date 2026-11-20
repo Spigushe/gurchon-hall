@@ -863,10 +863,10 @@ export interface components {
         AccountExport: {
             /**
              * Format Version
-             * @description Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute.
-             * @constant
+             * @description Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`) ; 1 reste décrit : même forme, sans ce champ.
+             * @enum {integer}
              */
-            format_version: 1;
+            format_version: 1 | 2;
             /**
              * Exported At
              * Format: date-time
@@ -909,6 +909,11 @@ export interface components {
              * @default []
              */
             games: components["schemas"]["ExportedGame"][];
+            /**
+             * Shares
+             * @default []
+             */
+            shares: components["schemas"]["ExportedDeckShare"][];
         };
         /**
          * BundleCardRead
@@ -2455,6 +2460,64 @@ export interface components {
             quantity: number;
             /** Proxy Quantity */
             proxy_quantity: number;
+        };
+        /**
+         * ExportedDeckShare
+         * @description Un lien public du compte (Lot 13), sans son jeton.
+         */
+        ExportedDeckShare: {
+            /**
+             * Id
+             * @description Identifiant du lien, valable dans ce fichier.
+             */
+            id: number;
+            /**
+             * Deck Id
+             * @description Deck du lien (`decks[].id` de ce fichier).
+             */
+            deck_id: number;
+            kind: components["schemas"]["DeckShareKind"];
+            /** Show Notes */
+            show_notes: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Frozen Name */
+            frozen_name: string | null;
+            frozen_archetype: components["schemas"]["DeckArchetype"] | null;
+            /** Frozen Notes */
+            frozen_notes: string | null;
+            /**
+             * Deck Version Number
+             * @description Numéro de la version jouée copiée par un figé, nul sinon.
+             */
+            deck_version_number: number | null;
+            /**
+             * Cards
+             * @description Liste copiée d'un lien figé ; vide pour un vivant.
+             * @default []
+             */
+            cards: components["schemas"]["ExportedDeckShareCard"][];
+        };
+        /**
+         * ExportedDeckShareCard
+         * @description Une carte de la liste copiée d'un lien figé.
+         */
+        ExportedDeckShareCard: {
+            /**
+             * Vekn Id
+             * @description Identifiant VEKN de la carte, stable d'une base à l'autre.
+             */
+            vekn_id: number;
+            /**
+             * Card Name
+             * @description Nom anglais de la carte, tel que le catalogue le porte.
+             */
+            card_name: string;
+            /** Quantity */
+            quantity: number;
         };
         /**
          * ExportedDeckVersion

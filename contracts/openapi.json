@@ -5104,9 +5104,12 @@
         "properties": {
           "format_version": {
             "type": "integer",
-            "const": 1,
+            "enum": [
+              1,
+              2
+            ],
             "title": "Format Version",
-            "description": "Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute."
+            "description": "Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`) ; 1 reste décrit : même forme, sans ce champ."
           },
           "exported_at": {
             "type": "string",
@@ -5169,6 +5172,14 @@
             "type": "array",
             "title": "Games",
             "default": []
+          },
+          "shares": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeckShare"
+            },
+            "type": "array",
+            "title": "Shares",
+            "default": []
           }
         },
         "type": "object",
@@ -5182,7 +5193,8 @@
           "players",
           "venues",
           "tournaments",
-          "games"
+          "games",
+          "shares"
         ],
         "title": "AccountExport",
         "description": "Toutes les données d'un compte, lisibles sans la base (P3, A4)."
@@ -8155,6 +8167,126 @@
         ],
         "title": "ExportedDeckLine",
         "description": "Une ligne de deck. Pour un deck supprimé, une ligne de sa liste figée."
+      },
+      "ExportedDeckShare": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Identifiant du lien, valable dans ce fichier."
+          },
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id",
+            "description": "Deck du lien (`decks[].id` de ce fichier)."
+          },
+          "kind": {
+            "$ref": "#/components/schemas/DeckShareKind"
+          },
+          "show_notes": {
+            "type": "boolean",
+            "title": "Show Notes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "frozen_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen Name"
+          },
+          "frozen_archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "frozen_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frozen Notes"
+          },
+          "deck_version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Version Number",
+            "description": "Numéro de la version jouée copiée par un figé, nul sinon."
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedDeckShareCard"
+            },
+            "type": "array",
+            "title": "Cards",
+            "description": "Liste copiée d'un lien figé ; vide pour un vivant.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deck_id",
+          "kind",
+          "show_notes",
+          "created_at",
+          "frozen_name",
+          "frozen_archetype",
+          "frozen_notes",
+          "deck_version_number",
+          "cards"
+        ],
+        "title": "ExportedDeckShare",
+        "description": "Un lien public du compte (Lot 13), sans son jeton."
+      },
+      "ExportedDeckShareCard": {
+        "properties": {
+          "vekn_id": {
+            "type": "integer",
+            "title": "Vekn Id",
+            "description": "Identifiant VEKN de la carte, stable d'une base à l'autre."
+          },
+          "card_name": {
+            "type": "string",
+            "title": "Card Name",
+            "description": "Nom anglais de la carte, tel que le catalogue le porte."
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vekn_id",
+          "card_name",
+          "quantity"
+        ],
+        "title": "ExportedDeckShareCard",
+        "description": "Une carte de la liste copiée d'un lien figé."
       },
       "ExportedDeckVersion": {
         "properties": {

@@ -1,9 +1,10 @@
 # Lot 13 — Partage (v1.2) : plan d'implémentation
 
 Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
-décisions de conception reprises en conséquence ; **A1, D1 et D4 livrées le
-2026-11-20** (cf. « Livré à A1 », « Livré à D1 », « Livré à D4 ») ; B1 à
-lancer. Rédigé sur la
+décisions de conception reprises en conséquence ; **A1, B1, B2, C1, D1 et D4
+livrées le 2026-11-20** (cf. « Livré à … » et « Vérification d'intégration
+après B1, B2 et C1 »), A1, D1 et D4 commitées (`a33e5e6`) ; **D2 et D3 en
+cours**, D5 et D6 après D3. Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
@@ -692,13 +693,13 @@ demande).
 | --- | --- | --- |
 | A0 | P1 à P10 tranchées, ce fichier mis à jour | utilisateur, orchestrateur |
 | A1 | contrat (cinq opérations, filtre `ids` de `GET /cartes`), R16, schémas, client TS régénéré, chiffres de départ recomptés — **fait le 2026-11-20** (cf. « Livré à A1 ») | architecte-contrat |
-| B1 | service des liens, routes sous session, trois purges, suppression d'un deck qui révoque les vivants et garde les figés | backend-fastapi |
-| B2 | route publique : limite, cache, 404 uniforme, matrice d'autorisation ; filtre `ids` ; export du compte | backend-fastapi |
-| C1 | `API_ROUTE_PREFIXES`, interception de `#/liste/` dans `main.tsx` sans base ni moteur | pwa-offline |
-| D1 | exports `TWD`, `JOL`, `LACKEY` et choix du format dans la feuille d'export | frontend-react |
+| B1 | service des liens, routes sous session, trois purges, suppression d'un deck qui révoque les vivants et garde les figés — **fait le 2026-11-20** (cf. « Livré à B1 ») | backend-fastapi |
+| B2 | route publique : limite, cache, 404 uniforme, matrice d'autorisation ; filtre `ids` ; export du compte — **fait le 2026-11-20** (cf. « Livré à B2 ») | backend-fastapi |
+| C1 | `API_ROUTE_PREFIXES`, interception de `#/liste/` dans `main.tsx` sans base ni moteur — **fait le 2026-11-20** (cf. « Livré à C1 ») | pwa-offline |
+| D1 | exports `TWD`, `JOL`, `LACKEY` et choix du format dans la feuille d'export — **fait le 2026-11-20** (cf. « Livré à D1 ») | frontend-react |
 | D2 | feuille de partage (deck, version), « Listes partagées » et ses purges dans l'écran Compte | frontend-react |
 | D3 | page publique, aux deux largeurs | frontend-react |
-| D4 | art de l'extension dans la Collection | frontend-react |
+| D4 | art de l'extension dans la Collection — **fait le 2026-11-20** (cf. « Livré à D4 ») | frontend-react |
 | D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
 | D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision | frontend-react |
 | E | tests manquants, e2e, CRAP, recensement des `data-testid`, captures | qa-tests |
@@ -790,6 +791,278 @@ A0, en parallèle d'A1.
   matrice d'autorisation (exception publique, cookie ignoré), export du
   compte (A5, `format_version` 2).
 
+### Livré à C1 (2026-11-20)
+
+- **Aiguillage** : `src/app/Root.tsx`, rendu par `main.tsx` à la place d'`AuthGate`.
+  Un hash `#/liste/…` monte `PublicDecklistPage` et **jamais** `AuthGate` : ni
+  session, ni base IndexedDB, ni moteur de sync, ni `GET /moi`. Tout autre hash
+  passe par `AuthGate`, comme avant. `registerServiceWorker`,
+  `preloadGlyphFonts` et `requestPersistentStorage` restent appelés par
+  `main.tsx` dans les deux cas (aucun n'ouvre de base).
+- **Mécanique à la traversée : rechargement.** Le côté (publique ou
+  application) est figé au premier rendu ; un `hashchange` qui franchit la
+  frontière fait `location.reload()` (le hash cible est déjà dans l'adresse),
+  sans monter l'autre côté. Raison : démonter `AuthGate` en route laisserait
+  runtime Dexie, moteur de sync et abonnements à défaire un à un, ce que rien
+  n'est conçu pour faire à froid ; le rechargement garantit qu'une page
+  publique n'a jamais ouvert de base. Il est servi par le precache, même hors
+  ligne. Entre deux listes publiques, ou entre deux écrans de l'application,
+  aucun rechargement. **D5** (intentions `#/decks?action=dupliquer&liste=…`)
+  profite de ce choix : le lien de la page publique vers l'application
+  recharge, puis `AuthGate` consomme l'intention à froid.
+- **Fonction pure** `parsePublicListHash` (`features/share/publicListRoute.ts`) :
+  `none`, `invalid` (préfixe `#/liste/` mais jeton hors `^[A-Za-z0-9_]{8}$`,
+  sous-chemin compris) ou `list` avec `token` et `revision` (valeur **brute**
+  du paramètre, coupée seulement à `&`, jamais décodée ; vide ou absente =
+  `null`). Le décodage reste à D6.
+- **Page** `PublicDecklistPage` (+ `usePublicDecklist`) : client par
+  `useApiClient` (le contexte par défaut, il n'existe pas d'`ApiClientProvider`
+  dédié), `GET /listes/{token}` avec `credentials: "omit"` passé à la requête
+  (le client de l'application envoie `include`). États : chargement, réseau
+  absent (« Cette liste demande une connexion au réseau. »), 404 (« Liste
+  introuvable. »), tout autre statut (501, 5xx, 429) en erreur générique,
+  jeton mal formé (« Lien invalide. », sans appel), succès (nom, auteur,
+  nombre de cartes). Pied « Liste partagée depuis Gurchon Hall » et lien vers
+  l'application ; pas de tab bar ni de barre haute ; mise en page sur
+  `.auth-screen` / `.auth-card` provisoirement.
+- **Service worker** : `/listes` était déjà dans `API_ROUTE_PREFIXES` (A1) ;
+  ajout d'un cas au test de `apiRoutes` et d'un e2e dans
+  `tests/e2e/offline-layer.spec.ts` (projet `chromium`, sur le patron de
+  `/sync`) : hors ligne, `/#/liste/<jeton>` est servie par le service worker et
+  affiche le message réseau, alors que `/listes/<jeton>` n'est pas servie.
+- **Écart au plan** : aucun sur P6 ni A7. Le test « `main.tsx` passe par
+  `AuthGate` » porte sur `Root` (`main.tsx` n'a que des effets de bord et ne se
+  teste pas sans lancer l'application).
+- **Reste à D3** : `DeckTables` en lecture seule (conversion par `cardRowOf` et
+  `cardDetailRowOf`), mise en page deux largeurs au lieu de la carte
+  d'authentification, notes, archétype, date du figé, exports, « Réviser »
+  (D6, qui lit `revision` déjà rendu par l'aiguillage), « Dupliquer » et
+  « Comparer » (D5, via `rememberActiveAccountId` / `readActiveAccountId`, déjà
+  lisibles sans base). L'état de chargement du catalogue n'existe pas sur cette
+  page : les faits des cartes viennent de la réponse (`CardSearchItem`).
+
+### Livré à B1 (2026-11-20)
+
+Service et routes sous session ; aucun changement de contrat à cette étape.
+
+- **Service** (`app/services/shares.py`) : `user_id` obligatoire partout sauf
+  `read_shared_decklist`. `pick_token` (`secrets.choice`, 8 tirages sur les 63
+  caractères de `SHARE_TOKEN_ALPHABET`) ; `create_deck_share` retire le jeton
+  quand la base refuse le doublon (rollback puis nouvel essai, 20 essais, puis
+  409), `pick` injectable pour les tests ; `list_deck_shares` (deck supprimé
+  compris), `list_my_shares` (du plus récent au plus ancien, `created_at` puis
+  `id`) ; `purge_shares` ; `revoke_live_shares`. Le module n'importe pas
+  `services/decks.py` (qui l'importe), il a donc son propre `_get_deck`, au même
+  message que celui des decks.
+- **Création** : vivant sans copie ; figé copié depuis `deck_card` (somme par
+  carte, langues et extensions confondues) ou depuis `deck_version_card` quand
+  `deck_version_number` est donné (404 « Version N du deck D introuvable. », le
+  message de la légalité d'une version), avec le nom et l'archétype du moment.
+  409 pour un deck supprimé, archivé accepté. Aucune version n'est créée par un
+  partage.
+- **Purges** : `selected` est vérifiée en entier avant toute suppression (404
+  « Lien N introuvable. » pour un lien inconnu ou d'un autre compte, même
+  message, puis 409 pour un lien d'un deck supprimé, qui nomme l'identifiant) ;
+  `deleted_decks` et `all` sont idempotentes ; une transaction, `{"revoked": n}`.
+  La route dédoublonne la sélection (`check_purge_selection`, d'A1).
+- **Suppression d'un deck** : `decks.delete_deck` appelle
+  `shares.revoke_live_shares` avant son `commit`, donc dans la transaction de la
+  suppression, aussi pour un `deck.delete` rejoué par `/sync` (testé).
+- **Écart à A3** : un figé ne copie les notes que si `show_notes` (amendement
+  d'A3 ci-dessus).
+- **Gardes 501 retirées** (`_not_yet_delivered` et
+  `test_each_session_route_is_not_delivered_yet`).
+
+### Livré à B2 (2026-11-20)
+
+Route publique, export du compte.
+
+- **`GET /listes/{token}`** : `@limiter.limit(shared_list_rate_limit)` avec
+  `request` et `response` en paramètres, comme la route VDB ; ordre 422 (forme
+  du jeton, FastAPI), 429, 404. Aucune dépendance de session : le cookie n'est
+  jamais lu (testé avec la session d'un autre compte et avec un cookie bidon,
+  même corps, mêmes en-têtes), si bien que `current_session` ne pose jamais
+  `Cache-Control: private, no-store` ici. `Cache-Control: public, max-age=60` et
+  `X-Robots-Tag: noindex` sont posés sur le 200 seulement.
+- **Corps** : vivant lu sur `deck_card` (somme par carte), figé sur
+  `deck_share_card` ; nom, archétype et notes du deck pour un vivant, copiés pour
+  un figé ; `author` = `username` lu à la consultation, toujours ; `notes` nul
+  sans `show_notes` ; `frozen_at` = `created_at` d'un figé ; `cards` par
+  identifiant croissant, `{card: CardSearchItem, quantity}` rendus par
+  `catalog.list_cards(ids=…)`, donc exactement la forme de `GET /cartes` (mêmes
+  préchargements : le nombre de requêtes ne dépend pas de la taille de la liste) ;
+  `reprinted_card_ids` calculé comme `reprintedCardIds` du client (nom replié par
+  `fold_text`, crypte non *advanced*, plus petit identifiant VEKN).
+- **404 uniforme** : jeton inconnu ou purgé, ou lien vivant d'un deck supprimé
+  (garde de défense, la suppression les ayant déjà retirés) : « Liste
+  introuvable. ». Une seule lecture du jeton avant tout calcul : le temps d'un
+  404 reste voisin de celui d'un 200 d'une petite liste ; aucune attente
+  artificielle n'est ajoutée, la limite de débit étant la vraie protection.
+- **`SHARED_LIST_RATE_LIMIT`** : `shared_list_rate_limit()` dans
+  `app/services/rate_limit.py`, `60/minute` par défaut, lue à chaque appel.
+- **Matrice d'autorisation** : `test_the_shared_list_route_is_public_and_ignores_a_session_cookie`.
+- **Export du compte (A5)** : `export_shares` ; `deck_share` rejoint
+  `EXPORTED_TABLES`, `deck_share_card` `EXPORTED_THROUGH_DECK`,
+  `PENDING_EXPORT_TABLES` disparaît. **Seul changement de contrat de B1 et B2**
+  (cf. « Précisé à B2 » d'A5) : `format_version` en `[1, 2]`, `shares`,
+  `ExportedDeckShare` et `ExportedDeckShareCard` ; `contracts/openapi.json` et
+  `schema.d.ts` régénérés. Le jeton n'est dans aucun champ ni nulle part dans
+  le fichier (testé sur le texte brut).
+- **`test_the_public_route_is_not_delivered_yet_but_needs_no_session`** retiré.
+- **Tests** : `backend/tests/test_lot13_shares.py` (40 : jeton et collision,
+  vivant et figé, version jouée, notes, archivé, supprimé, purges et refus,
+  isolation, 404 uniforme, en-têtes, limite de débit avant le 404,
+  `reprinted_card_ids`, `/sync`, export) ; `test_lot6_authorization_matrix.py`
+  (+1), `test_lot12_contract.py` et `test_lot12_account_export.py` mis à jour
+  (forme 2, tables), `test_lot13_contract.py` allégé de ses sept cas de garde 501.
+  Côté front, un seul changement : l'e2e réel `tests/e2e-real/support/lot12.ts`
+  attendait `format_version` à 1 contre le vrai back, il attend 2.
+- **Vérifications** : `ruff check` propre ; pytest sous couverture, 3133 verts et
+  2 `xfail` (3135 collectés, 34 de plus qu'à la fin d'A1 : 3101) — la suite
+  complète a tourné une fois, avec 3 échecs qui étaient des tests du Lot 12 non
+  encore mis à jour (forme 2), corrigés et relancés avec les tests de la matrice,
+  du contrat et des liens (190 verts) ; `shares.py` du service à 99 % des
+  lignes et celui du router à 100 % ; CRAP back sur 466 fonctions, aucune
+  au-dessus de 30 (pire 21), aucune régression ; `export_openapi.py --check` à
+  jour.
+- **Reste pour le front** : D2 (feuille de partage et « Listes partagées » :
+  `GET/POST /decks/{id}/partages`, `GET/DELETE /moi/partages`), D3 (page publique
+  sur `GET /listes/{token}` : `cards` en `CardSearchItem` pour `cardRowOf` et
+  `cardDetailRowOf`, `reprinted_card_ids` pour l'export, 404 « Liste introuvable. »
+  et 429 à afficher), D5 et D6 (même route, ainsi que `GET /cartes?ids=…`). Le
+  CORS de la route publique n'a pas été modifié (liste fermée d'origines, sans
+  `credentials`) ; `Retry-After` y est déjà exposé.
+
+### Livré à D1 (2026-11-20)
+
+Exports `TWD`, `JOL` et `LACKEY`, front seul : aucune route, aucun champ de
+contrat, aucun type `/sync`, aucune migration, aucune version Dexie.
+
+- **Une fonction pure par format**, dans `features/decks/export/` :
+  `exportVdbTwd.ts`, `exportVdbJol.ts`, `exportVdbLackey.ts`, sur les mêmes
+  entrées qu'`exportVdbText`. Le commun est resté dans `exportVdbText.ts`,
+  désormais exporté (`splitDeck`, `cryptName`, `compareFolded`, `sumQuantity`,
+  `groupBlock(group, underlined)`, `cryptLines(rows, reprinted)`) ; la
+  sortie du `TEXT` n'a pas bougé. `exportFormats.ts` porte le registre des
+  quatre formats (libellé, suffixe de fichier, aide), `exportAs` et la
+  mémorisation du choix.
+- **Règles relevées sur les huit fixtures, pas de mémoire** :
+  - `TWD` : sept lignes d'en-tête entre crochets, `-- [Scores]`, `Deck Name:`,
+    `Description:` suivi du gabarit littéral `[Description]` (les notes du deck
+    ne sont pas reprises, pas de ligne d'auteur) ; crypte soulignée de `-` sur la
+    longueur de son titre ; `Library (n cards)` et titres de type **sans
+    soulignement** ; groupes séparés par une ligne vide ;
+  - `JOL` : `2xNom`, sans espace ni en-tête, crypte puis bibliothèque, chacune
+    par nom replié ; `(ADV)` gardé ;
+  - `LACKEY` : bibliothèque d'abord par nom, `Crypt:`, puis la crypte par nom ;
+    quantité calée sur 8 caractères ; noms en ASCII (`lackeyName` : accents
+    retirés, `ł ø œ æ ß…` transcrits, `/` supprimé, tout autre caractère non
+    ASCII retiré).
+- **Deux écarts voulus à VDB sur le `TWD`** (décisions de l'utilisateur du
+  2026-11-20) : la crypte est rangée **par capacité décroissante, puis par nom**,
+  comme le `TEXT`, là où l'export réel (`ref-twd.txt`) la range par quantité
+  décroissante puis nom ; et la ligne `[Format]` de l'en-tête n'est pas écrite,
+  vivant comme version de tournoi. Les fixtures réelles ne sont pas touchées :
+  le test dérive l'attendu de la fixture (crypte reprise dans l'ordre du
+  `TEXT`, `[Format]` retiré) et nomme l'écart. `JOL` et `LACKEY` restent fidèles
+  aux fixtures (crypte alphabétique, code distinct de celui du `TWD`). Date ISO
+  et lieu « nom, ville » de l'en-tête gardés (décision du même jour).
+- **Écart assumé, `(G6)`** : seuls `TEXT` et `TWD` écrivent la marque de groupe
+  d'un vampire réimprimé. Aucune fixture ne l'établit pour `JOL` et `LACKEY` ;
+  un nom seul se relit, à l'import du Lot 9, comme la version d'origine ou celle
+  que la crypte rend légale.
+- **En-tête du `TWD` d'une version jouée en tournoi** (`useVersionEvent`,
+  `useDeckExportText.ts`) : lu dans le miroir seulement, hors ligne. Nom du
+  tournoi, lieu (nom et ville du lieu du tournoi, à défaut du lieu de la partie
+  qui a figé la version), date de début (`AAAA-MM-JJ`, la forme de la
+  description de `ref-text.txt`), nombre de joueurs quand il est saisi.
+  Vainqueur et lien d'événement gardent leur gabarit `[…]`, de même que tout
+  champ non saisi ; version sans tournoi ou deck vivant : en-tête vide (sans
+  `[Format]`). `TWD_HINTS` n'est pas écrit.
+- **Feuille d'export** (`DeckExportSheet`) : quatre puces `TEXT | TWD | JOL |
+  LACKEY` (`segmented`, `role="radiogroup"`, `deck-export-format-<id>`), `TEXT`
+  par défaut, choix mémorisé par appareil sous `gurchon-hall:export-format`
+  (`localStorage` sous `try/catch`, valeur inconnue : `TEXT`). La feuille reçoit
+  les quatre textes (`useDeckExportTexts`) et le nom de fichier par suffixe ;
+  `exportFileName` gagne le suffixe : `Banu Princes#1234 (JOL).txt`,
+  `Banu Princes#1234 v2 (TWD).txt`. Depuis un deck et depuis la liste d'une
+  version jouée, aux deux largeurs (même composant).
+- **Tests** : `exportVdbFormats.test.ts` (15) compare les trois formats aux
+  six fixtures `ref-*` et `difficile-*` à l'octet près, sur des decks
+  reconstitués depuis les exports `TEXT` des mêmes fixtures (un garde-fou
+  vérifie que la reconstitution redonne le `TEXT`), puis l'en-tête rempli ou
+  vide, les cas limites (ASCII, liste vide) et le registre ; `exportFile.test.ts`
+  (+5, suffixes) ; `deckExport.test.tsx` (+5 : quatre puces, mémorisation,
+  valeur inconnue, nom de fichier téléchargé, `TWD` d'une version de tournoi
+  et sans tournoi).
+- **Captures** (`tests/visual-baseline/lot13-d1-d4.spec.ts`, back de test
+  jetable, sortie `docs/qa-baselines/lot13-d1-d4/mobile-390x844/` et
+  `desktop-1440x900/`) : `01` à `04` feuille d'export depuis un deck (TEXT, TWD,
+  JOL, LACKEY) ; `05` version v1 jouée au « Championnat de Lyon » en TWD,
+  en-tête rempli (Le Repaire, Lyon ; 2026-10-24 ; 13 joueurs).
+- **`data-testid`** ajoutés : `deck-export-format-text`, `-twd`, `-jol`,
+  `-lackey`, `deck-export-hint`. Aucun disparu.
+
+### Livré à D4 (2026-11-20)
+
+Art de l'extension dans la Collection, front seul, en ligne seulement.
+
+- **`PrintingImage`** (`features/catalog/PrintingImage.tsx`) : image de
+  l'impression lue par `useCardOnline` et `printingImage`, puis l'image générique
+  du miroir, puis le pictogramme, sans la mise en page du picker. L'aperçu au
+  survol du tableau bureau (`StockList`) s'en sert : le composant n'est monté
+  que quand l'aperçu s'ouvre, si bien qu'aucune fiche n'est lue pour les lignes
+  qu'on ne survole pas. Il remplace la lecture de `CardRow.imageUrl` seule.
+- **Feuille d'entrée** (`StockForm`, aux deux largeurs) : `ChosenCardImage` dans
+  un conteneur `stock-form-image`. En création, l'image suit le sélecteur
+  d'extension (présélection sur la dernière version, puis le choix) ; en
+  modification, c'est celle de l'impression de l'entrée. Bureau : image `sm` ;
+  mobile : variante `enlargeable` (toucher pour agrandir), absente hors ligne
+  (conteneur vide masqué par `:empty`). L'image générique de repli d'une
+  entrée modifiée est lue dans le miroir (`useCardsById`).
+- **Pas d'image dans la liste mobile** (décision) : aucune fiche n'est lue
+  pour la liste, vérifié par un test.
+- **Hors ligne** : le tableau garde son pictogramme, la feuille de création un
+  conteneur sans image, aucun appel.
+- **Écart** : `ChosenCardImage` n'a pas reçu de prop d'identifiant de test ; son
+  `deck-card-form-image` reste celui de l'image elle-même, y compris dans la
+  Collection (le recensement des `data-testid` le compte comme littéral), et le
+  conteneur de la Collection porte `stock-form-image`.
+- **Captures** (même spec, mêmes dossiers ; les images krcg se chargent sur
+  cette machine, ce sont de vraies images) : `06` bureau, aperçu au survol en
+  ligne (`06-collection-apercu-en-ligne`) puis hors ligne (`07`, pictogramme) ;
+  mobile, `06-collection-liste-sans-image` ; `08` feuille de création
+  (extension la plus récente) puis `09` après changement d'extension, `10` au
+  mobile image agrandie ; `11` feuille de modification, `12` au mobile image
+  agrandie ; `13` feuille de modification hors ligne.
+- **Tests** : `tests/unit/ui/stockArt.test.tsx` (7) : aperçu au survol,
+  repli générique puis pictogramme hors ligne, feuille bureau en modification,
+  création qui suit l'extension, feuille mobile (agrandir, rien hors ligne),
+  création hors ligne, liste mobile sans image ni lecture.
+- **`data-testid`** ajouté : `stock-form-image`. Aucun disparu (777 en
+  référence, tous présents).
+
+### Chiffres à la clôture de D1 et D4
+
+`npm run lint`, `tsc --noEmit -p tsconfig.app.json` et `npm run typecheck:tests`
+propres. 1753 tests vitest sur 99 fichiers (1720 sur 97 à la clôture du Lot 12 :
++32 tests de D1 et D4, +2 fichiers). Contrôle CRAP : « Aucune régression ».
+`testid-census --check` : aucun identifiant disparu. Aucun e2e Playwright ajouté
+ni modifié.
+
+### Vérification d'intégration après B1, B2 et C1 (2026-11-20)
+
+Les agents n'ayant pas relancé leurs suites complètes après leurs dernières
+corrections, et B2 ayant régénéré le client TS après le passage de vitest de
+C1, les deux suites ont été relancées en entier sur l'arbre réuni :
+`uv run ruff check .` propre, `uv run pytest` à **3133 verts et 2 `xfail`**
+(20 min 24 s) ; `npm run lint`, `tsc -p tsconfig.app.json` et
+`npm run typecheck:tests` propres, vitest à **1792 verts sur 102 fichiers**.
+Une disparition passagère des modifications de
+`test_lot6_authorization_matrix.py`, relevée par l'agent de B1/B2 et refaite
+par lui, a été contrôlée : le test de la route publique y est bien. Cause
+probable : une resynchronisation de OneDrive.
+
 ## Tests attendus (E)
 
 - **Back** : jeton inconnu ou purgé au même 404, jeton mal formé (7 ou 9
@@ -866,120 +1139,3 @@ recollés dans VDB retrouvent la même liste ; l'art de l'extension s'affiche
 dans la Collection en ligne et le pictogramme hors ligne ; les quatre acquis
 de la v1 (§3 de CLAUDE.md) tiennent, file en attente rejouée après la mise à
 jour comprise ; v1.2.0 en production, CLAUDE.md à jour.
-
-## Livré à D1 (2026-11-20)
-
-Exports `TWD`, `JOL` et `LACKEY`, front seul : aucune route, aucun champ de
-contrat, aucun type `/sync`, aucune migration, aucune version Dexie.
-
-- **Une fonction pure par format**, dans `features/decks/export/` :
-  `exportVdbTwd.ts`, `exportVdbJol.ts`, `exportVdbLackey.ts`, sur les mêmes
-  entrées qu'`exportVdbText`. Le commun est resté dans `exportVdbText.ts`,
-  désormais exporté (`splitDeck`, `cryptName`, `compareFolded`, `sumQuantity`,
-  `groupBlock(group, underlined)`, `cryptLines(rows, reprinted)`) ; la
-  sortie du `TEXT` n'a pas bougé. `exportFormats.ts` porte le registre des
-  quatre formats (libellé, suffixe de fichier, aide), `exportAs` et la
-  mémorisation du choix.
-- **Règles relevées sur les huit fixtures, pas de mémoire** :
-  - `TWD` : sept lignes d'en-tête entre crochets, `-- [Scores]`, `Deck Name:`,
-    `Description:` suivi du gabarit littéral `[Description]` (les notes du deck
-    ne sont pas reprises, pas de ligne d'auteur) ; crypte soulignée de `-` sur la
-    longueur de son titre ; `Library (n cards)` et titres de type **sans
-    soulignement** ; groupes séparés par une ligne vide ;
-  - `JOL` : `2xNom`, sans espace ni en-tête, crypte puis bibliothèque, chacune
-    par nom replié ; `(ADV)` gardé ;
-  - `LACKEY` : bibliothèque d'abord par nom, `Crypt:`, puis la crypte par nom ;
-    quantité calée sur 8 caractères ; noms en ASCII (`lackeyName` : accents
-    retirés, `ł ø œ æ ß…` transcrits, `/` supprimé, tout autre caractère non
-    ASCII retiré).
-- **Deux écarts voulus à VDB sur le `TWD`** (décisions de l'utilisateur du
-  2026-11-20) : la crypte est rangée **par capacité décroissante, puis par nom**,
-  comme le `TEXT`, là où l'export réel (`ref-twd.txt`) la range par quantité
-  décroissante puis nom ; et la ligne `[Format]` de l'en-tête n'est pas écrite,
-  vivant comme version de tournoi. Les fixtures réelles ne sont pas touchées :
-  le test dérive l'attendu de la fixture (crypte reprise dans l'ordre du
-  `TEXT`, `[Format]` retiré) et nomme l'écart. `JOL` et `LACKEY` restent fidèles
-  aux fixtures (crypte alphabétique, code distinct de celui du `TWD`). Date ISO
-  et lieu « nom, ville » de l'en-tête gardés (décision du même jour).
-- **Écart assumé, `(G6)`** : seuls `TEXT` et `TWD` écrivent la marque de groupe
-  d'un vampire réimprimé. Aucune fixture ne l'établit pour `JOL` et `LACKEY` ;
-  un nom seul se relit, à l'import du Lot 9, comme la version d'origine ou celle
-  que la crypte rend légale.
-- **En-tête du `TWD` d'une version jouée en tournoi** (`useVersionEvent`,
-  `useDeckExportText.ts`) : lu dans le miroir seulement, hors ligne. Nom du
-  tournoi, lieu (nom et ville du lieu du tournoi, à défaut du lieu de la partie
-  qui a figé la version), date de début (`AAAA-MM-JJ`, la forme de la
-  description de `ref-text.txt`), nombre de joueurs quand il est saisi.
-  Vainqueur et lien d'événement gardent leur gabarit `[…]`, de même que tout
-  champ non saisi ; version sans tournoi ou deck vivant : en-tête vide (sans
-  `[Format]`). `TWD_HINTS` n'est pas écrit.
-- **Feuille d'export** (`DeckExportSheet`) : quatre puces `TEXT | TWD | JOL |
-  LACKEY` (`segmented`, `role="radiogroup"`, `deck-export-format-<id>`), `TEXT`
-  par défaut, choix mémorisé par appareil sous `gurchon-hall:export-format`
-  (`localStorage` sous `try/catch`, valeur inconnue : `TEXT`). La feuille reçoit
-  les quatre textes (`useDeckExportTexts`) et le nom de fichier par suffixe ;
-  `exportFileName` gagne le suffixe : `Banu Princes#1234 (JOL).txt`,
-  `Banu Princes#1234 v2 (TWD).txt`. Depuis un deck et depuis la liste d'une
-  version jouée, aux deux largeurs (même composant).
-- **Tests** : `exportVdbFormats.test.ts` (15) compare les trois formats aux
-  six fixtures `ref-*` et `difficile-*` à l'octet près, sur des decks
-  reconstitués depuis les exports `TEXT` des mêmes fixtures (un garde-fou
-  vérifie que la reconstitution redonne le `TEXT`), puis l'en-tête rempli ou
-  vide, les cas limites (ASCII, liste vide) et le registre ; `exportFile.test.ts`
-  (+5, suffixes) ; `deckExport.test.tsx` (+5 : quatre puces, mémorisation,
-  valeur inconnue, nom de fichier téléchargé, `TWD` d'une version de tournoi
-  et sans tournoi).
-- **Captures** (`tests/visual-baseline/lot13-d1-d4.spec.ts`, back de test
-  jetable, sortie `docs/qa-baselines/lot13-d1-d4/mobile-390x844/` et
-  `desktop-1440x900/`) : `01` à `04` feuille d'export depuis un deck (TEXT, TWD,
-  JOL, LACKEY) ; `05` version v1 jouée au « Championnat de Lyon » en TWD,
-  en-tête rempli (Le Repaire, Lyon ; 2026-10-24 ; 13 joueurs).
-- **`data-testid`** ajoutés : `deck-export-format-text`, `-twd`, `-jol`,
-  `-lackey`, `deck-export-hint`. Aucun disparu.
-
-## Livré à D4 (2026-11-20)
-
-Art de l'extension dans la Collection, front seul, en ligne seulement.
-
-- **`PrintingImage`** (`features/catalog/PrintingImage.tsx`) : image de
-  l'impression lue par `useCardOnline` et `printingImage`, puis l'image générique
-  du miroir, puis le pictogramme, sans la mise en page du picker. L'aperçu au
-  survol du tableau bureau (`StockList`) s'en sert : le composant n'est monté
-  que quand l'aperçu s'ouvre, si bien qu'aucune fiche n'est lue pour les lignes
-  qu'on ne survole pas. Il remplace la lecture de `CardRow.imageUrl` seule.
-- **Feuille d'entrée** (`StockForm`, aux deux largeurs) : `ChosenCardImage` dans
-  un conteneur `stock-form-image`. En création, l'image suit le sélecteur
-  d'extension (présélection sur la dernière version, puis le choix) ; en
-  modification, c'est celle de l'impression de l'entrée. Bureau : image `sm` ;
-  mobile : variante `enlargeable` (toucher pour agrandir), absente hors ligne
-  (conteneur vide masqué par `:empty`). L'image générique de repli d'une
-  entrée modifiée est lue dans le miroir (`useCardsById`).
-- **Pas d'image dans la liste mobile** (décision) : aucune fiche n'est lue
-  pour la liste, vérifié par un test.
-- **Hors ligne** : le tableau garde son pictogramme, la feuille de création un
-  conteneur sans image, aucun appel.
-- **Écart** : `ChosenCardImage` n'a pas reçu de prop d'identifiant de test ; son
-  `deck-card-form-image` reste celui de l'image elle-même, y compris dans la
-  Collection (le recensement des `data-testid` le compte comme littéral), et le
-  conteneur de la Collection porte `stock-form-image`.
-- **Captures** (même spec, mêmes dossiers ; les images krcg se chargent sur
-  cette machine, ce sont de vraies images) : `06` bureau, aperçu au survol en
-  ligne (`06-collection-apercu-en-ligne`) puis hors ligne (`07`, pictogramme) ;
-  mobile, `06-collection-liste-sans-image` ; `08` feuille de création
-  (extension la plus récente) puis `09` après changement d'extension, `10` au
-  mobile image agrandie ; `11` feuille de modification, `12` au mobile image
-  agrandie ; `13` feuille de modification hors ligne.
-- **Tests** : `tests/unit/ui/stockArt.test.tsx` (7) : aperçu au survol,
-  repli générique puis pictogramme hors ligne, feuille bureau en modification,
-  création qui suit l'extension, feuille mobile (agrandir, rien hors ligne),
-  création hors ligne, liste mobile sans image ni lecture.
-- **`data-testid`** ajouté : `stock-form-image`. Aucun disparu (777 en
-  référence, tous présents).
-
-### Chiffres à la clôture de D1 et D4
-
-`npm run lint`, `tsc --noEmit -p tsconfig.app.json` et `npm run typecheck:tests`
-propres. 1753 tests vitest sur 99 fichiers (1720 sur 97 à la clôture du Lot 12 :
-+32 tests de D1 et D4, +2 fichiers). Contrôle CRAP : « Aucune régression ».
-`testid-census --check` : aucun identifiant disparu. Aucun e2e Playwright ajouté
-ni modifié.

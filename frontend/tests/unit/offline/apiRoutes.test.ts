@@ -31,6 +31,14 @@ describe("routes de l'API hors du service worker", () => {
     }
   });
 
+  it("exclut /listes (Lot 13) : une navigation vers la lecture publique n'est pas la coquille", () => {
+    for (const path of ["/listes/aB3x_9pQ", "/listes/aB3x_9pQ?x=1", "/listes"]) {
+      expect(isDenied(path), path).toBe(true);
+    }
+    // La page publique vit dans le hash, jamais dans le chemin.
+    expect(isDenied("/")).toBe(false);
+  });
+
   it("laisse passer l'app shell et les routes clientes", () => {
     for (const path of ["/", "/index.html", "/assets/index-abc.js", "/decks2", "/syncing", "/app/decks"]) {
       expect(isDenied(path), path).toBe(false);

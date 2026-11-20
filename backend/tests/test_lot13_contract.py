@@ -251,7 +251,7 @@ def test_a_share_creation_is_refused_by_its_shape(payload):
         DeckShareCreate.model_validate(payload)
 
 
-# --- Ordre des contrôles, avant les étapes B1 et B2 --------------------------
+# --- Ordre des contrôles (le comportement est dans test_lot13_shares) --------
 
 
 @pytest.mark.parametrize(
@@ -261,29 +261,6 @@ def test_a_share_creation_is_refused_by_its_shape(payload):
 )
 def test_a_malformed_token_is_refused_before_any_read(api, token):
     assert api.get(f"/listes/{token}").status_code == 422
-
-
-def test_the_public_route_is_not_delivered_yet_but_needs_no_session(api):
-    response = api.get(f"/listes/{TOKEN}")
-    assert response.status_code == 501
-    assert "B2" in response.json()["detail"]
-
-
-@pytest.mark.parametrize(
-    "method,path,body",
-    [
-        ("GET", "/decks/1/partages", None),
-        ("POST", "/decks/1/partages", {"kind": "live"}),
-        ("GET", "/moi/partages", None),
-        ("DELETE", "/moi/partages?scope=selected&share_id=1&share_id=1", None),
-        ("DELETE", "/moi/partages?scope=deleted_decks", None),
-        ("DELETE", "/moi/partages?scope=all", None),
-    ],
-)
-def test_each_session_route_is_not_delivered_yet(me_api, method, path, body):
-    response = me_api.request(method, path, json=body)
-    assert response.status_code == 501
-    assert "B1" in response.json()["detail"]
 
 
 @pytest.mark.parametrize(
