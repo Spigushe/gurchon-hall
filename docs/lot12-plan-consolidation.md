@@ -734,7 +734,7 @@ forme du bandeau de reconnexion (P5). **Légende des raccourcis** en feuille
 | D3 | devops | sauvegardes hors du VPS (P6), journaux dans l'unité systemd (`--no-access-log`, `LOG_LEVEL`), `docs/deploiement.md` — **fait le 2026-11-19** (cf. « Livré à D3 ») | B3, A0 |
 | D4 | frontend-react | corrections CSS demandées par le brief (P9 « Handoff reçu ») : `border: 0` avant `border-bottom` sur `.underline-field`, sans toucher aux règles qui encadrent le champ au bureau ; `background: transparent; border: 0` sur `.btn-ghost` et `.chip-action--text` ; captures avant et après du champ « Nom du deck », de « Se reconnecter → », d'« Effacer les filtres » du bilan et d'« Abandonner », à 390 et 1440 px — **fait le 2026-11-18** (cf. « Livré à D4 ») | A0 |
 | D5 | frontend-react | Synchronisation atteinte depuis l'écran Compte seulement (A11), sans handoff : onglet de la barre haute retiré (`G S` gardé), Atelier plus surligné sur `#/synchronisation` dans la tab bar, lien de l'alerte de l'Atelier remplacé par une indication, bandeau « nouvelle version » sans « Synchronisation → » (D2 l'écrit ainsi), ligne « Synchronisation » du compte aux deux largeurs, retour « ← Compte » sur l'écran Synchronisation, tests qui visaient `topnav-sync` et `sync-alert-link` repris ; captures à 390 et 1440 px — **fait le 2026-11-19**, avec D1 | D1 |
-| E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness | B1 à D5 |
+| E | qa-tests | tests manquants, e2e, CRAP, recensement des `data-testid`, flakiness — **fait le 2026-11-20** (cf. « Livré à E ») | B1 à D5 |
 | F | orchestrateur, devops | staging du lot complet sur `main`, essai de R15 sur une copie de la base de production, versions à `1.1.0`, release complète v1.1.0, production redéployée, vérification sur téléphone, CLAUDE.md | E |
 
 B3 et B4 peuvent partir dès A0, en parallèle de A1. D3 peut partir tout de
@@ -1438,8 +1438,9 @@ Synchronisation.
   e2e hors mesure, comme depuis le score CRAP). Lint et `tsc` (application,
   config Vite, tests) propres.
 - **`data-testid`** : référence de clôture
-  `docs/qa-baselines/testids-lot12-cloture.txt`, **672 littéraux statiques
-  distincts** (611 à la clôture du Lot 9). Disparus et justifiés :
+  `docs/qa-baselines/testids-lot12-cloture.txt`, **674 littéraux statiques
+  distincts** (611 à la clôture du Lot 9), avec `decks-filter` et
+  `home-drafts` des filtres des decks. Disparus et justifiés :
   `topnav-sync` et `sync-alert-link` (A11, D5).
 - **e2e complets** : `npm run test:e2e`, builds refaits, **98 tests verts**
   en 18 minutes (90 au départ du lot, plus les 8 du lot) : 8 `chromium`, 51
@@ -1447,7 +1448,15 @@ Synchronisation.
   C1 avaient repris (`lot6-comptes`, `lot5c-symetrie`, `navigation`,
   passages par l'écran Compte, prise de contrôle du service worker) passent
   avec le reste.
-- **Flakiness vitest** : à reporter.
+- **Flakiness vitest** : non reproduite. La suite complète lancée cinq fois
+  sous PowerShell depuis le dossier du front, en `C:`, une fois sous
+  couverture (1716 tests) puis quatre fois sans, après les filtres des decks
+  (1720 tests) : **cinq passages verts, aucun échec isolé** ; celui de D2
+  (`lot12Shell.test.tsx` et `decks.test.tsx` ensemble) est consigné comme
+  absent. Une première série de quatre, lancée par erreur depuis la racine du
+  dépôt, a tourné sans la configuration du front (143 fichiers, sans jsdom ni
+  `tests/setup.ts`, 582 échecs) : elle ne mesure rien et n'est pas comptée. La limite des Lots 5c et 6
+  reste à attribuer si elle revient, en relançant avec la sortie complète.
 - **Reste pour F** : CLAUDE.md (dont la commande de recensement, qui vise
   encore `testids-lot9-cloture.txt`), les relevés HTTPS d'A0, le
   renouvellement d'une session de la v1.0 en production.
@@ -1491,9 +1500,18 @@ locale filtrant déjà par statut (`DeckQuery.status`).
   (`ui/decks.test.tsx`), liens des compteurs de l'Atelier
   (`ui/home.test.tsx`) ; titres et commentaires des e2e qui nommaient
   « En cours » mis à jour, sans changement de comportement. **1720 tests
-  vitest sur 97 fichiers**, sans régression CRAP ; lint et `tsc` propres ;
-  e2e non relancés. Deux `data-testid` ajoutés (`decks-filter`,
-  `home-drafts`), aucun disparu par rapport à `testids-lot12-cloture.txt`.
+  vitest sur 97 fichiers**, sans régression CRAP ; lint et `tsc` propres.
+  Deux `data-testid` ajoutés (`decks-filter`, `home-drafts`), aucun disparu
+  par rapport à `testids-lot12-cloture.txt`.
+- **e2e complets relancés** (`npm run test:e2e`, builds refaits) : **96 sur
+  98** en 25 minutes, deux échecs sans lien avec le changement, chacun rejoué
+  trois fois de suite sur le même build sans échec. `chercher-ajout` (P12,
+  `real-backend`) : après `page.reload()` sur Chercher, le clic sur l'onglet
+  Decks n'a pas quitté Chercher dans les 5 s (clic parti pendant le
+  rechargement, la page Decks jamais rendue). `lot9-import-vdb` (liste
+  collée hors ligne, `desktop-real-backend`) : processus de Playwright tombé
+  (`0xC0000409`), avant toute vérification. Deux instabilités de
+  l'environnement e2e à surveiller, à côté de la flakiness vitest.
 
 ## Tests attendus (E)
 

@@ -270,6 +270,7 @@ static	decks-detail-title
 static	decks-empty
 static	decks-empty-create
 static	decks-empty-import
+static	decks-filter
 static	decks-import-desktop
 static	decks-new-desktop
 static	decks-page
@@ -385,6 +386,7 @@ static	home-deck-row-meta
 static	home-deck-row-status
 static	home-deck-table
 static	home-decks
+static	home-drafts
 static	home-page
 static	home-shortcut-bundle
 static	home-shortcut-deck
