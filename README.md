@@ -1,32 +1,49 @@
 # gurchon-hall
 
-Suivi de pratique *Vampire: The Eternal Struggle* (collection, decks, parties,
-tournois), développé comme pilote pour dérisquer une PWA offline-first avant
-de porter l'approche sur barrins-project.
+Suivi de pratique *Vampire: The Eternal Struggle* : la collection, comptée par
+carte, langue et extension, les decks, les parties et les tournois. L'outil est
+en production depuis la v1.0.0 (2026-11-17) sur
+[gurchon.spigushe.com](https://gurchon.spigushe.com), et la version en ligne est
+la v1.1.0 (Lot 12, 2026-11-20).
+
+C'est une PWA *offline-first* : on saisit une partie au club, sans réseau
+fiable, et elle se synchronise au retour de la connexion. Ce n'est pas une
+option, c'est une exigence de l'outil.
 
 Stack : React + TypeScript (Vite) côté front, FastAPI + SQLAlchemy + SQLite
 côté back, contrat OpenAPI partagé entre les deux, IndexedDB (Dexie) pour le
-stockage hors-ligne.
+stockage hors ligne.
 
-Le détail complet — objectifs, modèle de données, contrat d'API, agents et
-skills Claude Code, roadmap — est dans [CLAUDE.md](CLAUDE.md). Les conventions
-de travail pour les agents sont dans [AGENTS.md](AGENTS.md).
+Le détail complet (objectifs, modèle de données, contrat d'API, décisions,
+agents et skills Claude Code, feuille de route) est dans
+[CLAUDE.md](CLAUDE.md). Les conventions de travail pour les agents sont dans
+[AGENTS.md](AGENTS.md).
 
 ## État actuel
 
-Lots 0 à 6 livrés (détail et restes à vérifier dans CLAUDE.md §12) :
+Livré jusqu'au Lot 12 (détail et limites connues au §12 de CLAUDE.md) :
 
-- catalogue krcg importé, collection comptée par carte × langue × extension,
-  decks avec légalité, archivage et proxies ;
-- PWA offline-first : app shell en cache, saisie hors ligne dans IndexedDB,
-  file d'opérations rejouée vers `POST /sync` au retour du réseau ;
-- UI mobile et bureau (design system Nocturne) ;
-- comptes (inscription, connexion, session dans un cookie `HttpOnly`) et
-  cloisonnement des données par compte.
+- catalogue complet importé depuis krcg, avec une recherche hors ligne aux
+  filtres de VDB (onglet Chercher) ;
+- collection par carte × langue × extension, versement d'un produit entier ;
+- decks avec légalité VEKN, proxies, archivage, composition en tableaux à
+  icônes, import depuis VDB (texte collé, fichier ou lien de deck) et export
+  au format texte de VDB ;
+- parties et tournois du point de vue du joueur (VP, GW, siège, classement,
+  mono ou multi-deck), liste jouée figée en versions numérotées, bilan par
+  deck, lieu, mois, position à la table et adversaire ;
+- comptes : inscription, connexion, sessions de 14 jours sans usage et
+  90 jours au plus, changement de mot de passe, liste et fermeture des
+  sessions, export complet du compte en JSON ;
+- PWA : app shell en cache, saisie hors ligne dans IndexedDB, file
+  d'opérations rejouée vers `POST /sync` au retour du réseau, mise à jour de
+  l'application proposée par un bandeau, qui attend que les saisies en file
+  soient synchronisées ;
+- UI mobile et bureau (design system Nocturne).
 
-Les parties et tournois (Lot 7) ne sont pas encore commencés. La PWA a été
-vérifiée à la main le 2026-10-28, dans Chrome DevTools et sur téléphone (voir
-« Vérification manuelle » plus bas).
+La suite (inventaires et classeurs, decks par inventaire, import d'une
+collection VDB, liste des manques) est la feuille de route de la v2, au §12 de
+CLAUDE.md.
 
 ## Installation
 
@@ -44,25 +61,32 @@ sur la machine.
 
 `scripts/run.ps1` (Windows) et `scripts/run.sh` (Linux/macOS/WSL) sont le
 point d'entrée unique du tooling de ce dépôt, avec une sous-commande par
-action : `install`, `test`, `build`, `dev` (détaillées ci-dessous).
+action : `install`, `test`, `crap`, `build`, `dev`, `preview` (détaillées
+ci-dessous).
 
-La commande `install` installe le backend avec `uv sync --extra dev` (crée `backend/.venv`
-et l'installe à partir de `backend/uv.lock`, dépendances de dev incluses —
-pytest, httpx, ruff), et installe les dépendances du frontend (`npm ci` dans
-`frontend/`). Il peut être relancé sans risque après avoir tiré des
+La commande `install` installe le backend avec `uv sync --extra dev` (crée
+`backend/.venv` à partir de `backend/uv.lock`, dépendances de dev incluses :
+pytest, httpx, ruff, coverage), et installe les dépendances du frontend
+(`npm ci` dans `frontend/`). Elle se relance sans risque après avoir tiré des
 changements qui touchent `pyproject.toml`, `uv.lock` ou `package.json`.
 
-Le backend est géré par `uv` (pas `pip`/`venv` manuel) : `backend/uv.lock`
-verrouille toutes les versions résolues et doit être commité comme
+Le backend est géré par `uv` (pas `pip`/`venv` à la main) : `backend/uv.lock`
+verrouille toutes les versions résolues et se commite comme
 `package-lock.json` côté frontend. Toute commande Python du backend passe par
 `uv run` (ex. `uv run pytest`, `uv run ruff check .`) depuis `backend/`, pour
-s'exécuter dans le même environnement verrouillé qu'en CI.
+tourner dans le même environnement verrouillé qu'en CI.
+
+Une base neuve se prépare depuis `backend/` par
+`uv run alembic upgrade head`, puis `uv run python scripts/import_catalog.py`
+pour importer le catalogue. Sans `DATABASE_URL`, ces commandes visent
+`backend/vtes.db`. L'API refuse de démarrer contre une base qui n'est pas à la
+dernière révision.
 
 ## Développement local
 
 La sous-commande `dev` lance le backend et le frontend en parallèle,
-accessibles à la fois en local et depuis le réseau Wifi (pratique pour tester
-l'installation PWA sur un téléphone).
+accessibles à la fois en local et depuis le réseau Wifi (pratique pour essayer
+l'application sur un téléphone).
 
 ```powershell
 .\scripts\run.ps1 dev
@@ -97,51 +121,45 @@ si bien qu'un `npm run preview` lancé à part fonctionne aussi derrière `dev`.
 fige `VITE_API_BASE_URL` : pour un téléphone, `frontend/.env.local` doit viser l'IP du
 poste sur le réseau, et `preview` prévient si elle n'y figure pas.
 
-### Première connexion (comptes, Lot 6)
+### Première connexion
 
-Depuis le Lot 6, toute route métier exige une session : au premier lancement,
-l'application affiche un mur de connexion. Deux cas, selon la base utilisée :
+Toute route métier exige une session : au premier lancement, l'application
+affiche un mur de connexion. Deux cas, selon la base utilisée :
 
-- **Base de développement existante** (`backend/vtes.db`, celle qui contient la
-  vraie collection) : une fois migrée (`uv run alembic upgrade head`), ses
-  données appartiennent au compte historique (`id = 1`), dont le mot de passe
-  est volontairement inutilisable tant qu'il n'a pas été réclamé. Le réclamer
-  avec une vraie adresse, un nom et un mot de passe (voir
-  `docs/deploiement.md` et `backend/scripts/manage_accounts.py`) :
+- **Base neuve** : l'inscription est ouverte, le formulaire « Créer un
+  compte » du mur de connexion suffit, et le compte est utilisable aussitôt.
+  Un compte peut aussi se créer en ligne de commande
+  (`uv run python scripts/manage_accounts.py create`).
+- **Base d'avant le Lot 6** : une fois migrée, ses données appartiennent au
+  compte historique (`id = 1`), dont le mot de passe est volontairement
+  inutilisable tant qu'il n'a pas été réclamé :
 
   ```bash
   uv run python scripts/manage_accounts.py claim-legacy --email <adresse> --username <nom>
   ```
 
-- **Base neuve** (migrée puis vide, ou après `scripts/import_catalog.py` sans
-  stock ni deck) : l'inscription est ouverte, un simple `POST /inscription`
-  (formulaire « Créer un compte » du mur de connexion) suffit à créer un
-  compte utilisable aussitôt.
+`manage_accounts.py` gère aussi les mots de passe, les rôles et les sessions ;
+le mot de passe se saisit toujours au clavier, jamais en argument.
 
-### Comment le frontend atteint le backend en dev
+### Comment le frontend atteint le backend
 
 Le projet retient les **appels directs vers l'origine du backend**, ouverts
 via CORS (`BACKEND_CORS_ORIGINS`, voir `backend/app/main.py`), plutôt qu'un
 proxy Vite (`server.proxy`) qui ferait apparaître l'API en même origine que le
-frontend. Deux raisons à ce choix, déjà engagées dans le code existant :
+frontend. C'est aussi la disposition de la production : la PWA sur
+`gurchon.spigushe.com`, l'API sur `api-gurchon.spigushe.com`.
 
-- `scripts/run.ps1 dev|preview` / `run.sh dev|preview` calculent dynamiquement la liste des origines
-  autorisées (localhost, 127.0.0.1, IP Wifi locale) pour permettre les tests
-  d'installation PWA sur téléphone ; ce mécanisme n'a de sens que si le front
-  appelle le backend cross-origin. Un proxy Vite rendrait cette configuration
-  inutile mais imposerait de garder le frontend et le backend sur la même
-  machine/porte d'entrée, y compris en production.
-- Garder le frontend (statique, déployable seul derrière n'importe quel
-  hébergeur HTTPS) et le backend (FastAPI/uvicorn, avec son propre certificat)
-  strictement découplés évite d'avoir à faire reposer l'installabilité PWA sur
-  la présence d'un reverse proxy applicatif : seule l'origine qui sert le
-  frontend a besoin d'HTTPS pour l'installation (voir plus bas), le backend
-  peut être servi séparément.
+- `scripts/run.ps1 dev|preview` / `run.sh dev|preview` calculent la liste des
+  origines autorisées (localhost, 127.0.0.1, IP Wifi locale) pour les essais
+  sur téléphone ; ce mécanisme n'a de sens que si le front appelle le backend
+  d'une autre origine.
+- Le frontend (statique) et le backend (FastAPI/uvicorn) restent découplés et
+  se déploient chacun de leur côté.
 
 Le client TS généré (`frontend/src/api-client/client.ts`) appelle donc le
 backend à l'adresse donnée par `VITE_API_BASE_URL` (défaut
-`http://localhost:8000`). Depuis le Lot 6, il envoie le cookie de session
-(`credentials: "include"`) et le backend répond avec `allow_credentials` sur la
+`http://localhost:8000`). Il envoie le cookie de session
+(`credentials: "include"`), et le backend répond avec `allow_credentials` sur la
 liste fermée d'origines. Conséquence pratique : ouvrir le front sur
 `localhost` et l'API sur `127.0.0.1` (ou l'inverse) casse la session sans
 message, les deux noms étant des sites distincts pour le navigateur.
@@ -156,17 +174,19 @@ message, les deux noms étant des sites distincts pour le navigateur.
 ./scripts/run.sh test
 ```
 
-La sous-commande `test` lance, dans le même ordre que la CI : le lint backend (`uv run ruff check .`),
-les tests backend sous couverture (`uv run coverage run -m pytest`) suivis du
-contrôle du score CRAP, le garde-fou de contrat
-(`uv run python scripts/export_openapi.py --check`), le lint frontend
-(`npm run lint`, ESLint), puis les tests frontend (`npm run test:coverage`
-suivi de `npm run crap`, puis `npm run test:e2e`) **si** ces scripts existent déjà dans
-`frontend/package.json` — sinon l'étape correspondante est annoncée comme
-ignorée plutôt que de faire échouer le script. Option `-SkipFrontendE2e` /
-`--skip-frontend-e2e` pour sauter les tests Playwright (plus lents,
-nécessitent les navigateurs Playwright installés localement via
-`npx playwright install`).
+La sous-commande `test` lance, dans le même ordre que la CI : le lint backend
+(`uv run ruff check .`), les tests backend sous couverture
+(`uv run coverage run -m pytest`) suivis du contrôle du score CRAP, le
+garde-fou de contrat (`uv run python scripts/export_openapi.py --check`), le
+lint frontend (`npm run lint`, ESLint), le contrôle de types des tests
+(`npm run typecheck:tests`), puis les tests frontend (`npm run test:coverage`
+suivi de `npm run crap`, puis `npm run test:e2e`). Option `-SkipFrontendE2e` /
+`--skip-frontend-e2e` pour sauter les tests Playwright, plus lents, qui
+demandent les navigateurs Playwright installés localement
+(`npx playwright install`).
+
+Sous Windows, vitest se lance depuis PowerShell, dans un chemin en `C:\…` :
+depuis Git Bash, en `/c/…`, chaque fichier de test échoue.
 
 La sous-commande `crap` (`.\scripts\run.ps1 crap`, `./scripts/run.sh crap`)
 ne lance que les tests unitaires des deux couches sous couverture et le
@@ -202,7 +222,7 @@ build avec `scripts/check-pwa-installability.mjs` :
 Ce script peut aussi être pointé sur un déploiement en ligne :
 
 ```bash
-node scripts/check-pwa-installability.mjs --url https://exemple.tld
+node scripts/check-pwa-installability.mjs --url https://gurchon.spigushe.com
 ```
 
 Dans ce mode, il vérifie en plus que l'URL est servie en HTTPS (sauf
@@ -217,78 +237,93 @@ pas sur un score.
 ### Vérification manuelle
 
 Le script ne remplace pas un contrôle dans un vrai navigateur. Restent
-volontairement non automatisés, à vérifier via le panneau **Application** de
-Chrome DevTools et/ou un test d'installation sur téléphone. Fait le 2026-10-28
-(panneau Application, coupure réseau réelle, installation sur téléphone) ; à
-refaire après un changement du manifest ou du service worker :
+volontairement non automatisés, à vérifier dans le panneau **Application** de
+Chrome DevTools et par une installation sur téléphone, à refaire après un
+changement du manifest, du service worker ou du miroir Dexie :
 
 - enregistrement effectif du service worker au runtime (pas seulement sa
   présence sur disque) ;
-- comportement hors-ligne réel après un premier chargement (app shell servi
-  depuis le cache, cf. Lot 3 pour la synchronisation des écritures) ;
-- apparition de l'invite d'installation (« Ajouter à l'écran d'accueil ») et
-  déroulé de l'installation sur un appareil réel ;
+- comportement hors ligne réel après un premier chargement ;
+- apparition de l'invite d'installation et déroulé de l'installation sur un
+  appareil réel ;
 - contenu effectif du `Storage` (cache Workbox, base IndexedDB du compte
-  connecté, `gurchon-hall-offline-u<id>`).
+  connecté, `gurchon-hall-offline-u<id>`) ;
+- une saisie laissée en file avant une mise à jour se rejoue sans perte après.
+
+Dernières vérifications : en HTTPS sur la production, le 2026-11-17 (v1.0.0)
+puis le 2026-11-20 (v1.1.0, avec une saisie en file rejouée après la mise à
+jour).
 
 Le comportement hors ligne de l'application (coupure, saisie, rechargement,
 rejeu) est en revanche couvert par les tests Playwright contre un vrai back
-(`frontend/tests/e2e-real/`) ; ce qui reste manuel, c'est la vérification dans
-un navigateur réel et l'installation sur téléphone.
+(`frontend/tests/e2e-real/`).
 
 ## HTTPS
 
 - **Hors `localhost`** : HTTPS est requis pour que le service worker
   s'enregistre et que la PWA soit installable. C'est une exigence du
-  navigateur, pas une option de configuration du projet.
-- **En dev** (`localhost`/`127.0.0.1`, y compris l'IP Wifi locale utilisée par
-  `scripts/run.ps1 dev`/`run.sh dev` pour les tests sur téléphone) : les navigateurs
-  traitent `localhost` comme un contexte sécurisé même en HTTP, donc aucune
-  configuration HTTPS locale n'est nécessaire pour développer ou tester
-  l'installation depuis le même réseau. Attention : une IP Wifi (ex.
-  `192.168.x.x`) n'est **pas** traitée comme `localhost` par tous les
-  navigateurs mobiles — si l'installation ne se propose pas sur téléphone via
-  l'IP locale alors qu'elle fonctionne sur `localhost` desktop, c'est la cause
-  la plus probable, pas un bug de configuration.
-- **Déploiement** : prévu au Lot 11, par un playbook Ansible qui réutilise
-  l'infrastructure de déploiement de barrins-project, où gurchon-hall sera
-  hébergé temporairement (CLAUDE.md §12). La contrainte reste la même : le
-  frontend doit être servi en HTTPS pour être installable, et le cookie de
-  session `__Host-` exige lui aussi HTTPS hors `localhost`.
+  navigateur, pas une option de configuration du projet. Le cookie de session
+  `__Host-` l'exige aussi, de même que le presse-papiers (« Copier » de
+  l'export VDB) et `navigator.storage.persist()`.
+- **En dev** (`localhost`/`127.0.0.1`) : les navigateurs traitent `localhost`
+  comme un contexte sécurisé même en HTTP, aucune configuration HTTPS locale
+  n'est nécessaire. Une IP Wifi (ex. `192.168.x.x`) n'est **pas** traitée
+  comme `localhost` : sur un téléphone en `http://` par l'IP locale, pas de
+  service worker, pas d'installation, et « Copier » se replie sur la
+  sélection du texte. Ce n'est pas un bug de configuration.
+- **En production** : certificats Let's Encrypt posés par le playbook de
+  déploiement (voir plus bas).
 
 ## Variables d'environnement
 
 Le backend lit ses options directement dans l'environnement du processus
-(`os.getenv`, pas de fichier `.env` chargé automatiquement — aucune dépendance
-du projet ne le fait). `backend/.env.example` documente chaque variable avec sa
-valeur par défaut et son usage ; pour s'en servir, exporter la variable voulue
-avant de lancer une commande (`export X=...` en bash, `$env:X = "..."` en
-PowerShell) plutôt que de s'attendre à ce qu'un fichier soit lu tout seul.
-Résumé :
+(`os.getenv`, pas de fichier `.env` chargé automatiquement).
+`backend/.env.example` documente chaque variable avec sa valeur par défaut et
+son usage ; pour s'en servir, exporter la variable voulue avant de lancer une
+commande (`export X=...` en bash, `$env:X = "..."` en PowerShell). Résumé :
 
 - `DATABASE_URL` : URL SQLAlchemy de la base (défaut `backend/vtes.db`).
+- `SCHEMA_REVISION_CHECK` (défaut vrai) : l'API refuse de démarrer contre une
+  base qui n'est pas à la dernière révision Alembic ; `false` ramène l'arrêt à
+  un avertissement, réservé aux tests.
 - `BACKEND_CORS_ORIGINS` : origines autorisées, séparées par des virgules (voir
   plus haut).
-- `SESSION_COOKIE_SECURE` (Lot 6, défaut vrai) : attribut `Secure` du cookie de
-  session. Chrome et Firefox sont réputés accepter un cookie `Secure` sur
-  `http://localhost`, ce qui a été vérifié à la main le 2026-10-28 sur le
-  navigateur en usage (`backend/.env.example`, CLAUDE.md §11 Lot 6). Si
-  une connexion semble réussir (`POST /connexion` rend 200 avec un
-  `Set-Cookie`) mais qu'un appel suivant rend quand même 401, mettre cette
-  variable à `false` en développement local sur `http://localhost` est le
-  premier réflexe. Hors `localhost`, HTTPS est de toute façon requis pour la
-  PWA (voir plus haut) : garder la valeur par défaut en production.
-- `ARGON2_MEMORY_COST_KIB`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` (Lot 6,
-  défauts 65536 / 3 / 4, alignés sur barrins-project) : coûts du hachage
-  Argon2id des mots de passe. La CI les abaisse (voir plus bas) ; le
-  développement local et la production gardent les défauts.
-- `LOGIN_RATE_LIMIT`, `SIGNUP_RATE_LIMIT` (Lot 6, défaut `5/minute` chacune) :
-  débit autorisé pour `POST /connexion` et `POST /inscription`, par adresse IP,
-  en mémoire du processus (`slowapi`).
+- `SESSION_COOKIE_SECURE` (défaut vrai) : attribut `Secure` du cookie de
+  session. Chrome et Firefox acceptent un cookie `Secure` sur
+  `http://localhost` (vérifié le 2026-10-28). Si une connexion semble réussir
+  mais qu'un appel suivant rend quand même 401, le passer à `false` en
+  développement local est le premier réflexe. Garder la valeur par défaut en
+  production.
+- `SESSION_IDLE_DAYS`, `SESSION_MAX_DAYS` (Lot 12, défauts 14 et 90) : une
+  session expire après tant de jours sans usage, et au plus tard tant de jours
+  après la connexion. L'API refuse de démarrer si la première dépasse la
+  seconde.
+- `ARGON2_MEMORY_COST_KIB`, `ARGON2_TIME_COST`, `ARGON2_PARALLELISM` (défauts
+  65536 / 3 / 4) : coûts du hachage Argon2id des mots de passe. La CI les
+  abaisse (voir plus bas) ; le développement local et la production gardent
+  les défauts.
+- `LOGIN_RATE_LIMIT`, `SIGNUP_RATE_LIMIT`, `PASSWORD_CHANGE_RATE_LIMIT`
+  (défaut `5/minute` chacune) et `VDB_RATE_LIMIT` (défaut `20/minute`) : débit
+  autorisé pour `POST /connexion`, `POST /inscription`,
+  `POST /moi/mot-de-passe` et `GET /vdb/decks/{id}`, par adresse IP, en
+  mémoire du processus (`slowapi`).
+- `LOG_LEVEL` (défaut `INFO`) et `LOG_FORMAT` (`json` par défaut, ou `text`) :
+  journaux de l'API sur la sortie standard, une ligne par requête
+  (`http.request`) et une par lot `/sync` (`sync.batch`), sans corps de
+  requête, adresse IP ni mot de passe.
+- `VDB_STUB_DIR` : jamais en production. Fait lire à `GET /vdb/decks/{id}` un
+  dossier de réponses au lieu de joindre vdb.im (tests e2e,
+  `scripts/vdb_stub.py`).
+
+En production, l'unité systemd pose en plus `FORWARDED_ALLOW_IPS=127.0.0.1`
+(uvicorn prend l'adresse du client dans `X-Forwarded-For` posé par nginx) et
+`UVICORN_ACCESS_LOG=false` (les journaux d'accès d'uvicorn doubleraient
+`http.request`).
 
 ## Intégration continue
 
-`.github/workflows/ci.yml` définit deux jobs, sur push/PR vers `main` :
+`.github/workflows/ci.yml` définit deux jobs, sur push vers `main` et sur
+chaque PR :
 
 - **backend** : `astral-sh/setup-uv` (avec cache), `uv sync --extra dev`,
   `uv run ruff check .`, `uv run coverage run -m pytest` puis le score CRAP
@@ -296,49 +331,51 @@ Résumé :
   `uv run python scripts/export_openapi.py --check` en étape séparée
   (garde-fou contract-first explicite, même si un test pytest le couvre
   déjà) ;
-- **frontend** : `npm ci`, `npm run lint` (ESLint), build, validation
-  d'installabilité PWA, puis tests `vitest` sous couverture, score CRAP
-  (`npm run crap`) et `test:e2e` (Playwright) —
-  détectés dynamiquement dans `frontend/package.json` plutôt que présumés,
-  avec un avertissement CI explicite si l'un de ces scripts venait à
-  manquer.
+- **frontend** : `npm ci`, `npm run lint` (ESLint), `npm run typecheck:tests`,
+  build, validation d'installabilité PWA, puis tests `vitest` sous couverture,
+  score CRAP (`npm run crap`) et `test:e2e` (Playwright, dont les projets qui
+  tournent contre un vrai back sur base éphémère, d'où l'installation du
+  backend dans ce job aussi).
 
 Dependabot (`.github/dependabot.yml`) suit les dépendances via l'écosystème
 natif `uv` (pas `pip`) pour `backend/uv.lock`, l'écosystème `npm` pour
 `frontend/package-lock.json`, et l'écosystème `github-actions` pour les
 workflows.
 
-**Coûts Argon2 réduits en CI (Lot 6)** : `.github/workflows/ci.yml` positionne
+**Coûts Argon2 réduits en CI** : `.github/workflows/ci.yml` positionne
 `ARGON2_MEMORY_COST_KIB=8192` et `ARGON2_TIME_COST=1` au niveau du workflow
-(donc pour les deux jobs, y compris le vrai back lancé par les e2e
-`real-backend`). Sans cela, la suite `pytest` est passée de quelques minutes à
-8 min 26 s une fois l'authentification posée : la quasi-totalité des tests
-passe maintenant par un hachage Argon2 à coût plein (65536 KiB, time_cost=3),
-puisqu'aucun test ne surcharge ces variables aujourd'hui
-(`backend/tests/conftest.py`). Les valeurs choisies restent au-dessus d'un
-minimum dérisoire (le mécanisme Argon2 reste réellement exercé, pas contourné)
-; le développement local et la production gardent les défauts documentés dans
-`backend/.env.example`. Si la durée de la suite pytest redevient gênante, une
-autre option, non retenue ici, serait qu'une fixture pytest surcharge ces
-variables directement (hors du périmètre DevOps : relève de qa-tests ou
-backend-fastapi, cf. `backend/tests/conftest.py`).
+(donc pour les deux jobs, y compris le vrai back lancé par les e2e). Presque
+tous les tests passent par un hachage Argon2, et à coût plein la suite pytest
+durait plusieurs minutes de plus. Les valeurs choisies restent au-dessus d'un
+minimum dérisoire, pour que le mécanisme soit réellement exercé ; le
+développement local et la production gardent les défauts.
 
 ## Déploiement
 
-`docs/deploiement.md` fixe l'ordre à respecter pour une mise en service (Lot 6,
-comptes) : migrer, réclamer le compte historique par CLI, puis seulement
-ouvrir l'application. Le Lot 11 (CLAUDE.md §12) détaillera le reste
-(hébergement, HTTPS, playbook Ansible) ; cette note ne couvre que l'ordre des
-opérations et les variables d'environnement liées aux comptes et à la PWA.
+Le playbook Ansible `ops/gurchon_hall.yml` met l'application en ligne sur un
+VPS : la PWA sur `gurchon.spigushe.com`, l'API sur `api-gurchon.spigushe.com`,
+et un staging sur les mêmes noms suffixés de `-staging`. Le dossier `ops/` est
+autonome (rôles, inventaire, collection requise) ; seul le jeton GitHub,
+ignoré par git, est à fournir.
 
-## Portage vers Barrin (aperçu)
+- **Production** : la dernière release GitHub complète (une pré-release est
+  ignorée), front et API ensemble.
+- **Staging** : la branche `main` (`-e deploy_env=staging`).
+- **À chaque passage** : sauvegarde de la base SQLite, migration Alembic,
+  import du catalogue krcg, puis redémarrage de l'API.
+- **Sauvegardes** : une avant chaque déploiement et une chaque nuit, gardées
+  quatorze jours sur le VPS ; `ops/fetch_backups.sh` les recopie sur le poste,
+  dans `ops/sauvegardes/` (ignoré par git).
 
-La couche offline (config `vite-plugin-pwa`/Workbox dans `frontend/vite.config.ts`,
-paquet `frontend/src/offline/` : enregistrement du service worker, base Dexie,
-file d'attente et moteur de rejeu, avec un cœur générique séparé de
-l'adaptateur VtES) est pensée pour être transplantée sur barrins-project avec un
-minimum d'adaptation. Son API et les points d'ajustement (préfixes de routes
-API notamment) sont décrits dans `frontend/src/offline/README.md` ; le portage
-lui-même est le Lot 10. Les scripts `scripts/run.ps1`/`run.sh` de ce dépôt
-n'ont aucune dépendance au domaine VtES et sont directement réutilisables tels
-quels sur un monorepo Vite + FastAPI équivalent.
+Commandes, ordre d'une première mise en service, journaux, restauration d'une
+sauvegarde et retour arrière : [docs/deploiement.md](docs/deploiement.md).
+
+## Couche offline
+
+La couche offline (config `vite-plugin-pwa`/Workbox dans
+`frontend/vite.config.ts`, paquet `frontend/src/offline/` : enregistrement du
+service worker, base Dexie, file d'attente et moteur de rejeu) sépare un cœur
+générique (`core/`, `react/`), qui ne connaît rien de VtES, de l'adaptateur du
+domaine (`vtes/`). Son API, ce qu'elle garantit, le multi-compte, le
+versionnage du schéma IndexedDB et le service worker sont décrits dans
+`frontend/src/offline/README.md`.
