@@ -666,3 +666,44 @@ def test_the_export_leaves_out_another_accounts_shares(
     db.commit()
     create(stranger_api, other, kind="frozen")
     assert me_api.get("/moi/export").json()["shares"] == []
+
+
+# --- Étape E : cycle de vie bout en bout et formes de jeton --------------------
+
+
+@pytest.mark.parametrize("token", ["aB3x_9p", "aB3x_9pQQ", "aB3x-9pQ", "aB3x_9pé"])
+def test_a_malformed_token_is_a_422_with_or_without_a_session(api, me_api, token):
+    # `me_api` ouvre une session sur le même client : le cookie est présent.
+    with_cookie = api.get(f"/listes/{token}")
+    api.cookies.clear()
+    without_cookie = api.get(f"/listes/{token}")
+    assert with_cookie.status_code == without_cookie.status_code == 422
+    assert "private" not in without_cookie.headers.get("cache-control", "")
+
+
+def test_the_frozen_link_of_a_deleted_deck_is_read_until_the_purge_of_deleted_decks(
+    me_api, api_client_factory, deck
+):
+    live = create(me_api, deck)
+    frozen = create(me_api, deck, kind="frozen")
+    archive_and_delete(me_api, deck)
+
+    visitor = api_client_factory()
+    assert read(visitor, live["token"]).status_code == 404
+    assert read(visitor, frozen["token"]).status_code == 200
+
+    assert purge(me_api, "scope=deleted_decks").json() == {"revoked": 1}
+    assert read(visitor, frozen["token"]).status_code == 404
+
+
+def test_a_selection_purges_the_links_of_an_archived_deck(db, me_api, deck):
+    assert me_api.patch(f"/decks/{deck.id}", json={"archived": True}).status_code == 200
+    live = create(me_api, deck)
+    frozen = create(me_api, deck, kind="frozen")
+
+    response = purge(me_api, f"scope=selected&share_id={live['id']}")
+
+    assert response.json() == {"revoked": 1}
+    assert remaining(db) == {frozen["id"]}
+    assert read(me_api, live["token"]).status_code == 404
+    assert read(me_api, frozen["token"]).status_code == 200

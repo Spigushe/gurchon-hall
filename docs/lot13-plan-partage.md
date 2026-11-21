@@ -4,7 +4,7 @@ Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
 décisions de conception reprises en conséquence ; **A1, B1, B2, C1 et D1 à
 D6 livrées les 2026-11-20 et 21** (cf. « Livré à … » et les deux sections
 « Vérification d'intégration »), A1, D1 et D4 commitées (`a33e5e6`), B1, B2
-et C1 (`236b9b7`), D2 et D3 (`8bbc0de`) ; **reste E (QA), puis F (mise en
+et C1 (`236b9b7`), D2 et D3 (`8bbc0de`) ; **E (QA) livrée le 2026-11-21, reste F (mise en
 service v1.2.0)**. Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
@@ -713,7 +713,7 @@ demande).
 | D4 | art de l'extension dans la Collection — **fait le 2026-11-20** (cf. « Livré à D4 ») | frontend-react |
 | D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison — **fait le 2026-11-20** (cf. « Livré à D5 ») | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
 | D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision — **fait le 2026-11-20** (cf. « Livré à D6 ») | frontend-react |
-| E | tests manquants, e2e, CRAP, recensement des `data-testid`, captures | qa-tests |
+| E | tests manquants, e2e, CRAP, recensement des `data-testid`, captures — **fait le 2026-11-21** (cf. « Livré à E ») | qa-tests |
 | F | mise en service v1.2.0 : staging, essai de R16 sur une copie de la production, release, production, vérification sur téléphone et depuis un appareil sans compte | utilisateur, devops-deploiement |
 
 D1 et D4 ne dépendent ni du contrat ni de R16 : elles peuvent commencer dès
@@ -1476,6 +1476,66 @@ Vérifié : lint, `tsc`, `typecheck:tests` propres ; vitest sous couverture à
 **1935 verts sur 111 fichiers** ; aucune régression CRAP ; recensement sans
 disparu ; e2e du lot et `deck-tables` aux deux largeurs, **11 sur 11** ;
 captures `lot13-d3`, `lot13-d5`, `lot13-d6` refaites et relues.
+
+### Livré à E (2026-11-21)
+
+L'étape a commencé par un inventaire : chaque point de « Tests attendus (E) » a été
+rapproché des tests écrits pendant A1, B1, B2, C1 et D1 à D6. Presque tout était déjà
+couvert, et E n'a ajouté que ce qui manquait. Côté back, les points demandés (jeton de
+sept ou neuf caractères, tiret, accent, route publique identique avec ou sans cookie et
+sans `Cache-Control: private`, tirage retiré sur collision, sélection refusée en entier
+pour un lien inconnu, d'un autre compte ou d'un deck supprimé, purge `deleted_decks`
+limitée aux figés, aller-retour de R16, export sans jeton) existaient dans
+`test_lot13_shares.py`, `test_lot13_contract.py`, `test_lot6_authorization_matrix.py` et
+la section « Lot 13 » de `test_migrations.py`. Côté front, les exports à l'octet près
+(`exportVdbFormats.test.ts`, les trois formats contre les fixtures `ref-*` et
+`difficile-*`, et `exportVdbText.test.ts` pour le `TEXT`), l'en-tête `TWD` d'une version de tournoi, la conversion de la
+réponse publique, la feuille de partage hors ligne et avec une file non vide, les
+purges, le plan de duplication, la comparaison, les écarts d'une révision et l'intention
+reprise après connexion avaient aussi leurs tests. Le vrai manque était côté e2e.
+
+- **Back, trois cas ajoutés** à `test_lot13_shares.py` (quatre avec la paramétrisation) :
+  un jeton mal formé rend 422 avec la session du propriétaire comme sans cookie, sans
+  `private` dans `Cache-Control` ; le figé d'un deck supprimé se lit tant que la purge
+  des decks supprimés n'est pas passée, puis tombe, alors que le vivant du même deck est
+  déjà en 404, lu par un client sans cookie ; la purge d'une sélection vaut aussi pour les
+  liens d'un deck archivé.
+- **e2e, deux scénarios ajoutés.** `lot13-cycle-de-vie`, aux deux largeurs et contre le vrai
+  back (`tests/e2e-real/support/lot13cycle.ts`, communs aux deux specs) : un vivant et un
+  figé du même deck ; le visiteur, dans un contexte neuf à chaque lecture, les lit ; la
+  sélection du vivant est purgée depuis l'écran Compte et il tombe, le figé reste ; un
+  second vivant est créé, le deck est archivé puis supprimé, le vivant tombe et le figé
+  reste ; l'écran Compte range ce figé parmi les decks supprimés, la purge dédiée le fait
+  tomber et la liste devient vide. Le harnais `Api` gagne `delete`. Et
+  `tests/e2e-desktop/liste-hors-ligne.spec.ts`, pendant bureau du scénario de
+  `offline-layer.spec.ts` : hors ligne, `#/liste/<jeton>` est servie par la coquille et
+  `/listes/<jeton>` ne l'est pas.
+- **Aucun test vitest ajouté** : l'inventaire n'a trouvé aucun point du front sans test.
+- **Recensement des `data-testid`.** Contrôle contre `testids-lot12-cloture.txt` : aucun
+  identifiant disparu. Nouvelle référence `docs/qa-baselines/testids-lot13-cloture.txt`,
+  **768 littéraux statiques distincts** (674 à la clôture du Lot 12), **895 entrées**
+  toutes familles confondues (777 dans la référence du Lot 12, chiffre qui était cité plus
+  haut comme le « 777 en référence »).
+- **Instabilité vitest.** Un premier passage, lancé pendant que pytest tournait sur la même
+  machine, a vu échouer un test de `search.test.tsx` (la feuille d'ajout de Chercher ne se
+  refermait pas dans le délai de `waitFor`). Le fichier passe seul (30 sur 30) et la suite
+  complète relancée seule est verte : même nature que les instabilités des Lots 5c et 6,
+  sous charge. Les quatre tests relevés pendant D5 et D6 (`games`, `tournaments`,
+  `gamesLot8`, `decks`) ne sont pas revenus.
+- **Captures.** Les specs `lot13-d3`, `lot13-d5` et `lot13-d6` passent, aux deux largeurs
+  (six exécutions sur six). Leurs PNG ont été régénérés puis rétablis à l'état commité, la
+  différence ne portant que sur du bruit de rendu.
+
+Chiffres à la clôture de E : `ruff check` propre ; pytest sous couverture **3139 verts et
+2 `xfail`** (3133 au passage d'intégration de B1 et B2, six de plus), 99,4 % des lignes de
+`app/` couvertes dont 98,5 % pour `services/shares.py` et 100 % pour les trois autres
+fichiers des liens ; CRAP back sur 466 fonctions, aucune au-dessus de 30 (pire 21) ;
+`npm run lint`, `tsc` (application et tests) propres ; vitest sous couverture **1935 verts
+sur 111 fichiers** ; CRAP front sur 3626 fonctions, aucune au-dessus de 30 (pire 30,0,
+non dépassé), aucune régression ; `npm run test:e2e` **108 verts sur 108**, soit
+9 `chromium`, 55 `real-backend`, 4 `desktop` et 40 `desktop-real-backend` (98 à la
+clôture du Lot 12), le nombre attendu à l'exécution comme à `--list`. Aucun défaut
+applicatif trouvé.
 
 ## Tests attendus (E)
 
