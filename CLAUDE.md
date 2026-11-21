@@ -682,7 +682,7 @@ Livré aux Lots 2 à 12 (chemins en français, `operationId` en anglais camelCas
 | Route | Rôle |
 | --- | --- |
 | `POST /inscription` (`signUp`) | Lot 6. Crée un compte (`email`, `username`, `password`), actif aussitôt, rôle `user` posé par le serveur (un `role` envoyé rend 422, comme tout champ inconnu), et ouvre la session : 201 `UserRead` + `Set-Cookie` ; 409 adresse ou nom déjà pris ; 429 + `Retry-After` |
-| `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour une adresse inconnue et un mauvais mot de passe ; 429 + `Retry-After` |
+| `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour un identifiant inconnu et un mauvais mot de passe ; 429 + `Retry-After`. Depuis le correctif du 2026-11-21, `identifier` porte l'adresse ou le nom d'utilisateur (« @ » ou non) ; `email`, obsolète, reste accepté pour une coquille v1.1.0 ; exactement l'un des deux (422 sinon) |
 | `POST /deconnexion` (`logOut`) | Lot 6. Supprime la session courante et efface le cookie ; 204 toujours, même sans session valide |
 | `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`) ; 401 sans session |
 | `POST /moi/mot-de-passe` (`changePassword`) | Lot 12. `current_password`, `new_password` (règles de l'inscription) ; 204 ; rehache et ferme les autres sessions du compte, la courante gardée, en une transaction ; **422** « Mot de passe actuel incorrect. » sur `current_password`, jamais 401 ; 429 + `Retry-After` au-delà de `PASSWORD_CHANGE_RATE_LIMIT` (5 par minute). Ordre : 401, 422, 429 |
@@ -1521,7 +1521,8 @@ points d'interprétation dans `docs/lot6-plan-comptes.md`, qui fait foi pour le 
   pour la vitesse de la suite pytest, presque tous les tests passant désormais par un
   hachage.
 - **Périmètre du compte (P2).** L'adresse e-mail est l'identifiant de connexion, un nom
-  d'utilisateur séparé sert de handle public. Inscription ouverte, sans invitation ni
+  d'utilisateur séparé sert de handle public. *Amendé le 2026-11-21* : le nom
+  d'utilisateur permet aussi de se connecter (§11, correction hors lot). Inscription ouverte, sans invitation ni
   vérification d'e-mail : le compte est actif et la session ouverte dès la réponse. Le
   serveur pose le rôle `user` lui-même. Oracle accepté : un 409 « adresse déjà
   utilisée » révèle qu'un compte existe, ce qui est inhérent à une inscription ouverte.
@@ -2403,6 +2404,27 @@ Limites connues à la clôture du Lot 12 :
   deux largeurs contre le vrai back (session fermée depuis un autre appareil, mot de
   passe changé ailleurs, export, mise à jour en mode `prompt` bloquée par une saisie
   hors ligne).
+
+Tranchées en correction, hors lot (2026-11-21, branche `fix/mot-de-passe-saisie`,
+partie de `main` après la v1.1.0) — **saisie du mot de passe et connexion par le
+nom** :
+
+- **Bouton « Afficher le mot de passe »** sur chaque champ de mot de passe
+  (connexion, inscription, changement), un par champ (`PasswordInput`,
+  `aria-pressed`, type `button`).
+- **Règles cochées à l'inscription**, comme au changement de mot de passe
+  (`PasswordRulesList`, sur `passwordRules.ts`) ; « Créer un compte » attend
+  qu'elles soient toutes remplies, le serveur restant juge. Revient sur le
+  Lot 6, qui affichait la règle en aide sans l'appliquer côté client.
+- **Connexion par l'adresse ou le nom d'utilisateur**, dans un seul champ :
+  `UserLogIn.identifier`, `email` gardé et marqué obsolète, si bien qu'une
+  coquille v1.1.0 en cache se connecte encore. Une saisie avec « @ » est une
+  adresse (même normalisation que l'inscription), sinon un nom : à la casse
+  près, puis sans la casse s'il ne désigne qu'un compte (« Alice » et « alice »
+  pouvant coexister, seule la forme exacte connecte alors). Une forme invalide
+  rend le 401 commun, pas un 422, et passe par `dummy_verify`. Contrat toujours à
+  57 opérations ; tests dans `backend/tests/test_login_identifier.py` et
+  `frontend/tests/unit/features/auth/authForms.test.tsx`.
 
 ---
 
