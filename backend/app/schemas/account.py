@@ -24,9 +24,9 @@ l'API, et une adresse y est normalisée de la même façon.
 
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Self
 
-from pydantic import AfterValidator, EmailStr, Field
+from pydantic import AfterValidator, EmailStr, Field, model_validator
 
 from app.models.account import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 from app.models.enums import UserRole
@@ -131,7 +131,8 @@ Username = Annotated[
     ),
 ]
 """Nom d'utilisateur. Sa casse est conservée et son unicité y est sensible,
-comme chez Barrin : c'est un nom affiché, pas un identifiant de connexion."""
+comme chez Barrin : c'est un nom affiché. Il sert aussi à se connecter, à la
+place de l'adresse, depuis le correctif qui a suivi la v1.1.0 (`UserLogIn`)."""
 
 # ---------------------------------------------------------------------------
 # Adresse e-mail
@@ -200,16 +201,69 @@ class UserSignUp(WriteModel):
     password: NewPassword
 
 
+LoginIdentifier = Annotated[
+    str,
+    Field(
+        min_length=1,
+        max_length=EMAIL_MAX_LENGTH,
+        description=(
+            "Adresse e-mail ou nom d'utilisateur, dans un même champ. Une "
+            "saisie qui contient « @ » est une adresse (comparée sans la "
+            "casse) ; sinon c'est un nom d'utilisateur, qui n'en contient "
+            "jamais (comparé à la casse près, puis sans elle s'il ne désigne "
+            "alors qu'un compte)."
+        ),
+    ),
+    AfterValidator(str.strip),
+]
+"""Identifiant de connexion, rogné de ses espaces de bord. Aucune autre règle :
+une forme invalide (adresse mal écrite, nom hors motif) n'est pas un 422 mais
+un compte introuvable, donc le même 401 qu'un mauvais mot de passe."""
+
+
 class UserLogIn(WriteModel):
     """Corps de `POST /connexion`.
 
     Une adresse inconnue et un mauvais mot de passe rendent le même 401, au
     même coût (P1) : rien dans ce schéma ne doit permettre de les distinguer,
     d'où l'absence de règle de complexité sur le mot de passe.
+
+    `identifier` (correctif après la v1.1.0) accepte l'adresse ou le nom
+    d'utilisateur. `email`, seul champ jusque-là, reste accepté pour qu'une
+    coquille v1.1.0 encore en cache se connecte jusqu'à sa mise à jour ; il
+    faut exactement l'un des deux.
     """
 
-    email: EmailAddress
+    identifier: LoginIdentifier | None = None
+    email: EmailAddress | None = Field(
+        default=None,
+        deprecated=True,
+        description=(
+            "Ancienne forme : adresse e-mail seule. Préférer `identifier`, qui "
+            "accepte aussi le nom d'utilisateur."
+        ),
+    )
     password: SubmittedPassword
+
+    # `email` est lu par `__dict__` : l'attribut, déclaré obsolète, lèverait un
+    # `DeprecationWarning` à chaque connexion par une coquille v1.1.0.
+
+    @model_validator(mode="after")
+    def _one_identifier(self) -> Self:
+        if (self.identifier is None) == (self.__dict__["email"] is None):
+            raise ValueError(
+                "Fournir exactement un champ parmi `identifier` et `email`."
+            )
+        if self.identifier == "":
+            raise ValueError("`identifier` ne peut pas être vide.")
+        return self
+
+    @property
+    def login(self) -> str:
+        """L'identifiant saisi, quel que soit le champ qui l'a porté."""
+        if self.identifier is not None:
+            return self.identifier
+        return str(self.__dict__["email"])
 
 
 class UserRead(ReadModel):

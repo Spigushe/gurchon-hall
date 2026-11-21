@@ -124,7 +124,7 @@
           "comptes"
         ],
         "summary": "Ouvrir une session",
-        "description": "Vérifie l'adresse et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).",
+        "description": "Vérifie l'identifiant (adresse e-mail ou nom d'utilisateur, dans `identifier` ; `email` reste accepté) et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Un identifiant inconnu et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).",
         "operationId": "logIn",
         "requestBody": {
           "content": {
@@ -10842,12 +10842,35 @@
       },
       "UserLogIn": {
         "properties": {
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320,
+                "minLength": 1,
+                "description": "Adresse e-mail ou nom d'utilisateur, dans un même champ. Une saisie qui contient « @ » est une adresse (comparée sans la casse) ; sinon c'est un nom d'utilisateur, qui n'en contient jamais (comparé à la casse près, puis sans elle s'il ne désigne alors qu'un compte)."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
           "email": {
-            "type": "string",
-            "maxLength": 320,
-            "format": "email",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 320,
+                "format": "email",
+                "description": "Adresse e-mail, identifiant de connexion. Comparée sans tenir compte de la casse : le serveur la ramène en minuscules."
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Email",
-            "description": "Adresse e-mail, identifiant de connexion. Comparée sans tenir compte de la casse : le serveur la ramène en minuscules."
+            "description": "Ancienne forme : adresse e-mail seule. Préférer `identifier`, qui accepte aussi le nom d'utilisateur.",
+            "deprecated": true
           },
           "password": {
             "type": "string",
@@ -10860,11 +10883,10 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "email",
           "password"
         ],
         "title": "UserLogIn",
-        "description": "Corps de `POST /connexion`.\n\nUne adresse inconnue et un mauvais mot de passe rendent le même 401, au\nmême coût (P1) : rien dans ce schéma ne doit permettre de les distinguer,\nd'où l'absence de règle de complexité sur le mot de passe."
+        "description": "Corps de `POST /connexion`.\n\nUne adresse inconnue et un mauvais mot de passe rendent le même 401, au\nmême coût (P1) : rien dans ce schéma ne doit permettre de les distinguer,\nd'où l'absence de règle de complexité sur le mot de passe.\n\n`identifier` (correctif après la v1.1.0) accepte l'adresse ou le nom\nd'utilisateur. `email`, seul champ jusque-là, reste accepté pour qu'une\ncoquille v1.1.0 encore en cache se connecte jusqu'à sa mise à jour ; il\nfaut exactement l'un des deux."
       },
       "UserRead": {
         "properties": {

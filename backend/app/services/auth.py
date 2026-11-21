@@ -35,7 +35,8 @@ from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
-from sqlalchemy import delete, select
+from email_validator import EmailNotValidError, validate_email
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -46,7 +47,7 @@ from app.models.account import (
     UserAccount,
 )
 from app.models.enums import UserRole
-from app.schemas.account import SessionRead
+from app.schemas.account import SessionRead, normalize_email
 from app.services import players
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import integrity_as_conflict
@@ -177,16 +178,59 @@ def create_account(
     return account
 
 
-def authenticate(db: Session, *, email: str, password: str) -> UserAccount | None:
-    """Vérifie une adresse et un mot de passe ; rend le compte, ou `None`.
+def _login_email(value: str) -> str | None:
+    """Forme canonique d'une adresse saisie à la connexion, ou `None` si ce
+    n'est pas une adresse valide.
 
-    Une adresse inconnue et un mauvais mot de passe rendent tous deux `None` :
-    c'est à l'appelant (le router) de produire le même 401 dans les deux cas,
-    sans jamais distinguer lequel. `dummy_verify` n'est appelé que dans le
-    premier cas, pour égaliser le temps de réponse (P1). Fait évoluer
+    Même normalisation que `EmailAddress` (`email-validator`, puis
+    `normalize_email`), sans lever : une adresse mal formée désigne un compte
+    introuvable, pas une requête invalide.
+    """
+    try:
+        parts = validate_email(value, check_deliverability=False)
+    except EmailNotValidError:
+        return None
+    return normalize_email(parts.normalized)
+
+
+def find_login_account(db: Session, login: str) -> UserAccount | None:
+    """Le compte que désigne l'identifiant saisi à la connexion, ou `None`.
+
+    Une saisie qui contient « @ » est une adresse, puisqu'un nom d'utilisateur
+    n'en contient jamais (`USERNAME_PATTERN`). Sinon c'est un nom : d'abord à
+    la casse près, puis sans la casse s'il ne désigne alors qu'un seul compte
+    (un clavier de téléphone met souvent une majuscule initiale, et l'unicité
+    des noms étant sensible à la casse, « Alice » et « alice » peuvent
+    coexister : dans ce cas seule la forme exacte connecte). Les noms sont en
+    ASCII, si bien que `lower()` de SQLite suffit.
+    """
+    if "@" in login:
+        email = _login_email(login)
+        if email is None:
+            return None
+        return db.scalar(select(UserAccount).where(UserAccount.email == email))
+    exact = db.scalar(select(UserAccount).where(UserAccount.username == login))
+    if exact is not None:
+        return exact
+    matches = db.scalars(
+        select(UserAccount)
+        .where(func.lower(UserAccount.username) == login.lower())
+        .limit(2)
+    ).all()
+    return matches[0] if len(matches) == 1 else None
+
+
+def authenticate(db: Session, *, login: str, password: str) -> UserAccount | None:
+    """Vérifie un identifiant (adresse ou nom d'utilisateur) et un mot de
+    passe ; rend le compte, ou `None`.
+
+    Un identifiant inconnu et un mauvais mot de passe rendent tous deux
+    `None` : c'est à l'appelant (le router) de produire le même 401 dans les
+    deux cas, sans jamais distinguer lequel. `dummy_verify` n'est appelé que
+    dans le premier cas, pour égaliser le temps de réponse (P1). Fait évoluer
     l'empreinte au passage (`needs_rehash`) si les coûts ont changé depuis.
     """
-    account = db.scalar(select(UserAccount).where(UserAccount.email == email))
+    account = find_login_account(db, login)
     if account is None:
         dummy_verify(password)
         return None

@@ -7261,6 +7261,32 @@ fieldset:disabled .chip {
   color: var(--color-accent-300);
 }
 
+/* Champ de mot de passe et son bouton « Afficher » (`PasswordInput`). Le bouton
+   se pose sur le bord droit du champ, qui lui laisse la place ; le sélecteur à
+   trois classes l'emporte sur `.sheet .underline-field:not(textarea)` du
+   bureau, qui pose un `padding` horizontal. */
+.password-field {
+  position: relative;
+}
+
+.password-field > .password-field__input.underline-field {
+  padding-right: 44px;
+}
+
+.password-field__toggle {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 36px;
+  height: 36px;
+  transform: translateY(-50%);
+}
+
+.password-field__toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 .password-sheet__footer {
   margin-top: auto;
   display: flex;
