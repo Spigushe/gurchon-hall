@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { CheckCircleIcon, CircleIcon } from "@phosphor-icons/react";
 import { useApiClient } from "../../app/apiClientContext";
 import { Pill } from "../../components/Pill";
 import { Sheet, SheetFooter, SheetHeader } from "../../components/Sheet";
@@ -8,7 +7,9 @@ import { useIsDesktop } from "../../components/useIsDesktop";
 import { useConnectivity } from "../../offline/react";
 import { changePassword } from "./accountApi";
 import { secondsLeft } from "./accountModel";
-import { passwordAcceptable, passwordRules } from "./passwordRules";
+import { PasswordInput } from "./PasswordInput";
+import { PasswordRulesList } from "./PasswordRulesList";
+import { passwordAcceptable } from "./passwordRules";
 
 const CURRENT_INCORRECT = "Mot de passe actuel incorrect.";
 
@@ -52,7 +53,6 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
     return () => window.clearInterval(timer);
   }, [retryUntil]);
 
-  const rules = passwordRules(next);
   const mismatch = confirmation !== "" && confirmation !== next;
   const limited = retryUntil !== null && secondsLeft(retryUntil, now) > 0;
   const ready =
@@ -113,19 +113,17 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
       <form ref={formRef} onSubmit={onFormSubmit} noValidate className="sheet-form" aria-label="Changer le mot de passe">
         <div className="field">
           <label htmlFor={`${formId}-current`}>Mot de passe actuel</label>
-          <input
+          <PasswordInput
             id={`${formId}-current`}
-            className="underline-field"
-            type="password"
             autoComplete="current-password"
             value={current}
-            aria-invalid={currentError !== null}
-            aria-describedby={currentError ? `${formId}-current-error` : undefined}
-            onChange={(event) => {
-              setCurrent(event.target.value);
+            invalid={currentError !== null}
+            describedBy={currentError ? `${formId}-current-error` : undefined}
+            onChange={(value) => {
+              setCurrent(value);
               setCurrentError(null);
             }}
-            data-testid="change-password-current"
+            testId="change-password-current"
           />
           {currentError && (
             <p id={`${formId}-current-error`} className="error-text" data-testid="change-password-current-error">
@@ -136,46 +134,29 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
 
         <div className="field">
           <label htmlFor={`${formId}-new`}>Nouveau mot de passe</label>
-          <input
+          <PasswordInput
             id={`${formId}-new`}
-            className="underline-field"
-            type="password"
             autoComplete="new-password"
             value={next}
-            aria-describedby={`${formId}-rules`}
-            onChange={(event) => {
-              setNext(event.target.value);
+            describedBy={`${formId}-rules`}
+            onChange={(value) => {
+              setNext(value);
               setServerError(null);
             }}
-            data-testid="change-password-new"
+            testId="change-password-new"
           />
-          <ul id={`${formId}-rules`} className="password-rules" data-testid="change-password-rules">
-            {rules.map((rule) => (
-              <li
-                key={rule.key}
-                className="password-rules__item"
-                data-met={rule.met}
-                data-testid={`password-rule-${rule.key}`}
-              >
-                {rule.met ? <CheckCircleIcon size={16} aria-hidden="true" /> : <CircleIcon size={16} aria-hidden="true" />}
-                <span>{rule.label}</span>
-                <span className="sr-only">{rule.met ? " : remplie" : " : manquante"}</span>
-              </li>
-            ))}
-          </ul>
+          <PasswordRulesList id={`${formId}-rules`} value={next} testId="change-password-rules" />
         </div>
 
         <div className="field">
           <label htmlFor={`${formId}-confirm`}>Confirmation</label>
-          <input
+          <PasswordInput
             id={`${formId}-confirm`}
-            className="underline-field"
-            type="password"
             autoComplete="new-password"
             value={confirmation}
-            aria-invalid={mismatch}
-            onChange={(event) => setConfirmation(event.target.value)}
-            data-testid="change-password-confirm"
+            invalid={mismatch}
+            onChange={setConfirmation}
+            testId="change-password-confirm"
           />
           {mismatch && (
             <p className="error-text" data-testid="change-password-mismatch">

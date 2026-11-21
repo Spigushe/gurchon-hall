@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from "react";
 import { useApiClient } from "../../app/apiClientContext";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { logIn, type UserRead } from "./authApi";
+import { PasswordInput } from "./PasswordInput";
 import { useBrowserOnline } from "./useBrowserOnline";
 
 /**
@@ -77,14 +78,12 @@ export function LoginForm({
       </div>
       <div className="field">
         <label htmlFor={`${formId}-password`}>Mot de passe</label>
-        <input
+        <PasswordInput
           id={`${formId}-password`}
-          className="underline-field"
-          type="password"
           autoComplete="current-password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          data-testid="login-password"
+          onChange={setPassword}
+          testId="login-password"
         />
       </div>
 

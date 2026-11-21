@@ -2,6 +2,9 @@ import { useId, useState, type FormEvent } from "react";
 import { useApiClient } from "../../app/apiClientContext";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { signUp, type UserRead } from "./authApi";
+import { PasswordInput } from "./PasswordInput";
+import { PasswordRulesList } from "./PasswordRulesList";
+import { passwordAcceptable } from "./passwordRules";
 import { useBrowserOnline } from "./useBrowserOnline";
 
 /**
@@ -9,10 +12,10 @@ import { useBrowserOnline } from "./useBrowserOnline";
  * mot de passe. Inscription ouverte, sans invitation (P2) ; le serveur pose le
  * rôle `user` et ouvre la session dans la même réponse.
  *
- * Le motif de mot de passe du contrat (`PASSWORD_PATTERN`, exposé par
- * `json_schema_extra` dans `UserSignUp.password`) est affiché en aide de
- * champ, pas appliqué côté client : c'est le serveur qui tranche (422 sinon),
- * pour ne pas dupliquer une règle qui pourrait diverger du contrat.
+ * Les règles du mot de passe se cochent au fil de la saisie et retiennent
+ * « Créer un compte » tant qu'une manque, comme au changement de mot de passe
+ * (`passwordRules.ts`, dont un test relit le motif du contrat pour que les deux
+ * ne divergent pas). Le serveur reste juge : un 422 s'affiche tel quel.
  */
 export function SignUpForm({ onSuccess }: { onSuccess: (user: UserRead) => void | Promise<void> }) {
   const client = useApiClient();
@@ -86,16 +89,15 @@ export function SignUpForm({ onSuccess }: { onSuccess: (user: UserRead) => void 
       </div>
       <div className="field">
         <label htmlFor={`${formId}-password`}>Mot de passe</label>
-        <input
+        <PasswordInput
           id={`${formId}-password`}
-          className="underline-field"
-          type="password"
           autoComplete="new-password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          data-testid="signup-password"
+          describedBy={`${formId}-password-rules`}
+          onChange={setPassword}
+          testId="signup-password"
         />
-        <p className="hint">Au moins 12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole.</p>
+        <PasswordRulesList id={`${formId}-password-rules`} value={password} testId="signup-password-rules" />
       </div>
 
       {!online && (
@@ -112,7 +114,9 @@ export function SignUpForm({ onSuccess }: { onSuccess: (user: UserRead) => void 
       <button
         type="submit"
         className="btn btn-primary"
-        disabled={action.pending || !online || email.trim() === "" || username.trim() === "" || password === ""}
+        disabled={
+          action.pending || !online || email.trim() === "" || username.trim() === "" || !passwordAcceptable(password)
+        }
         data-testid="signup-submit"
       >
         {action.pending ? "Création du compte…" : "Créer un compte"}
