@@ -44,7 +44,7 @@ export function continueBlocked(
 }
 
 /** Les lignes du plan, sous la forme que `DeckTables` lit (aucune n'est encore en file). */
-export function previewLines(plan: DeckImportPlan): LocalDeckCard[] {
+export function previewLines(plan: { lines: readonly DeckImportPlan["lines"][number][] }): LocalDeckCard[] {
   return plan.lines.map((line) => ({
     cardId: line.cardId,
     languageCode: line.languageCode,
@@ -57,7 +57,7 @@ export function previewLines(plan: DeckImportPlan): LocalDeckCard[] {
 }
 
 /** « 102 cartes en proxy : le deck autorisera les proxies. Il est créé en brouillon. » */
-export function importEffectText(plan: DeckImportPlan): string {
+export function importEffectText(plan: Pick<DeckImportPlan, "summary">): string {
   if (plan.summary.proxies === 0) return "Aucune carte reconnue : rien à importer.";
   return `${plural(plan.summary.proxies, "carte")} en proxy : le deck autorisera les proxies. Il est créé en brouillon, sans rien prendre à la collection.`;
 }

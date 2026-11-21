@@ -59,6 +59,23 @@ describe("Root, aiguillage avant AuthGate", () => {
     expect(screen.queryByTestId("public-page")).toBeNull();
   });
 
+  it("recharge en suivant un lien « Dupliquer » ou « Comparer » de la page publique (Lot 13, D5)", () => {
+    for (const hash of [
+      "#/decks?action=dupliquer&liste=aB3x_9pQ",
+      "#/decks?action=comparer&liste=aB3x_9pQ&revision=1=2;3=-1",
+    ]) {
+      window.location.hash = "#/liste/aB3x_9pQ";
+      const reload = vi.fn();
+      const view = render(<Root reload={reload} />);
+      goTo(hash);
+      expect(reload).toHaveBeenCalledTimes(1);
+      // Le hash cible est déjà dans l'adresse au rechargement : l'intention n'est pas perdue.
+      expect(window.location.hash).toBe(hash);
+      expect(authGateMounted).not.toHaveBeenCalled();
+      view.unmount();
+    }
+  });
+
   it("recharge en entrant dans la page publique depuis l'application", () => {
     window.location.hash = "#/decks";
     const reload = vi.fn();

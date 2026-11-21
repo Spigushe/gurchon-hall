@@ -1949,6 +1949,12 @@ et écarts retenus dans `docs/design-handoff/DECKS.md`) :
   disciplines en colonnes alignées (`cryptDisciplineColumns`), sur la ligne jusqu'à
   cinq colonnes, sous le nom au-delà ; bibliothèque avec les disciplines sous le nom
   sous 440px de section. Validé sur captures à 390px, faute de maquette.
+  *Amendé au Lot 13 (2026-11-21, retour de l'utilisateur)*, à toutes les largeurs :
+  seules les quatre disciplines les plus répandues restent alignées
+  (`ALIGNED_DISCIPLINE_COLUMNS`) ; au-delà, chaque vampire tasse les siennes à la
+  suite (`disciplineSlots`, `packedDisciplineSlots`), un deck jouant rarement sur
+  plus de trois disciplines. Sous le nom, au téléphone, les disciplines ne
+  s'alignent plus : six au plus par vampire, puis « … » qui nomme les autres.
 - **Liste des decks (P7).** Icônes de clan de la crypte et « crypte / bibliothèque »
   sur chaque ligne, aux deux largeurs ; au bureau, la ligne sélectionne et n'ouvre
   plus. L'aperçu perd le résumé à quatre chiffres au profit d'un badge de légalité et

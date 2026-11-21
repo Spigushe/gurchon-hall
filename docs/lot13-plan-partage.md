@@ -1,11 +1,11 @@
 # Lot 13 — Partage (v1.2) : plan d'implémentation
 
 Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
-décisions de conception reprises en conséquence ; **A1, B1, B2, C1, D1, D2,
-D3 et D4 livrées le 2026-11-20** (cf. « Livré à … » et « Vérification
-d'intégration après B1, B2 et C1 »), A1, D1 et D4 commitées (`a33e5e6`), B1,
-B2 et C1 (`236b9b7`) ; D2 et D3 corrigées après relecture des captures ;
-**D5 et D6 à venir**. Rédigé sur la
+décisions de conception reprises en conséquence ; **A1, B1, B2, C1 et D1 à
+D6 livrées les 2026-11-20 et 21** (cf. « Livré à … » et les deux sections
+« Vérification d'intégration »), A1, D1 et D4 commitées (`a33e5e6`), B1, B2
+et C1 (`236b9b7`), D2 et D3 (`8bbc0de`) ; **reste E (QA), puis F (mise en
+service v1.2.0)**. Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
@@ -322,7 +322,9 @@ montre ce message plutôt qu'une erreur du navigateur.
   une feuille : cartes en plus, en moins et quantités changées, sur la
   présentation des « changements depuis la version précédente » du Lot 8.
   Lecture seule. Pas de comparaison avec la collection : « ce qui me manque »
-  relève du Lot 17 (A9) ;
+  relève du Lot 17 (A9). *Précisé le 2026-11-21* : la liste partagée est le
+  départ, **mon deck l'arrivée**, et mon deck s'affiche aussi en tableaux
+  marqués comme une révision (« Retours de l'utilisateur sur le preview ») ;
 - **Réviser** : modifier la liste et partager le lien de la liste modifiée,
   « même comportement que VDB » ; sa forme fait l'objet de P8 (A10).
 
@@ -645,6 +647,14 @@ Affichage en lecture seule, sous forme d'écran
 propres appareils) ; aucun bouton pour appliquer les différences à mon deck
 dans ce lot.
 
+*Précisé le 2026-11-21 (retours de l'utilisateur)* : la liste partagée est le
+**départ** et mon deck l'**arrivée** (`versionChanges(liste, mon deck)`). Le
+bloc des écarts se lit dans cet ordre : seulement dans mon deck, quantités
+différentes (liste partagée → mon deck), seulement dans la liste partagée ;
+sans note de bas de bloc. Sous le bloc, mon deck en `DeckTables` lecture
+seule, chaque ligne marquée de son écart comme dans une révision, et les cartes
+de la liste absentes de mon deck réintégrées à 0, nom barré.
+
 ### A10. Réviser une liste partagée (P8)
 
 Sur la page publique, sans compte. « Réviser » passe la liste en édition :
@@ -701,8 +711,8 @@ demande).
 | D2 | feuille de partage (deck, version), « Listes partagées » et ses purges dans l'écran Compte — **fait le 2026-11-20** (cf. « Livré à D2 ») | frontend-react |
 | D3 | page publique, aux deux largeurs — **fait le 2026-11-20** (cf. « Livré à D3 ») | frontend-react |
 | D4 | art de l'extension dans la Collection — **fait le 2026-11-20** (cf. « Livré à D4 ») | frontend-react |
-| D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
-| D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision | frontend-react |
+| D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison — **fait le 2026-11-20** (cf. « Livré à D5 ») | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
+| D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision — **fait le 2026-11-20** (cf. « Livré à D6 ») | frontend-react |
 | E | tests manquants, e2e, CRAP, recensement des `data-testid`, captures | qa-tests |
 | F | mise en service v1.2.0 : staging, essai de R16 sur une copie de la production, release, production, vérification sur téléphone et depuis un appareil sans compte | utilisateur, devops-deploiement |
 
@@ -1059,7 +1069,9 @@ aucun champ de contrat, aucun type `/sync`, aucune migration, aucune version Dex
 - **Mise en page** (`PublicDecklistPage.tsx`) : la carte d'authentification
   provisoire de C1 est remplacée par `main.public-list` (colonne bornée à 1200 px,
   marges du bureau à partir de 1024 px, pied collé en bas). Nom, puis
-  « par @auteur · archétype · N cartes » (libellés de `DECK_ARCHETYPE_LABELS`), pour
+  « par @auteur · archétype · N cartes » (libellés de `DECK_ARCHETYPE_LABELS` ; le
+  2026-11-21, à la demande de l'utilisateur, le total devient « 12 crypte ·
+  90 bibliothèque », lu dans les deux sections des tableaux), pour
   un figé « Liste du 20 novembre 2026 » (date en UTC), notes sous un `deck-notes`
   (sauts de ligne gardés, Markdown brut), puis `DeckTables` en lecture seule.
   Bureau : crypte et bibliothèque côte à côte en 3 fr / 2 fr (à parts égales, les
@@ -1141,6 +1153,84 @@ aucun champ de contrat, aucun type `/sync`, aucune migration, aucune version Dex
      Le spec des captures a un délai de 240 s : la machine était saturée par d'autres
      passes.
 
+### Livré à D6 (2026-11-20)
+
+« Réviser » sur la page publique, front seul : aucune route, aucun champ de contrat
+(le filtre `ids` de `GET /cartes` existe depuis B2), aucun type `/sync`, aucune
+migration, aucune version Dexie. Sans compte, sans base, `credentials: "omit"`.
+
+- **Module pur** `features/share/revisionModel.ts` : `parseRevision`, `encodeRevision`,
+  `applyRevision` (interface convenue avec D5), plus `normalizeDeltas`, `withQuantity`
+  (l'écart devient « quantité voulue − quantité d'origine »), `splitKnown`,
+  `formatDelta` et `noticeMessages`. Table de cas dans `revisionModel.test.ts` : ajout,
+  retrait partiel et total, écart nul, passage sous zéro, carte inconnue, adresse
+  tronquée, exemple de VDB, identifiant non numérique, doublon.
+- **Doublon d'identifiant : sommé, pas signalé.** `5=1;5=2` vaut `5=3`, et une somme
+  nulle disparaît comme un écart nul. Un doublon n'est pas une erreur de lecture : il
+  n'a qu'un sens, et le signaler aurait fait croire à une adresse abîmée.
+- **Lecture stricte, rien de deviné.** Une partie lisible est `identifiant=écart` avec
+  l'identifiant entier de 1 à 2 147 483 647 et l'écart entier signé (`+` accepté) de
+  999 au plus en valeur absolue ; tout le reste est compté « illisible » (tronqué,
+  non numérique, décimal, hors borne). Un `;` final et les parties vides ne comptent
+  pas. La valeur est passée par `decodeURIComponent` (une adresse recopiée avec
+  `%3D` et `%3B` se lit), brute si le décodage échoue.
+- **Trois avis distincts**, dits au-dessus des tableaux (`revision-notices`) :
+  « N modification(s) illisible(s) ignorée(s) », « N carte(s) inconnue(s) ignorée(s) »
+  (ou, quand la lecture des cartes ajoutées a échoué faute de réseau, « n'a pas pu
+  être lue (réseau) et est ignorée »), « N retrait(s) supérieur(s) à la quantité
+  ramené(s) à zéro ». Calculés une fois sur l'adresse ouverte et gardés pendant la
+  session, bien que la première modification réécrive l'adresse sans eux.
+- **Adresse.** `useExternalRevision` : `write` réécrit par `history.replaceState`
+  (`#/liste/<jeton>?revision=<écarts>`, sans entrée d'historique). `replaceState` ne
+  déclenche pas `hashchange` ; `Root` ne voit rien passer et ne recharge pas (la
+  frontière publique/application n'est pas franchie). Une adresse changée à la main
+  déclenche `hashchange` : si son paramètre diffère de **ce que la page a écrit en
+  dernier**, le corps repart de la nouvelle adresse (clé sur un compteur). On compare à
+  l'écrit et non à ce que `Root` a gardé, qui reste périmé après un `replaceState` :
+  revenir à l'adresse d'origine est donc relu. Un autre jeton reste l'affaire de `Root`.
+- **Affichage.** `PublicListBody.tsx` (nouveau) porte l'en-tête, les actions, les tableaux
+  et la révision ; `PublicDecklistPage.tsx` ne garde que les états et le cadre.
+  `public-list-actions` contient « Exporter », « Réviser » (« Terminer la révision »
+  en édition) et, dès qu'il y a un écart, « Copier le lien de la révision » (repli
+  sélectionné hors contexte sécurisé, `CopiedLink` de D2). **D5 monte « Dupliquer » et
+  « Comparer » dans ce même conteneur, donc dans `PublicListBody.tsx`.** Bandeau
+  « Révision de la liste de @auteur » sous le nom.
+- **Édition.** `DeckTables` par ses fonctions de rendu (`renderQuantity`, `rowClassName`),
+  **sans le modifier** : stepper `qty-stepper` (`−`, valeur, `+`, plafond 99), écart
+  marqué (`+1`, `−1`, « nouvelle »), ligne teintée. Une carte à 0 sort des tableaux et
+  se range sous « Cartes retirées » (barrée, avec son écart, « Rétablir » en édition).
+  Recherche (`RevisionSearch`) : `GET /cartes?q=…&limit=8`, après 250 ms de pause, deux
+  caractères au moins, « La recherche demande une connexion au réseau » sans réseau.
+  Hors édition, une révision s'affiche en lecture seule avec ses écarts.
+- **Ce que la révision garde de la liste.** Nom, archétype et notes d'origine
+  restent ceux de la liste d'@auteur ; le total de cartes suit la révision. Les
+  exports (quatre formats) et, plus tard, Dupliquer et Comparer lisent la liste
+  retouchée par `revisedList` (même forme que la réponse de `/listes/{token}`).
+- **Écart au plan : `(G6)` des cartes ajoutées.** `reprinted_card_ids` vient de la liste
+  d'origine ; un vampire réimprimé **ajouté** par la révision s'exporte donc sans
+  marque de groupe. Rien n'est deviné.
+- **Écart au plan : adresse au format de VDB.** Non faite (hors lot par défaut, P8) :
+  elle ne coûte pas « presque rien », puisqu'elle demande les noms de VDB de chaque
+  carte retouchée et une décision sur la revue qu'on y ouvrirait.
+- **Un écart pour une carte déjà dans la liste d'origine** n'appelle aucune lecture : ses
+  faits sont dans la réponse. Seules les cartes ajoutées sont lues, par paquets de 200
+  identifiants.
+- **Tests** : `revisionModel.test.ts` (table de cas), `PublicRevision.test.tsx`
+  (édition et adresse, retrait et rétablissement, recherche, ouverture d'une révision,
+  avis, réseau absent, adresse changée à la main et retour à l'origine, lien copié,
+  export de la liste retouchée). e2e réel `lot13-revision` aux deux largeurs
+  (`tests/e2e-real/` et `tests/e2e-desktop-real/`, scénario dans `support/lot13revision.ts`) :
+  révision faite dans un contexte sans compte, adresse relue dans un contexte neuf,
+  révisée à son tour et exportée, écart illisible signalé. Captures :
+  `tests/visual-baseline/lot13-d6.spec.ts`, sortie `docs/qa-baselines/lot13-d6/`.
+  **Non lancés** par l'agent (machine partagée) : les e2e et les captures.
+- **`data-testid`** ajoutés : `public-list-revise`, `revision-banner`, `revision-copy-link`,
+  `revision-copied`, `revision-notices`, `revision-notice`, `revision-quantity`,
+  `revision-delta`, `revision-minus`, `revision-plus`, `revision-removed`,
+  `revision-removed-row`, `revision-restore`, `revision-search-panel`, `revision-search`,
+  `revision-search-results`, `revision-search-result`, `revision-search-failed`,
+  `revision-add`. Aucun disparu.
+
 ### Livré à D2 (2026-11-20)
 
 Feuille de partage et « Listes partagées », front seul : aucune route, aucun champ
@@ -1218,6 +1308,71 @@ de contrat, aucun type `/sync`, aucune version Dexie. Tout vit dans
   (opacité à 1, position stable) ; la `03` du bureau avait été prise en
   transparence.
 
+### Livré à D5 (2026-11-20)
+
+« Dupliquer » et « Comparer » une liste partagée, front seul : aucune route d'API, aucun type
+`/sync`, aucune migration, aucune version Dexie.
+
+- **Intentions dans l'adresse** (`app/routes.ts`) : `#/decks?action=dupliquer&liste=<jeton>` et
+  `#/decks?action=comparer&liste=<jeton>`, avec `&revision=<brut>` pour une révision. La route
+  `decks` gagne `list` (`SharedListRef`) ; une intention sans jeton valide est ignorée. La
+  révision est lue et réécrite **brute** (jamais décodée ici, ses `=` et `;` restent tels quels).
+  `consumeIntent` retire intention et liste d'un coup, l'onglet `filtre` reste. Nouvelle route
+  `compare` : `#/decks/<clé>/comparer/<jeton>[?revision=…]`, rechargeable.
+- **Page publique** : `PublicListAccountActions` (`{ token, revision }`) lit
+  `readActiveAccountId()` une fois. Avec un compte : « Dupliquer » et « Comparer » (liens
+  `public-list-duplicate`, `public-list-compare`) ; sans : un seul lien « Se connecter pour
+  dupliquer ou comparer » (`public-list-sign-in`), qui porte l'intention **Dupliquer** (choix :
+  un lien ne peut porter qu'une intention, et Comparer suppose déjà des decks à comparer, donc un
+  compte déjà utilisé sur l'appareil). **Non monté** par D5 (`PublicListBody` appartient à D6) :
+  l'orchestrateur le place dans `public-list-actions`. Le changement de hash franchit la
+  frontière et recharge (test de `Root` sur les deux formes d'adresse, hash cible conservé).
+- **Reprise après connexion** : `AuthGate` ne touchait pas au hash, rien à corriger (test : l'adresse
+  à intention reste intacte sur l'écran de connexion, puis la feuille s'ouvre après la connexion).
+  **Un trou, corrigé** : `DecksPage` consomme l'intention dès qu'elle l'a lue, et une session expirée
+  démonte l'application (`AuthWatcher`, écran verrouillé) puis la remonte, hash nu. L'intention est donc
+  gardée en mémoire du module (`listIntent.ts`, jamais stockée) jusqu'à la fermeture de la feuille, et
+  `DecksPage` la rouvre au remontage.
+- **Dupliquer (A8)** : `ListIntentSheet` lit la liste par `usePublicDecklist` (réutilisé : même
+  `GET /listes/{token}`, `credentials: "omit"`), puis l'aperçu de l'import du Lot 9 (nom,
+  archétype prérempli, langue des proxies EN, notes : celles du lien s'il les montre, puis
+  « Dupliqué de la liste partagée le … ») et `actions.importDeck` (file, `enqueueAll`). Plan pur :
+  `duplicateModel.ts` (`planDuplicate`) ; tout en proxy, dernière extension, brouillon,
+  `proxyAllowed`, aucun `vdbDeckId`. Faits des cartes lus dans le **miroir** (`useDeckCardFacts`) :
+  une carte absente le bloque « Créer » avec un message. Hors ligne, 404, 429 et erreurs : un message
+  (`list-intent-read-error`, `data-reason`), aucune écriture. `previewLines` et `importEffectText` du
+  Lot 9 sont assouplis (types seulement) pour accepter le plan.
+- **Comparer (A9)** : la feuille lit la liste puis propose mes decks (`useLocalDecks({ state: "all" })`,
+  archivés compris, la file des supprimés n'étant pas dans le miroir) ; le choix ouvre
+  `ComparePage`. `compareModel.ts` : quantités totales par carte (`deckQuantities`), comptes crypte et
+  bibliothèque des deux côtés, et **`versionChanges` du Lot 8 réutilisé tel quel** (avant = mon deck,
+  après = la liste : entrées = seulement dans la liste, sorties = seulement dans mon deck ; sens
+  inversé le 2026-11-21, mon deck devenant l'arrivée, cf. « Retours de l'utilisateur sur le
+  preview »). Les groupes
+  s'affichent par `ChangeGroup` de `DeckVersionPage` (rendu exporté, seule retouche de ce fichier). Lecture
+  seule, aucun bouton d'application.
+- **Révision** : `effectiveList.ts` appelle `parseRevision` et `applyRevision` de `revisionModel.ts` (D6) et
+  garde les lignes de quantité positive ; « N modification(s) illisible(s) ignorée(s) » comme la page publique.
+  **Écart** : les faits des cartes ajoutées par une révision viennent du miroir, pas de
+  `GET /cartes?ids=` ni de `revisedList` (conseillés après coup par D6) : Dupliquer et Comparer en ont
+  besoin de toute façon dans le miroir, et l'une comme l'autre n'ont pas à attendre une seconde lecture réseau.
+  Les écarts qui passeraient sous zéro (`clamped`) ne sont pas signalés dans ces deux écrans, seulement sur la page.
+- **Écarts au plan** : aucun sur A8, A9 ; le lien sans compte ne porte que Dupliquer (ci-dessus) ; Comparer
+  ne dit pas « mon deck » par version, seulement le deck vivant.
+- **Tests** : `listIntentModels.test.ts` (liste effective, plan, comparaison), `PublicListAccountActions.test.tsx`,
+  `routes.test.ts` (intentions, comparaison), `Root.test.tsx` (liens de la page publique), `authGate.test.tsx`
+  (intention à travers la connexion), `tests/unit/ui/listIntents.test.tsx` (11 : duplication, révision,
+  carte inconnue, hors ligne, 404, intention gardée au remontage ; comparaison, rechargement, révision,
+  identiques, réseau, deck inconnu) ; le banc d'essai `harness.tsx` gagne `ui.lists` (`GET /listes/{token}`).
+  e2e réels `lot13-dupliquer-comparer` aux deux largeurs (second compte inscrit par l'UI, intention reprise,
+  deck créé par la file, comparaison avec et sans révision, rechargement), qui suppose le montage de
+  `PublicListAccountActions`. Captures `tests/visual-baseline/lot13-d5.spec.ts` (sortie `docs/qa-baselines/lot13-d5/`) :
+  `01` aperçu de duplication, `02` carte inconnue, `03` choix du deck, `04` identiques, `05` avec révision, `06` hors ligne.
+  **Ni e2e ni captures lancés** à D5.
+- **`data-testid`** ajoutés : `public-list-duplicate`, `public-list-compare`, `public-list-sign-in`,
+  `list-intent-sheet`, `list-intent-read-error`, `list-intent-missing`, `list-intent-unreadable`,
+  `list-duplicate-*`, `list-compare-*`, `compare-*`. Aucun disparu.
+
 ### Vérification d'intégration après B1, B2 et C1 (2026-11-20)
 
 Les agents n'ayant pas relancé leurs suites complètes après leurs dernières
@@ -1230,6 +1385,97 @@ Une disparition passagère des modifications de
 `test_lot6_authorization_matrix.py`, relevée par l'agent de B1/B2 et refaite
 par lui, a été contrôlée : le test de la route publique y est bien. Cause
 probable : une resynchronisation de OneDrive.
+
+### Vérification d'intégration après D5 et D6 (2026-11-21)
+
+D5 et D6 ont été écrites en parallèle, sans Playwright ni suite complète, avec
+un partage de fichiers fixé d'avance (D6 seule sur la page publique, interface
+de `revisionModel.ts` imposée aux deux). Ce que l'intégration a ajouté ou
+corrigé :
+
+- **Montage** de `PublicListAccountActions` dans `public-list-actions`
+  (`PublicListBody.tsx`), avec la révision **en cours** (`encodeRevision` des
+  écarts de la session) : les liens Dupliquer et Comparer suivent chaque
+  modification sans rechargement.
+- **Marque d'écart déplacée dans la cellule du nom.** Rendue dans celle de la
+  quantité, trop étroite, « nouvelle » chevauchait la capacité et « +1 » le nom
+  au mobile (« 4+19 Operation »). Elle passe par `renderName` de `DeckTables`
+  (`RevisionName`, `RevisionParts.tsx`) : le nom se tronque, la marque garde sa
+  place, comme l'icône « en attente ». `RevisionQuantity` ne porte plus que la
+  quantité ; `revision-delta` garde son nom.
+- **Pluriel** de l'écran de comparaison : « 5 carte distinctes » devient
+  « 5 cartes distinctes ».
+- **Deux tests unitaires instables** de `listIntents.test.tsx`, échoués deux
+  fois sur trois : le moteur de rejeu tourne (en ligne), si bien que les
+  opérations sont tantôt en file, tantôt déjà parties au serveur simulé, et
+  la page du deck créé peut lancer une lecture en ligne de plus. Le test lit
+  maintenant la file **et** les lots `/sync` envoyés (`writtenOperations`), et
+  ne compte que les lectures de `/listes/…`. Quatre passages sur quatre verts.
+- **e2e Dupliquer et Comparer** : depuis l'écran de comparaison, aller sur
+  `#/liste/…` fait recharger la page par `Root` lui-même (C1) ; le
+  `page.reload()` du scénario entrait en course avec ce rechargement
+  (`net::ERR_ABORTED`). Le scénario attend la page publique à la place.
+- **Captures** : le spec de D6 demandait treize cartes à un catalogue de test
+  qui en a moins ; celui de D5 attendait le message hors ligne sur un lien déjà
+  lu, que le navigateur ressert depuis son cache (`Cache-Control: public,
+  max-age=60`, B2) même hors ligne. Ce n'est pas un défaut : la capture vise
+  maintenant un lien jamais lu. À garder en tête pour la vérification sur
+  téléphone : un lien ouvert dans la minute s'affiche encore en mode avion.
+
+Résultats sur l'arbre réuni : `npm run lint`, `tsc -p tsconfig.app.json`,
+`npm run typecheck:tests` propres ; vitest sous couverture à **1931 verts sur
+111 fichiers** ; aucune régression CRAP ; recensement des `data-testid` sans
+disparu (777 en référence). e2e réels du lot aux deux largeurs : liste
+publique, révision, Dupliquer et Comparer, **6 sur 6**. Captures `lot13-d5`
+(six par largeur) et `lot13-d6` (quatre par largeur) relues.
+
+Instabilités vitest relevées pendant les passages complets, chacune une seule
+fois et verte seule : `games.test.tsx`, `tournaments.test.tsx` (nom du deck pas
+encore chargé quand l'assertion part), `gamesLot8.test.tsx` (délai de 5 s),
+`decks.test.tsx` (conversion de proxies). Sans lien avec le lot ; la même
+nature que la flakiness des Lots 5c et 6. À reprendre à E si elles reviennent.
+
+### Retours de l'utilisateur sur le preview (2026-11-21)
+
+- **En-tête de la page publique** : « 102 cartes » devient « 12 crypte ·
+  90 bibliothèque », lu dans les deux sections des tableaux (il suit une
+  révision).
+- **Comparer : mon deck est l'arrivée.** `compareLists` passe la liste
+  partagée en départ (`versionChanges(shared, mine)`) : les entrées sont les
+  cartes seulement dans mon deck, les sorties celles seulement dans la liste, et
+  « Quantités différentes (liste partagée → mon deck) » va de sa quantité à la
+  mienne. Bloc réordonné : seulement dans mon deck, quantités différentes,
+  seulement dans la liste partagée. Les `data-testid` restent attachés à leur
+  libellé (`compare-only-out` = seulement dans mon deck, `compare-only-in` =
+  seulement dans la liste). Cartouches : la liste à gauche, mon deck à droite.
+- **Comparer : note retirée** (« Carte × quantité totale seulement… N cartes
+  distinctes… »).
+- **Comparer : mon deck en tableaux, comme une révision** : `DeckTables` en
+  lecture seule, sans proxies, chaque ligne marquée de son écart à la liste
+  (`RevisionName`, `revisionRowClass`, désormais dans `revisionModel.ts`), et
+  les cartes de la liste absentes de mon deck **réintégrées dans les tableaux**
+  à 0, nom barré, marquées « −N » (`revision-row--removed`). Groupes et capacité
+  moyenne de la crypte restent ceux de mon deck seul.
+- **Révision : toute la ligne d'un résultat de recherche ajoute la carte.** Le
+  bouton `revision-add` couvre la ligne ; « Ajouter » y reste en libellé visible.
+- **Crypte, partout (`DeckTables`) : quatre colonnes de disciplines alignées,
+  puis tassées.** Les quatre plus répandues restent en colonnes ; au-delà,
+  chaque vampire tasse ses autres disciplines à la suite, dans autant de cases
+  que le vampire qui en a le plus (`ALIGNED_DISCIPLINE_COLUMNS`,
+  `disciplineSlots`, `packedDisciplineSlots`, `deckTablesModel.ts`). Raison de
+  l'utilisateur : on gagne de la place, et un deck joue rarement sur plus de
+  trois disciplines. Le passage sous le nom au mobile (P5) compte désormais les
+  cases affichées, plus les colonnes. Les noms de crypte ne sont plus coupés au
+  bureau.
+- **Faux défaut écarté** : `/sync` en 401 juste après une connexion réussie
+  venait d'un preview ouvert par `localhost:4173` alors que l'API du build est
+  sur `192.168.1.91:8000` (cookie `SameSite=Lax` non envoyé), piège noté dans
+  `frontend/.env.local`.
+
+Vérifié : lint, `tsc`, `typecheck:tests` propres ; vitest sous couverture à
+**1935 verts sur 111 fichiers** ; aucune régression CRAP ; recensement sans
+disparu ; e2e du lot et `deck-tables` aux deux largeurs, **11 sur 11** ;
+captures `lot13-d3`, `lot13-d5`, `lot13-d6` refaites et relues.
 
 ## Tests attendus (E)
 

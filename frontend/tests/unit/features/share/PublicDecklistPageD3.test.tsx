@@ -56,7 +56,7 @@ describe("page publique : liste", () => {
   it("montre le nom, l'archétype, l'auteur et le nombre de cartes", async () => {
     renderPage(LIVE);
     expect((await screen.findByTestId("public-list-name")).textContent).toBe("Banu Princes");
-    expect(screen.getByTestId("public-list-meta").textContent).toBe("par @alice · Bleed · 9 cartes");
+    expect(screen.getByTestId("public-list-meta").textContent).toBe("par @alice · Bleed · 3 crypte · 6 bibliothèque");
     expect(screen.queryByTestId("public-list-frozen")).toBeNull();
     expect(screen.queryByTestId("public-list-notes")).toBeNull();
   });
@@ -92,10 +92,11 @@ describe("page publique : liste", () => {
       ],
     });
     const tables = await screen.findByTestId("deck-tables");
-    // Neuf colonnes alignées par vampire ; en section étroite, les cases vides
-    // et la septième discipline d'Anson se cachent.
-    expect(tables.querySelectorAll(".deck-table__disc-slot")).toHaveLength(18);
-    expect(tables.querySelectorAll(".deck-table__disc-slot--empty")).toHaveLength(9);
+    // Quatre colonnes alignées (AUS, CEL, DOM, FOR), puis trois cases tassées
+    // (Anson : OBT, POT, PRE ; Lucita : THA, VIC) : sept cases par vampire. En
+    // section étroite, les cases vides et la septième discipline d'Anson se cachent.
+    expect(tables.querySelectorAll(".deck-table__disc-slot")).toHaveLength(14);
+    expect(tables.querySelectorAll(".deck-table__disc-slot--empty")).toHaveLength(5);
     expect(tables.querySelectorAll(".deck-table__disc-slot--overflow")).toHaveLength(1);
     const more = within(tables).getAllByTestId("deck-table-disc-more");
     expect(more).toHaveLength(1);
