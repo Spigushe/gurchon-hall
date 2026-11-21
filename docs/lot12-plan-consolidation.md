@@ -4,7 +4,8 @@ Statut : **proposé le 2026-11-17, P1 à P10 tranchées et brief Claude Design
 écrit le 2026-11-18, D0 close le 2026-11-18 ; A1, B1, B2, B3, B4, D4 et C1
 livrées le 2026-11-18, D1, D5, D2 et D3 le 2026-11-19, E le 2026-11-20**
 (cf. « Livré à A1 » à « Livré à E ») ; relevés HTTPS d'A0 faits le 2026-11-20 ;
-F en cours (cf. « Avancement de F »).
+F faite le 2026-11-20, v1.1.0 en production, renouvellement d'une session relevé
+le 2026-11-21 ; **lot clos le 2026-11-21** (cf. « Avancement de F »).
 Rédigé sur la
 branche `lot12-consolidation`, ouverte depuis `main` à `e9dd7bf` (v1.0.0 en
 production, feuille de route de la v2 arrêtée). Les décisions A1 à A10 sont des
@@ -1638,7 +1639,7 @@ Sur le téléphone :
 - [X] La v1.1 s'installe, sans bandeau (dernier passage en `autoUpdate`, A6) ; la saisie restée en file se rejoue sans refus ni perte (12:25:04 UTC).
 - [X] La base IndexedDB déjà utilisée monte sans perte.
 - [X] La connexion note l'appareil : l'écran Compte liste « Chrome sur Windows » (« Cet appareil ») et « Chrome sur Android » (« Fermer »), pied de page « Application 1.1.0 · Serveur 1.1.0 ».
-- [ ] **Renouvellement d'une session de plus de 24 heures**, à relever **après le 2026-11-21 à 12:29 UTC** (13:29 à Paris) : ouvrir l'application sur le téléphone, puis relancer la commande. Attendu pour l'`id` 2 : `last_used_at` à l'heure de l'ouverture, `expires_at` à cette heure + 14 jours (vers le 5 décembre).
+- [X] **Renouvellement d'une session de plus de 24 heures**, à relever **après le 2026-11-21 à 12:29 UTC** (13:29 à Paris) : ouvrir l'application sur le téléphone, puis relancer la commande. Attendu pour l'`id` 2 : `last_used_at` à l'heure de l'ouverture, `expires_at` à cette heure + 14 jours (vers le 5 décembre).
 
   ```bash
   cd ~/projects/api-gurchon.spigushe.com/backend
@@ -1647,6 +1648,16 @@ Sur le téléphone :
   ```
 
   Il ne reste **aucune session v1.0** : le relevé prévu (« la session v1.0 est renouvelée à sa première requête ») ne peut plus se faire. Les deux sessions du 2026-11-17 relevées à l'étape 0 existaient encore dans la sauvegarde de 03:30 UTC (étape 3) ; une session sans appareil, ouverte par l'API v1.0 le 2026-11-20 à 10:08 UTC, les avait remplacées avant le déploiement, puis a été fermée après 12:29:02 UTC. Les deux sessions restantes ont été ouvertes par la v1.1 à 12:29. Le renouvellement d'une session v1.1 passe par le même code (`renew_session` : `last_used_at` absent, donc `created_at`, et `user_agent` jamais lu) : seul le délai de 24 heures reste à attendre.
+
+  **Le 2026-11-21 à 14:34 UTC**, relancer la commande : `last_used_at` doit être à l'heure de l'ouverture, `expires_at` à cette heure + 14 jours.
+
+  ```bash
+  cd ~/projects/api-gurchon.spigushe.com/backend
+  uv run python -c "import sqlite3; c=sqlite3.connect('vtes.db'); print(c.execute('select id, user_id, created_at, last_used_at, expires_at, user_agent from auth_session').fetchall())"
+  >>> [(2, 1, '2026-11-20 12:29:02.300661', None, '2026-12-04 12:29:02.300661', 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36'), (3, 1, '2026-11-20 12:29:33.601318', '2026-11-21 14:31:31.319955', '2026-12-05 14:31:31.319955', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36'), (4, 2, '2026-11-21 12:45:27.837320', None, '2026-12-05 12:45:27.837320', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:159.0) Gecko/20100101 Firefox/159.0')]
+  ```
+
+  Conforme. Le renouvellement porte sur la session de Chrome Windows (`id` 3) et non sur celle du téléphone (`id` 2), qui n'a pas servi depuis : `last_used_at` à 14:31:31 et `expires_at` 14 jours plus tard, au 2026-12-05 14:31:31. La session `id` 4, ouverte le jour même, appartient à un second compte et n'a pas encore 24 heures.
 
 Sur le VPS :
 
@@ -1696,11 +1707,11 @@ Sur le VPS :
 
   L'en-tête écrit « du le début » quand `--since` manque ; laissé tel quel (décision du 2026-11-20).
 
-- [ ] **Le 2026-11-21**, `bash ops/fetch_backups.sh` recopie la sauvegarde de la nuit (`vtes-20261121T0330…Z.db`), et aucun `.vtes-*.db.part` ne traîne. La copie d'avant déploiement (`vtes-avant-deploiement-20261120T122145Z.db`) est déjà sur le poste.
+- [X] **Le 2026-11-21**, `bash ops/fetch_backups.sh` recopie la sauvegarde de la nuit (`vtes-20261121T0330…Z.db`), et aucun `.vtes-*.db.part` ne traîne. La copie d'avant déploiement (`vtes-avant-deploiement-20261120T122145Z.db`) est déjà sur le poste.
 
 #### 6. Clôture (moi)
 
-- [ ] Résultats des relevés consignés dans CLAUDE.md, limites connues comprises ; statut du lot et du §12 passés à « clos ».
+- [X] Résultats des relevés consignés dans CLAUDE.md, limites connues comprises ; statut du lot et du §12 passés à « clos » (2026-11-21).
 - [X] Tag et release alignés sur le dépôt : `v1.1.0` vise `ddb2cf3`, tête de `main` au déploiement, release complète « On the Qui Vive v1.1.0 » publiée le 2026-11-20 à 12:20 UTC. La limite du Lot 11 est soldée.
 
 ## Tests attendus (E)

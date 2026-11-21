@@ -5,13 +5,14 @@
 > toute intervention.
 
 **État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11 et 12 livrés,
-v1.0.0 en ligne depuis le 2026-11-17, v1.1.0 (Lot 12) en cours de mise en service**
+v1.0.0 en ligne le 2026-11-17, v1.1.0 (Lot 12) en production depuis le 2026-11-20**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
 vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphone le
 2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17 ;
-Lot 12 testé le 2026-11-20, étape F, mise en service, en cours, §12). Lot 0 : squelette
+Lot 12 mis en service le 2026-11-20 et clos le 2026-11-21, après le relevé du
+renouvellement d'une session en production, §11 et §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -2278,8 +2279,9 @@ Limites connues après la première mise en ligne :
   `persisted` dans la PWA installée sur un poste Windows.*
 - **Tag et release à réaligner** : la v1.0.0 a été coupée avant la correction du
   domaine dans `ops/` et la doc ; le code déployé n'en dépend pas (le playbook
-  tourne depuis le poste), mais la release ne reflète pas l'état du dépôt. *À solder
-  par la v1.1.0 (Lot 12, P7).*
+  tourne depuis le poste), mais la release ne reflète pas l'état du dépôt. *Soldé
+  par la v1.1.0 (Lot 12, P7)* : tag `v1.1.0` sur `ddb2cf3`, tête de `main` au
+  déploiement.
 - **`--tags deploy` ne marche pas** avec les rôles de Barrin (le choix de la
   release n'a pas ce tag) : utiliser `--tags backend` ou `--tags frontend`.
 - **Sauvegardes sur le VPS seulement**, quatorze jours : à recopier ailleurs à la
@@ -2379,6 +2381,38 @@ pour le détail, handoff dans `docs/design-handoff/LOT12.md`) :
   (674 littéraux statiques distincts, 611 à la clôture du Lot 9) ; disparus et
   justifiés, `topnav-sync` et `sync-alert-link` (A11).
 
+Appliqué le 2026-11-20 (mise en service de la v1.1.0, étape F ; checklist et
+relevés complets dans « Avancement de F » de `docs/lot12-plan-consolidation.md`) :
+
+- **Staging d'abord** : R15 appliquée sur `gurchon-staging.spigushe.com`, écran
+  Compte, Synchronisation, légende `?` et onglets de Decks parcourus, bandeau du mode
+  `prompt` vu après un second passage du playbook.
+- **R15 essayée sur une copie de la base servie** (sauvegarde de la nuit,
+  `compare_db.py`) : les 27 autres tables identiques ligne à ligne, seule
+  `auth_session` gagne ses deux colonnes, `integrity_check` à `ok` et
+  `foreign_key_check` vide. C'est la première révision appliquée en production.
+- **Avant le tag**, les deux mises à jour Dependabot du jour, dont jsdom 31, avec un
+  correctif (PR #66) : le champ « Ex. » du tableau de la collection passe de
+  `disabled` à `readOnly` pendant l'enregistrement, faute de quoi le `blur` envoyé
+  par jsdom 31 et les navigateurs récents rendait le focus à `<body>`.
+- **Tag `v1.1.0` sur `ddb2cf3`**, release complète « On the Qui Vive v1.1.0 »,
+  `--tags backend` puis `--tags frontend` ; sauvegarde d'avant déploiement présente
+  et recopiée sur le poste.
+- **Sur le téléphone** : la v1.1 s'installe sans bandeau (dernier passage en
+  `autoUpdate`), la saisie laissée en file exprès se rejoue sans refus ni perte, la
+  base IndexedDB en service monte sans perte, l'écran Compte liste « Chrome sur
+  Windows » et « Chrome sur Android », pied « Application 1.1.0 · Serveur 1.1.0 ».
+- **Renouvellement relevé le 2026-11-21** : la session ouverte le 2026-11-20 à 12:29
+  UTC sur Chrome Windows, rouverte à 14:31 UTC, a `last_used_at` à 14:31 et
+  `expires_at` au 2026-12-05 14:31, soit 14 jours plus tard ; aucune session de la
+  v1.0 ne restait pour le relevé prévu (limite ci-dessous).
+- **Sur le VPS** : unité avec `UVICORN_ACCESS_LOG=false` et `LOG_LEVEL=INFO`,
+  `journalctl` en lignes JSON seulement (un `sync.batch` avant chaque `POST /sync`,
+  gabarits de route, `user_id` sur les seules routes sous session) ;
+  `sync_report.py` à 375 opérations, toutes appliquées, aucun refus ;
+  `ops/fetch_backups.sh` recopie la sauvegarde de la nuit du 2026-11-21 sans laisser
+  de `.part`.
+
 Limites connues à la clôture du Lot 12 :
 
 - **Le libellé d'appareil ment parfois** : un `User-Agent` se falsifie et certains
@@ -2387,8 +2421,15 @@ Limites connues à la clôture du Lot 12 :
   le plafond de 90 jours, l'expiration à 14 jours sans usage et la fermeture depuis
   l'écran Compte.
 - **Le mode `prompt` ne se vérifie en production qu'à la mise à jour suivante** : la
-  v1.0 installe la v1.1 en `autoUpdate`. Il est couvert par un e2e sur une vraie mise
-  à jour du service worker.
+  v1.0 a installé la v1.1 en `autoUpdate`, sans bandeau, comme prévu. Le bandeau a
+  été vu sur le staging, après un second passage du playbook, et un e2e le couvre
+  sur une vraie mise à jour du service worker.
+- **Renouvellement d'une session de la v1.0 jamais observé en production** : il n'en
+  restait aucune au déploiement. Celui d'une session de la v1.1 passe par le même
+  code et a été relevé ; les tests couvrent le cas d'une session sans
+  `last_used_at`.
+- **`persist()` non lu sur le téléphone** (il faudrait le débogage USB) : `persisted`
+  sur le poste Windows, en production comme sur le staging.
 - **Tri replié plus lent** côté serveur (environ une seconde de plus pour une lecture
   complète du catalogue).
 - **Instabilités e2e** relevées au dernier passage, sans lien avec le lot et non
@@ -2653,8 +2694,8 @@ nom** :
     catalogue à chaque passage, sauvegarde SQLite avant chaque déploiement et chaque
     nuit. Guide dans `docs/deploiement.md`, décisions et limites au §11. C'est la
     **première mise en ligne** (v1) ; restaient à relever en HTTPS la copie par le
-    presse-papiers et `persist()` (faits le 2026-11-20), et à réaligner tag et
-    release sur l'état du dépôt (v1.1.0, Lot 12).
+    presse-papiers et `persist()`, et à réaligner tag et release sur l'état du
+    dépôt, faits tous deux le 2026-11-20 (Lot 12, v1.1.0).
 
 **Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 (décisions
 V1 à V6, O1 et O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le
@@ -2662,8 +2703,8 @@ détail). Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v2.0.0 
 le Lot 14, l'identité d'une entrée de collection y changeant ; les lots suivants
 donnent des v2.x.
 
-14. **Lot 12 — Consolidation (v1.1)** — *livré et testé le 2026-11-20, mise en
-    service (étape F) en cours.* Ce qui manque à une application en production,
+14. **Lot 12 — Consolidation (v1.1)** — *livré, v1.1.0 en production depuis le
+    2026-11-20, clos le 2026-11-21.* Ce qui manque à une application en production,
     sans fonctionnalité métier nouvelle, sur le handoff `docs/design-handoff/LOT12.md`.
     Écran Compte (`#/compte`) aux deux largeurs : changement de mot de passe (les
     autres sessions fermées), sessions ouvertes avec appareil et dernière
@@ -2684,9 +2725,11 @@ donnent des v2.x.
     et `tsc` (application, config Vite, tests) propres ; 98 tests Playwright (8
     `chromium`, 51 `real-backend`, 3 `desktop`, 36 `desktop-real-backend`) ;
     références CRAP vides des deux côtés ; deux `data-testid` disparus, justifiés.
-    Reste F : staging, essai de R15 sur une copie de la base servie, release
-    complète v1.1.0, production, vérification sur téléphone (session de la v1.0
-    renouvelée, montée d'une base IndexedDB existante, file rejouée).
+    Mise en service : staging, R15 essayée sur une copie de la base servie puis
+    appliquée en production, première révision à l'être ; release complète v1.1.0
+    sur `ddb2cf3`, qui réaligne tag et dépôt ; sur téléphone, base IndexedDB
+    montée et file rejouée sans perte ; session renouvelée relevée en base le
+    2026-11-21 (§11, « Appliqué le 2026-11-20 »).
 15. **Lot 13 — Partage (v1.2).** Lien public vers une decklist, vivant ou figé
     (première route publique sur une donnée privée ; conception et cinq points à
     trancher dans `docs/pistes-evolution.md`) ; export aux formats `TWD`, `JOL` et
