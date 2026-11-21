@@ -2697,11 +2697,12 @@ nom** :
     presse-papiers et `persist()`, et à réaligner tag et release sur l'état du
     dépôt, faits tous deux le 2026-11-20 (Lot 12, v1.1.0).
 
-**Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 (décisions
-V1 à V6, O1 et O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le
-détail). Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v2.0.0 avec
-le Lot 14, l'identité d'une entrée de collection y changeant ; les lots suivants
-donnent des v2.x.
+**Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 et
+complétée le 2026-11-21 par le compte-rendu de tournoi (décisions V1 à V7, O1 et
+O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le détail).
+Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v1.3 à la fin du lot
+Compte-rendu, v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
+changeant ; les lots suivants donnent des v2.x.
 
 14. **Lot 12 — Consolidation (v1.1)** — *livré, v1.1.0 en production depuis le
     2026-11-20, clos le 2026-11-21.* Ce qui manque à une application en production,
@@ -2742,7 +2743,44 @@ donnent des v2.x.
     recueillir les retours qu'attendent plusieurs pistes du Lot 9, tenir une
     collection réelle dans l'outil. Elle se termine sur une décision de
     l'utilisateur, pas sur une date.
-16. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
+16. **Lot Compte-rendu de tournoi (v1.3).** Répond à l'issue #68, ajoutée à la
+    feuille de route le 2026-11-21 (V7), sauf ses commentaires, qui la fermeront
+    en v2.x ; nommé et non numéroté, comme Chercher,
+    pour que les Lots 14 à 17 gardent leur numéro. Après le Lot 13, dont il
+    reprend le lien public, et pendant la période de retours d'usage, puisqu'il
+    ne convertit aucune donnée existante. Il part de ce que l'outil sait déjà
+    d'un tournoi : ses notes et celles de ses parties (`tournament.notes`,
+    `game.notes`, `participation.notes`, depuis le Lot 7), mes rondes, ma
+    finale et mon classement, et la liste jouée de chaque deck (une, ou
+    plusieurs en multi-deck, versions du Lot 8). Il livre :
+    - un compte-rendu au format texte, sur le tournoi
+      (`#/tournois/<clé>/compte-rendu`), qui s'ouvre, se génère et se modifie
+      **hors ligne** ;
+    - des **versions**, coupées par une action manuelle, « Mettre à jour le
+      compte-rendu », qui intègre les changements faits depuis la précédente :
+      notes, parties, classement, listes jouées, tout ce qui sert à le générer.
+      Il n'y a de version nouvelle que si l'un de ces éléments a changé. Une
+      mise à jour peut tout modifier du texte, et chaque version **verrouille**
+      ce qu'elle contient, notes saisies comprises ;
+    - un **lien public toujours vivant** (pas de lien figé, contrairement aux
+      listes du Lot 13), qui montre la dernière version ;
+    - les versions antérieures lisibles par tout visiteur du lien
+      (`…/compte-rendu?v=1`), **si le propriétaire l'autorise** dans les
+      paramètres du compte-rendu ;
+    - un **PDF généré par le serveur**, sur une mise en page propre, à demander à
+      Claude Design (handoff) ; il ne se télécharge donc qu'en ligne.
+
+    Les noms des adversaires et les decks joués à la table sont **publics** dans
+    un compte-rendu partagé : c'est la première fois que l'outil publie le
+    carnet. Les **commentaires** sont **reportés en v2.x** (entrée 21 ci-dessous),
+    avec leur extension aux listes partagées du Lot 13 ; une version verrouillera
+    alors aussi les commentaires. Décisions prises par l'utilisateur le 2026-11-21
+    (V7 de `docs/roadmap-v2-proposition.md`). Une version du compte-rendu
+    désigne les versions de decklist du Lot 8 qu'elle montre : après un « Figer
+    sur la liste actuelle », il faut régénérer le compte-rendu pour afficher la
+    nouvelle liste. Choix de la bibliothèque PDF côté serveur à faire
+    pendant le lot.
+17. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
     Inventaires, proposé le 2026-11-03 et reporté après la mise en ligne le
     2026-11-13, est **découpé** en quatre lots et une suite (V3, classeurs avant
     suggestions) ; `docs/lot-inventaires-plan.md` reste la référence de conception
@@ -2756,18 +2794,18 @@ donnent des v2.x.
     **convertir des données de production** : essai sur une copie de la base
     servie, sauvegarde datée, comparaison par `scripts/compare_db.py`, références
     d'inventaire facultatives dans `/sync` pour les files en attente.
-17. **Lot 15 — Decks par inventaire.** Ferme l'issue #49. Choisir l'inventaire
+18. **Lot 15 — Decks par inventaire.** Ferme l'issue #49. Choisir l'inventaire
     d'un deck et le changer (A5, `carry_copies`) ; picker, `+` des tableaux et
     disponibilités lus dans l'inventaire du deck ; l'import d'un deck VDB prend
     d'abord les exemplaires libres de cet inventaire au lieu de tout mettre en
     proxy (piste du Lot 9, à confirmer par les retours d'usage).
-18. **Lot 16 — Import d'une collection VDB.** Bloqué par un vrai export de
+19. **Lot 16 — Import d'une collection VDB.** Bloqué par un vrai export de
     collection fourni par l'utilisateur, à verser dans les fixtures avant toute
     ligne de code (les relevés du 2026-11-03 divergent : CSV à identifiant VEKN ou
     Excel par nom) ; appariement côté client comme au Lot 9, ou jumeau Python sur
     la même table de cas ; export de la collection en complément. Ne dépend que du
     Lot 14 et peut passer avant le Lot 15.
-19. **Lot 17 — Manques et assemblage.** Liste des manques (ce que mes decks jouent
+20. **Lot 17 — Manques et assemblage.** Liste des manques (ce que mes decks jouent
     en proxy, moins ce qui dort dans mes inventaires), exportable pour une commande
     en impression à la demande ; checklist d'assemblage imprimable, une case par
     exemplaire, qui dit dans quel inventaire prendre chaque carte. Lectures
@@ -2780,14 +2818,21 @@ donnent des v2.x.
     `active`, le retour en brouillon de « Mettre à jour depuis VDB », et un
     deck en préparation qui réserve quand même ses exemplaires réels (règles
     gardées telles quelles en attendant).
-20. **Suggestions de decklists** — *fin de v2 ou v3, numéro attribué à
+21. **Commentaires** — *v2.x, numéro et place attribués à l'ouverture.*
+    Reportés du lot Compte-rendu le 2026-11-21 (V7). Discuter d'un compte-rendu
+    partagé, puis d'une liste partagée du Lot 13 (dernier point de l'issue #68).
+    Une version du compte-rendu verrouille aussi les commentaires qui la
+    précèdent. Ce sera la première interaction entre comptes de l'outil. À
+    trancher à l'ouverture : qui peut commenter (comptes seulement ou visiteurs),
+    modération, suppression, avis à l'auteur.
+22. **Suggestions de decklists** — *fin de v2 ou v3, numéro attribué à
     l'ouverture.* Import rejouable de la TWDA de krcg
     (`static.krcg.org/data/v5/twda.json`, 4708 decks au 2026-11-03), suggestions
     classées par cartes manquantes pour un ou plusieurs inventaires, à partir de la
     TWDA et des decks du compte, handoff de l'écran, construction d'un deck depuis
     une suggestion (P6, P8, P9, A11 du plan Inventaires). C'est la finalité donnée
     au lot Inventaires par l'utilisateur le 2026-11-03.
-21. **Synchronisation Archon** — *conditionnelle, numéro attribué à l'ouverture.*
+23. **Synchronisation Archon** — *conditionnelle, numéro attribué à l'ouverture.*
     Renvoyée le 2026-11-12 après la mise en production de la v1 ; souhait du
     2026-11-02, d'abord rangé au Lot 9. **Synchroniser un tournoi depuis Archon**
     (archon.vekn.net) : le numéro VEKN du compte se saisit dans l'Atelier ou

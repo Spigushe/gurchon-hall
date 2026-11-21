@@ -39,6 +39,51 @@ inventaires. Acceptée.
 **V6. Le rôle DEV sur Archon** : à confirmer plus tard. Le lot Archon reste
 conditionnel et sans numéro.
 
+## Décision du 2026-11-21
+
+**V7. Le compte-rendu de tournoi (issue #68) entre dans la v2, juste après le
+Lot 13.** Il devient le lot Compte-rendu de tournoi (v1.3). D'abord prise en
+entier, l'issue a été précisée le même jour par cinq réponses de l'utilisateur :
+
+1. **Hors ligne et versionné.** La page du compte-rendu marche hors ligne.
+   Chaque changement donne une nouvelle version. Tout visiteur du lien peut lire
+   les versions antérieures (`…/compte-rendu?v=1`) si le propriétaire l'autorise
+   dans les paramètres du compte-rendu.
+2. **PDF côté serveur**, pour une mise en page propre, à demander à Claude
+   Design.
+3. **Noms et decks publics.** Les noms des adversaires et les decks joués
+   figurent dans un compte-rendu partagé.
+4. **Commentaires reportés en v2.x**, avec leur extension aux listes partagées
+   du Lot 13.
+5. **Une version verrouille** les notes saisies, et plus tard les commentaires.
+   Le lien de partage est toujours vivant et montre la dernière version.
+
+Cinq précisions ont suivi, le même jour :
+
+6. **La coupure d'une version est une action manuelle**, « Mettre à jour le
+   compte-rendu », qui intègre les changements de notes. Ce n'est pas un
+   enregistrement automatique (précise le point 1).
+7. **Un changement est une différence dans n'importe quel élément nécessaire à
+   la génération** du compte-rendu : notes du tournoi et des parties, parties,
+   classement, listes jouées. Sans différence, la mise à jour ne coupe pas de
+   version.
+8. **Tout peut être modifié lors de la régénération** : rien du texte d'une
+   version n'est figé pour les suivantes.
+9. **La bibliothèque PDF côté serveur** se choisit pendant le lot.
+10. **Il faut régénérer le compte-rendu pour afficher une nouvelle liste.**
+    Une version du compte-rendu désigne les versions de decklist du Lot 8
+    qu'elle montre, et celles-ci ne se modifient jamais. Un « Figer sur la
+    liste actuelle » fait après coup sur le tournoi crée une version de liste
+    nouvelle, que le compte-rendu ne montre qu'après « Mettre à jour le
+    compte-rendu ». Une version déjà publiée garde la liste qu'elle montrait.
+
+Il passe avant les inventaires pour la même raison que le partage (V4) : il
+n'en dépend pas, et il reprend le lien public du Lot 13 tant que celui-ci est
+frais. Il ne convertit aucune donnée existante, si bien qu'il peut se faire
+pendant la période de retours d'usage (V5). Il est nommé et non numéroté, comme
+Chercher, pour que les Lots 14 à 17 et les issues #48 et #49 gardent leur
+numéro.
+
 ## Ce que V1 change
 
 Le §1 de CLAUDE.md est à réécrire : un seul objectif, suivre sa pratique de
@@ -173,6 +218,57 @@ réelle dans l'outil avant de concevoir les classeurs. Elle se termine sur une
 décision de l'utilisateur, pas sur une date. Les retours sont consignés dans
 `docs/pistes-evolution.md` ou dans des issues.
 
+### Lot Compte-rendu de tournoi (v1.3)
+
+Ajouté le 2026-11-21 (V7). Il répond à #68, sauf les commentaires, et part de
+ce que l'outil sait déjà d'un tournoi :
+
+- ses notes et celles de ses parties (`tournament.notes`, `game.notes`,
+  `participation.notes`, depuis le Lot 7) ;
+- mes rondes, ma finale et mon classement ;
+- la liste jouée de chaque deck : une seule, ou plusieurs en multi-deck
+  (versions du Lot 8, `tournament_deck_version`).
+
+Le lot livre :
+
+- **un compte-rendu au format texte** sur le tournoi, qui s'ouvre, se génère
+  et se modifie hors ligne (`#/tournois/<clé>/compte-rendu`, en français comme
+  les autres routes, là où l'issue écrit `/report`) ;
+- **des versions**, coupées par une action manuelle, « Mettre à jour le
+  compte-rendu » (point 6). Elle intègre tout ce qui a changé depuis la
+  version précédente parmi les éléments de la génération (point 7), et peut
+  modifier tout le texte (point 8). Chaque version verrouille ce qu'elle
+  contient, notes saisies comprises ;
+- **un lien public toujours vivant**, sur le patron des listes du Lot 13
+  (jeton opaque, même 404 pour tout jeton invalide, limitation de débit, page
+  hors `AuthGate`), mais sans lien figé. Il montre la dernière version ;
+- **les versions antérieures** (`…/compte-rendu?v=1`), lisibles par tout
+  visiteur si le propriétaire l'autorise dans les paramètres du compte-rendu ;
+- **un PDF généré par le serveur**, sur une mise en page propre, d'après un
+  handoff de Claude Design. Il ne se télécharge donc qu'en ligne.
+
+Les noms des adversaires et les decks joués sont publics dans un compte-rendu
+partagé : l'outil publie pour la première fois des noms tirés du carnet.
+
+Une version du compte-rendu désigne les versions de decklist du Lot 8 qu'elle
+montre ; une nouvelle liste n'apparaît qu'à la régénération (point 10). Reste à
+choisir pendant le lot la bibliothèque de PDF côté serveur (point 9), première
+dépendance de rendu du back.
+
+Les versions et les paramètres de partage demandent des tables neuves, donc une
+révision, mais ne convertissent aucune donnée.
+
+### Commentaires (v2.x)
+
+Reportés du lot Compte-rendu le 2026-11-21 (V7, point 4). Ils ferment #68 :
+
+- discuter d'un compte-rendu partagé, puis d'une liste partagée du Lot 13 ;
+- une version du compte-rendu verrouille les commentaires qui la précèdent.
+
+Ce sera la première interaction entre comptes de l'outil. À trancher à
+l'ouverture : qui peut commenter (comptes seulement ou visiteurs), modération,
+suppression, avis à l'auteur. Numéro et place attribués à l'ouverture.
+
 ### Lot 14 : inventaires et classeurs
 
 Le socle, qui ferme #48. Repris des étapes A1, B1, C1 et D1 du plan existant :
@@ -260,10 +356,12 @@ attribué à l'ouverture, à la place que l'utilisateur choisira à ce moment-l�
 | 12 | consolidation v1.1 : comptes, observabilité, `prompt`, §1 réécrit, dettes | rien | |
 | 13 | partage : lien public, exports, art de l'extension | rien | |
 | | retours d'usage | Lot 12 | |
+| Compte-rendu | compte-rendu de tournoi v1.3 : texte hors ligne, versions, lien vivant, PDF serveur | Lot 13 | #68 en partie |
 | 14 | inventaires et classeurs, transfert, migration de production | Lot 12, retours | #48 |
 | 15 | decks par inventaire | Lot 14 | #49 |
 | 16 | import d'une collection VDB | Lot 14, un vrai export | |
 | 17 | manques et checklist d'assemblage | Lot 15 | |
+| … | commentaires sur un compte-rendu, puis sur une liste partagée | lot Compte-rendu | #68, v2.x |
 | … | suggestions de decklists (TWDA) | Lot 17 | fin de v2 ou v3 |
 | … | Archon | rôle DEV (V6) | conditionnel |
 
