@@ -55,7 +55,7 @@ export interface paths {
         put?: never;
         /**
          * Ouvrir une session
-         * @description Vérifie l'adresse et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).
+         * @description Vérifie l'identifiant (adresse e-mail ou nom d'utilisateur, dans `identifier` ; `email` reste accepté) et le mot de passe, puis pose le cookie de session (14 jours sans usage, 90 jours au plus) et note l'appareil (`User-Agent`). Un identifiant inconnu et un mauvais mot de passe rendent le même 401, au même coût. Limité en débit par adresse IP (429).
          */
         post: operations["logIn"];
         delete?: never;
@@ -3858,14 +3858,21 @@ export interface components {
          *     Une adresse inconnue et un mauvais mot de passe rendent le même 401, au
          *     même coût (P1) : rien dans ce schéma ne doit permettre de les distinguer,
          *     d'où l'absence de règle de complexité sur le mot de passe.
+         *
+         *     `identifier` (correctif après la v1.1.0) accepte l'adresse ou le nom
+         *     d'utilisateur. `email`, seul champ jusque-là, reste accepté pour qu'une
+         *     coquille v1.1.0 encore en cache se connecte jusqu'à sa mise à jour ; il
+         *     faut exactement l'un des deux.
          */
         UserLogIn: {
+            /** Identifier */
+            identifier?: string | null;
             /**
              * Email
-             * Format: email
-             * @description Adresse e-mail, identifiant de connexion. Comparée sans tenir compte de la casse : le serveur la ramène en minuscules.
+             * @deprecated
+             * @description Ancienne forme : adresse e-mail seule. Préférer `identifier`, qui accepte aussi le nom d'utilisateur.
              */
-            email: string;
+            email?: string | null;
             /**
              * Password
              * @description Mot de passe du compte, tel quel. Seule la longueur est bornée : la règle de complexité ne s'applique qu'au choix d'un mot de passe.

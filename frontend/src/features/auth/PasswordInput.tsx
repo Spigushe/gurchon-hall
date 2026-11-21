@@ -8,14 +8,14 @@ import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
  *
  * Le bouton est un interrupteur (`aria-pressed`), de type `button` pour ne
  * jamais soumettre le formulaire, et son nom dit l'action qu'il fera. Le
- * champ garde son `data-testid` ; le bouton prend `<testId>-toggle`.
+ * champ porte le `data-testid` reçu ; le bouton prend `<data-testid>-toggle`.
  */
 export function PasswordInput({
   id,
   value,
   onChange,
   autoComplete,
-  testId,
+  "data-testid": testId,
   invalid,
   describedBy,
 }: {
@@ -23,7 +23,7 @@ export function PasswordInput({
   value: string;
   onChange: (value: string) => void;
   autoComplete: "current-password" | "new-password";
-  testId: string;
+  "data-testid": string;
   invalid?: boolean;
   describedBy?: string;
 }) {

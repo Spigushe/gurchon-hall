@@ -95,9 +95,9 @@ export function SignUpForm({ onSuccess }: { onSuccess: (user: UserRead) => void 
           value={password}
           describedBy={`${formId}-password-rules`}
           onChange={setPassword}
-          testId="signup-password"
+          data-testid="signup-password"
         />
-        <PasswordRulesList id={`${formId}-password-rules`} value={password} testId="signup-password-rules" />
+        <PasswordRulesList id={`${formId}-password-rules`} value={password} data-testid="signup-password-rules" />
       </div>
 
       {!online && (

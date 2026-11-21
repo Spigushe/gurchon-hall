@@ -118,10 +118,12 @@ def sign_up(
     operation_id="logIn",
     summary="Ouvrir une session",
     description=(
-        "Vérifie l'adresse et le mot de passe, puis pose le cookie de session "
-        "(14 jours sans usage, 90 jours au plus) et note l'appareil "
-        "(`User-Agent`). Une adresse inconnue et un mauvais mot de passe rendent "
-        "le même 401, au même coût. Limité en débit par adresse IP (429)."
+        "Vérifie l'identifiant (adresse e-mail ou nom d'utilisateur, dans "
+        "`identifier` ; `email` reste accepté) et le mot de passe, puis pose le "
+        "cookie de session (14 jours sans usage, 90 jours au plus) et note "
+        "l'appareil (`User-Agent`). Un identifiant inconnu et un mauvais mot de "
+        "passe rendent le même 401, au même coût. Limité en débit par adresse "
+        "IP (429)."
     ),
     responses={
         200: {
@@ -141,7 +143,7 @@ def log_in(
     request: Request, response: Response, payload: UserLogIn, db: DbSession
 ) -> UserRead:
     account = auth_service.authenticate(
-        db, email=payload.email, password=payload.password
+        db, login=payload.login, password=payload.password
     )
     if account is None:
         raise HTTPException(status_code=401, detail=_INVALID_CREDENTIALS)

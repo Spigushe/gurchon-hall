@@ -63,8 +63,12 @@ export function createAuthFakeServer(seed: AuthFakeUser[] = []): AuthFakeServer 
       }
 
       if (url.pathname === "/connexion") {
-        const { email, password } = body as { email?: string; password?: string };
-        const user = server.users.find((candidate) => candidate.email === email);
+        // Comme le serveur : « @ » désigne une adresse, sinon un nom d'utilisateur.
+        const { identifier, email, password } = body as { identifier?: string; email?: string; password?: string };
+        const login = (identifier ?? email ?? "").trim();
+        const user = login.includes("@")
+          ? server.users.find((candidate) => candidate.email === login.toLowerCase())
+          : server.users.find((candidate) => candidate.username === login);
         if (!user || user.password !== password) {
           return json({ detail: "Identifiants invalides." }, 401);
         }

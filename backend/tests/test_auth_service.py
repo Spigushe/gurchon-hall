@@ -87,19 +87,19 @@ def test_create_account_rejects_a_duplicate_username(db):
 
 def test_authenticate_succeeds_with_the_right_password(db):
     make_account(db, email="a@example.com", password="Correct-Horse-1!")
-    account = auth.authenticate(db, email="a@example.com", password="Correct-Horse-1!")
+    account = auth.authenticate(db, login="a@example.com", password="Correct-Horse-1!")
     assert account is not None
     assert account.email == "a@example.com"
 
 
 def test_authenticate_fails_with_the_wrong_password(db):
     make_account(db, email="a@example.com", password="Correct-Horse-1!")
-    assert auth.authenticate(db, email="a@example.com", password="wrong") is None
+    assert auth.authenticate(db, login="a@example.com", password="wrong") is None
 
 
 def test_authenticate_fails_for_an_unknown_email_without_raising(db):
     # Pas de compte du tout : passe par `dummy_verify`, ne doit pas lever.
-    account = auth.authenticate(db, email="nobody@example.com", password="whatever")
+    account = auth.authenticate(db, login="nobody@example.com", password="whatever")
     assert account is None
 
 

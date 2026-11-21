@@ -47,6 +47,37 @@ describe("<LoginForm />", () => {
     expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ id: 7, username: "alice" }));
   });
 
+  it("accepte le nom d'utilisateur dans le même champ, envoyé en `identifier`", async () => {
+    const server = createAuthFakeServer([
+      { id: 7, email: "a@x.fr", username: "alice", password: "Sup3r$ecret!", role: "user" },
+    ]);
+    const sent: unknown[] = [];
+    const onSuccess = vi.fn();
+    const client = server.client;
+    client.use({
+      onRequest: async ({ request }) => {
+        if (new URL(request.url).pathname === "/connexion") sent.push(await request.clone().json());
+        return request;
+      },
+    });
+    render(
+      <ApiClientContext.Provider value={client}>
+        <LoginForm onSuccess={onSuccess} />
+      </ApiClientContext.Provider>,
+    );
+    const field = screen.getByTestId("login-email");
+    expect(screen.getByLabelText("Adresse e-mail ou nom d'utilisateur")).toBe(field);
+    expect(field).toHaveAttribute("type", "text");
+    expect(field).toHaveAttribute("autocomplete", "username");
+    expect(field).toHaveAttribute("autocapitalize", "none");
+    fireEvent.change(field, { target: { value: " alice " } });
+    fireEvent.change(screen.getByTestId("login-password"), { target: { value: "Sup3r$ecret!" } });
+    fireEvent.click(screen.getByTestId("login-submit"));
+
+    await vi.waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1));
+    expect(sent).toEqual([{ identifier: "alice", password: "Sup3r$ecret!" }]);
+  });
+
   it("affiche un seul message pour une adresse inconnue ou un mauvais mot de passe (401)", async () => {
     const server = createAuthFakeServer([
       { id: 1, email: "a@x.fr", username: "alice", password: "Sup3r$ecret!", role: "user" },
@@ -85,7 +116,7 @@ describe("<PasswordInput />", () => {
       const [value, setValue] = useState("Sup3r$ecret!");
       return (
         <form onSubmit={onSubmit}>
-          <PasswordInput id="pw" value={value} onChange={setValue} autoComplete="current-password" testId="pw" />
+          <PasswordInput id="pw" value={value} onChange={setValue} autoComplete="current-password" data-testid="pw" />
         </form>
       );
     }

@@ -8,24 +8,27 @@ import { useBrowserOnline } from "./useBrowserOnline";
 /**
  * Formulaire de connexion (`POST /connexion`), nécessairement en ligne : on ne
  * vérifie pas un mot de passe hors ligne (Lot 6, § « D — écrans »). Un seul
- * message pour une adresse inconnue et un mauvais mot de passe (401) : le
+ * message pour un identifiant inconnu et un mauvais mot de passe (401) : le
  * serveur ne distingue pas les deux cas, ce formulaire ne réinvente pas la
  * distinction (P1).
+ *
+ * Un seul champ pour l'adresse ou le nom d'utilisateur, envoyé tel quel dans
+ * `identifier` : c'est le serveur qui reconnaît la forme (« @ » ou non).
  */
 export function LoginForm({
   onSuccess,
-  prefillEmail,
+  prefillIdentifier,
   submitLabel = "Se connecter",
 }: {
   onSuccess: (user: UserRead) => void | Promise<void>;
-  prefillEmail?: string;
+  prefillIdentifier?: string;
   submitLabel?: string;
 }) {
   const client = useApiClient();
   const online = useBrowserOnline();
   const action = useGuardedAction();
   const formId = useId();
-  const [email, setEmail] = useState(prefillEmail ?? "");
+  const [identifier, setIdentifier] = useState(prefillIdentifier ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +39,7 @@ export function LoginForm({
       return;
     }
     await action.run(async () => {
-      const result = await logIn(client, { email: email.trim(), password });
+      const result = await logIn(client, { identifier: identifier.trim(), password });
       if (result.kind === "ok") {
         await onSuccess(result.user);
         return;
@@ -65,14 +68,17 @@ export function LoginForm({
       aria-label="Connexion"
     >
       <div className="field">
-        <label htmlFor={`${formId}-email`}>Adresse e-mail</label>
+        <label htmlFor={`${formId}-identifier`}>Adresse e-mail ou nom d'utilisateur</label>
         <input
-          id={`${formId}-email`}
+          id={`${formId}-identifier`}
           className="underline-field"
-          type="email"
+          type="text"
           autoComplete="username"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          value={identifier}
+          onChange={(event) => setIdentifier(event.target.value)}
           data-testid="login-email"
         />
       </div>
@@ -83,7 +89,7 @@ export function LoginForm({
           autoComplete="current-password"
           value={password}
           onChange={setPassword}
-          testId="login-password"
+          data-testid="login-password"
         />
       </div>
 
@@ -101,7 +107,7 @@ export function LoginForm({
       <button
         type="submit"
         className="btn btn-primary"
-        disabled={action.pending || !online || email.trim() === "" || password === ""}
+        disabled={action.pending || !online || identifier.trim() === "" || password === ""}
         data-testid="login-submit"
       >
         {action.pending ? "Connexion…" : submitLabel}

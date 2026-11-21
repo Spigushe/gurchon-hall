@@ -49,7 +49,9 @@ def make_account(
 def log_in(api: TestClient, email: str, password: str = DEFAULT_PASSWORD):
     """Ouvre une session par l'API. Le cookie rendu atterrit dans le pot de
     cookies de `api`, qui le renverra sur toute requête suivante."""
-    response = api.post("/connexion", json={"email": email, "password": password})
+    response = api.post(
+        "/connexion", json={"identifier": email, "password": password}
+    )
     response.raise_for_status()
     return response
 

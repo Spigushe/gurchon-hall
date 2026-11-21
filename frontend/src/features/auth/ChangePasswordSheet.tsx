@@ -123,7 +123,7 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
               setCurrent(value);
               setCurrentError(null);
             }}
-            testId="change-password-current"
+            data-testid="change-password-current"
           />
           {currentError && (
             <p id={`${formId}-current-error`} className="error-text" data-testid="change-password-current-error">
@@ -143,9 +143,9 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
               setNext(value);
               setServerError(null);
             }}
-            testId="change-password-new"
+            data-testid="change-password-new"
           />
-          <PasswordRulesList id={`${formId}-rules`} value={next} testId="change-password-rules" />
+          <PasswordRulesList id={`${formId}-rules`} value={next} data-testid="change-password-rules" />
         </div>
 
         <div className="field">
@@ -156,7 +156,7 @@ export function ChangePasswordSheet({ onClose, onChanged }: { onClose: () => voi
             value={confirmation}
             invalid={mismatch}
             onChange={setConfirmation}
-            testId="change-password-confirm"
+            data-testid="change-password-confirm"
           />
           {mismatch && (
             <p className="error-text" data-testid="change-password-mismatch">

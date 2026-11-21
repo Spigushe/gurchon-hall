@@ -9,7 +9,15 @@ import { passwordRules } from "./passwordRules";
  * L'état de chaque règle est dit en toutes lettres aux lecteurs d'écran
  * (« remplie », « manquante »), l'icône étant décorative.
  */
-export function PasswordRulesList({ id, value, testId }: { id: string; value: string; testId: string }) {
+export function PasswordRulesList({
+  id,
+  value,
+  "data-testid": testId,
+}: {
+  id: string;
+  value: string;
+  "data-testid": string;
+}) {
   return (
     <ul id={id} className="password-rules" data-testid={testId}>
       {passwordRules(value).map((rule) => (
