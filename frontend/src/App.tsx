@@ -45,6 +45,7 @@ const BilanPage = lazy(() => import("./features/analysis/BilanPage").then((m) =>
 const DeckVersionPage = lazy(() =>
   import("./features/decks/DeckVersionPage").then((m) => ({ default: m.DeckVersionPage })),
 );
+const ComparePage = lazy(() => import("./features/share/ComparePage").then((m) => ({ default: m.ComparePage })));
 const NotebookPage = lazy(() => import("./features/games/NotebookPage").then((m) => ({ default: m.NotebookPage })));
 const SyncPage = lazy(() => import("./features/sync/SyncPage").then((m) => ({ default: m.SyncPage })));
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
@@ -84,6 +85,7 @@ for (const importRoute of [
   () => import("./features/games/NotebookPage"),
   () => import("./features/analysis/BilanPage"),
   () => import("./features/decks/DeckVersionPage"),
+  () => import("./features/share/ComparePage"),
   () => import("./features/sync/SyncPage"),
   () => import("./features/search/SearchPage"),
   () => import("./features/auth/AccountPage"),
@@ -106,7 +108,7 @@ function navActive(route: Route): Record<NavKey, boolean> {
   return {
     home: route.name === "home",
     stock: route.name === "stock",
-    decks: route.name === "decks" || route.name === "deck" || route.name === "deckVersion",
+    decks: route.name === "decks" || route.name === "deck" || route.name === "deckVersion" || route.name === "compare",
     // Parties : actif sur toutes les routes parties, tournois et carnet.
     games:
       route.name === "games" ||
@@ -185,7 +187,7 @@ function Page({ route }: { route: Route }) {
     case "stock":
       return <StockPage intent={route.intent} />;
     case "decks":
-      return <DecksPage intent={route.intent} filter={route.filter} />;
+      return <DecksPage intent={route.intent} filter={route.filter} list={route.list} />;
     case "deck":
       return <DeckDetailPage key={route.key} deckKey={route.key} />;
     case "games":
@@ -201,6 +203,8 @@ function Page({ route }: { route: Route }) {
       return <BilanPage key={route.deck ?? "all"} initialDeck={route.deck ?? null} />;
     case "deckVersion":
       return <DeckVersionPage key={`${route.key}/${route.number}`} deckKey={route.key} number={route.number} />;
+    case "compare":
+      return <ComparePage key={`${route.key}/${route.token}/${route.revision ?? ""}`} deckKey={route.key} token={route.token} revision={route.revision} />;
     case "notebook":
       return <NotebookPage />;
     case "sync":

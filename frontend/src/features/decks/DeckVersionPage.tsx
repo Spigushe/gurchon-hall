@@ -33,7 +33,7 @@ function playedMeta(games: readonly LocalGame[], now: Date): string | null {
   return `Première partie le ${dayLabel(localDayOf(first.playedAt), now)} · ${gamesCount(games.length)}`;
 }
 
-function ChangeGroup({
+export function ChangeGroup({
   title,
   changes,
   render,

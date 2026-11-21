@@ -7821,3 +7821,162 @@ fieldset:disabled .chip {
   min-width: 120px;
   width: auto;
 }
+
+/* — Lot 13 D6 : révision d'une liste partagée (écarts dans l'adresse) — */
+.revision-banner {
+  margin: var(--space-2) 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent-400);
+}
+
+.revision-notices {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  list-style: none;
+  border: 1px solid var(--color-neutral-600);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--color-neutral-200);
+}
+
+.revision-delta {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--color-accent-400);
+  background: rgba(145, 132, 217, 0.16);
+}
+
+/* Dans la cellule du nom : le nom se tronque, la marque garde sa place. */
+.deck-table__name > .revision-delta {
+  flex: none;
+  margin-left: 0;
+}
+
+/* Carte de la liste de départ absente de l'arrivée (comparaison) : à 0, nom barré. */
+.revision-row--removed .deck-table__name-text {
+  text-decoration: line-through;
+  color: var(--color-neutral-400);
+}
+
+.revision-row--added,
+.revision-row--changed {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.revision-removed__title {
+  margin: 0 0 var(--space-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.revision-removed ul,
+.revision-search__results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.revision-removed__row,
+.revision-search__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-neutral-700);
+}
+
+.revision-removed__row > span:first-child {
+  text-decoration: line-through;
+  color: var(--color-neutral-300);
+}
+
+.revision-search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.revision-search__label {
+  font-size: 13px;
+  color: var(--color-neutral-300);
+}
+
+.revision-search__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Résultat de recherche : la ligne entière est le bouton qui ajoute la carte. */
+button.revision-search__result {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--color-neutral-700);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.revision-search__result:hover .revision-search__name,
+button.revision-search__result:focus-visible .revision-search__name {
+  color: var(--color-accent-200);
+}
+
+button.revision-search__result:focus-visible {
+  outline: 2px solid var(--color-accent-400);
+  outline-offset: 2px;
+}
+
+.revision-search__add {
+  flex: none;
+  pointer-events: none;
+}
+
+/* Lot 13 D5 : comparer une liste partagée à un de mes decks. */
+.compare-page__head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.compare-counts {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.compare-counts__side {
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  min-width: 0;
+}
+
+.compare-counts__side .kicker {
+  overflow-wrap: anywhere;
+}
+
+.compare-counts__value {
+  margin: 4px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+  .compare-counts {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-page .version-changes__groups {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

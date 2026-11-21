@@ -53,6 +53,11 @@ export interface UiServer {
    */
   vdbDecks: Map<string, unknown | { status: number; body: unknown; retryAfter?: string }>;
   /**
+   * Listes partagées servies par `GET /listes/{token}` (Lot 13, D5), par jeton : un
+   * corps (200), une réponse d'erreur ou `"network"`. Un jeton absent rend 404.
+   */
+  lists: Map<string, unknown | { status: number; body: unknown; retryAfter?: string }>;
+  /**
    * Routes du compte (Lot 12, D1) : sessions servies par `GET /moi/sessions`
    * (fermées par les deux `DELETE`), réponse forcée d'une route (`failures`,
    * par « MÉTHODE chemin »), corps de l'export et version de `/health`.
@@ -87,6 +92,7 @@ function createUiServer(): UiServer {
     bundles: [],
     cards: new Map(),
     vdbDecks: new Map(),
+    lists: new Map(),
     account: {
       sessions: [],
       failures: new Map(),
@@ -122,6 +128,8 @@ function createUiServer(): UiServer {
       if (url.pathname === "/health" || url.pathname.startsWith("/moi")) return accountResponse(ui, request, url);
       const vdb = /^\/vdb\/decks\/([^/]+)$/.exec(url.pathname);
       if (vdb) return vdbResponse(ui.vdbDecks.get(decodeURIComponent(vdb[1])));
+      const list = /^\/listes\/([^/]+)$/.exec(url.pathname);
+      if (list) return vdbResponse(ui.lists.get(decodeURIComponent(list[1])));
       const card = /^\/cartes\/(\d+)$/.exec(url.pathname);
       if (card && ui.cards.has(Number(card[1]))) return json(ui.cards.get(Number(card[1])));
       return json({ detail: `route non prévue : ${url.pathname}` }, 404);

@@ -1,18 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ExportIcon } from "@phosphor-icons/react";
+import { useEffect, type ReactNode } from "react";
 import { LoadingState } from "../../components/Loading";
-import { plural } from "../../labels";
-import { DECK_ARCHETYPE_LABELS } from "../../offline/vtes";
-import { DeckTables } from "../decks/DeckTables";
-import { DeckExportSheet } from "../decks/export/DeckExportSheet";
+import { PublicListBody } from "./PublicListBody";
 import { parsePublicListHash } from "./publicListRoute";
-import {
-  buildSharedListModel,
-  formatListDate,
-  sharedListFileName,
-  sharedListTexts,
-} from "./sharedDecklistModel";
-import { usePublicDecklist, type SharedDecklist } from "./usePublicDecklist";
+import { usePublicDecklist } from "./usePublicDecklist";
 
 /**
  * Page publique d'une liste partagée (Lot 13, P2, P6, P7, A7), montée par `Root`
@@ -20,9 +10,8 @@ import { usePublicDecklist, type SharedDecklist } from "./usePublicDecklist";
  * aucun catalogue local. Tout ce qu'elle affiche vient de la réponse de
  * `GET /listes/{token}`.
  *
- * Emplacements réservés, **non posés** à D3 : « Dupliquer » et « Comparer » (D5,
- * visibles quand `readActiveAccountId` donne un compte) et « Réviser » (D6) se
- * brancheront dans `public-list-actions`, à côté de « Exporter ».
+ * `public-list-actions` (dans `PublicListBody`) porte « Exporter » et « Réviser »
+ * (D6, A10) ; « Dupliquer » et « Comparer » (D5) s'y ajoutent.
  */
 
 /** `<title>` du document et `noindex`, posés le temps que la page vit. */
@@ -74,61 +63,7 @@ function Message({ title, text, testId, extra }: { title: string; text: string; 
 const rateLimitTitle = (retryAfter: number | null) =>
   retryAfter === null ? "Trop de demandes, réessayez dans un moment." : `Trop de demandes, réessayez dans ${retryAfter} s`;
 
-function ListHeader({ list, total }: { list: SharedDecklist; total: number }) {
-  const meta = [
-    `par @${list.author}`,
-    list.archetype ? DECK_ARCHETYPE_LABELS[list.archetype] : null,
-    plural(total, "carte"),
-  ].filter(Boolean);
-  return (
-    <header className="public-list__header">
-      <h1 className="page-title" data-testid="public-list-name">
-        {list.name}
-      </h1>
-      <p className="page-meta" data-testid="public-list-meta">
-        {meta.join(" · ")}
-      </p>
-      {list.kind === "frozen" && list.frozen_at && (
-        <p className="public-list__frozen" data-testid="public-list-frozen">
-          Liste du {formatListDate(list.frozen_at)}
-        </p>
-      )}
-    </header>
-  );
-}
-
-function Ready({ list }: { list: SharedDecklist }) {
-  const model = useMemo(() => buildSharedListModel(list), [list]);
-  const [exporting, setExporting] = useState(false);
-  const texts = useMemo(() => sharedListTexts(list, model), [list, model]);
-  return (
-    <>
-      <ListHeader list={list} total={model.total} />
-      <div className="public-list__actions" data-testid="public-list-actions">
-        <button type="button" className="btn btn-secondary" data-testid="public-list-export" onClick={() => setExporting(true)}>
-          <ExportIcon size={16} />
-          Exporter
-        </button>
-      </div>
-      {list.notes && (
-        <p className="hint deck-notes public-list__notes" data-testid="public-list-notes">
-          {list.notes}
-        </p>
-      )}
-      <DeckTables tables={model.tables} showProxies={false} />
-      {exporting && (
-        <DeckExportSheet
-          title={list.name}
-          fileNameFor={(suffix) => sharedListFileName(list.name, suffix)}
-          texts={texts}
-          onClose={() => setExporting(false)}
-        />
-      )}
-    </>
-  );
-}
-
-function LoadedList({ token }: { token: string }) {
+function LoadedList({ token, revision }: { token: string; revision: string | null }) {
   const state = usePublicDecklist(token);
   switch (state.kind) {
     case "loading":
@@ -140,7 +75,7 @@ function LoadedList({ token }: { token: string }) {
     case "ready":
       return (
         <PageFrame title={state.list.name}>
-          <Ready list={state.list} />
+          <PublicListBody token={token} list={state.list} initialRevision={revision} />
         </PageFrame>
       );
     case "not-found":
@@ -184,5 +119,5 @@ export function PublicDecklistPage({ hash }: { hash: string }) {
       </PageFrame>
     );
   }
-  return <LoadedList key={route.token} token={route.token} />;
+  return <LoadedList key={route.token} token={route.token} revision={route.revision} />;
 }

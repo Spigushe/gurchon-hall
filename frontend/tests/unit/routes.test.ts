@@ -134,3 +134,35 @@ describe("routes clientes", () => {
     expect(parseHash("#/decks?x=1")).toEqual({ name: "decks" });
   });
 });
+
+describe("intentions de liste partagée (Lot 13, D5)", () => {
+  const list = { token: "aB3x_9pQ", revision: null };
+
+  it("lisent le jeton et la révision brute, et se réécrivent à l'identique", () => {
+    expect(parseHash("#/decks?action=dupliquer&liste=aB3x_9pQ")).toEqual({ name: "decks", intent: "duplicate", list });
+    const raw = "100845=1;102366=-1";
+    const route = parseHash(`#/decks?action=comparer&liste=aB3x_9pQ&revision=${raw}`);
+    expect(route).toEqual({ name: "decks", intent: "compare", list: { token: "aB3x_9pQ", revision: raw } });
+    expect(hrefFor(route)).toBe(`#/decks?action=comparer&liste=aB3x_9pQ&revision=${raw}`);
+  });
+
+  it("ignorent une intention sans jeton valide", () => {
+    expect(parseHash("#/decks?action=dupliquer")).toEqual({ name: "decks" });
+    expect(parseHash("#/decks?action=comparer&liste=court")).toEqual({ name: "decks" });
+  });
+
+  it("gardent l'onglet des decks à côté de l'intention", () => {
+    const href = hrefFor({ name: "decks", filter: "archived", intent: "duplicate", list });
+    expect(href).toBe("#/decks?filtre=archives&action=dupliquer&liste=aB3x_9pQ");
+    expect(parseHash(href)).toEqual({ name: "decks", filter: "archived", intent: "duplicate", list });
+  });
+
+  it("ouvrent l'écran de comparaison, rechargeable, avec ou sans révision", () => {
+    const bare = { name: "compare", key: "id:12", token: "aB3x_9pQ", revision: null } as const;
+    expect(hrefFor(bare)).toBe("#/decks/id:12/comparer/aB3x_9pQ");
+    expect(parseHash("#/decks/id:12/comparer/aB3x_9pQ")).toEqual(bare);
+    const revised = { ...bare, key: "ref:0b8c1f5e-6a4d-4c3e-9a51-2f0e7d1c9b33", revision: "5=2;7=-1" } as const;
+    expect(parseHash(hrefFor(revised))).toEqual(revised);
+    expect(parseHash("#/decks/id:12/comparer/trop-long-pour-un-jeton")).toEqual({ name: "not-found" });
+  });
+});

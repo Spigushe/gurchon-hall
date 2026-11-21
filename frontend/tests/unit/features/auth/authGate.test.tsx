@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { ApiClientContext } from "../../../../src/app/apiClientContext";
 import { AuthGate } from "../../../../src/features/auth/AuthGate";
 import { dbNameForAccount, forgetActiveAccountId, readActiveAccountId } from "../../../../src/offline/vtes/account";
+import { releaseListIntent } from "../../../../src/features/share/listIntent";
 import { createAuthFakeServer } from "./authFakeServer";
 
 /**
@@ -20,6 +21,8 @@ import { createAuthFakeServer } from "./authFakeServer";
  */
 afterEach(async () => {
   cleanup();
+  releaseListIntent();
+  window.location.hash = "";
   const id = readActiveAccountId();
   forgetActiveAccountId();
   if (id !== null) await Dexie.delete(dbNameForAccount(id));
@@ -58,5 +61,28 @@ describe("<AuthGate />", () => {
       await screen.findByRole("navigation", { name: "Navigation principale" }, { timeout: 10_000 }),
     ).toBeInTheDocument();
     expect(readActiveAccountId()).toBe(321);
+  });
+
+  it("garde l'intention « Dupliquer » de l'adresse à travers l'écran de connexion, puis l'ouvre (Lot 13, D5)", async () => {
+    const intent = "#/decks?action=dupliquer&liste=aB3x_9pQ";
+    window.location.hash = intent;
+    const server = createAuthFakeServer([
+      { id: 322, email: "b@x.fr", username: "bob", password: "Sup3r$ecret!", role: "user" },
+    ]);
+    render(
+      <ApiClientContext.Provider value={server.client}>
+        <AuthGate />
+      </ApiClientContext.Provider>,
+    );
+    await screen.findByTestId("auth-screen");
+    // Rien ne consomme ni ne réécrit l'intention tant que l'application n'est pas montée.
+    expect(window.location.hash).toBe(intent);
+
+    fireEvent.change(screen.getByTestId("login-email"), { target: { value: "b@x.fr" } });
+    fireEvent.change(screen.getByTestId("login-password"), { target: { value: "Sup3r$ecret!" } });
+    fireEvent.click(screen.getByTestId("login-submit"));
+
+    expect(await screen.findByTestId("list-intent-sheet", undefined, { timeout: 10_000 })).toBeInTheDocument();
+    expect(window.location.hash).toBe("#/decks");
   });
 });

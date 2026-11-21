@@ -44,7 +44,7 @@ describe("page publique d'une liste partagée", () => {
     expect(screen.getByLabelText("Chargement en cours")).toBeTruthy();
     expect((await screen.findByTestId("public-list-name")).textContent).toBe("Banu Princes");
     expect(screen.getByTestId("public-list-meta").textContent).toContain("alice");
-    expect(screen.getByTestId("public-list-meta").textContent).toContain("13 cartes");
+    expect(screen.getByTestId("public-list-meta").textContent).toContain("12 crypte · 1 bibliothèque");
     expect(GET).toHaveBeenCalledTimes(1);
     expect(GET).toHaveBeenCalledWith("/listes/{token}", {
       params: { path: { token: "aB3x_9pQ" } },

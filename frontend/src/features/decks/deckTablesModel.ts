@@ -383,6 +383,32 @@ export function cryptDisciplineColumns(rows: readonly DeckTableRow[]): string[] 
     .map(([code]) => code);
 }
 
+/**
+ * Colonnes de disciplines alignées d'une ligne à l'autre : les quatre plus
+ * répandues. Au-delà, chaque vampire tasse ses autres disciplines à la suite,
+ * sans alignement (retour de l'utilisateur du 2026-11-21) : on gagne de la
+ * place, et un deck joue rarement sur plus de trois disciplines à la fois.
+ */
+export const ALIGNED_DISCIPLINE_COLUMNS = 4;
+
+/** Codes de discipline d'un vampire placés dans les cases de sa ligne, `null` pour une case vide. */
+export function disciplineSlots(columns: readonly string[], owned: ReadonlySet<string>, packedSlots: number): (string | null)[] {
+  const aligned = columns.slice(0, ALIGNED_DISCIPLINE_COLUMNS).map((code) => (owned.has(code) ? code : null));
+  const packed = columns.slice(ALIGNED_DISCIPLINE_COLUMNS).filter((code) => owned.has(code));
+  return [...aligned, ...Array.from({ length: packedSlots }, (_, index) => packed[index] ?? null)];
+}
+
+/** Nombre de cases tassées d'une crypte : le plus de disciplines qu'un vampire ait hors des colonnes alignées. */
+export function packedDisciplineSlots(columns: readonly string[], rows: readonly DeckTableRow[]): number {
+  const rest = new Set(columns.slice(ALIGNED_DISCIPLINE_COLUMNS));
+  let most = 0;
+  for (const row of rows) {
+    const count = (row.facts?.details?.disciplines ?? []).filter((discipline) => rest.has(discipline.code)).length;
+    most = Math.max(most, count);
+  }
+  return most;
+}
+
 const SECT_INITIALS: Readonly<Record<string, string>> = {
   Camarilla: "C",
   Sabbat: "S",

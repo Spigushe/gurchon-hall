@@ -3,6 +3,7 @@ import type { LocalDeckCard } from "../../offline/vtes";
 import { buildDeckTables, type DeckCardFacts, type DeckTables } from "../decks/deckTablesModel";
 import { EXPORT_FORMATS, exportAs, type ExportFormat } from "../decks/export/exportFormats";
 import { exportFileName } from "../decks/export/exportFile";
+import type { RevisedLine } from "./revisionModel";
 import type { SharedDecklist } from "./usePublicDecklist";
 
 /**
@@ -71,4 +72,26 @@ export function formatListDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+type SharedCard = SharedDecklist["cards"][number]["card"];
+
+/**
+ * La liste retouchée par une révision (Lot 13, A10), au même format que la
+ * réponse : tout le reste (tableaux, exports) se calcule comme pour une liste
+ * ordinaire. Une carte sans fait connu (ni dans la liste d'origine ni parmi
+ * celles lues ou cherchées) est sautée ; l'appelant l'a déjà écartée des écarts.
+ */
+export function revisedList(
+  list: SharedDecklist,
+  lines: readonly RevisedLine[],
+  extra: ReadonlyMap<number, SharedCard>,
+): SharedDecklist {
+  const known = new Map<number, SharedCard>([...extra]);
+  for (const { card } of list.cards) known.set(card.id, card);
+  const cards = lines.flatMap(({ cardId, quantity }) => {
+    const card = known.get(cardId);
+    return card && quantity > 0 ? [{ card, quantity }] : [];
+  });
+  return { ...list, cards };
 }

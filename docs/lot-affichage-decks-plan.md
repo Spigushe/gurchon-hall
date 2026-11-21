@@ -449,6 +449,10 @@ D4 et D5 étaient écrits, E1 a été fait à la reprise.
   la capture VDB reçue : disciplines en colonnes alignées
   (`cryptDisciplineColumns`), sur la ligne tant qu'il y en a au plus cinq,
   sous le nom au-delà. Bibliothèque au téléphone selon la recommandation de P5.
+  *Amendé au Lot 13 (2026-11-21)* : quatre colonnes alignées seulement, les
+  disciplines suivantes tassées par vampire, à toutes les largeurs ; sous le
+  nom, six disciplines au plus par vampire, puis « … » (détail dans
+  `docs/lot13-plan-partage.md`, « Retours de l'utilisateur sur le preview »).
 - **D5.** Au bureau, l'en-tête du deckbuilder porte les actions du deck (statut,
   archivage, modification), le verdict de légalité passe dessous ; le picker
   devient un panneau repliable (`deck-picker-collapse`, `deck-picker-expand`),
