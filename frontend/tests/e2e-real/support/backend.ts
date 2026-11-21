@@ -126,6 +126,8 @@ export interface Api {
   get<T = unknown>(route: string): Promise<T>;
   post<T = unknown>(route: string, body: unknown, expectedStatus?: number): Promise<T>;
   patch<T = unknown>(route: string, body: unknown, expectedStatus?: number): Promise<T>;
+  /** `DELETE` sous la session du compte de test ; `expectedStatus` vaut 200 par défaut (204 : réponse vide). */
+  delete<T = unknown>(route: string, expectedStatus?: number): Promise<T>;
   /**
    * Prend le verrou d'écriture SQLite (`BEGIN IMMEDIATE`) depuis un autre
    * processus, comme le ferait une écriture concurrente : `POST /sync` répond
@@ -337,6 +339,7 @@ export const test = base.extend<{ api: Api }, { templateDb: string }>({
         get: (route) => call("GET", route),
         post: (route, body, expected) => call("POST", route, body, expected),
         patch: (route, body, expected) => call("PATCH", route, body, expected),
+        delete: (route, expected) => call("DELETE", route, undefined, expected),
         setVdbState: writeVdbStub,
         async importVdbCatalog() {
           const dir = `${dbFile}.vdb-catalog`;
