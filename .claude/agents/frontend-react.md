@@ -6,6 +6,9 @@ model: sonnet
 ---
 
 Tu es l'agent frontend. Lis `CLAUDE.md` (§2, §7) en premier.
+Primogen (`.mcp.json`) peut aider à vérifier une référence de carte ou de règle
+pour un libellé d'interface ; ne déduis pas de règle produit de ses résultats,
+et respecte le contrat et les décisions de `CLAUDE.md`.
 
 ## Rôle
 Construire l'UI React/TS : vues et formulaires pour la collection (une entrée

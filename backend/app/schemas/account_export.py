@@ -23,7 +23,11 @@ sessions n'y entrent pas.
 
 `format_version` change si la forme du fichier change d'une façon qu'un
 lecteur doit connaître (champ retiré ou renommé) ; un champ ajouté ne la
-change pas. `schema_revision` dit à quelle révision Alembic était la base.
+change pas. Elle est passée à 2 au Lot 13 (A5), à l'ajout des liens publics
+(`shares`), par décision de l'utilisateur plutôt que par nécessité : la forme 1,
+sans ce champ, reste lisible telle quelle. Les liens n'y portent **jamais leur
+jeton** : le fichier peut traîner, et un jeton suffit à lire la liste.
+`schema_revision` dit à quelle révision Alembic était la base.
 """
 
 from datetime import date, datetime
@@ -34,6 +38,7 @@ from pydantic import Field
 from app.models.enums import (
     DeckArchetype,
     DeckPolicy,
+    DeckShareKind,
     DeckStatus,
     EventTier,
     FinalDeckRule,
@@ -43,7 +48,7 @@ from app.models.enums import (
 )
 from app.schemas.base import ReadModel
 
-ACCOUNT_EXPORT_FORMAT_VERSION = 1
+ACCOUNT_EXPORT_FORMAT_VERSION = 2
 
 _VEKN_ID = "Identifiant VEKN de la carte, stable d'une base à l'autre."
 _CARD_NAME = "Nom anglais de la carte, tel que le catalogue le porte."
@@ -123,6 +128,34 @@ class ExportedDeck(ReadModel):
     )
     versions: list[ExportedDeckVersion] = Field(
         default=[], description="Versions jouées, par numéro croissant."
+    )
+
+
+class ExportedDeckShareCard(ReadModel):
+    """Une carte de la liste copiée d'un lien figé."""
+
+    vekn_id: int = Field(description=_VEKN_ID)
+    card_name: str = Field(description=_CARD_NAME)
+    quantity: int
+
+
+class ExportedDeckShare(ReadModel):
+    """Un lien public du compte (Lot 13), sans son jeton."""
+
+    id: int = Field(description="Identifiant du lien, valable dans ce fichier.")
+    deck_id: int = Field(description="Deck du lien (`decks[].id` de ce fichier).")
+    kind: DeckShareKind
+    show_notes: bool
+    created_at: datetime
+    frozen_name: str | None = None
+    frozen_archetype: DeckArchetype | None = None
+    frozen_notes: str | None = None
+    deck_version_number: int | None = Field(
+        default=None,
+        description="Numéro de la version jouée copiée par un figé, nul sinon.",
+    )
+    cards: list[ExportedDeckShareCard] = Field(
+        default=[], description="Liste copiée d'un lien figé ; vide pour un vivant."
     )
 
 
@@ -212,10 +245,11 @@ class ExportedGame(ReadModel):
 class AccountExport(ReadModel):
     """Toutes les données d'un compte, lisibles sans la base (P3, A4)."""
 
-    format_version: Literal[1] = Field(
+    format_version: Literal[1, 2] = Field(
         description=(
             "Version de la forme du fichier ; change si un champ est retiré ou "
-            "renommé, pas quand un champ s'ajoute."
+            "renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens "
+            "publics (`shares`) ; 1 reste décrit : même forme, sans ce champ."
         )
     )
     exported_at: datetime = Field(description="Instant de l'export, en UTC.")
@@ -229,3 +263,4 @@ class AccountExport(ReadModel):
     venues: list[ExportedVenue] = []
     tournaments: list[ExportedTournament] = []
     games: list[ExportedGame] = []
+    shares: list[ExportedDeckShare] = []

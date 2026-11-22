@@ -51,7 +51,7 @@ function messageOf(body: unknown, status: number): string {
   return describeErrorBody(body) || `Erreur inattendue (${status}).`;
 }
 
-function failureOf(response: Response, body: unknown): ApiOutcome<never> {
+export function failureOf(response: Response, body: unknown): ApiOutcome<never> {
   if (response.status === 401) return { kind: "unauthenticated" };
   const retryAfterMs = response.status === 429 ? parseRetryAfter(response.headers.get("Retry-After")) : undefined;
   const field = response.status === 422 ? fieldOf(body) : undefined;
@@ -64,7 +64,7 @@ function failureOf(response: Response, body: unknown): ApiOutcome<never> {
   };
 }
 
-async function attempt<T>(request: () => Promise<ApiOutcome<T>>): Promise<ApiOutcome<T>> {
+export async function attempt<T>(request: () => Promise<ApiOutcome<T>>): Promise<ApiOutcome<T>> {
   try {
     return await request();
   } catch {

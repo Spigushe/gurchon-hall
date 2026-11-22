@@ -114,6 +114,19 @@ class DeckArchetype(StrEnum):
     COMBO = "combo"
 
 
+class DeckShareKind(StrEnum):
+    """Genre d'un lien public vers une decklist (Lot 13, P1).
+
+    `LIVE` suit le deck : chaque consultation montre sa composition du moment.
+    `FROZEN` montre la liste copiée à la création du lien (`deck_share_card`),
+    avec le nom, l'archétype et les notes de ce moment ; une version jouée se
+    partage toujours en figé.
+    """
+
+    LIVE = "live"
+    FROZEN = "frozen"
+
+
 class DeckPolicy(StrEnum):
     """Contrainte de deck d'un tournoi (CLAUDE.md §5, « mono / multi-deck »)."""
 

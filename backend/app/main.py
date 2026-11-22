@@ -28,6 +28,7 @@ from app.routers.decks import router as decks_router
 from app.routers.games import router as games_router
 from app.routers.health import router as health_router
 from app.routers.players import router as players_router
+from app.routers.shares import router as shares_router
 from app.routers.stock import router as stock_router
 from app.routers.sync import router as sync_router
 from app.routers.tournaments import router as tournaments_router
@@ -197,6 +198,7 @@ app.include_router(tournaments_router)
 app.include_router(games_router)
 app.include_router(sync_router)
 app.include_router(vdb_router)
+app.include_router(shares_router)
 
 
 @app.exception_handler(DomainError)

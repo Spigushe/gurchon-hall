@@ -1,6 +1,6 @@
 ---
 name: regles-vtes
-description: Règles métier VtES pour valider decks, scores et tournois — légalité de deck, VP, Game Win, mono/multi-deck, deck de finale, classement saisi. Source de vérité métier, à exposer en fonctions pures testables. Marque explicitement toute règle non confirmée par le règlement VEKN.
+description: Règles métier VtES pour valider decks, scores et tournois, avec recherche sourcée de cartes et rulings par Primogen — légalité de deck, VP, Game Win, mono/multi-deck, deck de finale, classement saisi. Source de vérité métier, à exposer en fonctions pures testables. Marque explicitement toute règle non confirmée par le règlement VEKN.
 ---
 
 # Règles métier VtES
@@ -9,6 +9,30 @@ description: Règles métier VtES pour valider decks, scores et tournois — lé
 > établies avec certitude. Ne jamais les coder comme définitives : les rendre
 > **paramétrables**, les documenter, et signaler le doute. Vérifier au règlement
 > VEKN en vigueur avant de figer.
+
+## Recherche avec Primogen
+
+Le MCP Primogen du projet est configuré dans `.mcp.json` à
+`https://mcp.krcg.org/mcp`. Quand il est disponible, s'en servir comme aide de
+recherche sur les cartes, rulings et règles VtES : `vtes_cards` pour une carte,
+`vtes_rules_case` pour une question de règles, `vtes_rules_search` et
+`vtes_rules_read` pour les documents, et `vtes_rulings_archive` pour l'historique.
+Les outils de decks, statistiques, méta et événements servent aux questions de
+contenu correspondantes, pas à définir une règle du produit.
+
+Primogen facilite la recherche et la citation, mais sa réponse n'est pas à elle
+seule une autorité : pour une règle de tournoi ou de jeu, vérifier le document
+officiel VEKN en vigueur et distinguer le texte officiel d'une interprétation,
+d'un ruling ou d'une règle avancée non officielle. Les décisions déjà tranchées
+dans `CLAUDE.md` et les choix propres à l'outil restent prioritaires pour
+l'implémentation. Si le MCP n'est pas accessible, le signaler plutôt que de
+prétendre l'avoir consulté.
+
+Ne pas appeler `vtes_feedback` sans demande explicite : il crée un ticket public.
+Ne pas tenter d'accéder aux données Archon réservées aux membres sans
+authentification explicitement autorisée. Pour les textes de cartes protégés,
+préférer une référence et un court extrait nécessaire à l'analyse plutôt que de
+reproduire le texte complet.
 
 Les règles de partie et de tournoi ci-dessous ont été relues le 2026-10-28 dans
 les règles de tournoi de la VEKN (vekn.net/tournament-rules, sections entre

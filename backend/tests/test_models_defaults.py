@@ -333,9 +333,10 @@ def test_every_index_has_a_name():
             assert index.name, f"{table.name}: index anonyme"
 
 
-def test_model_registry_covers_twenty_eight_tables():
-    """Filet : le modèle décrit 28 tables, ni plus ni moins (Lot 6 : +2, Lot 8 : +3)."""
-    assert len(Base.metadata.tables) == 28
+def test_model_registry_covers_thirty_tables():
+    """Filet : le modèle décrit 30 tables, ni plus ni moins (Lot 6 : +2, Lot 8 : +3,
+    Lot 13 : +2)."""
+    assert len(Base.metadata.tables) == 30
     assert set(Base.metadata.tables) == {
         "language",
         "clan",
@@ -357,6 +358,8 @@ def test_model_registry_covers_twenty_eight_tables():
         "deleted_deck_card",
         "deck_version",
         "deck_version_card",
+        "deck_share",
+        "deck_share_card",
         "player",
         "tournament",
         "game",

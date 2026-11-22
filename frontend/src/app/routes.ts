@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
+import { SHARE_TOKEN_PATTERN } from "../features/share/publicListRoute";
 
 /**
  * Routage à hash (`#/collection`, `#/decks`, `#/decks/<clé>`).
@@ -20,7 +21,16 @@ import type { DeckKey, GameKey, ResourceKey } from "../offline/vtes";
  * retour arrière retombe donc sur l'adresse nue, sans rouvrir la feuille.
  */
 export type StockIntent = "add" | "bundle";
-export type DecksIntent = "new" | "import";
+/**
+ * `duplicate` et `compare` (Lot 13, D5, A8, A9) portent une liste partagée dans
+ * l'adresse (`liste=<jeton>`, `revision=<écarts bruts>`), voir `SharedListRef`.
+ */
+export type DecksIntent = "new" | "import" | "duplicate" | "compare";
+/** Liste partagée visée par une intention ou par l'écran de comparaison ; `revision` brute, jamais décodée ici (A10). */
+export interface SharedListRef {
+  token: string;
+  revision: string | null;
+}
 export type GamesIntent = "new";
 /**
  * Onglet de la liste des decks : `played` (non archivés, actifs et brouillons,
@@ -33,8 +43,9 @@ export type DecksFilter = "played" | "active" | "draft" | "archived" | "all";
 export type Route =
   | { name: "home" }
   | { name: "stock"; intent?: StockIntent }
-  | { name: "decks"; intent?: DecksIntent; filter?: DecksFilter }
+  | { name: "decks"; intent?: DecksIntent; filter?: DecksFilter; list?: SharedListRef }
   | { name: "deck"; key: DeckKey }
+  | ({ name: "compare"; key: DeckKey } & SharedListRef)
   | { name: "deckVersion"; key: DeckKey; number: number }
   | { name: "games"; intent?: GamesIntent }
   | { name: "game"; key: GameKey }
@@ -53,8 +64,18 @@ const RESOURCE_KEY = DECK_KEY;
 
 const STOCK_ACTIONS: Record<string, StockIntent> = { ajouter: "add", verser: "bundle" };
 const STOCK_ACTION_PARAMS: Record<StockIntent, string> = { add: "ajouter", bundle: "verser" };
-const DECKS_ACTIONS: Record<string, DecksIntent> = { nouveau: "new", importer: "import" };
-const DECKS_ACTION_PARAMS: Record<DecksIntent, string> = { new: "nouveau", import: "importer" };
+const DECKS_ACTIONS: Record<string, DecksIntent> = {
+  nouveau: "new",
+  importer: "import",
+  dupliquer: "duplicate",
+  comparer: "compare",
+};
+const DECKS_ACTION_PARAMS: Record<DecksIntent, string> = {
+  new: "nouveau",
+  import: "importer",
+  duplicate: "dupliquer",
+  compare: "comparer",
+};
 const GAMES_ACTIONS: Record<string, GamesIntent> = { nouvelle: "new" };
 /** `played`, l'onglet par défaut, n'a pas de paramètre : `#/decks` nu. */
 const DECKS_FILTERS: Record<string, Exclude<DecksFilter, "played">> = {
@@ -77,22 +98,56 @@ function actionOf<T>(hash: string, table: Record<string, T>, param = "action"): 
   return value !== null && Object.hasOwn(table, value) ? table[value] : null;
 }
 
-/** Liste des decks : intention d'ouverture (`action`) et onglet (`filtre`), chacun facultatif. */
+/**
+ * Valeur **brute** d'un paramètre de la query du hash (coupée seulement à `&`,
+ * jamais décodée) : la révision d'une liste partagée contient des `=` et des `;`
+ * que `URLSearchParams` n'a pas à retoucher (Lot 13, C1, A10).
+ */
+function rawParam(query: string, name: string): string | null {
+  for (const part of query.split("&")) {
+    if (part.startsWith(`${name}=`)) return part.slice(name.length + 1) || null;
+  }
+  return null;
+}
+
+/** La liste partagée d'un hash (`liste=<jeton>` valide, `revision` brute) ; `null` sans jeton valide. */
+function listOf(query: string): SharedListRef | null {
+  const token = rawParam(query, "liste");
+  if (token === null || !SHARE_TOKEN_PATTERN.test(token)) return null;
+  return { token, revision: rawParam(query, "revision") };
+}
+
+const LIST_INTENTS: readonly DecksIntent[] = ["duplicate", "compare"];
+
+/**
+ * Liste des decks : intention d'ouverture (`action`) et onglet (`filtre`), chacun
+ * facultatif. Une intention de liste partagée sans jeton valide est ignorée.
+ */
 function decksRoute(hash: string): Route {
   const route: Route & { name: "decks" } = { name: "decks" };
   const intent = actionOf(hash, DECKS_ACTIONS);
   const filter = actionOf(hash, DECKS_FILTERS, "filtre");
-  if (intent) route.intent = intent;
+  const list = listOf(hash.split("?")[1] ?? "");
+  if (intent && LIST_INTENTS.includes(intent)) {
+    if (list) {
+      route.intent = intent;
+      route.list = list;
+    }
+  } else if (intent) route.intent = intent;
   if (filter) route.filter = filter;
   return route;
 }
 
 function decksHref(route: Route & { name: "decks" }): string {
-  const params = new URLSearchParams();
-  if (route.filter && route.filter !== "played") params.set("filtre", DECKS_FILTER_PARAMS[route.filter]);
-  if (route.intent) params.set("action", DECKS_ACTION_PARAMS[route.intent]);
-  const query = params.toString();
-  return query ? `#/decks?${query}` : "#/decks";
+  const params: string[] = [];
+  if (route.filter && route.filter !== "played") params.push(`filtre=${DECKS_FILTER_PARAMS[route.filter]}`);
+  if (route.intent) params.push(`action=${DECKS_ACTION_PARAMS[route.intent]}`);
+  if (route.intent && route.list) params.push(...listParams(route.list));
+  return params.length > 0 ? `#/decks?${params.join("&")}` : "#/decks";
+}
+
+function listParams(list: SharedListRef): string[] {
+  return list.revision === null ? [`liste=${list.token}`] : [`liste=${list.token}`, `revision=${list.revision}`];
 }
 
 /**
@@ -145,6 +200,15 @@ function deckVersionRoute(path: string): Route | null {
   return { name: "deckVersion", key: key as DeckKey, number };
 }
 
+/** Écran de comparaison (Lot 13, D5, A9) : `#/decks/<clé>/comparer/<jeton>[?revision=…]`. */
+function compareRoute(path: string, hash: string): Route | null {
+  const match = /^\/decks\/(.+)\/comparer\/([^/]+)$/.exec(path);
+  if (!match) return null;
+  const key = decodeKey(match[1]);
+  if (key === null || !DECK_KEY.test(key) || !SHARE_TOKEN_PATTERN.test(match[2])) return null;
+  return { name: "compare", key: key as DeckKey, token: match[2], revision: rawParam(hash.split("?")[1] ?? "", "revision") };
+}
+
 export function parseHash(hash: string): Route {
   const path = hash.replace(/^#/, "").split("?")[0].replace(/\/+$/, "");
   if (path === "" || path === "/") return { name: "home" };
@@ -165,6 +229,8 @@ export function parseHash(hash: string): Route {
   if (path === "/bilan") return bilanRoute(hash);
   const version = deckVersionRoute(path);
   if (version) return version;
+  const compare = compareRoute(path, hash);
+  if (compare) return compare;
   const match = /^\/decks\/(.+)$/.exec(path);
   if (match) {
     const key = decodeKey(match[1]);
@@ -195,6 +261,8 @@ export function hrefFor(route: Route): string {
       return `#/decks/${keySegment(route.key)}`;
     case "deckVersion":
       return `#/decks/${keySegment(route.key)}/versions/${route.number}`;
+    case "compare":
+      return `#/decks/${keySegment(route.key)}/comparer/${route.token}${route.revision === null ? "" : `?revision=${route.revision}`}`;
     case "games":
       return route.intent ? "#/parties?action=nouvelle" : "#/parties";
     case "game":

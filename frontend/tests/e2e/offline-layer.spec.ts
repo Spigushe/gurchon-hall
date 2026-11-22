@@ -79,6 +79,26 @@ test.describe("couche offline dans le navigateur", () => {
     await context.setOffline(false);
   });
 
+  test("hors ligne, une navigation vers /listes/<jeton> n'est pas servie par l'app shell (Lot 13)", async ({
+    page,
+    context,
+  }) => {
+    await controlledByServiceWorker(page);
+    await context.setOffline(true);
+
+    // La page publique vit dans le hash : la coquille, elle, reste servie.
+    // (about:blank d'abord : un simple changement de hash ne ferait pas de navigation.)
+    await page.goto("about:blank");
+    const shell = await page.goto("/#/liste/aB3x_9pQ");
+    expect(shell?.fromServiceWorker()).toBe(true);
+    await expect(page.getByTestId("public-list-offline")).toHaveText("Cette liste demande une connexion au réseau.");
+
+    // Le chemin de l'API, lui, ne reçoit jamais la coquille.
+    await expect(page.goto("/listes/aB3x_9pQ")).rejects.toThrow(/net::ERR_/);
+
+    await context.setOffline(false);
+  });
+
   // La vérification du schéma de la base IndexedDB (magasins, version Dexie)
   // vit désormais dans `tests/e2e-real/offline-db-schema.spec.ts` : elle exige
   // un compte connecté (Lot 6), donc un back réel, absent de ce projet.

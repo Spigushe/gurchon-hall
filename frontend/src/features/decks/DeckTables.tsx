@@ -10,7 +10,7 @@ import {
   typeGlyph,
 } from "../../components/glyphs/glyphs";
 import { plural } from "../../labels";
-import { sectInitial } from "./deckTablesModel";
+import { ALIGNED_DISCIPLINE_COLUMNS, disciplineSlots, packedDisciplineSlots, sectInitial } from "./deckTablesModel";
 import type { CardDisciplineDetail } from "../../offline/vtes";
 import type { CostTotal, CryptSection, DeckTableRow, DeckTables as Tables, LibraryGroup, LibrarySection } from "./deckTablesModel";
 
@@ -58,30 +58,64 @@ function Disciplines({ disciplines }: { disciplines: readonly CardDisciplineDeta
 }
 
 /**
+ * Au téléphone, quand les disciplines passent sous le nom, elles ne sont plus
+ * alignées : chaque vampire montre ses six premières, puis « … », qui porte
+ * le nom des suivantes (Lot 13, retour sur D3).
+ */
+const MAX_STACKED_DISCIPLINES = 6;
+
+const slotClass = (owned: boolean, overflow: boolean) =>
+  ["deck-table__disc-slot", owned ? null : "deck-table__disc-slot--empty", overflow ? "deck-table__disc-slot--overflow" : null]
+    .filter(Boolean)
+    .join(" ");
+
+/**
  * Disciplines d'un vampire rangées dans les colonnes de la crypte (P5, d'après
  * VDB) : une case par colonne, vide quand le vampire n'a pas la discipline.
+ * Les cases au-delà de sa sixième discipline et le « … » sont toujours rendus ;
+ * c'est la feuille de style qui choisit, selon la largeur de la section.
  */
 function AlignedDisciplines({
   columns,
+  packedSlots,
   disciplines,
 }: {
   columns: readonly string[];
+  packedSlots: number;
   disciplines: readonly CardDisciplineDetail[];
 }) {
   const byCode = new Map(disciplines.map((discipline) => [discipline.code, discipline]));
+  const label = (discipline: CardDisciplineDetail) =>
+    disciplineLabel(discipline.name, discipline.superior, discipline.code);
+  const slots = disciplineSlots(columns, new Set(byCode.keys()), packedSlots);
+  const ownedCodes = slots.filter((code): code is string => code !== null);
+  const hidden = ownedCodes.slice(MAX_STACKED_DISCIPLINES).flatMap((code) => {
+    const discipline = byCode.get(code);
+    return discipline ? [label(discipline)] : [];
+  });
   return (
-    <span className="deck-table__disc-grid" style={{ "--disc-cols": columns.length } as CSSProperties}>
-      {columns.map((code) => {
-        const discipline = byCode.get(code);
+    <span className="deck-table__disc-grid" style={{ "--disc-cols": slots.length } as CSSProperties}>
+      {slots.map((code, index) => {
+        const discipline = code === null ? undefined : byCode.get(code);
         const glyph = discipline ? disciplineGlyph(discipline.code, discipline.superior) : null;
+        const overflow = code !== null && ownedCodes.indexOf(code) >= MAX_STACKED_DISCIPLINES;
         return (
-          <span key={code} className="deck-table__disc-slot">
-            {discipline && glyph && (
-              <GlyphIcon glyph={glyph} label={disciplineLabel(discipline.name, discipline.superior, discipline.code)} />
-            )}
+          <span key={index} className={slotClass(discipline !== undefined, overflow)}>
+            {discipline && glyph && <GlyphIcon glyph={glyph} label={label(discipline)} />}
           </span>
         );
       })}
+      {hidden.length > 0 && (
+        <span
+          className="deck-table__disc-more"
+          role="img"
+          aria-label={`Autres disciplines : ${hidden.join(", ")}`}
+          title={hidden.join(", ")}
+          data-testid="deck-table-disc-more"
+        >
+          …
+        </span>
+      )}
     </span>
   );
 }
@@ -159,6 +193,8 @@ function CryptTable({ section, renderers, editable }: { section: CryptSection; r
     section.groupsLabel,
     section.averageCapacity !== null ? `cap. moy. ${formatDecimal(section.averageCapacity)}` : null,
   ].filter(Boolean);
+  const packedSlots = packedDisciplineSlots(section.disciplineColumns, section.rows);
+  const slotCount = Math.min(section.disciplineColumns.length, ALIGNED_DISCIPLINE_COLUMNS) + packedSlots;
   return (
     <section className="deck-table" aria-labelledby={titleId} data-testid="deck-tables-crypt">
       <header className="deck-table__head">
@@ -179,7 +215,7 @@ function CryptTable({ section, renderers, editable }: { section: CryptSection; r
           className={[
             "deck-table__body",
             editable ? "deck-table__body--editable" : null,
-            section.disciplineColumns.length > MAX_INLINE_DISCIPLINE_COLUMNS ? "deck-table__body--many-disc" : null,
+            slotCount > MAX_INLINE_DISCIPLINE_COLUMNS ? "deck-table__body--many-disc" : null,
           ]
             .filter(Boolean)
             .join(" ")}
@@ -211,7 +247,11 @@ function CryptTable({ section, renderers, editable }: { section: CryptSection; r
                 </span>
                 <NameCell row={row} renderName={renderers.renderName} />
                 <span className="deck-table__cell deck-table__end deck-table__disc" role="cell">
-                  <AlignedDisciplines columns={section.disciplineColumns} disciplines={row.facts?.details?.disciplines ?? []} />
+                  <AlignedDisciplines
+                    columns={section.disciplineColumns}
+                    packedSlots={packedSlots}
+                    disciplines={row.facts?.details?.disciplines ?? []}
+                  />
                 </span>
                 <span className="deck-table__cell deck-table__center deck-table__clan" role="cell">
                   <Clans names={row.facts?.card.clanName ? [row.facts.card.clanName] : []} />

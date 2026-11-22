@@ -47,6 +47,10 @@ export const API_ROUTE_PREFIXES: readonly string[] = [
   // Lot 9 : lecture d'un deck VDB par le serveur (`GET /vdb/decks/{id}`),
   // en ligne seulement.
   "/vdb",
+  // Lot 13 : lecture publique d'une liste partagée (`GET /listes/{jeton}`),
+  // en ligne seulement. La page côté client vit dans le hash
+  // (`#/liste/<jeton>`), jamais sous ce chemin.
+  "/listes",
   // Documentation générée par FastAPI.
   "/docs",
   "/redoc",

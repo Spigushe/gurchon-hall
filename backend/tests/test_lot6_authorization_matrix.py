@@ -43,10 +43,11 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import select
 
-from app.models import SyncOperation
-from app.models.enums import UserRole
+from app.models import DeckShare, SyncOperation
+from app.models.enums import DeckShareKind, UserRole
+from app.routers.common import ACTIVE_SESSION_COOKIE_NAME
 from tests.auth_helpers import DEFAULT_PASSWORD, log_in, make_account
-from tests.helpers import add_languages, make_card, make_printing
+from tests.helpers import add_languages, make_card, make_deck, make_printing
 
 RECORDED_AT = "2026-09-20T20:00:00+02:00"
 UNAUTHENTICATED_BODY = {"detail": "Authentification requise."}
@@ -169,6 +170,12 @@ _PROTECTED_ROUTES = [
     ("DELETE", "/moi/sessions", None),
     ("DELETE", "/moi/sessions/1", None),
     ("GET", "/moi/export", None),
+    # Lot 13, étape A1 : liens publics vers une decklist (A1). La lecture
+    # publique, `GET /listes/{token}`, n'exige aucune session.
+    ("GET", "/decks/1/partages", None),
+    ("POST", "/decks/1/partages", {"kind": "frozen", "show_notes": True}),
+    ("GET", "/moi/partages", None),
+    ("DELETE", "/moi/partages?scope=selected&share_id=1", None),
 ]
 
 
@@ -196,6 +203,42 @@ def test_public_routes_need_no_session_at_all(api):
     assert api.get("/bundles").status_code == 200
     assert api.get("/langues").status_code == 200
     assert api.get("/health").status_code == 200
+
+
+def test_the_shared_list_route_is_public_and_ignores_a_session_cookie(
+    api, api_client_factory, db
+):
+    """Lot 13 (A4) : `GET /listes/{token}` est la seule route à lire une
+    donnée privée sans session. Même réponse sans cookie, avec la session d'un
+    compte valide et avec un cookie de session bidon : la session n'est jamais
+    lue, ni pour ouvrir l'accès ni pour le refuser."""
+    owner = make_account(db, email="liste@example.com", username="liste-pub")
+    deck = make_deck(db, "Liste publique", user_id=owner.id)
+    db.add(
+        DeckShare(
+            user_id=owner.id,
+            deck_id=deck.id,
+            token="aB3x_9pQ",
+            kind=DeckShareKind.LIVE,
+        )
+    )
+    db.commit()
+    anonymous = api.get("/listes/aB3x_9pQ")
+    assert anonymous.status_code == 200
+    assert "private" not in anonymous.headers["cache-control"]
+
+    stranger = api_client_factory()
+    make_account(db, email="autre-liste@example.com", username="autre-liste")
+    log_in(stranger, "autre-liste@example.com", DEFAULT_PASSWORD)
+    with_session = stranger.get("/listes/aB3x_9pQ")
+    assert with_session.status_code == 200
+    assert with_session.json() == anonymous.json()
+    assert with_session.headers["cache-control"] == anonymous.headers["cache-control"]
+
+    api.cookies.set(ACTIVE_SESSION_COOKIE_NAME, "n-importe-quoi")
+    bogus = api.get("/listes/aB3x_9pQ")
+    assert bogus.status_code == 200
+    assert bogus.json() == anonymous.json()
 
 
 # ---------------------------------------------------------------------------

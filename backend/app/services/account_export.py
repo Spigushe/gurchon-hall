@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from alembic.runtime.migration import MigrationContext
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session, aliased, lazyload
+from sqlalchemy.orm import Session, aliased, joinedload, lazyload
 
 from app.models.account import UserAccount
 from app.models.catalog import Card
@@ -45,6 +45,7 @@ from app.models.play import (
     TournamentDeckVersion,
 )
 from app.models.reference import CardSet, Clan, Venue
+from app.models.share import DeckShare, DeckShareCard
 from app.schemas.account_export import (
     ACCOUNT_EXPORT_FORMAT_VERSION,
     AccountExport,
@@ -52,6 +53,8 @@ from app.schemas.account_export import (
     ExportedCollectionEntry,
     ExportedDeck,
     ExportedDeckLine,
+    ExportedDeckShare,
+    ExportedDeckShareCard,
     ExportedDeckVersion,
     ExportedDeckVersionCard,
     ExportedGame,
@@ -347,6 +350,52 @@ def export_games(db: Session, *, user_id: int) -> list[ExportedGame]:
     return exported
 
 
+# --- Liens publics (Lot 13, A5) -----------------------------------------------
+
+
+def export_shares(db: Session, *, user_id: int) -> list[ExportedDeckShare]:
+    """Les liens du compte, supprimés compris, **sans leur jeton** : un jeton
+    suffit à lire la liste, et le fichier peut traîner. `deck_share_card` n'a
+    pas de `user_id` : elle se lit par son lien."""
+    cards: dict[int, list[ExportedDeckShareCard]] = defaultdict(list)
+    rows = db.execute(
+        select(DeckShareCard, Card.vekn_id, Card.name)
+        .join(Card, Card.id == DeckShareCard.card_id)
+        .join(DeckShare, DeckShare.id == DeckShareCard.deck_share_id)
+        .where(DeckShare.user_id == user_id)
+        .order_by(*folded_order(Card.name), Card.vekn_id)
+    )
+    for row, vekn_id, name in rows:
+        cards[row.deck_share_id].append(
+            ExportedDeckShareCard(
+                vekn_id=vekn_id, card_name=name, quantity=row.quantity
+            )
+        )
+    shares = db.scalars(
+        select(DeckShare)
+        .where(DeckShare.user_id == user_id)
+        .options(joinedload(DeckShare.deck_version))
+        .order_by(DeckShare.id)
+    )
+    return [
+        ExportedDeckShare(
+            id=share.id,
+            deck_id=share.deck_id,
+            kind=share.kind,
+            show_notes=share.show_notes,
+            created_at=share.created_at,
+            frozen_name=share.frozen_name,
+            frozen_archetype=share.frozen_archetype,
+            frozen_notes=share.frozen_notes,
+            deck_version_number=(
+                share.deck_version.number if share.deck_version else None
+            ),
+            cards=cards.get(share.id, []),
+        )
+        for share in shares
+    ]
+
+
 # --- Assemblage --------------------------------------------------------------
 
 
@@ -366,6 +415,7 @@ def export_account(
         venues=export_venues(db, user_id=user_id),
         tournaments=export_tournaments(db, user_id=user_id),
         games=export_games(db, user_id=user_id),
+        shares=export_shares(db, user_id=user_id),
     )
 
 

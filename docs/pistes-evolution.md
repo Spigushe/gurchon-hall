@@ -44,7 +44,10 @@ plus bas, marquée du lot qui la reprend ; les autres ont quitté ce fichier.
 | Historique des versions d'un deck | comparer deux versions quelconques, revenir à une version passée ; le Lot 8 livre les versions figées au jeu et les changements depuis la version précédente | quand le besoin apparaît, les versions sont au miroir |
 | Légalité d'un deck vivant à une date choisie | `GET /decks/{id}/legalite` reste évalué au jour ; le Lot 8 n'a ouvert la date que pour une version jouée | si un verdict rétrospectif sur un deck non joué se demande |
 
-### Lien public vers une decklist, vivant ou figé (→ Lot 13)
+### Lien public vers une decklist, vivant ou figé (livré au Lot 13)
+
+*Livrée au Lot 13 (`docs/lot13-plan-partage.md`, P1 à P8, qui fait foi) ; le texte
+ci-dessous est la conception de départ, gardée pour mémoire.*
 
 Demandée par l'utilisateur le 2026-11-08, entrée au Lot 13 le 2026-11-17 ; les
 points à trancher ci-dessous se tranchent à l'ouverture du lot. Il s'agit de partager un deck avec

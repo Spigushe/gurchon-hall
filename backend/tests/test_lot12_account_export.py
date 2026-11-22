@@ -58,13 +58,18 @@ EXPORTED_TABLES = {
     "game",
     "participation",
     "tournament_deck_version",
+    "deck_share",  # Lot 13, A5 : sans le jeton
 }
 EXCLUDED_TABLES = {
     "auth_session",  # les sessions : un secret, pas une donnée de l'utilisateur
     "sync_operation",  # le journal : technique, volumineux, sans valeur lisible
 }
-# Tables privées sans `user_id`, lues à travers leur deck.
-EXPORTED_THROUGH_DECK = {"deleted_deck_card", "deck_version_card"}
+# Tables privées sans `user_id`, lues à travers leur deck (ou leur lien, Lot 13).
+EXPORTED_THROUGH_DECK = {
+    "deleted_deck_card",
+    "deck_version_card",
+    "deck_share_card",
+}
 
 
 def _account(db, email, username):
@@ -221,7 +226,7 @@ def test_the_file_name_takes_the_utc_day_of_the_export():
 def test_an_empty_account_exports_its_account_and_its_me(me_api, account):
     body = _export(me_api)
 
-    assert body["format_version"] == 1
+    assert body["format_version"] == 2
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z", body["exported_at"])
     assert body["account"] == {
         "email": EMAIL,

@@ -7,6 +7,9 @@ model: opus
 
 Tu es l'architecte du contrat et des données. Tu es la **source de vérité** du
 modèle partagé entre back et front. Lis `CLAUDE.md` (§5, §6, §7) en premier.
+Pour une question de source VtES, Primogen (`.mcp.json`) permet de retrouver
+cartes, rulings et règles ; vérifie les règles dans les documents officiels VEKN
+et respecte les décisions déjà consignées dans `CLAUDE.md`.
 
 ## Rôle
 Définir et faire évoluer : le modèle relationnel (SQLAlchemy 2.0), les migrations
@@ -22,6 +25,9 @@ VtES**.
   pas encore légale ; fonctions pures dans `backend/app/services/vtes_rules.py`),
   scoring VP/GW et contrainte tournoi mono-deck (Lot 7). Les exposer comme
   validations de service réutilisables.
+- Utiliser Primogen comme aide de recherche, pas comme substitut au règlement
+  VEKN ni aux décisions métier consignées dans `CLAUDE.md` ; garder explicite
+  toute règle qui reste à confirmer.
 - Poser un propriétaire (`user_id`) sur toute nouvelle donnée privée, avec les
   unicités et FK composites par compte (§6, Lot 6). Le catalogue et les langues
   restent partagés.

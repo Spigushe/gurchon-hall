@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALIGNED_DISCIPLINE_COLUMNS,
   buildDeckTables,
   cryptClans,
   cryptDisciplineColumns,
   cryptGroupsLabel,
+  disciplineSlots,
+  packedDisciplineSlots,
   isTrifle,
   mergeDeckLines,
   plusDecision,
@@ -231,6 +234,38 @@ describe("cryptDisciplineColumns (P5)", () => {
     ]);
     const rows = mergeDeckLines([line(1, 1), line(2, 2), line(3, 1)], facts);
     expect(cryptDisciplineColumns(rows)).toEqual(["obf", "qui", "aus", "cel"]);
+  });
+});
+
+describe("disciplineSlots et packedDisciplineSlots : quatre colonnes alignées, puis tassées", () => {
+  const columns = ["obf", "qui", "aus", "cel", "dom", "pot", "pre", "for"];
+
+  it("aligne les quatre premières colonnes et tasse les suivantes à la suite", () => {
+    expect(disciplineSlots(columns, new Set(["obf", "cel", "for", "pre"]), 3)).toEqual(["obf", null, null, "cel", "pre", "for", null]);
+    expect(disciplineSlots(columns, new Set(["qui"]), 3)).toEqual([null, "qui", null, null, null, null, null]);
+  });
+
+  it("garde l'ordre des colonnes dans les cases tassées", () => {
+    expect(disciplineSlots(columns, new Set(["for", "dom"]), 2)).toEqual([null, null, null, null, "dom", "for"]);
+  });
+
+  it("une crypte de quatre colonnes ou moins n'a aucune case tassée", () => {
+    expect(disciplineSlots(["obf", "qui"], new Set(["qui"]), 0)).toEqual([null, "qui"]);
+  });
+
+  it("compte autant de cases tassées que le vampire qui a le plus de disciplines hors des quatre", () => {
+    const facts = factsOf([
+      crypt({ id: 1, name: "A", disciplines: ["obf", "qui", "aus", "cel", "dom"] }),
+      crypt({ id: 2, name: "B", disciplines: ["obf", "pot", "pre", "for"] }),
+      crypt({ id: 3, name: "C", disciplines: ["obf"] }),
+    ]);
+    const rows = mergeDeckLines([line(1, 3), line(2, 2), line(3, 1)], facts);
+    const cols = cryptDisciplineColumns(rows);
+    // obf (6), puis aus, cel, dom, qui à 3 chacune, rangées par code : qui passe dans les tassées.
+    expect(cols.slice(0, ALIGNED_DISCIPLINE_COLUMNS)).toEqual(["obf", "aus", "cel", "dom"]);
+    // A : qui ; B : pot, pre, for.
+    expect(packedDisciplineSlots(cols, rows)).toBe(3);
+    expect(packedDisciplineSlots(["obf"], rows)).toBe(0);
   });
 });
 

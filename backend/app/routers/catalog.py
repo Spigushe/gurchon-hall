@@ -10,7 +10,10 @@ collection du compte, et l'ajout d'une langue, réservé au rôle `admin` parce
 que la table est commune à tous les comptes (P4).
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Query
+from pydantic import Field
 
 from app.models import CardCategory, UserRole
 from app.routers.common import (
@@ -38,6 +41,24 @@ from app.services import catalog, stock
 
 router = APIRouter(tags=["catalogue"])
 
+CARD_IDS_MAX = 200
+"""Plafond du filtre `ids` (Lot 13, A1), celui de `limit`."""
+
+CardIds = Annotated[
+    list[Annotated[int, Field(ge=1, le=MAX_DB_INT)]] | None,
+    Query(
+        min_length=1,
+        max_length=CARD_IDS_MAX,
+        description=(
+            "Identifiants de cartes (`id`, pas `vekn_id`), répété "
+            "(`ids=12&ids=40`), de 1 à 200 (Lot 13) : ne rend que ces cartes, "
+            "un identifiant inconnu étant simplement absent. Se combine aux "
+            "autres filtres ; `limit` et `offset` s'appliquent encore, à porter "
+            "au nombre d'identifiants."
+        ),
+    ),
+]
+
 
 @router.get(
     "/cartes",
@@ -54,7 +75,8 @@ router = APIRouter(tags=["catalogue"])
         "coût, prérequis, disciplines, types, texte anglais, dates de légalité, "
         "exigence envers le vampire et noms traduits. Les autres filtres sont "
         "ceux du client, sur son miroir local, pas des paramètres de cette "
-        "route."
+        "route. `ids` lit des cartes connues par leur identifiant (Lot 13 : "
+        "cartes ajoutées par la révision d'une liste partagée)."
     ),
 )
 def list_cards(
@@ -64,9 +86,16 @@ def list_cards(
     clan_id: QueryId = None,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=MAX_DB_INT),
+    ids: CardIds = None,
 ):
     return catalog.list_cards(
-        db, q=q, category=category, clan_id=clan_id, limit=limit, offset=offset
+        db,
+        q=q,
+        category=category,
+        clan_id=clan_id,
+        ids=ids,
+        limit=limit,
+        offset=offset,
     )
 
 

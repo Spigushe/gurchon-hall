@@ -1,7 +1,16 @@
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowUpRightIcon, ClockCountdownIcon, MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
-import { consumeIntent, navigate, replaceDecksFilter, type DecksFilter, type DecksIntent } from "../../app/routes";
+import {
+  consumeIntent,
+  navigate,
+  replaceDecksFilter,
+  type DecksFilter,
+  type DecksIntent,
+  type SharedListRef,
+} from "../../app/routes";
+import { holdListIntent, peekListIntent, type ListIntent } from "../share/listIntent";
+import { ListIntentSheet } from "../share/ListIntentSheet";
 import { Kbd } from "../../components/Kbd";
 import { LoadingState } from "../../components/Loading";
 import { Pill } from "../../components/Pill";
@@ -392,13 +401,20 @@ const EMPTY_SUMMARY: DeckListSummary = { crypt: 0, library: 0, clans: [] };
  * précédente n'y figure plus (nouveau filtre, changement d'onglet, deck
  * supprimé…).
  */
-export function DecksPage({ intent, filter: routeFilter }: { intent?: DecksIntent; filter?: DecksFilter } = {}) {
+export function DecksPage({
+  intent,
+  filter: routeFilter,
+  list,
+}: { intent?: DecksIntent; filter?: DecksFilter; list?: SharedListRef } = {}) {
   const searchId = useId();
   const stateName = useId();
   const [filter, setFilter] = useState<DecksFilter>(routeFilter ?? "played");
   const [term, setTerm] = useState("");
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  // « Dupliquer » ou « Comparer » une liste partagée (Lot 13, D5) : gardée aussi
+  // hors de la page, pour survivre à un écran de connexion intercalé.
+  const [listIntent, setListIntent] = useState<ListIntent | null>(peekListIntent);
   const [selectedKey, setSelectedKey] = useState<DeckKey | null>(null);
   const deferred = useDeferredValue(term.trim());
   const decks = useLocalDecks({ ...filterQuery(filter), q: deferred || undefined });
@@ -428,6 +444,11 @@ export function DecksPage({ intent, filter: routeFilter }: { intent?: DecksInten
     setSeenIntent(intent);
     if (intent === "new") setCreating(true);
     if (intent === "import") setImporting(true);
+    if ((intent === "duplicate" || intent === "compare") && list) {
+      const held = { kind: intent, ...list };
+      holdListIntent(held);
+      setListIntent(held);
+    }
   }
   useEffect(() => {
     if (intent) consumeIntent({ name: "decks", intent });
@@ -626,6 +647,7 @@ export function DecksPage({ intent, filter: routeFilter }: { intent?: DecksInten
         />
       )}
       {importing && <DeckImportSheet onClose={() => setImporting(false)} />}
+      {listIntent && <ListIntentSheet intent={listIntent} onClose={() => setListIntent(null)} />}
     </div>
   );
 }
