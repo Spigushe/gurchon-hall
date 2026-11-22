@@ -1428,6 +1428,11 @@ fieldset:disabled .chip {
   gap: 4px;
 }
 
+.btn-danger-text:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .chip-action {
   display: inline-flex;
   align-items: center;

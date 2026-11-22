@@ -275,6 +275,11 @@ purge des decks supprimés ou avec la purge totale. La purge passe par une
 route du compte et non du deck (A1), un deck supprimé refusant toute
 écriture.
 
+**Amendé à F (2026-11-22, retour de l'utilisateur sur le staging)** : une case
+sur **tous** les liens. Ceux des decks supprimés, toujours rangés à part, se
+cochent comme les autres et entrent dans « Purger la sélection » ; le 409 qui
+les refusait disparaît. Les deux purges d'ensemble restent.
+
 ### P6. La page publique dans la coquille
 
 Sans session, `AuthGate` montre l'écran de connexion. La page publique doit
@@ -453,7 +458,7 @@ contrat et données, serveur, puis client.
 | `GET /decks/{id}/partages` (`listDeckShares`) | liens du deck, sous session ; 404 pour le deck d'un autre compte, comme toute route de deck ; lisible pour un deck supprimé (ses figés) |
 | `POST /decks/{id}/partages` (`createDeckShare`) | crée un lien (`kind` : `live` ou `frozen`, `show_notes`, et pour figer une version jouée `deck_version_number`) ; 201 `DeckShareRead` avec le jeton ; 409 pour un deck supprimé ; 422 pour `deck_version_number` sur un lien vivant |
 | `GET /moi/partages` (`listMyShares`) | tous les liens du compte, decks supprimés compris, chacun avec l'état de son deck, pour l'écran Compte (P5) |
-| `DELETE /moi/partages` (`purgeShares`) | purge, seul moyen de révoquer (P5). `scope` obligatoire : `selected`, `deleted_decks` ou `all` ; avec `selected`, `share_id` répété (1 à 200, 422 s'il manque ou s'il accompagne une autre portée). Une sélection est refusée **en entier** si l'un des liens est inconnu ou d'un autre compte (404 « Lien N introuvable. ») ou vise un deck supprimé (409). 200 `{"revoked": n}` ; `deleted_decks` et `all` sont idempotentes (0 au second appel). Sous `/moi` : un deck supprimé refuse toute écriture |
+| `DELETE /moi/partages` (`purgeShares`) | purge, seul moyen de révoquer (P5). `scope` obligatoire : `selected`, `deleted_decks` ou `all` ; avec `selected`, `share_id` répété (1 à 200, 422 s'il manque ou s'il accompagne une autre portée). Une sélection est refusée **en entier** si l'un des liens est inconnu ou d'un autre compte (404 « Lien N introuvable. ») (*le 409 d'un lien de deck supprimé a été retiré à F*). 200 `{"revoked": n}` ; `deleted_decks` et `all` sont idempotentes (0 au second appel). Sous `/moi` : un deck supprimé refuse toute écriture |
 | `GET /listes/{token}` (`readSharedDecklist`) | **publique**, sans session ni cookie : `SharedDecklistRead` ; jeton au motif `^[A-Za-z0-9_]{8}$` (422 sinon) |
 
 `SharedDecklistRead` porte `name`, `archetype`, `kind`, `frozen_at` (nul pour
@@ -483,7 +488,7 @@ chemins. Dupliquer et Comparer n'ajoutent aucune route : ils lisent
   `name`, `discriminator`, `archived_at`, `deleted_at`). Un seul schéma pour
   les deux listes : la feuille de partage d'un deck et « Listes partagées »
   lisent la même forme, et `deck.deleted_at` dit au client quels liens ranger
-  à part, sans case (P5). Les deux listes vont du plus récent au plus
+  à part, sans case (P5 ; avec case depuis F). Les deux listes vont du plus récent au plus
   ancien ;
 - le 422 de `deck_version_number` sur un lien vivant est tenu par le schéma
   (`DeckShareCreate`), règle de forme ; le contrôle croisé de `scope` et
@@ -602,7 +607,7 @@ archétype et nom d'utilisateur toujours, P2). Un figé attend la file du deck
 (P4).
 
 « Listes partagées », dans l'écran Compte, liste tous les liens du compte,
-groupés par deck, ceux des decks supprimés à part et sans case. Trois purges
+groupés par deck, ceux des decks supprimés à part (sans case, jusqu'à F). Trois purges
 confirmées, avec le nombre de liens : « Purger la sélection », « Purger les
 liens des decks supprimés », « Tout purger » (P5). La confirmation de
 suppression d'un deck dit combien de ses liens figés resteront publics et
@@ -1580,9 +1585,9 @@ depuis `backend/`.
 
 #### 2. Fusion et staging
 
-- [ ] PR `lot13-partage` → `main`, CI verte, fusion.
-- [ ] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R16 s'y applique.
-- [ ] Sur `gurchon-staging.spigushe.com` :
+- [X] PR `lot13-partage` → `main`, CI verte, fusion.
+- [X] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R16 s'y applique.
+- [X] Sur `gurchon-staging.spigushe.com` :
   - bandeau « nouvelle version » sur un appareil déjà venu ;
   - pied de Compte à `1.2.0`, comme `/health` ;
   - créer un vivant et un figé, les ouvrir dans une fenêtre privée, sans compte ;
@@ -1591,6 +1596,27 @@ depuis `backend/`.
   - Dupliquer et Comparer avec un compte, puis « Se connecter pour dupliquer ou
     comparer » depuis la fenêtre privée ;
   - art de l'extension dans la Collection, en ligne puis en mode avion.
+- [X] Version relevée sur le staging le 2026-11-22 : « Application 1.2.0 · Serveur
+  1.2.0 » ; un deck supprimé garde bien ses figés dans « Listes partagées ».
+- [X] **Retour sur le staging, corrigé** : avec des liens de decks supprimés seulement,
+  aucune case à cocher, et « Purger la sélection » inactif avait l'aspect d'un bouton
+  actif (`.btn-danger-text` n'avait pas de style `:disabled`, corrigé partout). P5
+  amendée : une case sur tous les liens. Ni route, ni migration, ni type `/sync` ; au
+  contrat, seules des descriptions changent. Tests : trois cas
+  de service (dont un à la place du 409), quatre cas vitest (1942 verts sur 111 fichiers,
+  CRAP et `data-testid` sans régression), e2e `lot13-cycle-de-vie` complété, vert aux deux
+  largeurs. pytest complet : **3161 verts et
+  2 `xfail`**.
+- [X] **Retour levé, pas un défaut** : « Se connecter pour dupliquer », connexion, « Annuler »,
+  le deck semblait dupliqué quand même. **Non reproduit** le 2026-11-22 contre un vrai back
+  (compte propriétaire ou compte neuf ; « Annuler », croix ou Échap ; 1440 et 390 px) :
+  aucune requête d'écriture après la connexion, aucun deck créé, rien de plus après un
+  rechargement. Deux tests vitest le figent. Relevé de la base du staging : trois decks en tout, tous au
+  compte `1`, aucun en double et aucun dont les notes finissent par « Dupliqué de la liste
+  partagée ». Connecté sous le compte propriétaire, on retombe sur `#/decks`, où le deck
+  d'origine porte le nom de la liste.
+- [ ] Correctif fusionné sur `main`, staging repassé (bandeau « nouvelle version »
+  attendu), purge d'une sélection de liens de decks supprimés vérifiée.
 
 #### 3. Essai de R16 sur une copie de la production
 
@@ -1693,8 +1719,8 @@ Le reste du critère de fin :
   qu'il trouverait reste une liste que l'utilisateur a choisi de publier,
   avec son nom d'utilisateur et sans notes par défaut. Allonger le jeton plus
   tard ne demanderait qu'une révision, sans casser les liens existants.
-- **Un lien d'un deck supprimé ne se purge pas à l'unité** (P5) : il part
-  avec la purge des decks supprimés ou avec la purge totale.
+- *(Levé à F)* Un lien d'un deck supprimé ne se purgeait pas à l'unité (P5) :
+  il a maintenant sa case.
 - **Un figé survit à la suppression de son deck** (P5) : supprimer un deck ne
   le rend donc pas invisible. La confirmation de suppression le dit quand le
   deck a des liens figés, et en donne le nombre.

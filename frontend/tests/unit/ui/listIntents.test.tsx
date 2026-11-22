@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { releaseListIntent } from "../../../src/features/share/listIntent";
+import { peekListIntent, releaseListIntent } from "../../../src/features/share/listIntent";
 import { createFakeServer, type FakeServer } from "../offline/fakeServer";
 import { crypt, library } from "../offline/fixtures/syntheticCatalog";
 import { renderApp, type UiServer } from "./harness";
@@ -151,6 +151,20 @@ describe("Dupliquer une liste partagée", () => {
   it("dit « Liste introuvable » pour un lien révoqué", async () => {
     await renderApp({ server: listServer(), catalog: true, hash: `#/decks?action=dupliquer&liste=${TOKEN}` });
     expect(await screen.findByTestId("list-intent-read-error")).toHaveTextContent("Liste introuvable");
+  });
+
+  it.each([
+    ["« Annuler »", (sheet: HTMLElement) => fireEvent.click(within(sheet).getByRole("button", { name: "Annuler" }))],
+    ["Échap", (sheet: HTMLElement) => fireEvent.keyDown(sheet, { key: "Escape" })],
+  ])("fermer l'aperçu par %s n'écrit rien et oublie l'intention", async (_label, close) => {
+    const { runtime, server, sheet } = await openIntent("dupliquer");
+    const preview = await within(sheet).findByTestId("list-duplicate-preview");
+    await within(preview).findByTestId("deck-tables");
+    close(sheet);
+    await waitFor(() => expect(screen.queryByTestId("list-intent-sheet")).not.toBeInTheDocument());
+    expect(await writtenOperations(runtime, server)).toEqual([]);
+    expect(peekListIntent()).toBeNull();
+    expect(window.location.hash).toBe("#/decks");
   });
 
   it("garde l'intention quand l'application est démontée puis remontée avant la fin (session expirée)", async () => {

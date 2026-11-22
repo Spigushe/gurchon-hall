@@ -5,8 +5,8 @@ import type { Lot12Nav } from "./lot12";
 
 /**
  * Cycle de vie des liens de partage (Lot 13, étape E, P5), contre un vrai back : purge d'une
- * sélection depuis l'écran Compte, suppression du deck (le vivant tombe, le figé reste), puis
- * purge des liens des decks supprimés. Le visiteur est un **contexte neuf à chaque lecture**,
+ * sélection depuis l'écran Compte, suppression du deck (le vivant tombe, les figés restent),
+ * purge de l'un de ces figés par sa case, puis purge des liens des decks supprimés. Le visiteur est un **contexte neuf à chaque lecture**,
  * sans cookie ni base : la route publique se met en cache une minute (`max-age=60`).
  * Scénario commun aux deux largeurs (`lot13-cycle-de-vie.spec.ts` dans `e2e-real` et
  * `e2e-desktop-real`).
@@ -75,7 +75,8 @@ export async function shareLifecycleScenario(
   expect(await visitorSees(live.token)).toBe(false);
   expect(await visitorSees(frozen.token)).toBe(true);
 
-  // Un nouveau lien vivant, puis la suppression du deck : le vivant tombe, le figé reste.
+  // Un second figé et un nouveau vivant, puis la suppression du deck : le vivant tombe, les figés restent.
+  const other = await api.post<{ id: number; token: string }>(`/decks/${deck.id}/partages`, { kind: "frozen" }, 201);
   const second = await api.post<{ token: string }>(`/decks/${deck.id}/partages`, { kind: "live" }, 201);
   expect(await visitorSees(second.token)).toBe(true);
   await api.patch(`/decks/${deck.id}`, { archived: true }, 200);
@@ -83,10 +84,21 @@ export async function shareLifecycleScenario(
   expect(await visitorSees(second.token)).toBe(false);
   expect(await visitorSees(frozen.token)).toBe(true);
 
-  // L'écran Compte range le figé parmi les decks supprimés ; la purge dédiée le fait tomber.
+  // L'écran Compte range les figés parmi les decks supprimés ; sa case suffit à en purger un seul.
   await page.reload();
   await expect(page.getByTestId("account-page")).toBeVisible();
+  await expect(page.getByTestId("account-shares-deleted-item")).toHaveCount(2);
+  await page
+    .locator(`[data-testid="account-shares-deleted-row"][data-share-id="${other.id}"]`)
+    .getByTestId("account-shares-deleted-select")
+    .check();
+  await page.getByTestId("account-shares-purge-selected").click();
+  await page.getByTestId("account-shares-purge-confirm").click();
   await expect(page.getByTestId("account-shares-deleted-item")).toHaveCount(1);
+  expect(await visitorSees(other.token)).toBe(false);
+  expect(await visitorSees(frozen.token)).toBe(true);
+
+  // La purge dédiée fait tomber le dernier.
   await page.getByTestId("account-shares-purge-deleted_decks").click();
   await page.getByTestId("account-shares-purge-confirm").click();
   await expect(page.getByTestId("account-shares-empty")).toBeVisible();

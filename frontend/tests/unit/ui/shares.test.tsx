@@ -416,7 +416,7 @@ describe("écran Compte : « Listes partagées »", () => {
     return app;
   }
 
-  it("groupe les liens par deck, ceux d'un deck supprimé à part et sans case", async () => {
+  it("groupe les liens par deck, ceux d'un deck supprimé à part, chacun avec sa case", async () => {
     await openAccount();
     const groups = await screen.findAllByTestId("account-shares-group");
     expect(groups.map((group) => within(group).getByTestId("account-shares-group-title").textContent)).toEqual([
@@ -428,7 +428,7 @@ describe("écran Compte : « Listes partagées »", () => {
 
     const deleted = screen.getByTestId("account-shares-deleted");
     expect(within(deleted).getByTestId("account-shares-deleted-item")).toHaveTextContent("Ancien deck#0042");
-    expect(within(deleted).queryByTestId("account-shares-deleted-select")).not.toBeInTheDocument();
+    expect(within(deleted).getByTestId("account-shares-deleted-select")).not.toBeChecked();
     expect(within(deleted).getByTestId("account-shares-deleted-copy")).toBeInTheDocument();
   });
 
@@ -451,6 +451,40 @@ describe("écran Compte : « Listes partagées »", () => {
     expect(new URLSearchParams(request?.search).get("scope")).toBe("selected");
     expect(new URLSearchParams(request?.search).getAll("share_id")).toEqual(["20", "10"]);
     await waitFor(() => expect(screen.getAllByTestId("account-shares-row")).toHaveLength(1));
+  });
+
+  it("purge une sélection qui mêle un deck vivant et un deck supprimé", async () => {
+    const app = await openAccount();
+    const groups = await screen.findAllByTestId("account-shares-group");
+    fireEvent.click(within(groups[0]).getAllByTestId("account-shares-select")[1]);
+    const deleted = screen.getByTestId("account-shares-deleted");
+    fireEvent.click(within(deleted).getByTestId("account-shares-deleted-select"));
+    expect(within(deleted).getByTestId("account-shares-deleted-select")).toBeChecked();
+    expect(screen.getByTestId("account-shares-purge-selected")).toHaveTextContent("Purger la sélection (2)");
+    fireEvent.click(screen.getByTestId("account-shares-purge-selected"));
+    fireEvent.click(screen.getByTestId("account-shares-purge-confirm"));
+    expect(await screen.findByTestId("account-shares-feedback")).toHaveTextContent("2 liens purgés.");
+    const request = app.ui.requests.find((item) => item.method === "DELETE" && item.path === "/moi/partages");
+    expect(new URLSearchParams(request?.search).getAll("share_id")).toEqual(["20", "5"]);
+    await waitFor(() => expect(screen.queryByTestId("account-shares-deleted")).not.toBeInTheDocument());
+  });
+
+  it("purge un seul des liens d'un deck supprimé, sans deck vivant partagé", async () => {
+    const app = await openAccount({
+      configure: (ui) =>
+        seed(ui, shareOf(9, 6, { kind: "frozen" }, frozenGone), shareOf(9, 5, { kind: "frozen" }, frozenGone)),
+    });
+    const boxes = await screen.findAllByTestId("account-shares-deleted-select");
+    expect(boxes).toHaveLength(2);
+    expect(screen.getByTestId("account-shares-purge-selected")).toBeDisabled();
+    fireEvent.click(boxes[1]);
+    fireEvent.click(screen.getByTestId("account-shares-purge-selected"));
+    expect(screen.getByTestId("account-shares-purge-warning")).toHaveTextContent("Purger 1 lien ?");
+    fireEvent.click(screen.getByTestId("account-shares-purge-confirm"));
+    expect(await screen.findByTestId("account-shares-feedback")).toHaveTextContent("1 lien purgé.");
+    const request = app.ui.requests.find((item) => item.method === "DELETE" && item.path === "/moi/partages");
+    expect(new URLSearchParams(request?.search).getAll("share_id")).toEqual(["5"]);
+    await waitFor(() => expect(screen.getAllByTestId("account-shares-deleted-item")).toHaveLength(1));
   });
 
   it("purge les liens des decks supprimés, avec leur nombre, et garde les autres", async () => {
@@ -483,7 +517,7 @@ describe("écran Compte : « Listes partagées »", () => {
     const app = await openAccount();
     const groups = await screen.findAllByTestId("account-shares-group");
     fireEvent.click(within(groups[0]).getAllByTestId("account-shares-select")[0]);
-    app.ui.shares.failures.set("DELETE /moi/partages", { status: 409, body: { detail: "Le lien 30 vise un deck supprimé." } });
+    app.ui.shares.failures.set("DELETE /moi/partages", { status: 409, body: { detail: "La purge n'a pas pu être enregistrée (écriture concurrente)." } });
     fireEvent.click(screen.getByTestId("account-shares-purge-selected"));
     fireEvent.click(screen.getByTestId("account-shares-purge-confirm"));
     expect(await screen.findByTestId("account-shares-action-error")).toHaveTextContent("La sélection ne correspond plus");

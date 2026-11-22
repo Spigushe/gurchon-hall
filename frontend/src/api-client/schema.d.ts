@@ -824,7 +824,7 @@ export interface paths {
         post?: never;
         /**
          * Purge des liens publics
-         * @description Seul moyen de révoquer un lien (P5) ; un lien purgé rend 404 à sa lecture publique, dans la minute (cache). `scope=selected` : les liens `share_id`, tous refusés si l'un est inconnu ou d'un autre compte (404 « Lien N introuvable. ») ou vise un deck supprimé (409), rien n'étant alors purgé. `scope=deleted_decks` : les liens figés des decks supprimés. `scope=all` : tous les liens du compte. Ces deux dernières sont idempotentes (`revoked` à 0 au second appel). Rend le nombre de liens purgés.
+         * @description Seul moyen de révoquer un lien (P5) ; un lien purgé rend 404 à sa lecture publique, dans la minute (cache). `scope=selected` : les liens `share_id`, decks supprimés compris, tous refusés si l'un est inconnu ou d'un autre compte (404 « Lien N introuvable. »), rien n'étant alors purgé. `scope=deleted_decks` : les liens figés des decks supprimés. `scope=all` : tous les liens du compte. Ces deux dernières sont idempotentes (`revoked` à 0 au second appel). Rend le nombre de liens purgés.
          */
         delete: operations["purgeShares"];
         options?: never;
@@ -3468,8 +3468,8 @@ export interface components {
          * SharePurgeScope
          * @description Portée d'une purge de liens (P5), seul moyen de révoquer un lien.
          *
-         *     `SELECTED` : les liens désignés par `share_id`, tous de decks non
-         *     supprimés. `DELETED_DECKS` : les liens figés survivants des decks
+         *     `SELECTED` : les liens désignés par `share_id`, decks supprimés compris.
+         *     `DELETED_DECKS` : les liens figés survivants des decks
          *     supprimés (leurs vivants sont tombés avec le deck). `ALL` : tous les liens
          *     du compte.
          * @enum {string}
@@ -3495,8 +3495,8 @@ export interface components {
          * SharedDeckState
          * @description Le deck d'un lien, tel que son propriétaire le voit (écran Compte, P5).
          *
-         *     Un lien d'un deck supprimé ne se purge pas à l'unité : `deleted_at` dit au
-         *     client de le ranger à part, sans case à cocher.
+         *     `deleted_at` dit au client de ranger à part les liens d'un deck supprimé,
+         *     qui se purgent aussi à l'unité (P5 amendée à F).
          */
         SharedDeckState: {
             /** Id */

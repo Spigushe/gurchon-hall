@@ -100,7 +100,7 @@ export interface ShareGroup {
 export interface GroupedShares {
   /** Liens des decks non supprimés, groupés par deck, dans l'ordre d'arrivée (du plus récent lien au plus ancien). */
   groups: ShareGroup[];
-  /** Liens des decks supprimés : sans case, ils partent par une purge d'ensemble (P5). */
+  /** Liens des decks supprimés, rangés à part : ils se purgent à l'unité ou ensemble (P5 amendée à F). */
   deleted: DeckShareRead[];
 }
 

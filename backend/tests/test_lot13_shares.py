@@ -583,14 +583,40 @@ def test_a_selection_is_refused_whole_for_another_accounts_link(
     assert unknown.json()["detail"] == "Lien 999999 introuvable."
 
 
-def test_a_selection_is_refused_whole_for_a_link_of_a_deleted_deck(db, me_api, mixed):
-    live, _, survivor = mixed
-    before = remaining(db)
+def test_a_selection_takes_the_links_of_deleted_decks_too(db, me_api, mixed):
+    # P5 amendée à F (2026-11-22) : un lien d'un deck supprimé se purge à l'unité.
+    live, frozen, survivor = mixed
     response = purge(
         me_api, f"scope=selected&share_id={live['id']}&share_id={survivor['id']}"
     )
-    assert response.status_code == 409
-    assert str(survivor["id"]) in response.json()["detail"]
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 2}
+    assert remaining(db) == {frozen["id"]}
+    assert read(me_api, survivor["token"]).status_code == 404
+
+
+def test_a_selection_purges_one_link_of_a_deleted_deck_and_keeps_the_other(
+    db, me_api, deck
+):
+    first = create(me_api, deck, kind="frozen")
+    second = create(me_api, deck, kind="frozen")
+    archive_and_delete(me_api, deck)
+    response = purge(me_api, f"scope=selected&share_id={first['id']}")
+    assert response.json() == {"revoked": 1}
+    assert remaining(db) == {second["id"]}
+    assert read(me_api, first["token"]).status_code == 404
+    assert read(me_api, second["token"]).status_code == 200
+
+
+def test_a_selection_with_a_deleted_decks_link_is_still_refused_whole(
+    db, me_api, mixed
+):
+    _, _, survivor = mixed
+    before = remaining(db)
+    response = purge(
+        me_api, f"scope=selected&share_id={survivor['id']}&share_id=999999"
+    )
+    assert response.status_code == 404
     assert remaining(db) == before
 
 

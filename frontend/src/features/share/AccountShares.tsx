@@ -20,9 +20,9 @@ const PURGE_LABELS: Record<PurgeKind, string> = {
 
 /**
  * « Listes partagées » de l'écran Compte (Lot 13, D2 ; P5, A6) : tous les liens du
- * compte, groupés par deck, ceux des decks supprimés à part et sans case. Trois
- * purges, chacune confirmée avec le nombre de liens visés, seul moyen de retirer
- * un lien : la sélection (decks non supprimés), les liens des decks supprimés,
+ * compte, groupés par deck, ceux des decks supprimés à part, chacun avec sa case
+ * (P5 amendée à F). Trois purges, chacune confirmée avec le nombre de liens visés,
+ * seul moyen de retirer un lien : la sélection, les liens des decks supprimés,
  * tout. En ligne seulement : la liste se lit sur le serveur.
  */
 export function AccountShares({ online }: { online: boolean }) {
@@ -36,9 +36,7 @@ export function AccountShares({ online }: { online: boolean }) {
 
   const shares = state.kind === "ready" ? state.shares : [];
   const { groups, deleted } = groupShares(shares);
-  const selectedIds = shares
-    .filter((share) => share.deck.deleted_at === null && selected.has(share.id))
-    .map((share) => share.id);
+  const selectedIds = shares.filter((share) => selected.has(share.id)).map((share) => share.id);
   const counts: Record<PurgeKind, number> = {
     selected: selectedIds.length,
     deleted_decks: deleted.length,
@@ -67,7 +65,7 @@ export function AccountShares({ online }: { online: boolean }) {
         return;
       }
       if (outcome.kind === "error" && (outcome.status === 404 || outcome.status === 409)) {
-        // Un lien déjà purgé ailleurs, ou d'un deck supprimé depuis : la liste affichée est périmée.
+        // Un lien déjà purgé ailleurs, ou tombé avec son deck : la liste affichée est périmée.
         setSelected(new Set());
         setError("La sélection ne correspond plus à vos liens : la liste a été relue, recommencez.");
         return;
@@ -130,16 +128,19 @@ export function AccountShares({ online }: { online: boolean }) {
         {deleted.length > 0 && (
           <div className="share-group share-group--deleted" data-testid="account-shares-deleted">
             <h4 className="share-group__title">Decks supprimés</h4>
-            <p className="hint">
-              Ces listes figées restent publiques. Elles ne se purgent pas une à une : « Purger les liens des decks
-              supprimés » ou « Tout purger ».
-            </p>
+            <p className="hint">Ces listes figées restent publiques tant que leur lien n'est pas purgé.</p>
             <ul className="share-list">
               {deleted.map((share) => (
                 <li key={share.id} className="share-deleted-item" data-testid="account-shares-deleted-item">
                   <p className="share-deleted-item__deck">{deckLabel(share.deck)}</p>
                   <ul className="share-list">
-                    <ShareRow share={share} prefix="account-shares-deleted" onCopy={() => void copy(share)} />
+                    <ShareRow
+                      share={share}
+                      prefix="account-shares-deleted"
+                      selected={selected.has(share.id)}
+                      onToggle={() => toggle(share.id)}
+                      onCopy={() => void copy(share)}
+                    />
                   </ul>
                 </li>
               ))}
