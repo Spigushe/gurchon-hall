@@ -165,6 +165,13 @@ réglage passe par l'environnement pour ne pas modifier le gabarit du rôle
 `fastapi_backend`, copié de Barrin. uvicorn garde ses propres lignes de
 démarrage et d'arrêt, en texte.
 
+Ceux de nginx, eux, gardent le chemin complet : `access_log` part dans syslog
+(vhosts de `backend_website` et `react_frontend`). Depuis la v1.2 (Lot 13), une
+lecture de `/listes/<jeton>` y laisse donc le jeton d'un lien public, qui suffit
+à lire la liste tant qu'il n'est pas purgé. Accepté : seul l'administrateur du
+VPS lit ces journaux, et une liste partagée est déjà publique pour qui a le lien.
+Ne pas les transmettre tels quels.
+
 Les lire, en SSH :
 
 ```bash
@@ -306,3 +313,16 @@ Après le déploiement de la v1.1 (Lot 12, F) :
 - après une saisie synchronisée depuis le téléphone, une ligne `sync.batch` ;
 - `bash ops/fetch_backups.sh` recopie la sauvegarde de la nuit suivante, et
   aucun `.vtes-*.db.part` ne traîne dans `~/backups/gurchon-hall/`.
+
+Après celui de la v1.2 (Lot 13, F ; checklist complète dans
+`docs/lot13-plan-partage.md`, « Avancement de F ») :
+
+- `curl -si https://api-gurchon.spigushe.com/listes/zzzzzzzz` rend 404, sans
+  `Set-Cookie` ;
+- un lien créé depuis l'application s'ouvre dans une fenêtre privée, et la ligne
+  `http.request` correspondante porte `/listes/{token}`, jamais le jeton ;
+- une purge le fait tomber, en une minute au plus.
+
+Retour arrière depuis la v1.2 : R16 ne redescend pas dès qu'un lien existe.
+Restaurer la copie d'avant déploiement (les liens créés depuis sont perdus),
+puis redéployer `v1.1.1`.

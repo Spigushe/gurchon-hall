@@ -3,14 +3,15 @@
 Statut : **proposé le 2026-11-20, P1 à P10 tranchées le même jour (A0)**,
 décisions de conception reprises en conséquence ; **A1, B1, B2, C1 et D1 à
 D6 livrées les 2026-11-20 et 21** (cf. « Livré à … » et les deux sections
-« Vérification d'intégration »), A1, D1 et D4 commitées (`a33e5e6`), B1, B2
-et C1 (`236b9b7`), D2 et D3 (`8bbc0de`) ; **E (QA) livrée le 2026-11-21, reste F (mise en
-service v1.2.0)**. Rédigé sur la
+« Vérification d'intégration »), A1, D1 et D4 commitées (`ffceb6b`), B1, B2
+et C1 (`9afde94`), D2 et D3 (`8a38175`), D5 et D6 (`db45029`), hashs d'après le rebase
+du 2026-11-21 ; **E (QA) livrée le 2026-11-21 (`1cfd7fa`), F (mise en
+service v1.2.0) préparée le 2026-11-22**, cf. « Avancement de F ». Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
 24 heures, sauvegarde de la nuit recopiée par `fetch_backups.sh`), et sa
-clôture dans CLAUDE.md reste à écrire. Rien de ce plan n'en dépend. Les
+clôture dans CLAUDE.md reste à écrire (*clos depuis, le 2026-11-21*). Rien de ce plan n'en dépend. Les
 décisions A1 à A12 sont des décisions de conception que les agents de couche
 reprendront ou amenderont dans ce fichier. La forme suit
 `docs/lot12-plan-consolidation.md`.
@@ -560,6 +561,9 @@ du Lot 8) ; un figé sur `deck_share_card`, avec son nom, son archétype et ses
 notes copiés. La suppression d'un deck (`DELETE /decks/{id}`) retire ses liens
 vivants dans la même transaction et garde ses figés (P5).
 
+**Amendé à B1 (2026-11-20)** : un figé ne copie les notes du deck que si
+`show_notes` ; sans la case, elles ne sont nulle part dans le lien.
+
 ### A4. Route publique : ce qui change par rapport aux autres
 
 - pas de dépendance de session, et l'ordre des contrôles devient 422 (forme
@@ -583,6 +587,9 @@ vivants dans la même transaction et garde ses figés (P5).
 d'A4 du Lot 12 l'exige) : genre, options, dates, deck, liste figée. **Le
 jeton n'y figure pas** : le fichier peut traîner, et un jeton suffit à lire.
 `format_version` passe à 2, la forme 1 restant décrite dans le schéma.
+
+**Précisé à B2 (2026-11-20)** : `format_version` vaut `[1, 2]` au contrat, et
+`shares` porte les liens (`ExportedDeckShare`, `ExportedDeckShareCard`), sans jeton.
 
 ### A6. Client : feuille de partage et « Listes partagées »
 
@@ -714,7 +721,7 @@ demande).
 | D5 | « Dupliquer » et « Comparer » : intentions, reprise après connexion, feuille d'import alimentée par la liste, écran de comparaison — **fait le 2026-11-20** (cf. « Livré à D5 ») | frontend-react, pwa-offline pour l'intention qui traverse `AuthGate` |
 | D6 | « Réviser » : édition sur la page publique, écarts dans l'adresse, affichage d'une révision — **fait le 2026-11-20** (cf. « Livré à D6 ») | frontend-react |
 | E | tests manquants, e2e, CRAP, recensement des `data-testid`, captures — **fait le 2026-11-21** (cf. « Livré à E ») | qa-tests |
-| F | mise en service v1.2.0 : staging, essai de R16 sur une copie de la production, release, production, vérification sur téléphone et depuis un appareil sans compte | utilisateur, devops-deploiement |
+| F | mise en service v1.2.0 : staging, essai de R16 sur une copie de la production, release, production, vérification sur téléphone et depuis un appareil sans compte — **préparée le 2026-11-22** (cf. « Avancement de F ») | utilisateur, devops-deploiement |
 
 D1 et D4 ne dépendent ni du contrat ni de R16 : elles peuvent commencer dès
 A0, en parallèle d'A1.
@@ -1536,6 +1543,114 @@ non dépassé), aucune régression ; `npm run test:e2e` **108 verts sur 108**, s
 9 `chromium`, 55 `real-backend`, 4 `desktop` et 40 `desktop-real-backend` (98 à la
 clôture du Lot 12), le nombre attendu à l'exécution comme à `--list`. Aucun défaut
 applicatif trouvé.
+
+### Avancement de F
+
+Checklist arrêtée le 2026-11-22, sur le modèle de celle du Lot 12, tenue à jour au
+fil de la mise en service. Les étapes sont dans l'ordre où elles se font. Les
+commandes `ansible-playbook` se lancent depuis `ops/` (WSL), les commandes `uv`
+depuis `backend/`.
+
+#### 0. Relevé de départ (2026-11-22)
+
+- [X] Production : **v1.1.1** (tag sur `c954d51`, release complète du 2026-11-21),
+  mais `/health` répond `1.1.0` sur la production comme sur le staging : les versions
+  n'avaient pas été montées pour le correctif. La v1.2.0 remet tag et version d'accord.
+- [X] `main` à `ae63dec`, `lot13-partage` dessus à `1cfd7fa`, poussée. La PR
+  Dependabot #64 (`@types/node` 22 → 26) a son contrôle front en échec, et le VPS comme
+  la CI sont en Node 22 : elle reste hors de la v1.2.0.
+- [X] **Avant de toucher à la production**, sur le téléphone encore en v1.1.1 : laisser
+  une saisie hors ligne en file (mode avion, fermer l'application), pour vérifier au 5
+  que le bandeau attend et qu'elle se rejoue sans perte.
+
+#### 1. Préparation sur le poste
+
+- [X] Versions à `1.2.0` dans `frontend/package.json`, `backend/pyproject.toml` et les
+  deux lockfiles. Contrat réexporté : seule sa version change ; client TS inchangé.
+- [X] CLAUDE.md (en-tête, §6, §7, §11, §12), README, `docs/deploiement.md`,
+  `docs/pistes-evolution.md`.
+- [X] Suites relancées sur l'arbre préparé, rebasé sur `ae63dec` (les tests de la #67
+  expliquent la hausse depuis E) : `ruff` propre, pytest **3159 verts et 2 `xfail`**,
+  `export_openapi.py --check` à jour ; lint, `tsc` (application et tests) propres, vitest
+  **1938 verts sur 111 fichiers** ; aucune régression CRAP, aucun `data-testid` disparu.
+  e2e : 108 sur 108 le 2026-11-21 sur la branche rebasée (106 au premier passage, deux
+  pannes de l'environnement vertes à la relance), non relancés depuis la seule montée
+  de version.
+- [X] Relecture et commit.
+
+#### 2. Fusion et staging
+
+- [ ] PR `lot13-partage` → `main`, CI verte, fusion.
+- [ ] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R16 s'y applique.
+- [ ] Sur `gurchon-staging.spigushe.com` :
+  - bandeau « nouvelle version » sur un appareil déjà venu ;
+  - pied de Compte à `1.2.0`, comme `/health` ;
+  - créer un vivant et un figé, les ouvrir dans une fenêtre privée, sans compte ;
+  - les trois purges de « Listes partagées » ;
+  - Réviser dans la fenêtre privée, puis ouvrir l'adresse de la révision ailleurs ;
+  - Dupliquer et Comparer avec un compte, puis « Se connecter pour dupliquer ou
+    comparer » depuis la fenêtre privée ;
+  - art de l'extension dans la Collection, en ligne puis en mode avion.
+
+#### 3. Essai de R16 sur une copie de la production
+
+- [X] Fait le 2026-11-22 sur `vtes-avant-deploiement-20261121T142919Z.db` (v1.1.1, la
+  plus récente sur le poste), copiée dans `ops/sauvegardes/essai-r16/copie.db` par
+  `compare_db.py backup`. `upgrade head` : `c4e8a1f2d7b3` → `dda2c510a2f2`. Les **28
+  tables existantes identiques ligne à ligne** (11 decks, 387 lignes, 2 comptes,
+  414 opérations au journal), `deck_share` et `deck_share_card` vides,
+  `integrity_check` à `ok`, `foreign_key_check` vide.
+- [X] Contrôle fonctionnel sur une seconde copie de cette base (jetée ensuite) : l'API
+  démarre (`/health` à `1.2.0`, `/decks` en 401 sans session) ; un vivant et un figé
+  créés pour chacun des 11 decks, **22 liens lus sans cookie**, chacun avec le nombre de
+  cartes de son deck, sans notes, en `public, max-age=60` ; jeton inconnu en 404 ;
+  descente refusée (22 liens cités).
+- [ ] Facultatif : rejouer l'essai sur la sauvegarde de la veille du déploiement
+  (`bash ops/fetch_backups.sh`), si des saisies ont eu lieu entre-temps.
+
+#### 4. Release et production
+
+- [ ] Tag `v1.2.0` sur la tête de `main`, **release complète, pas en pré-release**
+  (`fastapi_backend` ignore les pré-releases).
+- [ ] `ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend`
+  (`--tags deploy` ne marche pas).
+- [ ] `vtes-avant-deploiement-<date>.db` présente dans `~/backups/gurchon-hall/`, puis
+  `bash ops/fetch_backups.sh`. Retour arrière : restaurer cette copie, puis
+  `-e gurchon_release_tag=v1.1.1` (R16 ne redescend pas dès qu'un lien existe ; les
+  liens créés depuis sont perdus).
+
+#### 5. Vérifications en production
+
+Sur le téléphone, depuis la v1.1.1 avec une saisie en file :
+
+- [ ] Le bandeau s'affiche et **attend** la file (« Elle s'installera une fois… »), puis
+  propose « Mettre à jour » une fois la saisie synchronisée, sans refus ni perte.
+- [ ] Après la mise à jour : pied « Application 1.2.0 · Serveur 1.2.0 », base IndexedDB
+  en place, ouverture en mode avion (§3 de CLAUDE.md).
+
+Depuis un téléphone **sans compte** (ou une fenêtre privée), en HTTPS :
+
+- [ ] Un lien vivant et un lien figé s'ouvrent et montrent la bonne liste ; le vivant
+  suit une modification du deck (attendre une minute ou ouvrir ailleurs), le figé non.
+- [ ] « Copier le lien » écrit bien dans le presse-papiers.
+- [ ] Une purge fait tomber le lien (« Liste introuvable. », une minute au plus chez qui
+  l'avait ouvert) ; la suppression du deck fait tomber le vivant et garde le figé.
+- [ ] Une révision faite sans compte s'ouvre par son adresse sur un autre appareil.
+- [ ] Un second compte duplique la liste et la compare à un de ses decks.
+
+Le reste du critère de fin :
+
+- [ ] Les quatre formats (`TEXT`, `TWD`, `JOL`, `LACKEY`) recollés dans VDB retrouvent la
+  même liste.
+- [ ] Art de l'extension dans la Collection en ligne, pictogramme hors ligne.
+- [ ] Sur le VPS : `curl -si https://api-gurchon.spigushe.com/listes/zzzzzzzz` rend 404
+  sans `Set-Cookie` ; une ligne `http.request` avec la route `/listes/{token}`, jamais
+  le jeton, dans `journalctl -u gurchon-api`.
+
+#### 6. Clôture
+
+- [ ] Ce fichier (statut, relevés), CLAUDE.md (§11 « Appliqué le … », §12) et le README
+  à jour sur `main`.
 
 ## Tests attendus (E)
 

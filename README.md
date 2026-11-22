@@ -4,7 +4,7 @@ Suivi de pratique *Vampire: The Eternal Struggle* : la collection, comptée par
 carte, langue et extension, les decks, les parties et les tournois. L'outil est
 en production depuis la v1.0.0 (2026-11-17) sur
 [gurchon.spigushe.com](https://gurchon.spigushe.com), et la version en ligne est
-la v1.1.0 (Lot 12, 2026-11-20).
+la v1.1.1 (2026-11-21).
 
 C'est une PWA *offline-first* : on saisit une partie au club, sans réseau
 fiable, et elle se synchronise au retour de la connexion. Ce n'est pas une
@@ -25,14 +25,16 @@ projet dans [`.mcp.json`](.mcp.json) et n'est pas une dépendance de l'applicati
 
 ## État actuel
 
-Livré jusqu'au Lot 12 (détail et limites connues au §12 de CLAUDE.md) :
+Livré jusqu'au Lot 13, dont la mise en ligne (v1.2.0) est en cours (détail et limites connues au §12 de CLAUDE.md) :
 
 - catalogue complet importé depuis krcg, avec une recherche hors ligne aux
   filtres de VDB (onglet Chercher) ;
 - collection par carte × langue × extension, versement d'un produit entier ;
 - decks avec légalité VEKN, proxies, archivage, composition en tableaux à
   icônes, import depuis VDB (texte collé, fichier ou lien de deck) et export
-  au format texte de VDB ;
+  aux formats `TEXT`, `TWD`, `JOL` et `LACKEY` de VDB ;
+- partage d'une decklist par un lien public, vivant ou figé, lu sans compte :
+  révision par l'adresse, duplication et comparaison avec un de ses decks ;
 - parties et tournois du point de vue du joueur (VP, GW, siège, classement,
   mono ou multi-deck), liste jouée figée en versions numérotées, bilan par
   deck, lieu, mois, position à la table et adversaire ;
