@@ -211,8 +211,6 @@ async function sharesResponse(ui: UiServer, request: Request, url: URL): Promise
   if (scope === "selected") {
     const unknown = ids.find((id) => !ui.shares.list.some((share) => share.id === id));
     if (unknown !== undefined) return json({ detail: `Lien ${unknown} introuvable.` }, 404);
-    const deleted = ui.shares.list.find((share) => ids.includes(share.id) && share.deck.deleted_at !== null);
-    if (deleted) return json({ detail: `Le lien ${deleted.id} vise un deck supprimé.` }, 409);
     ui.shares.list = ui.shares.list.filter((share) => !ids.includes(share.id));
   } else if (scope === "deleted_decks") {
     ui.shares.list = ui.shares.list.filter((share) => share.deck.deleted_at === null);

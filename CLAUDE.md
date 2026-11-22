@@ -116,7 +116,7 @@ Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|te
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (3159 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (3161 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -134,7 +134,7 @@ le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e),
 (Lot 12 : refus `/sync` comptés par motif, par type et par jour, base ouverte en
 lecture seule, sur le VPS ou sur une copie).
 Front (depuis `frontend/`) : `npm run lint`, `npm run typecheck:tests` (contrôle de
-types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 1938 tests sur 111 fichiers, à lancer depuis PowerShell en
+types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 1942 tests sur 111 fichiers, à lancer depuis PowerShell en
 `C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
 `npm run test:e2e` (Playwright, 108 tests sur quatre projets : à 390 × 844, 9 dans
 `chromium` et 55 contre un vrai back sur base éphémère — projet `real-backend`, cf.
@@ -740,7 +740,7 @@ Livré aux Lots 2 à 13 (chemins en français, `operationId` en anglais camelCas
 | `GET /decks/{id}/versions/{number}/legalite` (`getDeckVersionLegality`) | Lot 8. Les cinq règles du §5 sur la liste figée de la version, à la date `on` (jour UTC par défaut) : `DeckVersionLegality`, soit `DeckLegality` plus `deck_version_id` et `number` ; 404 pour un numéro que le deck n'a pas |
 | `GET /vdb/decks/{vdb_deck_id}` (`readVdbDeck`) | Lot 9. Lit `https://vdb.im/api/deck/<id>` et rend `VdbDeckRead` (`vdb_deck_id` rendu par VDB, `name`, `author`, `description`, `cards` en `{vekn_id, quantity}` par identifiant croissant, `fetched_at`) ; ne stocke rien, n'apparie aucun nom. Identifiant au motif fermé `^[A-Za-z0-9:_-]{1,64}$` (422 sinon), hôte et chemin fixés dans le code, délai de 10 s, réponse bornée à 256 Ko, aucune redirection suivie. 404 « Deck VDB introuvable. » quand VDB répond 400 ou 404, 502 avec un motif pour toute autre panne ou forme inattendue, 429 + `Retry-After` au-delà de `VDB_RATE_LIMIT` (20 par minute et par IP). Ordre : 401, puis 422, puis la limite |
 | `GET/POST /decks/{id}/partages` (`listDeckShares`, `createDeckShare`) | Lot 13. Liens publics du deck (`DeckShareRead` : `id`, `token`, `kind`, `show_notes`, `created_at`, `frozen_name`, `deck_version_number`, `deck`), lisibles pour un deck supprimé ; création d'un vivant (`live`) ou d'un figé (`frozen`, de la liste courante ou d'une version jouée par `deck_version_number`) : 201, 409 pour un deck supprimé, 422 pour `deck_version_number` sur un vivant |
-| `GET/DELETE /moi/partages` (`listMyShares`, `purgeShares`) | Lot 13. Tous les liens du compte, decks supprimés compris ; purge, **seul moyen de révoquer** : `scope` `selected` (avec `share_id` répété, refusée en entier pour un lien inconnu ou d'un autre compte, 404, ou d'un deck supprimé, 409), `deleted_decks` ou `all` ; 200 `{"revoked": n}` |
+| `GET/DELETE /moi/partages` (`listMyShares`, `purgeShares`) | Lot 13. Tous les liens du compte, decks supprimés compris ; purge, **seul moyen de révoquer** : `scope` `selected` (avec `share_id` répété, decks supprimés compris, refusée en entier pour un lien inconnu ou d'un autre compte, 404), `deleted_decks` ou `all` ; 200 `{"revoked": n}` |
 | `GET /listes/{token}` (`readSharedDecklist`) | Lot 13. **Publique**, sans session ni cookie : `SharedDecklistRead` (`name`, `archetype`, `kind`, `frozen_at`, `author`, `notes`, `cards` en `{card: CardSearchItem, quantity}`, `reprinted_card_ids`). Jeton au motif `^[A-Za-z0-9_]{8}$` (422), puis 429 + `Retry-After` au-delà de `SHARED_LIST_RATE_LIMIT` (60 par minute et par IP), puis 404 « Liste introuvable. », le même pour tout jeton inconnu ou purgé ; `Cache-Control: public, max-age=60` et `X-Robots-Tag: noindex` |
 | `GET/POST /joueurs`, `GET/PATCH/DELETE /joueurs/{id}` | Lot 7. Adversaires du compte, « Moi » en tête de liste (`q`) ; 409 nom déjà pris, et à la suppression du « Moi » ou d'un joueur présent à une table |
 | `GET/POST /lieux`, `GET/PATCH/DELETE /lieux/{id}` | Lot 7. Lieux du compte (`name`, `city`, `notes`), avec leurs compteurs de parties et de tournois ; 409 nom déjà pris ou lieu référencé |
@@ -2536,8 +2536,9 @@ pour le détail ; pas de handoff, écrans validés sur captures) :
   figé attend que la file n'ait plus d'opération sur le deck (« 2 modifications à
   synchroniser avant de figer la liste ») ; un vivant n'attend pas, ni un figé pris
   sur une version jouée.
-- **La purge est le seul moyen de révoquer (P5)** : une sélection parmi les liens des
-  decks non supprimés, les liens des decks supprimés, ou tout. Modifié ou archivé, un
+- **La purge est le seul moyen de révoquer (P5)** : une sélection, les liens des decks
+  supprimés, ou tout. La sélection, d'abord limitée aux decks non supprimés, prend tous
+  les liens depuis le 2026-11-22 (retour de l'utilisateur sur le staging). Modifié ou archivé, un
   deck garde ses deux genres de lien ; supprimé, ses vivants tombent dans la même
   transaction (aussi par `/sync`) et ses figés restent, ce que la confirmation de
   suppression annonce.
@@ -2576,8 +2577,7 @@ Limites connues à la livraison du Lot 13 (avant mise en service) :
 - **Journaux de nginx** : l'hôte de l'API y écrit le chemin complet, donc les jetons
   (`/listes/<jeton>`) ; ceux de l'API n'ont que le gabarit. Acceptable sur un VPS que
   seul l'utilisateur administre (`docs/deploiement.md`).
-- **Un lien d'un deck supprimé ne se purge pas à l'unité**, et une révision ne se
-  purge pas du tout : elle tombe avec sa liste d'origine.
+- **Une révision ne se purge pas** : elle tombe avec sa liste d'origine.
 - **Un vampire réimprimé ajouté par une révision s'exporte sans groupe** :
   `reprinted_card_ids` vient de la liste d'origine.
 - **Teardown e2e sous Windows** : la base éphémère peut rester verrouillée un instant
@@ -2866,9 +2866,9 @@ changeant ; les lots suivants donnent des v2.x.
     révision, `dda2c510a2f2` (R16) : 30 tables, seize révisions. Contrat à 62
     opérations sur 39 chemins, aucun type `/sync` nouveau, aucune version Dexie.
     Plan, livraisons par étape (A0 à E) et checklist de F dans
-    `docs/lot13-plan-partage.md`, décisions et limites au §11. 3159 tests backend
+    `docs/lot13-plan-partage.md`, décisions et limites au §11. 3161 tests backend
     (2 `xfail` assumés, `ruff check` propre, 99 % des lignes de `app/` couvertes) ;
-    1938 tests vitest sur 111 fichiers, lint et `tsc` propres ; 108 tests Playwright
+    1942 tests vitest sur 111 fichiers, lint et `tsc` propres ; 108 tests Playwright
     (9 `chromium`, 55 `real-backend`, 4 `desktop`, 40 `desktop-real-backend`) ;
     références CRAP vides des deux côtés ; aucun `data-testid` disparu. Indépendant
     des inventaires, il passe avant eux (V4).

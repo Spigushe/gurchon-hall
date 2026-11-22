@@ -44,8 +44,7 @@ export function CopiedLink({
 
 /**
  * Une ligne de lien : genre, date, version d'origine d'un figé, « Copier le
- * lien », et une case quand le lien peut se purger à l'unité (decks non
- * supprimés seulement, P5).
+ * lien », et une case pour la purge d'une sélection (P5).
  */
 export function ShareRow({
   share,
@@ -56,27 +55,24 @@ export function ShareRow({
 }: {
   share: DeckShareRead;
   prefix: string;
-  /** `undefined` : pas de case (lien d'un deck supprimé). */
-  selected?: boolean;
-  onToggle?: () => void;
+  selected: boolean;
+  onToggle: () => void;
   onCopy: () => void;
 }) {
   const kind = kindLabel(share);
   const meta = shareMeta(share);
   return (
     <li className="share-row" data-kind={share.kind} data-testid={`${prefix}-row`} data-share-id={share.id}>
-      {selected !== undefined && (
-        <label className="share-row__pick">
-          <input
-            type="checkbox"
-            className="share-row__check"
-            checked={selected}
-            onChange={onToggle}
-            aria-label={`Sélectionner le lien ${kind.toLowerCase()}, ${meta}`}
-            data-testid={`${prefix}-select`}
-          />
-        </label>
-      )}
+      <label className="share-row__pick">
+        <input
+          type="checkbox"
+          className="share-row__check"
+          checked={selected}
+          onChange={onToggle}
+          aria-label={`Sélectionner le lien ${kind.toLowerCase()}, ${meta}`}
+          data-testid={`${prefix}-select`}
+        />
+      </label>
       <span className="share-row__text">
         <span className="row__name" data-testid={`${prefix}-kind`}>
           {kind}

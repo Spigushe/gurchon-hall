@@ -266,27 +266,19 @@ def revoke_live_shares(db: Session, deck_id: int) -> int:
 
 def _purge_selection(db: Session, user_id: int, share_ids: Iterable[int]) -> int:
     """Une sélection, vérifiée **en entier** avant toute suppression : 404 pour
-    un lien inconnu ou d'un autre compte (même message), 409 pour un lien d'un
-    deck supprimé, qui part avec les autres purges (P5)."""
+    un lien inconnu ou d'un autre compte (même message). Les liens des decks
+    supprimés s'y sélectionnent comme les autres (P5 amendée à F)."""
     ids = list(dict.fromkeys(share_ids))
-    rows = db.execute(
-        select(DeckShare.id, Deck.deleted_at)
-        .join(
-            Deck,
-            (Deck.id == DeckShare.deck_id) & (Deck.user_id == DeckShare.user_id),
-        )
-        .where(DeckShare.user_id == user_id, DeckShare.id.in_(ids))
-    )
-    deleted_at = {share_id: deck_deleted for share_id, deck_deleted in rows}
-    for share_id in ids:
-        if share_id not in deleted_at:
-            raise NotFoundError(f"Lien {share_id} introuvable.")
-    for share_id in ids:
-        if deleted_at[share_id] is not None:
-            raise ConflictError(
-                f"Le lien {share_id} appartient à un deck supprimé : il se purge "
-                "avec les liens des decks supprimés, ou avec tous les liens."
+    owned = set(
+        db.scalars(
+            select(DeckShare.id).where(
+                DeckShare.user_id == user_id, DeckShare.id.in_(ids)
             )
+        )
+    )
+    for share_id in ids:
+        if share_id not in owned:
+            raise NotFoundError(f"Lien {share_id} introuvable.")
     return _delete_shares(db, DeckShare.user_id == user_id, DeckShare.id.in_(ids))
 
 
@@ -304,8 +296,8 @@ def purge_shares(
 ) -> int:
     """Purge des liens du compte, une transaction, et rend leur nombre.
 
-    `selected` : les liens `share_ids`, tous de decks non supprimés, refusés en
-    entier au moindre doute ; `deleted_decks` : les figés des decks supprimés ;
+    `selected` : les liens `share_ids`, decks supprimés compris, refusés en
+    entier si l'un est inconnu ; `deleted_decks` : les figés des decks supprimés ;
     `all` : tous. Les deux dernières sont idempotentes."""
     if scope is SharePurgeScope.SELECTED:
         revoked = _purge_selection(db, user_id, share_ids)

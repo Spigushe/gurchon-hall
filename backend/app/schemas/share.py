@@ -50,8 +50,8 @@ KIND_DESCRIPTION = (
 class SharePurgeScope(StrEnum):
     """Portée d'une purge de liens (P5), seul moyen de révoquer un lien.
 
-    `SELECTED` : les liens désignés par `share_id`, tous de decks non
-    supprimés. `DELETED_DECKS` : les liens figés survivants des decks
+    `SELECTED` : les liens désignés par `share_id`, decks supprimés compris.
+    `DELETED_DECKS` : les liens figés survivants des decks
     supprimés (leurs vivants sont tombés avec le deck). `ALL` : tous les liens
     du compte.
     """
@@ -104,8 +104,8 @@ class DeckShareCreate(WriteModel):
 class SharedDeckState(ReadModel):
     """Le deck d'un lien, tel que son propriétaire le voit (écran Compte, P5).
 
-    Un lien d'un deck supprimé ne se purge pas à l'unité : `deleted_at` dit au
-    client de le ranger à part, sans case à cocher.
+    `deleted_at` dit au client de ranger à part les liens d'un deck supprimé,
+    qui se purgent aussi à l'unité (P5 amendée à F).
     """
 
     id: int

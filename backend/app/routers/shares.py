@@ -177,9 +177,9 @@ def list_my_shares(db: DbSession, user: CurrentUser):
     description=(
         "Seul moyen de révoquer un lien (P5) ; un lien purgé rend 404 à sa "
         "lecture publique, dans la minute (cache). `scope=selected` : les liens "
-        "`share_id`, tous refusés si l'un est inconnu ou d'un autre compte "
-        "(404 « Lien N introuvable. ») ou vise un deck supprimé (409), rien "
-        "n'étant alors purgé. `scope=deleted_decks` : les liens figés des decks "
+        "`share_id`, decks supprimés compris, tous refusés si l'un est inconnu "
+        "ou d'un autre compte (404 « Lien N introuvable. »), rien n'étant alors "
+        "purgé. `scope=deleted_decks` : les liens figés des decks "
         "supprimés. `scope=all` : tous les liens du compte. Ces deux dernières "
         "sont idempotentes (`revoked` à 0 au second appel). Rend le nombre de "
         "liens purgés."
