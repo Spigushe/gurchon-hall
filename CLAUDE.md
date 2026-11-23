@@ -6,14 +6,16 @@
 
 **État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11, 12 et 13 livrés,
 v1.0.0 en ligne le 2026-11-17, v1.1.0 (Lot 12) le 2026-11-20, v1.1.1 (connexion par le nom)
-en production depuis le 2026-11-21 ; v1.2.0 (Lot 13) prête, mise en service à faire**
+le 2026-11-21, v1.2.0 (Lot 13) en production depuis le 2026-11-22**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
 vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphone le
 2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17 ;
 Lot 12 mis en service le 2026-11-20 et clos le 2026-11-21, après le relevé du
-renouvellement d'une session en production, §11 et §12). Lot 0 : squelette
+renouvellement d'une session en production ; Lot 13 mis en service le 2026-11-22 et
+clos le 2026-11-23, liens publics vérifiés sur téléphone sans compte, en HTTPS, §11 et
+§12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -2469,7 +2471,9 @@ Limites connues à la clôture du Lot 12 :
 - **Le mode `prompt` ne se vérifie en production qu'à la mise à jour suivante** : la
   v1.0 a installé la v1.1 en `autoUpdate`, sans bandeau, comme prévu. Le bandeau a
   été vu sur le staging, après un second passage du playbook, et un e2e le couvre
-  sur une vraie mise à jour du service worker.
+  sur une vraie mise à jour du service worker. *Vérifié en production à la v1.2.0
+  (2026-11-22)* : sur le téléphone, le bandeau a attendu la saisie en file, puis
+  proposé la mise à jour une fois la saisie synchronisée.
 - **Renouvellement d'une session de la v1.0 jamais observé en production** : il n'en
   restait aucune au déploiement. Celui d'une session de la v1.1 passe par le même
   code et a été relevé ; les tests couvrent le cas d'une session sans
@@ -2514,7 +2518,8 @@ nom** :
   `frontend/tests/unit/features/auth/authForms.test.tsx`.
 - **En production depuis le 2026-11-21**, release complète v1.1.1 sur `c954d51`.
   Les versions n'avaient pas été montées : `/health` et le pied de l'écran Compte
-  disent encore 1.1.0. La v1.2.0 remet tag et version d'accord.
+  disent encore 1.1.0. La v1.2.0 remet tag et version d'accord (*fait le
+  2026-11-22* : « Application 1.2.0 · Serveur 1.2.0 » en production).
 
 Tranchées pendant le Lot 13 (P1 à P10 tranchées par l'utilisateur le 2026-11-20 à
 l'étape A0, décisions A1 à A12 de conception, retours sur le preview le 2026-11-21 ;
@@ -2572,7 +2577,42 @@ pour le détail ; pas de handoff, écrans validés sur captures) :
 - **`data-testid`** : référence de clôture `docs/qa-baselines/testids-lot13-cloture.txt`
   (768 littéraux statiques distincts, 674 à la clôture du Lot 12), aucun disparu.
 
-Limites connues à la livraison du Lot 13 (avant mise en service) :
+Appliqué le 2026-11-22 (mise en service de la v1.2.0, étape F ; checklist et
+relevés complets dans « Avancement de F » de `docs/lot13-plan-partage.md`) :
+
+- **Staging d'abord** : R16 appliquée sur `gurchon-staging.spigushe.com`, liens
+  vivant et figé ouverts dans une fenêtre privée, trois purges, Réviser, Dupliquer et
+  Comparer, art de l'extension parcourus ; « Application 1.2.0 · Serveur 1.2.0 ».
+- **Deux retours sur le staging.** La purge d'une sélection ne proposait aucune case
+  pour les liens des decks supprimés, et « Purger la sélection » inactif avait l'air
+  actif (`.btn-danger-text` sans style `:disabled`) : P5 amendée, une case sur tous
+  les liens, correctif fusionné par la PR #70, sans route, migration ni type `/sync`,
+  staging repassé. Un deck qui semblait dupliqué après « Annuler » n'a pas été
+  reproduit contre un vrai back ni retrouvé dans la base du staging ; deux tests
+  vitest le figent.
+- **R16 essayée sur une copie de la production** (sauvegarde d'avant le déploiement
+  de la v1.1.1, `compare_db.py`) : les 28 tables existantes identiques ligne à ligne
+  (11 decks, 387 lignes, 2 comptes, 414 opérations au journal), `integrity_check` à
+  `ok`, `foreign_key_check` vide ; sur une seconde copie, 22 liens créés et lus sans
+  cookie, descente refusée.
+- **Tag `v1.2.0` sur `2b26ab1`**, release complète « On the Qui Vive v1.2.0 »,
+  `--tags backend` puis `--tags frontend` ; sauvegarde d'avant déploiement présente
+  et recopiée sur le poste. R16 est la deuxième révision appliquée en production.
+- **Sur le téléphone**, depuis la v1.1.1 avec une saisie en file : le bandeau du mode
+  `prompt` attend la file puis propose la mise à jour, première vérification en
+  production (limite du Lot 12) ; saisie rejouée sans refus ni perte, base IndexedDB
+  en place, ouverture en mode avion, pied « Application 1.2.0 · Serveur 1.2.0 ».
+- **Sans compte, en HTTPS** : un vivant et un figé s'ouvrent avec la bonne liste, le
+  vivant suit le deck et le figé non ; « Copier le lien » écrit dans le
+  presse-papiers ; une purge fait tomber le lien, la suppression du deck fait tomber
+  le vivant et garde le figé ; une révision s'ouvre par son adresse sur un autre
+  appareil ; un second compte duplique la liste et la compare à un de ses decks.
+- **Le reste du critère de fin** : les quatre formats recollés dans VDB retrouvent la
+  même liste ; art de l'extension en ligne, pictogramme hors ligne ; sur le VPS,
+  `/listes/zzzzzzzz` en 404 sans `Set-Cookie`, et `journalctl` ne porte que le
+  gabarit `/listes/{token}`, jamais le jeton.
+
+Limites connues à la clôture du Lot 13 :
 
 - **Journaux de nginx** : l'hôte de l'API y écrit le chemin complet, donc les jetons
   (`/listes/<jeton>`) ; ceux de l'API n'ont que le gabarit. Acceptable sur un VPS que
@@ -2856,8 +2896,8 @@ changeant ; les lots suivants donnent des v2.x.
     sur `ddb2cf3`, qui réaligne tag et dépôt ; sur téléphone, base IndexedDB
     montée et file rejouée sans perte ; session renouvelée relevée en base le
     2026-11-21 (§11, « Appliqué le 2026-11-20 »).
-15. **Lot 13 — Partage (v1.2)** — *livré, mise en service de la v1.2.0 à faire
-    (étape F).* Lien public vers une decklist, vivant ou figé, lu sans compte sur
+15. **Lot 13 — Partage (v1.2)** — *livré, v1.2.0 en production depuis le
+    2026-11-22, clos le 2026-11-23.* Lien public vers une decklist, vivant ou figé, lu sans compte sur
     `#/liste/<jeton>` (première route publique sur une donnée privée) ; feuille de
     partage d'un deck et d'une version jouée, « Listes partagées » et trois purges
     dans l'écran Compte ; depuis la page publique, exports, « Réviser » sans compte,
@@ -2865,13 +2905,18 @@ changeant ; les lots suivants donnent des v2.x.
     VDB, à côté du `TEXT` du Lot 9 ; art de l'extension dans la Collection. Une
     révision, `dda2c510a2f2` (R16) : 30 tables, seize révisions. Contrat à 62
     opérations sur 39 chemins, aucun type `/sync` nouveau, aucune version Dexie.
-    Plan, livraisons par étape (A0 à E) et checklist de F dans
+    Plan, livraisons par étape (A0 à F) et écarts dans
     `docs/lot13-plan-partage.md`, décisions et limites au §11. 3161 tests backend
     (2 `xfail` assumés, `ruff check` propre, 99 % des lignes de `app/` couvertes) ;
     1942 tests vitest sur 111 fichiers, lint et `tsc` propres ; 108 tests Playwright
     (9 `chromium`, 55 `real-backend`, 4 `desktop`, 40 `desktop-real-backend`) ;
     références CRAP vides des deux côtés ; aucun `data-testid` disparu. Indépendant
-    des inventaires, il passe avant eux (V4).
+    des inventaires, il passe avant eux (V4). Mise en service : staging, avec un
+    correctif de la purge d'une sélection (PR #70) ; R16 essayée sur une copie de la
+    production puis appliquée ; release complète v1.2.0 sur `2b26ab1`, qui remet tag
+    et versions d'accord ; sur téléphone, le bandeau du mode `prompt` a attendu la
+    file, première vérification en production, et les liens publics ont été ouverts
+    sans compte en HTTPS (§11, « Appliqué le 2026-11-22 »).
 
     **Période de retours d'usage** (V5), après le Lot 12 et avant le Lot 14 : vivre
     avec la v1.1 en production avant la première conversion de données réelles,

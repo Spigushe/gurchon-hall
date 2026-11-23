@@ -6,7 +6,8 @@ D6 livrées les 2026-11-20 et 21** (cf. « Livré à … » et les deux sections
 « Vérification d'intégration »), A1, D1 et D4 commitées (`ffceb6b`), B1, B2
 et C1 (`9afde94`), D2 et D3 (`8a38175`), D5 et D6 (`db45029`), hashs d'après le rebase
 du 2026-11-21 ; **E (QA) livrée le 2026-11-21 (`1cfd7fa`), F (mise en
-service v1.2.0) préparée le 2026-11-22**, cf. « Avancement de F ». Rédigé sur la
+service v1.2.0) faite le 2026-11-22, lot clos le 2026-11-23** : release complète
+v1.2.0 sur `2b26ab1`, critère de fin vérifié en production, cf. « Avancement de F ». Rédigé sur la
 branche `lot13-partage`, ouverte depuis `main` à `ddb2cf3` (v1.1.0 en
 production depuis le 2026-11-20). Le Lot 12 n'est pas tout à fait clos : deux
 relevés de F attendent le 2026-11-21 (renouvellement d'une session de plus de
@@ -1615,7 +1616,7 @@ depuis `backend/`.
   compte `1`, aucun en double et aucun dont les notes finissent par « Dupliqué de la liste
   partagée ». Connecté sous le compte propriétaire, on retombe sur `#/decks`, où le deck
   d'origine porte le nom de la liste.
-- [ ] Correctif fusionné sur `main`, staging repassé (bandeau « nouvelle version »
+- [X] Correctif fusionné sur `main`, staging repassé (bandeau « nouvelle version »
   attendu), purge d'une sélection de liens de decks supprimés vérifiée.
 
 #### 3. Essai de R16 sur une copie de la production
@@ -1631,16 +1632,17 @@ depuis `backend/`.
   créés pour chacun des 11 decks, **22 liens lus sans cookie**, chacun avec le nombre de
   cartes de son deck, sans notes, en `public, max-age=60` ; jeton inconnu en 404 ;
   descente refusée (22 liens cités).
-- [ ] Facultatif : rejouer l'essai sur la sauvegarde de la veille du déploiement
+- [ ] Facultatif, non fait : rejouer l'essai sur la sauvegarde de la veille du déploiement
   (`bash ops/fetch_backups.sh`), si des saisies ont eu lieu entre-temps.
 
 #### 4. Release et production
 
-- [ ] Tag `v1.2.0` sur la tête de `main`, **release complète, pas en pré-release**
-  (`fastapi_backend` ignore les pré-releases).
-- [ ] `ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend`
+- [X] Tag `v1.2.0` sur la tête de `main`, **release complète, pas en pré-release**
+  (`fastapi_backend` ignore les pré-releases). Fait le 2026-11-22 : tag sur `2b26ab1`
+  (fusion de la #70), release « On the Qui Vive v1.2.0 » publiée à 21:17 UTC.
+- [X] `ansible-playbook gurchon_hall.yml --tags backend` puis `--tags frontend`
   (`--tags deploy` ne marche pas).
-- [ ] `vtes-avant-deploiement-<date>.db` présente dans `~/backups/gurchon-hall/`, puis
+- [X] `vtes-avant-deploiement-<date>.db` présente dans `~/backups/gurchon-hall/`, puis
   `bash ops/fetch_backups.sh`. Retour arrière : restaurer cette copie, puis
   `-e gurchon_release_tag=v1.1.1` (R16 ne redescend pas dès qu'un lien existe ; les
   liens créés depuis sont perdus).
@@ -1649,34 +1651,34 @@ depuis `backend/`.
 
 Sur le téléphone, depuis la v1.1.1 avec une saisie en file :
 
-- [ ] Le bandeau s'affiche et **attend** la file (« Elle s'installera une fois… »), puis
+- [X] Le bandeau s'affiche et **attend** la file (« Elle s'installera une fois… »), puis
   propose « Mettre à jour » une fois la saisie synchronisée, sans refus ni perte.
-- [ ] Après la mise à jour : pied « Application 1.2.0 · Serveur 1.2.0 », base IndexedDB
+- [X] Après la mise à jour : pied « Application 1.2.0 · Serveur 1.2.0 », base IndexedDB
   en place, ouverture en mode avion (§3 de CLAUDE.md).
 
 Depuis un téléphone **sans compte** (ou une fenêtre privée), en HTTPS :
 
-- [ ] Un lien vivant et un lien figé s'ouvrent et montrent la bonne liste ; le vivant
+- [X] Un lien vivant et un lien figé s'ouvrent et montrent la bonne liste ; le vivant
   suit une modification du deck (attendre une minute ou ouvrir ailleurs), le figé non.
-- [ ] « Copier le lien » écrit bien dans le presse-papiers.
-- [ ] Une purge fait tomber le lien (« Liste introuvable. », une minute au plus chez qui
+- [X] « Copier le lien » écrit bien dans le presse-papiers.
+- [X] Une purge fait tomber le lien (« Liste introuvable. », une minute au plus chez qui
   l'avait ouvert) ; la suppression du deck fait tomber le vivant et garde le figé.
-- [ ] Une révision faite sans compte s'ouvre par son adresse sur un autre appareil.
-- [ ] Un second compte duplique la liste et la compare à un de ses decks.
+- [X] Une révision faite sans compte s'ouvre par son adresse sur un autre appareil.
+- [X] Un second compte duplique la liste et la compare à un de ses decks.
 
 Le reste du critère de fin :
 
-- [ ] Les quatre formats (`TEXT`, `TWD`, `JOL`, `LACKEY`) recollés dans VDB retrouvent la
+- [X] Les quatre formats (`TEXT`, `TWD`, `JOL`, `LACKEY`) recollés dans VDB retrouvent la
   même liste.
-- [ ] Art de l'extension dans la Collection en ligne, pictogramme hors ligne.
-- [ ] Sur le VPS : `curl -si https://api-gurchon.spigushe.com/listes/zzzzzzzz` rend 404
+- [X] Art de l'extension dans la Collection en ligne, pictogramme hors ligne.
+- [X] Sur le VPS : `curl -si https://api-gurchon.spigushe.com/listes/zzzzzzzz` rend 404
   sans `Set-Cookie` ; une ligne `http.request` avec la route `/listes/{token}`, jamais
   le jeton, dans `journalctl -u gurchon-api`.
 
 #### 6. Clôture
 
-- [ ] Ce fichier (statut, relevés), CLAUDE.md (§11 « Appliqué le … », §12) et le README
-  à jour sur `main`.
+- [X] Ce fichier (statut, relevés), CLAUDE.md (§11 « Appliqué le 2026-11-22 », §12) et
+  le README mis à jour le 2026-11-23.
 
 ## Tests attendus (E)
 

@@ -25,7 +25,8 @@ projet dans [`.mcp.json`](.mcp.json) et n'est pas une dépendance de l'applicati
 
 ## État actuel
 
-Livré jusqu'au Lot 13, dont la mise en ligne (v1.2.0) est en cours (détail et limites connues au §12 de CLAUDE.md) :
+Livré jusqu'au Lot 13, en production en v1.2.0 depuis le 2026-11-22 (détail et
+limites connues au §12 de CLAUDE.md) :
 
 - catalogue complet importé depuis krcg, avec une recherche hors ligne aux
   filtres de VDB (onglet Chercher) ;
