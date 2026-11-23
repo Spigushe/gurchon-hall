@@ -54,7 +54,8 @@ VERSIONS_REVISION = "ac6cda5ad252"  # versions jouées et deck adverse (Lot 8, R
 VDB_LINK_REVISION = "5f2b8e9d0c41"  # lien VDB sur le deck (Lot 9, R14)
 SESSION_DEVICE_REVISION = "c4e8a1f2d7b3"  # appareil, dernière utilisation (Lot 12, R15)
 SHARES_REVISION = "dda2c510a2f2"  # liens publics vers une decklist (Lot 13, R16)
-HEAD_REVISION = SHARES_REVISION
+REPORTS_REVISION = "b3f1c7a9e2d4"  # comptes-rendus de tournoi (lot Compte-rendu, R17)
+HEAD_REVISION = REPORTS_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -72,6 +73,7 @@ REVISIONS = [
     VDB_LINK_REVISION,
     SESSION_DEVICE_REVISION,
     SHARES_REVISION,
+    REPORTS_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -108,6 +110,8 @@ EXPECTED_TABLES = {
     "sync_operation",
     "tournament",
     "tournament_deck_version",
+    "tournament_report",
+    "tournament_report_version",
     "user_account",
     "venue",
 }
@@ -115,7 +119,11 @@ EXPECTED_TABLES = {
 # Les deux tables du Lot 13 (R16) : absentes de toute base montée à R15 ou
 # avant.
 LOT13_TABLES = {"deck_share", "deck_share_card"}
-TABLES_BEFORE_LOT13 = EXPECTED_TABLES - LOT13_TABLES
+# Les deux tables du lot Compte-rendu (R17) : absentes de toute base montée à
+# R16 ou avant.
+REPORT_TABLES = {"tournament_report", "tournament_report_version"}
+TABLES_AT_R16 = EXPECTED_TABLES - REPORT_TABLES
+TABLES_BEFORE_LOT13 = TABLES_AT_R16 - LOT13_TABLES
 
 SEEDED_LANGUAGES = [
     ("EN", "Anglais", 10),
@@ -263,7 +271,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Seize révisions à la suite, sans branche : une racine, une tête."""
+    """Dix-sept révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -275,11 +283,11 @@ def test_history_has_a_single_head_and_a_single_root():
 # --------------------------------------------------------------------------
 
 
-def test_upgrade_head_creates_the_thirty_tables(empty_db):
+def test_upgrade_head_creates_the_thirty_two_tables(empty_db):
     assert not empty_db.exists()
     alembic(empty_db, "upgrade", "head")
     assert table_names(empty_db) == EXPECTED_TABLES
-    assert len(table_names(empty_db) - {"alembic_version"}) == 30
+    assert len(table_names(empty_db) - {"alembic_version"}) == 32
 
 
 def test_upgrade_head_stamps_the_revision(migrated):
@@ -388,7 +396,7 @@ def test_migrated_schema_equals_the_models_schema(migrated, tmp_path):
 
     from_migration = snapshot_of(migrated)
 
-    assert len(from_models) == 30
+    assert len(from_models) == 32
     assert set(from_migration) == set(from_models)
     for table in from_models:
         assert from_migration[table] == from_models[table], table
@@ -4121,7 +4129,7 @@ def test_upgrade_keeps_every_row_and_adds_two_empty_tables(empty_db):
     alembic(empty_db, "upgrade", SHARES_REVISION)
 
     after = every_row(empty_db)
-    assert table_names(empty_db) == EXPECTED_TABLES
+    assert table_names(empty_db) == TABLES_AT_R16
     assert {t: lines for t, lines in after.items() if t not in LOT13_TABLES} == before
     assert after["deck_share"] == after["deck_share_card"] == []
     assert [
@@ -4208,6 +4216,176 @@ def test_the_shares_revision_downgrade_does_not_render_offline(empty_db):
         empty_db,
         "downgrade",
         f"{SHARES_REVISION}:{SESSION_DEVICE_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# Lot Compte-rendu : comptes-rendus de tournoi (R17)
+# --------------------------------------------------------------------------
+
+REPORT_INSERT = (
+    "INSERT INTO tournament_report (id, user_id, tournament_id, token,"
+    " include_opponent_notes, show_previous_versions) VALUES {}"
+)
+
+
+def populated_at_r16(db_path: Path) -> None:
+    """La base peuplée des tests de R13 à R16, montée à R16, avec un tournoi
+    du compte 1 (id 9001)."""
+    populated_at_r15(db_path)
+    alembic(db_path, "upgrade", SHARES_REVISION)
+    execute(
+        db_path,
+        "INSERT INTO tournament (id, user_id, name, start_date, format, deck_policy,"
+        " event_tier, created_at, updated_at) VALUES (9001, 1, 'Coupe', '2026-11-14',"
+        " 'constructed', 'mono', 'standard', '2026-11-14 10:00:00',"
+        " '2026-11-14 10:00:00')",
+    )
+
+
+def test_head_creates_the_two_report_tables_with_their_named_checks(migrated):
+    engine = create_engine(url_for(migrated))
+    try:
+        inspector = inspect(engine)
+        checks = {
+            table: {check["name"] for check in inspector.get_check_constraints(table)}
+            for table in REPORT_TABLES
+        }
+    finally:
+        engine.dispose()
+    assert checks == {
+        "tournament_report": {"ck_tournament_report_token_format"},
+        "tournament_report_version": {"ck_tournament_report_version_number_positive"},
+    }
+
+
+@pytest.fixture
+def reported(empty_db) -> Path:
+    """La base peuplée, montée à la tête, avec le tournoi 9001 du compte 1."""
+    populated_at_r16(empty_db)
+    alembic(empty_db, "upgrade", REPORTS_REVISION)
+    return empty_db
+
+
+@pytest.mark.parametrize("token", ["NULL", "'aB3x_9pQ'"])
+def test_head_accepts_a_report_without_or_with_a_token(reported, token):
+    execute(reported, REPORT_INSERT.format(f"(1, 1, 9001, {token}, 0, 0)"))
+    assert foreign_key_violations(reported) == []
+
+
+@pytest.mark.parametrize("token", ["'court'", "'aB3x-9pQ'"])
+def test_head_refuses_a_malformed_report_token(reported, token):
+    message = refusal(reported, REPORT_INSERT.format(f"(1, 1, 9001, {token}, 0, 0)"))
+    assert "ck_tournament_report_token_format" in message
+
+
+def test_head_allows_one_report_per_tournament_and_cascades_its_versions(reported):
+    execute(reported, REPORT_INSERT.format("(1, 1, 9001, NULL, 0, 0)"))
+    assert "UNIQUE" in refusal(
+        reported, REPORT_INSERT.format("(2, 1, 9001, NULL, 0, 0)")
+    )
+    execute(
+        reported,
+        "INSERT INTO tournament_report_version (report_id, number, snapshot)"
+        " VALUES (1, 1, '{}'), (1, 2, '{}')",
+    )
+    assert "ck_tournament_report_version_number_positive" in refusal(
+        reported,
+        "INSERT INTO tournament_report_version (report_id, number, snapshot)"
+        " VALUES (1, 0, '{}')",
+    )
+    engine = create_app_engine(url_for(reported))
+    try:
+        with engine.begin() as connection:
+            connection.execute(text("DELETE FROM tournament_report WHERE id = 1"))
+    finally:
+        engine.dispose()
+    assert scalar(reported, "SELECT COUNT(*) FROM tournament_report_version") == 0
+
+
+def test_head_refuses_a_report_on_the_tournament_of_another_account(reported):
+    message = refusal(reported, REPORT_INSERT.format("(1, 999, 9001, NULL, 0, 0)"))
+    assert "FOREIGN KEY" in message
+
+
+def test_upgrade_to_reports_keeps_every_row_and_adds_two_empty_tables(empty_db):
+    populated_at_r16(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+
+    alembic(empty_db, "upgrade", REPORTS_REVISION)
+
+    after = every_row(empty_db)
+    assert table_names(empty_db) == EXPECTED_TABLES
+    assert {t: lines for t, lines in after.items() if t not in REPORT_TABLES} == before
+    assert after["tournament_report"] == after["tournament_report_version"] == []
+    assert [
+        row
+        for row in schema_text(empty_db)
+        if row[2] not in REPORT_TABLES and row[1] != "sqlite_sequence"
+    ] == ddl_before
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_downgrade_without_a_report_drops_both_tables_and_keeps_every_row(empty_db):
+    populated_at_r16(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+    alembic(empty_db, "upgrade", REPORTS_REVISION)
+
+    alembic(empty_db, "downgrade", SHARES_REVISION)
+
+    assert table_names(empty_db) == TABLES_AT_R16
+    assert every_row(empty_db) == before
+    assert schema_text(empty_db) == ddl_before
+
+
+def test_downgrade_refuses_a_report_before_any_change(reported):
+    execute(reported, REPORT_INSERT.format("(1, 1, 9001, NULL, 0, 0)"))
+    ddl_before = schema_text(reported)
+    data_before = every_row(reported)
+
+    result = alembic(reported, "downgrade", SHARES_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "1 compte(s)-rendu(s)" in output
+    assert schema_text(reported) == ddl_before
+    assert every_row(reported) == data_before
+
+
+def test_the_reports_revision_round_trip_keeps_the_ddl_and_the_rows(reported):
+    ddl = schema_text(reported)
+    data = every_row(reported)
+
+    alembic(reported, "downgrade", SHARES_REVISION)
+    alembic(reported, "upgrade", REPORTS_REVISION)
+
+    assert schema_text(reported) == ddl
+    assert every_row(reported) == data
+
+
+def test_the_reports_revision_upgrade_renders_offline(empty_db):
+    up = alembic(empty_db, "upgrade", f"{SHARES_REVISION}:{REPORTS_REVISION}", "--sql")
+    assert "CREATE TABLE tournament_report (" in up.stdout
+    assert "CREATE TABLE tournament_report_version (" in up.stdout
+    assert "CREATE INDEX ix_tournament_report_user_id" in up.stdout
+    assert "ALTER TABLE" not in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_reports_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{REPORTS_REVISION}:{SHARES_REVISION}",
         "--sql",
         check=False,
     )

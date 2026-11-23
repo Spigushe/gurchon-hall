@@ -1,9 +1,11 @@
-# Lot Compte-rendu de tournoi (v1.3) : plan d'implémentation
+# Lot Compte-rendu de tournoi (v1.2.1) : plan d'implémentation
 
-Statut : **ouvert le 2026-11-23, P1 à P12 tranchées le même jour (A0)**,
-décisions de conception reprises en conséquence. Rien n'est écrit dans le
-code. Rédigé sur `main` à `48cd1a4` (v1.2.0 en production depuis le
-2026-11-22, Lot 13 clos le 2026-11-23). Les décisions A1 à A9 sont des
+Statut : **ouvert le 2026-11-23, P1 à P12 tranchées le même jour (A0),
+handoff d'impression reçu le même jour, A1 à E livrées le 2026-11-23 sur la
+branche `issue71-compte-rendu`** (cf. « Livré le 2026-11-23 »), non commitées
+au moment de l'écriture ; la vérification à l'œil des écrans et de
+l'impression, puis F, restent à faire. Rédigé sur `main` à `48cd1a4` (v1.2.0
+en production depuis le 2026-11-22, Lot 13 clos le 2026-11-23). Les décisions A1 à A9 sont des
 décisions de conception que les agents de couche reprendront ou amenderont
 dans ce fichier. La forme suit `docs/lot13-plan-partage.md`.
 
@@ -11,9 +13,10 @@ A0 amende trois points de la décision V7 (`docs/roadmap-v2-proposition.md`) :
 le PDF ne vient plus du serveur mais de l'impression de la page (P6, P11), et
 aucune adresse ne porte plus `?v=<n>` (P9).
 
-La correction de l'issue #71 (aperçu de l'image au survol sur la page d'une
-liste partagée) passe avant ce lot, en v1.2.1 : elle ne touche que le front
-et ne dépend de rien ici (CLAUDE.md §12, V8).
+**Version** : décision de l'utilisateur du 2026-11-23, la v1.2.1 reprend tous
+les changements de la branche, soit l'issue #71 (image de la carte sur une
+liste partagée), l'ordre des types de bibliothèque repris de VDB et ce lot.
+La v1.3 prévue par V7 disparaît.
 
 ## Portée
 
@@ -366,6 +369,17 @@ courante ; la première crée le compte-rendu ; coupe une version si
 l'instantané a changé) et `tournament_report.delete`. Une opération plus
 ancienne se rejoue avec la même empreinte, aucun champ existant ne changeant.
 
+*Amendé à l'implémentation (2026-11-23)* : **aucun type `/sync` nouveau**.
+`sync_operation` porte un CHECK sur `operation_type` ; deux types auraient
+obligé R17 à recréer la table, donc à recopier le journal de production. La
+demande voyage dans `tournament.update`, champ `report`
+(`{action: "update", include_opponent_notes?}` ou `{action: "delete"}`), sur
+le patron de `refreeze_decklists` du Lot 8, et s'applique après les autres
+champs de la même écriture. La purge du lien est à part
+(`DELETE /tournois/{id}/compte-rendu/lien`), et l'écran Compte lit
+`GET /moi/comptes-rendus` : `/moi/partages` du Lot 13 ne change pas. Huit
+opérations sur six chemins : 70 opérations sur 45 chemins.
+
 ### A2. Révision R17
 
 Deux tables neuves, sans conversion : `tournament_report` (`id`, `user_id`,
@@ -388,8 +402,11 @@ trame du client sait lire toutes les formes publiées.
 
 ### A4. Client : miroir et aperçu
 
-Dexie version 8 : magasins `tournamentReports` et
-`tournamentReportVersions`, ajoutés sans changement de clé. L'aperçu de la
+Dexie version 8 : *amendé* — un seul magasin, `reportVersions` (clé
+`<tournoi>:<numéro>`), ajouté sans changement de clé ; le compte-rendu
+lui-même voyage dans `TournamentDetailRead.report` et se range dans la ligne
+du tournoi (`TournamentRow.report`), si bien qu'aucune lecture de plus n'est
+nécessaire. L'aperçu de la
 prochaine version est construit par une fonction pure jumelle de A3, à
 partir du miroir, et comparé à la dernière version pour dire si « Mettre à
 jour » couperait une version ou ne changerait rien, sur une table de cas
@@ -426,15 +443,17 @@ dépendances du back.
 
 ### A9. Version
 
-Le lot sort en v1.3.0 : il ajoute des fonctions sans changer l'identité
-d'aucune donnée existante.
+*Amendé le 2026-11-23* (décision de l'utilisateur) : le lot sort en v1.2.1,
+avec l'issue #71 et l'ordre des types de VDB, au lieu d'une v1.3.0.
 
 ## Découpage en étapes ordonnées
 
 - **A0** : fait le 2026-11-23.
 - **Handoff** : demande à Claude Design pour la mise en page imprimée, en
-  parallèle de A1, avec un exemple d'instantané réaliste (mono et
-  multi-deck, une table à cinq, une finale, des notes longues).
+  parallèle de A1. Brief écrit le 2026-11-23,
+  `docs/design-handoff/compte-rendu-brief-claude-design.md`, avec deux
+  exemples (mono et multi-deck, une table à cinq, une finale, des notes
+  longues) ; le handoff reçu se versera dans `docs/design-handoff/`.
 - **A1** : contrat, R17, forme de l'instantané et table de cas commune.
 - **B1** : service, routes privées, `/sync` ; **B2** : routes publiques.
 - **C1** : miroir, opérations, aperçu local.
@@ -445,8 +464,54 @@ d'aucune donnée existante.
   modifiées et mise à jour demandée en mode avion, puis version coupée au
   retour du réseau avec la liste figée par le serveur ; et l'e2e
   d'impression de A6.
-- **F** : mise en service v1.3.0, R17 essayée sur une copie de la production,
+- **F** : mise en service v1.2.1, R17 essayée sur une copie de la production,
   impression en PDF vérifiée sur Chrome Android et Chrome Windows.
+
+### Livré le 2026-11-23
+
+**Back.** `app/models/report.py`, R17 (`b3f1c7a9e2d4`),
+`app/schemas/report.py` (instantané typé : le client TypeScript en connaît la
+forme), `app/services/tournament_reports.py`, `app/routers/reports.py`,
+`REPORT_RATE_LIMIT`. `tournaments.update_tournament` applique `report` après
+les autres champs, dans la même transaction ; `delete_tournament` refuse un
+tournoi qui a un compte-rendu ; `TournamentDetailRead.report`. Une version
+coupée avance `tournament.updated_at`. Export du compte en forme 3. Tests :
+`tests/test_tournament_reports.py` (versions, contenu de l'instantané, notes
+sur les adversaires, permanence, `/sync` et rejeu, lien, lecture publique,
+versions antérieures, isolation, export), section R17 de
+`test_migrations.py`, matrice d'autorisation, contrat.
+
+**Client.** Dexie version 8 (`reportVersions`), `refreshReportVersions`
+après les tournois, `TournamentPatch.report`, `reportState` dans la
+surcouche (`report`, `reportRequest`). `features/report/` :
+`reportModel.ts` (aperçu `buildPreview`, `sameSnapshot`, libellés),
+`ReportView.tsx` (la trame d'écran), `NotesEditor.tsx`,
+`TournamentReportPage.tsx`, `PublicReportPage.tsx` et `publicReportRoute.ts`
+(`#/compte-rendu/<jeton>`, interceptée par `Root.tsx`), `AccountReports.tsx`
+(« Comptes-rendus partagés »), `reportApi.ts`. Entrée « Compte-rendu » dans
+le détail du tournoi, refus local de suppression.
+
+**Impression (handoff `COMPTE-RENDU.md`).** `ReportPrint.tsx` et
+`printModel.ts` rendent `.cr-print`, frère de la trame d'écran (`.cr-screen`),
+qui reste celle qu'on lit et partage dans l'application ;
+`reportPrint.css` reprend `compte-rendu-print.css` (coquille masquée
+étendue au lien d'évitement, à l'alerte de synchronisation et au bandeau de
+mise à jour ; rondes dans `.cr-rounds`). Pied et bandeau par une règle
+`@page` écrite par le composant. Les libellés du handoff valent aussi à
+l'écran : dates en capitale avec « 1er », scores sans « pas de GW ».
+L'ancienne feuille d'impression provisoire de `index.css` est retirée.
+
+**Écarts.** « +F » du format quand une finale figure au compte-rendu : l'outil
+ne sait pas si un tournoi avait une finale que je n'ai pas jouée. Le nom libre
+d'un deck à la table est entre guillemets même pour un de mes decks prêté,
+l'instantané ne les distinguant pas. Pas de table de cas commune entre
+`build_snapshot` et `buildPreview` : l'aperçu reste une estimation, testée de
+son côté.
+
+**E2E.** `compte-rendu.spec.ts` aux deux largeurs : note modifiée et mise à
+jour demandée hors ligne, version 1 coupée au retour du réseau avec la note,
+lien créé et lu sans session, impression émulée (`.cr-print` visible, trame
+d'écran cachée), purge.
 
 ## Risques et points d'attention
 

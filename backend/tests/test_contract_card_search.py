@@ -130,12 +130,13 @@ def test_the_card_summary_embedded_elsewhere_does_not_grow(schemas):
     assert properties(schemas, "CardSummary") == SUMMARY
 
 
-def test_the_contract_has_sixty_two_operations_on_thirty_nine_paths():
+def test_the_contract_has_seventy_operations_on_forty_five_paths():
     """51 sur 31 à la clôture du Lot 8, plus `GET /vdb/decks/{vdb_deck_id}`
     (Lot 9, A7), plus cinq opérations sur quatre chemins sous `/moi` (Lot 12,
     A1 : mot de passe, sessions, export), plus cinq opérations sur trois
-    chemins pour les liens publics (Lot 13, A1)."""
+    chemins pour les liens publics (Lot 13, A1), plus huit opérations sur six
+    chemins pour les comptes-rendus (lot Compte-rendu, A1)."""
     paths = app.openapi()["paths"]
     verbs = {"get", "post", "put", "patch", "delete"}
-    assert len(paths) == 39
-    assert sum(1 for item in paths.values() for verb in item if verb in verbs) == 62
+    assert len(paths) == 45
+    assert sum(1 for item in paths.values() for verb in item if verb in verbs) == 70

@@ -1,0 +1,547 @@
+/*
+ * Compte-rendu de tournoi, impression A4 (trame A « Fiche »), repris du
+ * handoff de Claude Design (`docs/design-handoff/compte-rendu-print.css`, qui
+ * fait foi, et `COMPTE-RENDU.md`). Importé par `ReportPrint.tsx`.
+ *
+ * Écarts au fichier du handoff, tous mineurs :
+ * - la coquille masquée compte aussi le lien d'évitement, l'alerte de
+ *   synchronisation et le bandeau de mise à jour ;
+ * - les rondes vivent dans `.cr-rounds`, qui porte l'écart avec ce qui précède.
+ */
+
+/* ------------------------------------------------------------ écran */
+
+.cr-print {
+  display: none;
+}
+
+/* ------------------------------------------------------------ impression */
+
+@page {
+  size: A4 portrait;
+  margin: 14mm 15mm 18mm 15mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #111111;
+  }
+
+  /* Le chrome de l'application ne s'imprime pas. Ajouter ici tout élément
+     global qui apparaîtrait (toast, bannière de mise à jour). */
+  .topbar,
+  .tabbar,
+  .shell-bar,
+  .skip-link,
+  .sync-alert,
+  .app-update-banner,
+  .cr-screen {
+    display: none !important;
+  }
+
+  .app-shell {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: none !important;
+  }
+
+  .cr-print {
+    display: block;
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #111111;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------------------------------------------------- étiquettes */
+
+  .cr-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #444444;
+  }
+
+  .cr-tag {
+    display: inline-block;
+    border: 1px solid #111111;
+    border-radius: 3px;
+    padding: 0 5px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  /* ---------------------------------------------------- en-tête */
+
+  .cr-head {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid #111111;
+    break-inside: avoid;
+  }
+
+  .cr-head__titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .cr-title {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .cr-deck-line {
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .cr-facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 12px;
+    margin: 0;
+  }
+
+  .cr-fact {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .cr-fact dd {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  /* ---------------------------------------------------- résultat */
+
+  .cr-result {
+    margin-top: 20px;
+    border-top: 3px solid #111111;
+    border-bottom: 1px solid #111111;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 24px;
+    break-inside: avoid;
+  }
+
+  .cr-result__cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 0;
+  }
+
+  .cr-result__big {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .cr-result__small {
+    font-size: 13px;
+    color: #333333;
+  }
+
+  /* ---------------------------------------------------- notes */
+  /* Texte brut : un paragraphe par bloc séparé d'une ligne vide, les sauts
+     simples gardés (pre-line). Une note longue se coupe entre deux pages. */
+
+  .cr-notes {
+    margin-top: 20px;
+  }
+
+  .cr-notes > .cr-label {
+    display: block;
+    margin: 0 0 8px;
+  }
+
+  .cr-note {
+    margin: 0 0 8px;
+    max-width: 640px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-line;
+    text-wrap: pretty;
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* ---------------------------------------------------- rondes */
+
+  .cr-round {
+    margin-top: 22px;
+    break-inside: avoid; /* une ronde qui tient sur une page ne se coupe pas */
+  }
+
+  .cr-rounds {
+    margin-top: 22px;
+  }
+
+  .cr-round:first-child {
+    margin-top: 0;
+  }
+
+  /* En-tête + table : jamais séparés, et jamais seuls en bas de page. Si la
+     ronde dépasse une page, elle se coupe dans ses notes. */
+  .cr-round__top {
+    break-inside: avoid;
+    break-after: avoid;
+  }
+
+  .cr-round__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-top: 2px solid #111111;
+    padding-top: 6px;
+  }
+
+  .cr-round__title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+  }
+
+  .cr-round__sub {
+    font-size: 13px;
+    color: #333333;
+  }
+
+  .cr-round__score {
+    margin-left: auto;
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .cr-round__notes {
+    margin-top: 10px;
+  }
+
+  /* ---------------------------------------------------- table des sièges */
+
+  .cr-seats {
+    width: 100%;
+    margin-top: 6px;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .cr-seats col.cr-col-seat { width: 44px; }
+  .cr-seats col.cr-col-player { width: 170px; }
+  .cr-seats col.cr-col-pos { width: 110px; }
+
+  .cr-seats th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #444444;
+    padding: 4px 8px 4px 0;
+    border-bottom: 1px solid #111111;
+  }
+
+  .cr-seats td {
+    padding: 3px 8px 3px 0;
+    height: 24px;
+    vertical-align: middle;
+    border-bottom: 1px solid #9a9a9a;
+  }
+
+  .cr-seats th:first-child,
+  .cr-seats td:first-child {
+    padding-left: 8px;
+    font-weight: 600;
+  }
+
+  /* Ma ligne : le gras porte l'information, le gris clair n'est qu'un renfort. */
+  .cr-seat--me td {
+    background: #ececec;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .cr-seat--me .cr-seat__player {
+    font-weight: 700;
+  }
+
+  .cr-seat__deck {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cr-seat-note td {
+    font-size: 13px;
+    padding-top: 3px;
+    padding-bottom: 5px;
+  }
+
+  .cr-seat-note .cr-label {
+    font-size: 10px;
+  }
+
+  /* ---------------------------------------------------- listes jouées */
+
+  .cr-list {
+    break-before: page; /* chaque liste commence une page */
+  }
+
+  .cr-list__head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid #111111;
+    break-after: avoid;
+  }
+
+  .cr-list__name {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  .cr-list__name h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 800;
+  }
+
+  .cr-list__name .cr-tag {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 6px;
+  }
+
+  .cr-list__sub {
+    font-size: 13px;
+    color: #333333;
+  }
+
+  .cr-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-top: 18px;
+    break-after: avoid;
+  }
+
+  .cr-section-title h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .cr-section-title span {
+    font-size: 13px;
+  }
+
+  .cr-section-title--library {
+    margin-top: 24px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #111111;
+  }
+
+  /* Crypte */
+  .cr-crypt {
+    width: 100%;
+    margin-top: 4px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 13px;
+    break-inside: avoid;
+  }
+
+  .cr-crypt col.cr-col-qty { width: 46px; }
+  .cr-crypt col.cr-col-cap { width: 44px; }
+  .cr-crypt col.cr-col-disc { width: 150px; }
+  .cr-crypt col.cr-col-clan { width: 160px; }
+  .cr-crypt col.cr-col-group { width: 36px; }
+
+  .cr-crypt th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #444444;
+    padding: 4px 10px 4px 0;
+    border-bottom: 1px solid #111111;
+  }
+
+  .cr-crypt td {
+    padding: 2px 10px 2px 0;
+    height: 22px;
+    border-bottom: 1px solid #9a9a9a;
+  }
+
+  .cr-crypt th:first-child,
+  .cr-crypt td:first-child {
+    padding-left: 6px;
+  }
+
+  .cr-crypt th:last-child,
+  .cr-crypt td:last-child {
+    text-align: right;
+    padding-right: 6px;
+  }
+
+  .cr-crypt__cap {
+    font-weight: 700;
+  }
+
+  .cr-adv {
+    margin-left: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border: 1px solid #111111;
+    border-radius: 3px;
+    padding: 0 3px;
+  }
+
+  /* Bibliothèque : trois colonnes, un groupe de type ne se coupe pas. */
+  .cr-library {
+    margin-top: 12px;
+    column-count: 3;
+    column-gap: 26px;
+  }
+
+  .cr-lib-group {
+    break-inside: avoid;
+    margin-bottom: 14px;
+  }
+
+  .cr-lib-group__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid #111111;
+    padding-bottom: 3px;
+    margin-bottom: 3px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .cr-lib-group__total {
+    margin-left: auto;
+  }
+
+  .cr-lib-card {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ---------------------------------------------------- glyphes krcg */
+  /* Encre noire sans le filet clair de l'écran : sur papier blanc, le dessin
+     sombre sur clair d'ankha2 se lit tel quel. */
+
+  .cr-print .glyph {
+    color: #111111;
+  }
+
+  .cr-print .glyph--ankha {
+    text-shadow: none;
+    color: #111111;
+  }
+
+  .cr-print .glyph--clans {
+    filter: none;
+    color: #111111;
+  }
+
+  .cr-print .glyph--image img {
+    filter: none;
+  }
+
+  .cr-print .cr-disc .glyph { font-size: 18px; }
+  .cr-print .cr-disc { display: inline-flex; gap: 5px; align-items: center; }
+  .cr-print .cr-clan { display: inline-flex; gap: 5px; align-items: center; }
+  .cr-print .cr-clan .glyph { font-size: 15px; }
+  .cr-print .cr-lib-group__head .glyph { font-size: 16px; }
+}
+
+/*
+ * Pied de page. Le texte varie : le composant ajoute, dans un <style> rendu
+ * avec `.cr-print`, la règle suivante, chaîne échappée (\ et " doublés d'un \,
+ * saut de ligne remplacé par une espace) :
+ *
+ *   @page {
+ *     @bottom-left {
+ *       content: "Compte-rendu de Coupe de Lutèce · version 2 du 24 novembre 2026 · gurchon.spigushe.com";
+ *     }
+ *   }
+ *
+ * Le reste est commun et vit ici. Les trois boîtes portent le filet pour
+ * qu'il soit continu.
+ *
+ * Bandeau d'état, en tête de CHAQUE page (aperçu non synchronisé, version
+ * antérieure) : même mécanisme, boîte de marge haute, ajoutée par le
+ * composant seulement dans ces deux cas, avec une marge haute agrandie :
+ *
+ *   @page {
+ *     margin-top: 24mm;
+ *     @top-left {
+ *       content: "APERÇU, NON SYNCHRONISÉ · Cette version n'est pas encore enregistrée sur le serveur ; elle peut encore changer.";
+ *     }
+ *   }
+ *
+ * La mise en forme commune de cette boîte est ci-dessous (`@top-left`).
+ */
+@page {
+  @bottom-left {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12px;
+    color: #333333;
+    vertical-align: top;
+    padding-top: 2mm;
+    border-top: 1px solid #111111;
+  }
+
+  @bottom-center {
+    content: "";
+    border-top: 1px solid #111111;
+  }
+
+  @bottom-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12px;
+    color: #333333;
+    vertical-align: top;
+    padding-top: 2mm;
+    border-top: 1px solid #111111;
+    white-space: nowrap;
+  }
+}
+
+@page {
+  @top-left {
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111111;
+    vertical-align: bottom;
+    margin-bottom: 4mm;
+    padding: 2mm 3mm;
+    border: 2px solid #111111;
+  }
+}

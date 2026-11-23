@@ -1101,7 +1101,9 @@ SCHEMA_TO_MODEL = [
     (GameCreate, Game, {"participations", "venue", "tournament"}),
     (GameUpdate, Game, {"venue", "tournament", "refreeze_decklists"}),
     (TournamentCreate, Tournament, {"venue"}),
-    (TournamentUpdate, Tournament, {"venue"}),
+    # Lot Compte-rendu : `report` est une demande au compte-rendu, appliquée par
+    # le service après les autres champs, pas une colonne du tournoi.
+    (TournamentUpdate, Tournament, {"venue", "report"}),
 ]
 
 

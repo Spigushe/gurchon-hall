@@ -12,6 +12,7 @@ Découpage :
 * `play`      — joueurs, parties, tournois, participations ;
 * `sync`      — journal d'idempotence de la file hors ligne (`POST /sync`) ;
 * `share`     — liens publics vers une decklist (Lot 13) ;
+* `report`    — comptes-rendus de tournoi et leurs versions (lot Compte-rendu) ;
 * `account`   — comptes et sessions (Lot 6), propriétaires de tout le reste.
 """
 
@@ -69,6 +70,7 @@ from app.models.reference import (
     Sect,
     Venue,
 )
+from app.models.report import TournamentReport, TournamentReportVersion
 from app.models.share import DeckShare, DeckShareCard
 from app.models.sync import SyncOperation
 
@@ -119,6 +121,8 @@ __all__ = [
     "TournamentFormat",
     "Tournament",
     "TournamentDeckVersion",
+    "TournamentReport",
+    "TournamentReportVersion",
     "UserAccount",
     "UserRole",
     "Venue",

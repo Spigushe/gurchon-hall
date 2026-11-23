@@ -12,6 +12,7 @@ import { syncRowMeta, unsyncedExportWarning, versionsLine } from "./accountModel
 import { AccountSessions } from "./AccountSessions";
 import { ChangePasswordSheet } from "./ChangePasswordSheet";
 import { LogoutControl } from "./LogoutControl";
+import { AccountReports } from "../report/AccountReports";
 import { AccountShares } from "../share/AccountShares";
 
 const OFFLINE_REASON = "Indisponible hors ligne.";
@@ -48,7 +49,12 @@ export function AccountPage() {
   };
 
   const sessions = <AccountSessions online={status.online} isDesktop={isDesktop} reloadKey={sessionsKey} />;
-  const shares = <AccountShares online={status.online} />;
+  const shares = (
+    <>
+      <AccountShares online={status.online} />
+      <AccountReports online={status.online} />
+    </>
+  );
 
   return (
     <div className={isDesktop ? "page account-page account-page--desktop" : "page account-page"} data-testid="account-page">

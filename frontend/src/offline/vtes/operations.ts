@@ -451,7 +451,16 @@ export function tournamentCreate(
   };
 }
 
-export type TournamentPatch = Partial<TournamentInput>;
+/**
+ * Demande faite au compte-rendu d'un tournoi (lot Compte-rendu, P5) : couper
+ * une version (« Mettre à jour le compte-rendu »), en réglant au passage
+ * l'inclusion des notes sur les adversaires (P4), ou le supprimer (P10).
+ */
+export type TournamentReportPatch =
+  | { action: "update"; includeOpponentNotes?: boolean }
+  | { action: "delete" };
+
+export type TournamentPatch = Partial<TournamentInput> & { report?: TournamentReportPatch };
 
 /**
  * Passer un tournoi à `mono` sans dire ce que devient la règle de finale est un
@@ -484,8 +493,15 @@ export function tournamentUpdate(
       player_count: patch.playerCount,
       my_ranking: patch.myRanking,
       notes: patch.notes,
+      report: patch.report === undefined ? undefined : reportField(patch.report),
     }),
   };
+}
+
+function reportField(report: TournamentReportPatch) {
+  return report.action === "update"
+    ? defined({ action: report.action, include_opponent_notes: report.includeOpponentNotes })
+    : { action: report.action };
 }
 
 export function tournamentDelete(

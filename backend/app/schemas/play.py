@@ -62,6 +62,7 @@ from app.schemas.base import (
     WriteModel,
 )
 from app.schemas.refs import DeckRef, ParticipantRef, TournamentRef, VenueRef
+from app.schemas.report import TournamentReportRead, TournamentReportRequest
 from app.services.vtes_rules import VP_STEP
 
 MAX_TABLE_SIZE = 6
@@ -451,6 +452,13 @@ class TournamentDetailRead(TournamentRead):
             "version et la partie qui l'a figée."
         ),
     )
+    report: TournamentReportRead | None = Field(
+        default=None,
+        description=(
+            "Le compte-rendu du tournoi (lot Compte-rendu), sans les instantanés "
+            "de ses versions ; nul tant qu'aucun n'a été demandé."
+        ),
+    )
 
 
 
@@ -497,3 +505,11 @@ class TournamentUpdate(WriteModel):
     player_count: int | None = Field(default=None, ge=2, le=MAX_DB_INT)
     my_ranking: int | None = Field(default=None, ge=1, le=MAX_DB_INT)
     notes: str | None = None
+    report: TournamentReportRequest | None = Field(
+        default=None,
+        description=(
+            "Compte-rendu du tournoi : `update` coupe une version si quelque chose "
+            "a changé (« Mettre à jour le compte-rendu »), `delete` le supprime. "
+            "Appliqué après les autres champs. Omis, rien ne change."
+        ),
+    )

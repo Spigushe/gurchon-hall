@@ -71,3 +71,13 @@ def shared_list_rate_limit() -> str:
     taille de l'espace, qui rend l'énumération vaine ; soixante par minute
     laissent largement ouvrir une page et ses rechargements."""
     return os.getenv("SHARED_LIST_RATE_LIMIT", _DEFAULT_SHARED_LIST_RATE_LIMIT)
+
+
+_DEFAULT_REPORT_RATE_LIMIT = "60/minute"
+
+
+def report_rate_limit() -> str:
+    """Débit autorisé pour la lecture publique d'un compte-rendu
+    (`GET /comptes-rendus/{token}…`, `REPORT_RATE_LIMIT`, lot Compte-rendu, P8) :
+    même jeton que les listes du Lot 13, même raison d'être de la limite."""
+    return os.getenv("REPORT_RATE_LIMIT", _DEFAULT_REPORT_RATE_LIMIT)

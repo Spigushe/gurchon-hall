@@ -5096,6 +5096,669 @@
           }
         }
       }
+    },
+    "/tournois/{tournament_id}/compte-rendu": {
+      "get": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Compte-rendu d'un tournoi",
+        "description": "Réglages, lien et versions (sans leurs instantanés). 404 pour un tournoi inconnu ou d'un autre compte, et pour un tournoi sans compte-rendu.",
+        "operationId": "readTournamentReport",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Réglages en ligne d'un compte-rendu",
+        "description": "Dit si les versions antérieures se lisent par le lien public (P9). En ligne seulement. L'inclusion des notes sur les adversaires, elle, voyage avec la demande de mise à jour (`PATCH /tournois/{id}`, champ `report`).",
+        "operationId": "updateTournamentReportSettings",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TournamentReportSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournois/{tournament_id}/compte-rendu/versions/{number}": {
+      "get": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Une version d'un compte-rendu",
+        "description": "La version `number` et son instantané, figé par le serveur. Une version ne change jamais. 404 pour un numéro que le compte-rendu n'a pas.",
+        "operationId": "readTournamentReportVersion",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentReportVersionRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tournois/{tournament_id}/compte-rendu/lien": {
+      "post": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Crée le lien public d'un compte-rendu",
+        "description": "Tire un jeton de huit caractères et rend le compte-rendu avec son `token` ; rend le lien existant s'il y en a déjà un. Le lien montre toujours la dernière version. 409 tant qu'aucune version n'est coupée.",
+        "operationId": "shareTournamentReport",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Purge le lien public d'un compte-rendu",
+        "description": "Seul moyen de révoquer le lien (P8) : il rend 404 à sa lecture publique, dans la minute (cache). Idempotente. Un nouveau partage tire un jeton neuf.",
+        "operationId": "revokeTournamentReportLink",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tournament_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Tournament Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TournamentReportRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflit avec l'état des données (doublon, stock, règle).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/moi/comptes-rendus": {
+      "get": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Comptes-rendus du compte",
+        "description": "Les comptes-rendus du compte, du tournoi le plus récent au plus ancien, avec leur lien et leur dernière version (écran Compte, « Partages »).",
+        "operationId": "listMyTournamentReports",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MyTournamentReportRead"
+                  },
+                  "type": "array",
+                  "title": "Response Listmytournamentreports"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/comptes-rendus/{token}": {
+      "get": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Lit un compte-rendu partagé (publique)",
+        "description": "**Publique** : ni session ni cookie. Nom d'utilisateur de l'auteur, instantané de la version (noms des adversaires et decks joués compris, notes sur les adversaires seulement si l'auteur les inclut) et faits des cartes des listes jouées. 422 pour un jeton hors motif ; 429 au-delà de la limite de débit par adresse IP ; 404 « Compte-rendu introuvable. », le même pour un jeton inconnu ou purgé.",
+        "operationId": "readPublicTournamentReport",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 8,
+              "pattern": "^[A-Za-z0-9_]{8}$",
+              "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client).",
+              "title": "Token"
+            },
+            "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client)."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La dernière version.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTournamentReportRead"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "`public, max-age=60` : une purge prend effet en une minute au plus.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Robots-Tag": {
+                "description": "`noindex` : un compte-rendu ne s'indexe pas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai avant une nouvelle tentative, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/comptes-rendus/{token}/versions/{number}": {
+      "get": {
+        "tags": [
+          "comptes-rendus"
+        ],
+        "summary": "Lit une version d'un compte-rendu partagé (publique)",
+        "description": "**Publique** : ni session ni cookie. Nom d'utilisateur de l'auteur, instantané de la version (noms des adversaires et decks joués compris, notes sur les adversaires seulement si l'auteur les inclut) et faits des cartes des listes jouées. 422 pour un jeton hors motif ; 429 au-delà de la limite de débit par adresse IP ; 404 « Compte-rendu introuvable. », le même pour un jeton inconnu ou purgé, et pour une version antérieure quand l'auteur ne les montre pas (P9).",
+        "operationId": "readPublicTournamentReportVersion",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 8,
+              "pattern": "^[A-Za-z0-9_]{8}$",
+              "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client).",
+              "title": "Token"
+            },
+            "description": "Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client)."
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "maximum": 2147483647,
+              "minimum": 1,
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "La version demandée.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicTournamentReportRead"
+                }
+              }
+            },
+            "headers": {
+              "Cache-Control": {
+                "description": "`public, max-age=60` : une purge prend effet en une minute au plus.",
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Robots-Tag": {
+                "description": "`noindex` : un compte-rendu ne s'indexe pas.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Ressource introuvable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "description": "Délai avant une nouvelle tentative, en secondes.",
+                "required": true,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5106,10 +5769,11 @@
             "type": "integer",
             "enum": [
               1,
-              2
+              2,
+              3
             ],
             "title": "Format Version",
-            "description": "Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`) ; 1 reste décrit : même forme, sans ce champ."
+            "description": "Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`), 3 depuis celui des comptes-rendus (`tournament_reports`) ; les formes antérieures restent décrites, sans ces champs."
           },
           "exported_at": {
             "type": "string",
@@ -5180,6 +5844,14 @@
             "type": "array",
             "title": "Shares",
             "default": []
+          },
+          "tournament_reports": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedTournamentReport"
+            },
+            "type": "array",
+            "title": "Tournament Reports",
+            "default": []
           }
         },
         "type": "object",
@@ -5194,7 +5866,8 @@
           "venues",
           "tournaments",
           "games",
-          "shares"
+          "shares",
+          "tournament_reports"
         ],
         "title": "AccountExport",
         "description": "Toutes les données d'un compte, lisibles sans la base (P3, A4)."
@@ -8769,6 +9442,75 @@
         "title": "ExportedTournamentDeckVersion",
         "description": "La version d'un deck dans un tournoi (Lot 8, A9)."
       },
+      "ExportedTournamentReport": {
+        "properties": {
+          "tournament_id": {
+            "type": "integer",
+            "title": "Tournament Id"
+          },
+          "include_opponent_notes": {
+            "type": "boolean",
+            "title": "Include Opponent Notes"
+          },
+          "show_previous_versions": {
+            "type": "boolean",
+            "title": "Show Previous Versions"
+          },
+          "shared": {
+            "type": "boolean",
+            "title": "Shared",
+            "description": "Le compte-rendu a un lien public."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ExportedTournamentReportVersion"
+            },
+            "type": "array",
+            "title": "Versions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "tournament_id",
+          "include_opponent_notes",
+          "show_previous_versions",
+          "shared",
+          "created_at",
+          "versions"
+        ],
+        "title": "ExportedTournamentReport",
+        "description": "Le compte-rendu d'un tournoi, **sans le jeton** de son lien : un jeton\nsuffit à le lire, et le fichier peut traîner (comme les liens du Lot 13)."
+      },
+      "ExportedTournamentReportVersion": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ReportSnapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at",
+          "snapshot"
+        ],
+        "title": "ExportedTournamentReportVersion",
+        "description": "Une version d'un compte-rendu et son instantané (lot Compte-rendu)."
+      },
       "ExportedVenue": {
         "properties": {
           "id": {
@@ -9479,6 +10221,55 @@
         "title": "LanguageRead",
         "description": "Une langue d'exemplaire.\n\nListe ouverte servie par l'API plutôt que codée en dur dans le front : le\njeu exact des langues reste à confirmer (CLAUDE.md §11 point 2), et une\nlangue ajoutée en base doit apparaître dans l'UI sans redéploiement."
       },
+      "MyTournamentReportRead": {
+        "properties": {
+          "tournament_id": {
+            "type": "integer",
+            "title": "Tournament Id"
+          },
+          "tournament_name": {
+            "type": "string",
+            "title": "Tournament Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "latest_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Number"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tournament_id",
+          "tournament_name",
+          "start_date",
+          "token",
+          "latest_number"
+        ],
+        "title": "MyTournamentReportRead",
+        "description": "Un compte-rendu du compte, pour l'écran Compte (« Partages »)."
+      },
       "ParticipantRef": {
         "properties": {
           "me": {
@@ -10138,6 +10929,539 @@
         ],
         "title": "PrintOccurrence",
         "description": "Manière dont une carte apparaît dans une extension.\n\nLes trois cas sont disjoints dans le catalogue krcg et n'utilisent pas les\nmêmes champs : `RARITY` porte une fréquence et un multiplicateur (booster),\n`PRECON` un produit et un nombre d'exemplaires, `SINGLE` une date de mise\nen vente (promo, impression à la demande)."
+      },
+      "PublicTournamentReportRead": {
+        "properties": {
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "latest_number": {
+            "type": "integer",
+            "title": "Latest Number"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/TournamentReportVersionSummary"
+            },
+            "type": "array",
+            "title": "Versions",
+            "default": []
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ReportSnapshot"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardSearchItem"
+            },
+            "type": "array",
+            "title": "Cards",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "author",
+          "number",
+          "created_at",
+          "latest_number",
+          "versions",
+          "snapshot",
+          "cards"
+        ],
+        "title": "PublicTournamentReportRead",
+        "description": "Une version d'un compte-rendu lue par son lien, sans session (P8, P9).\n\n`versions` liste les versions lisibles par le lien : toutes si le\npropriétaire l'autorise, sinon la dernière seule. `cards` porte les faits\ndes cartes des listes jouées, sous la forme de `GET /cartes`."
+      },
+      "ReportDeck": {
+        "properties": {
+          "deck_id": {
+            "type": "integer",
+            "title": "Deck Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Number",
+            "description": "Numéro de la version jouée (Lot 8) ; nul si aucune n'est figée."
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDeckCard"
+            },
+            "type": "array",
+            "title": "Cards",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "deck_id",
+          "name",
+          "archetype",
+          "version_number",
+          "cards"
+        ],
+        "title": "ReportDeck",
+        "description": "Un de mes decks joué dans le tournoi, avec la liste que la version montre\n(la version du Lot 8 qu'il a dans ce tournoi), copiée. Nom sans\ndiscriminant, comme sur une page publique du Lot 13."
+      },
+      "ReportDeckCard": {
+        "properties": {
+          "card_id": {
+            "type": "integer",
+            "title": "Card Id"
+          },
+          "quantity": {
+            "type": "integer",
+            "title": "Quantity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "quantity"
+        ],
+        "title": "ReportDeckCard",
+        "description": "Une carte d'une liste jouée, avec sa quantité totale."
+      },
+      "ReportRound": {
+        "properties": {
+          "round_type": {
+            "$ref": "#/components/schemas/RoundType"
+          },
+          "round_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Number"
+          },
+          "played_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Played At"
+          },
+          "player_count": {
+            "type": "integer",
+            "title": "Player Count"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/ReportSeat"
+            },
+            "type": "array",
+            "title": "Seats",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "round_type",
+          "round_number",
+          "played_at",
+          "player_count",
+          "notes",
+          "seats"
+        ],
+        "title": "ReportRound",
+        "description": "Une ronde préliminaire ou la finale : sa table et ses notes."
+      },
+      "ReportSeat": {
+        "properties": {
+          "seat": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seat"
+          },
+          "is_me": {
+            "type": "boolean",
+            "title": "Is Me"
+          },
+          "player_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Name"
+          },
+          "deck_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Id"
+          },
+          "deck_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deck Name"
+          },
+          "deck_archetype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckArchetype"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clan_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clan Name"
+          },
+          "victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Victory Points"
+          },
+          "game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Game Win"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seat",
+          "is_me",
+          "player_name",
+          "deck_id",
+          "deck_name",
+          "deck_archetype",
+          "clan_name",
+          "victory_points",
+          "game_win",
+          "notes"
+        ],
+        "title": "ReportSeat",
+        "description": "Une ligne de la table d'une ronde, dans l'ordre des sièges.\n\nMa ligne porte `is_me`, le deck que j'y joue (`deck_id`, qui renvoie à\n`ReportSnapshot.decks`), mes VP et mon GW. Une ligne d'adversaire porte son\nnom (nul pour un joueur non nommé) et son deck : un de mes decks prêté\n(`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,\n`deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu\nles inclut (P4)."
+      },
+      "ReportSnapshot": {
+        "properties": {
+          "format_version": {
+            "type": "integer",
+            "title": "Format Version",
+            "description": "Forme de l'instantané (1)."
+          },
+          "tournament": {
+            "$ref": "#/components/schemas/ReportTournament"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ReportSummary"
+          },
+          "decks": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDeck"
+            },
+            "type": "array",
+            "title": "Decks",
+            "description": "Mes decks joués, dans l'ordre de leur première ronde.",
+            "default": []
+          },
+          "rounds": {
+            "items": {
+              "$ref": "#/components/schemas/ReportRound"
+            },
+            "type": "array",
+            "title": "Rounds",
+            "description": "Les rondes dans l'ordre, la finale en dernier.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "format_version",
+          "tournament",
+          "summary",
+          "decks",
+          "rounds"
+        ],
+        "title": "ReportSnapshot",
+        "description": "Tout ce que montre une version du compte-rendu (P3, P6, A3)."
+      },
+      "ReportSummary": {
+        "properties": {
+          "preliminary_game_wins": {
+            "type": "integer",
+            "title": "Preliminary Game Wins"
+          },
+          "preliminary_victory_points": {
+            "type": "number",
+            "title": "Preliminary Victory Points"
+          },
+          "rounds_played": {
+            "type": "integer",
+            "title": "Rounds Played"
+          },
+          "final_victory_points": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Victory Points"
+          },
+          "final_game_win": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Game Win"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preliminary_game_wins",
+          "preliminary_victory_points",
+          "rounds_played",
+          "final_victory_points",
+          "final_game_win"
+        ],
+        "title": "ReportSummary",
+        "description": "Mon bilan, celui de `TournamentRead.my_summary` au moment de la version."
+      },
+      "ReportTournament": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "venue": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportVenue"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deck_policy": {
+            "$ref": "#/components/schemas/DeckPolicy"
+          },
+          "format": {
+            "$ref": "#/components/schemas/TournamentFormat"
+          },
+          "event_tier": {
+            "$ref": "#/components/schemas/EventTier"
+          },
+          "final_deck_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinalDeckRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "round_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Round Count"
+          },
+          "player_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Player Count"
+          },
+          "my_ranking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Ranking"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "start_date",
+          "end_date",
+          "venue",
+          "deck_policy",
+          "format",
+          "event_tier",
+          "final_deck_rule",
+          "round_count",
+          "player_count",
+          "my_ranking",
+          "notes"
+        ],
+        "title": "ReportTournament",
+        "description": "Le tournoi, tel que la trame l'affiche en tête (P3)."
+      },
+      "ReportVenue": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "city"
+        ],
+        "title": "ReportVenue",
+        "description": "Le lieu du tournoi : nom et ville, jamais ses notes (P4)."
       },
       "RoundType": {
         "type": "string",
@@ -11299,6 +12623,17 @@
             "title": "Deck Versions",
             "description": "Une ligne par deck joué dans le tournoi, prêts compris, avec sa version et la partie qui l'a figée.",
             "default": []
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TournamentReportRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Le compte-rendu du tournoi (lot Compte-rendu), sans les instantanés de ses versions ; nul tant qu'aucun n'a été demandé."
           }
         },
         "type": "object",
@@ -11321,7 +12656,8 @@
           "updated_at",
           "games",
           "admissible_final_decks",
-          "deck_versions"
+          "deck_versions",
+          "report"
         ],
         "title": "TournamentDetailRead",
         "description": "Un tournoi, mes parties dans l'ordre des rondes (finale en dernier), les\ndecks admis en finale et la version de chaque deck joué."
@@ -11512,6 +12848,150 @@
         "title": "TournamentRef",
         "description": "Désignation d'un tournoi : identifiant serveur ou référence client."
       },
+      "TournamentReportRead": {
+        "properties": {
+          "tournament_id": {
+            "type": "integer",
+            "title": "Tournament Id"
+          },
+          "include_opponent_notes": {
+            "type": "boolean",
+            "title": "Include Opponent Notes"
+          },
+          "show_previous_versions": {
+            "type": "boolean",
+            "title": "Show Previous Versions",
+            "description": "Les versions antérieures se lisent par le lien public (P9)."
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "Jeton du lien public (`#/compte-rendu/<jeton>`), nul tant que le compte-rendu n'est pas partagé ou après une purge."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/TournamentReportVersionSummary"
+            },
+            "type": "array",
+            "title": "Versions",
+            "description": "Les versions, par numéro croissant.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "tournament_id",
+          "include_opponent_notes",
+          "show_previous_versions",
+          "token",
+          "created_at",
+          "versions"
+        ],
+        "title": "TournamentReportRead",
+        "description": "Le compte-rendu d'un tournoi : réglages, lien et versions."
+      },
+      "TournamentReportRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "update",
+              "delete"
+            ],
+            "title": "Action"
+          },
+          "include_opponent_notes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include Opponent Notes",
+            "description": "Inclure les notes sur les adversaires (P4), avec `update` seulement ; omis, le réglage ne change pas (faux à la création)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "TournamentReportRequest",
+        "description": "Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.\n\n`update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il\nn'existe pas, applique `include_opponent_notes` s'il est fourni, puis\ncoupe une version si l'instantané diffère de la dernière (P5). `delete`\nsupprime le compte-rendu, ses versions et son lien (P10). Les deux\ns'appliquent après les autres champs de la même écriture."
+      },
+      "TournamentReportSettings": {
+        "properties": {
+          "show_previous_versions": {
+            "type": "boolean",
+            "title": "Show Previous Versions"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "show_previous_versions"
+        ],
+        "title": "TournamentReportSettings",
+        "description": "Corps de `PATCH /tournois/{id}/compte-rendu` : réglages en ligne (P7)."
+      },
+      "TournamentReportVersionRead": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/ReportSnapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at",
+          "snapshot"
+        ],
+        "title": "TournamentReportVersionRead",
+        "description": "Une version et son instantané."
+      },
+      "TournamentReportVersionSummary": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at"
+        ],
+        "title": "TournamentReportVersionSummary",
+        "description": "Une version, sans son instantané : numéro et date."
+      },
       "TournamentSummary": {
         "properties": {
           "preliminary_game_wins": {
@@ -11666,6 +13146,17 @@
               }
             ],
             "title": "Notes"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TournamentReportRequest"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Compte-rendu du tournoi : `update` coupe une version si quelque chose a changé (« Mettre à jour le compte-rendu »), `delete` le supprime. Appliqué après les autres champs. Omis, rien ne change."
           }
         },
         "additionalProperties": false,

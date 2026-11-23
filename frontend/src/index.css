@@ -8026,3 +8026,269 @@ button.revision-search__result:focus-visible {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/*
+ * — Compte-rendu de tournoi (lot Compte-rendu) —
+ * `features/report/` : la trame (`ReportView`), l'écran du propriétaire
+ * (`TournamentReportPage`) et la page publique (`PublicReportPage`), à l'écran,
+ * dans les tokens Nocturne. L'impression a son bloc et sa feuille à part
+ * (`ReportPrint.tsx`, `features/report/reportPrint.css`, handoff P12).
+ */
+.report-page__top {
+  margin-bottom: var(--space-3);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-neutral-400);
+  text-decoration: none;
+}
+
+.report-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--color-neutral-800);
+  border-radius: var(--radius-md);
+}
+
+.report-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.report-panel__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.report-panel__link {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.report-panel__pending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-accent-300);
+  font-size: 13px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tournament-report-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.account-reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-reports__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.account-reports__actions {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 960px;
+}
+
+.report__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report__title {
+  margin: 0;
+}
+
+.report__decks {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.report__dates,
+.report__facts,
+.report__author {
+  margin: 0;
+}
+
+.report__dates::first-letter {
+  text-transform: uppercase;
+}
+
+.report__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report__heading {
+  margin: 0;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-neutral-800);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.report__score {
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
+.report__facts-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.report__facts-list dt {
+  color: var(--color-neutral-400);
+}
+
+.report__facts-list dd {
+  margin: 0;
+}
+
+.report__round-deck,
+.report__positions {
+  margin: 0;
+}
+
+.report__table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report__seat {
+  display: grid;
+  grid-template-columns: 2ch minmax(8rem, max-content) 1fr;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.report__seat--me .report__seat-name {
+  font-weight: 600;
+}
+
+.report__seat-number {
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.report__seat-deck {
+  color: var(--color-neutral-300);
+}
+
+.report__seat .report__notes {
+  grid-column: 2 / -1;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.report__notes {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.55;
+}
+
+.report__notes-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.report__notes-empty {
+  margin: 0;
+  font-style: italic;
+}
+
+.report__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 13px;
+}
+
+.report__textarea {
+  width: 100%;
+  min-height: 8rem;
+  padding: var(--space-2);
+  border: 1px solid var(--color-neutral-700);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.report__editor-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report__list-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.report__footer {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-neutral-800);
+}

@@ -668,7 +668,7 @@ def test_the_export_carries_the_shares_but_never_their_token(db, me_api, deck):
     response = me_api.get("/moi/export")
     body = response.json()
 
-    assert body["format_version"] == 2
+    assert body["format_version"] == 3  # 3 depuis le lot Compte-rendu (A7)
     assert live["token"] not in response.text
     assert frozen["token"] not in response.text
     assert "token" not in str(body["shares"])

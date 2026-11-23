@@ -176,6 +176,14 @@ _PROTECTED_ROUTES = [
     ("POST", "/decks/1/partages", {"kind": "frozen", "show_notes": True}),
     ("GET", "/moi/partages", None),
     ("DELETE", "/moi/partages?scope=selected&share_id=1", None),
+    # Lot Compte-rendu (A1) : la lecture publique, `GET /comptes-rendus/{token}`
+    # et sa variante par version, n'exige aucune session.
+    ("GET", "/tournois/1/compte-rendu", None),
+    ("GET", "/tournois/1/compte-rendu/versions/1", None),
+    ("PATCH", "/tournois/1/compte-rendu", {"show_previous_versions": True}),
+    ("POST", "/tournois/1/compte-rendu/lien", None),
+    ("DELETE", "/tournois/1/compte-rendu/lien", None),
+    ("GET", "/moi/comptes-rendus", None),
 ]
 
 
@@ -248,6 +256,15 @@ def test_the_shared_list_route_is_public_and_ignores_a_session_cookie(
 
 def _not_found_message(deck_id: int) -> str:
     return f"Deck {deck_id} introuvable."
+
+
+def test_the_report_routes_are_public_and_answer_the_same_404(api):
+    """Lot Compte-rendu (P8) : la lecture d'un compte-rendu partagé n'exige
+    aucune session ; un jeton inconnu rend 404, jamais 401."""
+    for path in ("/comptes-rendus/aB3x_9pQ", "/comptes-rendus/aB3x_9pQ/versions/1"):
+        response = api.get(path)
+        assert response.status_code == 404, path
+        assert response.json() == {"detail": "Compte-rendu introuvable."}
 
 
 def test_deck_routes_all_render_a_plain_404_for_another_accounts_deck(two_accounts):

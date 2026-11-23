@@ -108,6 +108,11 @@ par les notes ; les notes sur les adversaires ne sont publiques que si
 l'utilisateur les inclut dans les options du compte-rendu (précise le
 point 3).
 
+**V10. La v1.2.1 reprend toute la branche `issue71-compte-rendu`**, le même
+jour : l'issue #71, l'ordre des types de bibliothèque repris de VDB et le lot
+Compte-rendu sortent ensemble en v1.2.1. La v1.3 prévue par V7 disparaît ; V8,
+qui faisait de #71 une corrective à part, est remplacée sur ce point.
+
 ## Ce que V1 change
 
 Le §1 de CLAUDE.md est à réécrire : un seul objectif, suivre sa pratique de
@@ -382,7 +387,7 @@ attribué à l'ouverture, à la place que l'utilisateur choisira à ce moment-l�
 | 13 | partage : lien public, exports, art de l'extension | rien | |
 | | retours d'usage | Lot 12 | |
 | v1.2.1 | image de la carte au survol sur la page d'une liste partagée | Lot 13 | #71 |
-| Compte-rendu | compte-rendu de tournoi v1.3 : trame hors ligne, versions, lien vivant, PDF par l'impression | Lot 13 | #68 en partie |
+| Compte-rendu | compte-rendu de tournoi v1.2.1 : trame hors ligne, versions, lien vivant, PDF par l'impression | Lot 13 | #68 en partie |
 | 14 | inventaires et classeurs, transfert, migration de production | Lot 12, retours | #48 |
 | 15 | decks par inventaire | Lot 14 | #49 |
 | 16 | import d'une collection VDB | Lot 14, un vrai export | |
