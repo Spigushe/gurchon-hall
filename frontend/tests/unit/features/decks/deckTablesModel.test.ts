@@ -15,6 +15,7 @@ import {
   PENDING_DETAILS_LABEL,
   type DeckCardFacts,
 } from "../../../../src/features/decks/deckTablesModel";
+import { VDB_CARDTYPE_ORDER } from "../../../../src/features/decks/libraryTypeOrder";
 import type { LocalDeckCard } from "../../../../src/offline/vtes";
 import { crypt, library, mirrorRows, type CardSearchItem } from "../../offline/fixtures/syntheticCatalog";
 
@@ -123,17 +124,14 @@ describe("bibliothèque", () => {
   const facts = factsOf(items);
   const all = items.map((item) => line(item.id, 2));
 
-  it("groupe par type dans l'ordre du handoff, combinaisons au rang de leur premier type (P6)", () => {
+  it("groupe par type dans l'ordre de VDB, une combinaison sous son libellé de VDB", () => {
     const tables = buildDeckTables(all, facts);
-    expect(tables.library.groups.map((group) => group.label)).toEqual([
-      "Master",
-      "Action",
-      "Action Modifier",
-      "Action Modifier / Combat",
-      "Equipment",
-      "Reaction",
-      "Power",
-    ]);
+    const expected = ["Master", "Action", "Action Modifier", "Action Modifier/Combat", "Equipment", "Reaction", "Power"];
+    const rank = (label: string) => VDB_CARDTYPE_ORDER.indexOf(label);
+    expect(expected.every((label) => rank(label) >= 0)).toBe(true);
+    expect(tables.library.groups.map((group) => group.label)).toEqual(
+      expected.sort((a, b) => rank(a) - rank(b)).map((label) => label.replace("/", " / ")),
+    );
   });
 
   it("trie les cartes d'un groupe par nom replié", () => {

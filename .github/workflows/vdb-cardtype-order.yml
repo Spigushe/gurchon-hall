@@ -1,0 +1,116 @@
+name: Ordre des types de VDB
+
+# L'ordre des groupes de bibliothèque de toutes les decklists (tableaux d'un
+# deck, exports, liste publique, compte-rendu) est celui de VDB, lu dans une
+# copie de son fichier : frontend/src/assets/data/cardtypeSortedFull.json
+# (frontend/src/features/decks/libraryTypeOrder.ts). Ce workflow compare chaque
+# mois la copie au fichier de VDB et, s'il a changé, pousse la nouvelle copie
+# sur la branche `chore/vdb-cardtype-order` et ouvre une PR. Rien d'autre à
+# modifier : le code lit l'ordre dans le fichier.
+#
+# Deux réglages du dépôt à connaître :
+# - l'ouverture de la PR exige « Allow GitHub Actions to create and approve
+#   pull requests » (Settings > Actions > General) ; sans lui, la branche est
+#   poussée et l'étape échoue en le disant ;
+# - une PR ouverte avec GITHUB_TOKEN ne déclenche pas la CI : la fermer puis la
+#   rouvrir (ou pousser un commit) la lance.
+
+on:
+  schedule:
+    # Le 1er de chaque mois, 06:17 UTC.
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: vdb-cardtype-order
+  cancel-in-progress: false
+
+env:
+  SOURCE_URL: https://raw.githubusercontent.com/smeea/vdb/master/frontend/src/assets/data/cardtypeSortedFull.json
+  SOURCE_PAGE: https://github.com/smeea/vdb/blob/master/frontend/src/assets/data/cardtypeSortedFull.json
+  TARGET: frontend/src/assets/data/cardtypeSortedFull.json
+  BRANCH: chore/vdb-cardtype-order
+
+jobs:
+  check:
+    name: Comparer à VDB
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Lire le fichier de VDB
+        run: |
+          curl --fail --silent --show-error --location --max-time 30 \
+            --output "$RUNNER_TEMP/vdb.json" "$SOURCE_URL"
+
+      # Une forme inattendue fait échouer le workflow, visiblement, plutôt que
+      # de proposer une copie que l'application ne saurait pas lire.
+      - name: Vérifier la forme (liste de libellés uniques et non vides)
+        run: |
+          jq -e '
+            type == "array" and length > 0
+            and all(.[]; type == "string" and length > 0)
+            and (map(split("/") | sort | join("/")) | length == (unique | length))
+          ' "$RUNNER_TEMP/vdb.json" > /dev/null
+
+      - name: Comparer à la copie
+        id: diff
+        run: |
+          if cmp --silent "$RUNNER_TEMP/vdb.json" "$TARGET"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Copie à jour."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo '### Ordre des types de VDB modifié'
+              echo
+              echo '```diff'
+              diff <(jq -r '.[]' "$TARGET") <(jq -r '.[]' "$RUNNER_TEMP/vdb.json") || true
+              echo '```'
+            } | tee "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Pousser la copie et ouvrir la PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "$RUNNER_TEMP/vdb.json" "$TARGET"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "$BRANCH"
+          git add "$TARGET"
+          git commit -m "chore(decks): ordre des types de bibliothèque repris de VDB" \
+            -m "Copie de $SOURCE_PAGE"
+          git push --force origin "$BRANCH"
+
+          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
+            echo "Une PR est déjà ouverte sur $BRANCH : mise à jour par le push."
+            exit 0
+          fi
+
+          {
+            echo "Le fichier \`cardtypeSortedFull.json\` de VDB a changé ([source]($SOURCE_PAGE))."
+            echo "Cette PR en recopie la nouvelle version ; l'application en tire l'ordre des groupes"
+            echo "de bibliothèque de toutes les decklists (\`libraryTypeOrder.ts\`)."
+            echo
+            cat "$RUNNER_TEMP/summary.md"
+            echo
+            echo "À vérifier :"
+            echo
+            echo "- la CI, à lancer en fermant puis rouvrant la PR (une PR ouverte par GITHUB_TOKEN ne la déclenche pas) ;"
+            echo "- un libellé nouveau demande une carte de plus dans \`exportRoundTripAllTypes.test.ts\` ;"
+            echo "- l'ordre cité dans \`docs/design-handoff/COMPTE-RENDU.md\` et au §11 de \`CLAUDE.md\`."
+          } > "$RUNNER_TEMP/body.md"
+
+          if ! gh pr create --base "${{ github.event.repository.default_branch }}" --head "$BRANCH" \
+            --title "chore(decks): ordre des types de bibliothèque repris de VDB" \
+            --body-file "$RUNNER_TEMP/body.md"; then
+            echo "::error::Branche $BRANCH poussée, mais la PR n'a pas pu être ouverte. Activer « Allow GitHub Actions to create and approve pull requests » ou l'ouvrir à la main."
+            exit 1
+          fi

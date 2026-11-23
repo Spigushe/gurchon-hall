@@ -23,6 +23,13 @@ export function GlyphIcon({
   decorative?: boolean;
 }) {
   const a11y = decorative ? { "aria-hidden": true } : { role: "img", "aria-label": label };
+  if (glyph.font === "image") {
+    return (
+      <span className={`glyph glyph--image${size ? ` glyph--${size}` : ""}`} {...a11y} title={label}>
+        <img src={glyph.src} alt="" draggable={false} />
+      </span>
+    );
+  }
   return (
     <span className={`glyph glyph--${glyph.font}${size ? ` glyph--${size}` : ""}`} {...a11y} title={label}>
       {glyph.char}

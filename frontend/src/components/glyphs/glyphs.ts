@@ -14,14 +14,25 @@
  * icône plutôt qu'avec une icône devinée.
  */
 
-export type GlyphFont = "ankha" | "clans";
+import masterIcon from "../../assets/icons/master.svg";
+
+/**
+ * `image` : une icône qu'aucune des deux polices n'a, servie en SVG
+ * (`src/assets/icons/`). Seul cas aujourd'hui : le type Master, absent
+ * d'`ankha2.otf` (relu le 2026-11-23 : 106 glyphes encodés, aucun Master),
+ * repris de VDB. `char` reste vide pour une image.
+ */
+export type GlyphFont = "ankha" | "clans" | "image";
 
 export interface Glyph {
   font: GlyphFont;
   char: string;
+  src?: string;
 }
 
 const ankha = (char: string): Glyph => ({ font: "ankha", char });
+
+export const MASTER_GLYPH: Glyph = { font: "image", char: "", src: masterIcon };
 
 /** Discipline → [inférieure, supérieure]. */
 const DISCIPLINE_CHARS: Readonly<Record<string, readonly [string, string]>> = {
@@ -75,7 +86,7 @@ export function disciplineGlyph(code: string, superior = false): Glyph | null {
   return chars ? ankha(chars[superior ? 1 : 0]) : null;
 }
 
-/** Type de bibliothèque → glyphe ; Master n'en a pas. */
+/** Type de bibliothèque → glyphe de police ; Master passe par `MASTER_GLYPH`. */
 const TYPE_CHARS: Readonly<Record<string, string>> = {
   action: "0",
   "action modifier": "1",
@@ -92,6 +103,7 @@ const TYPE_CHARS: Readonly<Record<string, string>> = {
 };
 
 export function typeGlyph(type: string): Glyph | null {
+  if (type.toLowerCase() === "master") return MASTER_GLYPH;
   const char = TYPE_CHARS[type.toLowerCase()];
   return char === undefined ? null : ankha(char);
 }

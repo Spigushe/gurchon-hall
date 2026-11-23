@@ -342,7 +342,7 @@ sans perte après une mise à jour.
 ├─ ops/                       ← playbook Ansible de mise en ligne (Lot 11), autonome :
 │                               rôles, inventaire, jeton GitHub (ignoré par git),
 │                               fetch_backups.sh et sauvegardes/ (ignoré, Lot 12)
-├─ .github/                   ← workflow CI + Dependabot
+├─ .github/                   ← workflows (CI, ordre des types de VDB) + Dependabot
 └─ .claude/
    ├─ agents/                 ← 1 fichier .md par agent (voir §8)
    └─ skills/                 ← 1 dossier SKILL.md par skill (voir §9)
@@ -1955,7 +1955,14 @@ et écarts retenus dans `docs/design-handoff/DECKS.md`) :
   capacité décroissante, groupes et capacité moyenne ; bibliothèque groupée par type,
   ordre du handoff puis Reflex, Power, Conviction, une carte à plusieurs types formant
   son propre groupe au rang du premier (P6) ; totaux de sang et de pool, un coût X
-  ajoutant « + X ». Les faits de carte se lisent par `useDeckCardFacts` (`anyOf` sur
+  ajoutant « + X ». *Amendé le 2026-11-23 (décision de l'utilisateur)* : toutes les
+  decklists, tableaux, exports et compte-rendu, suivent l'ordre de VDB, recopié de
+  `smeea/vdb` dans `frontend/src/assets/data/cardtypeSortedFull.json` et lu par
+  `features/decks/libraryTypeOrder.ts` ; une combinaison prend le libellé de VDB qui a
+  ses types (`Combat/Reaction`), un libellé que VDB ne range pas (`Reflex`) vient après
+  Event au lieu d'être omis comme chez VDB. Le workflow `vdb-cardtype-order.yml`
+  compare la copie au fichier de VDB le 1er de chaque mois et ouvre une PR s'il a
+  changé. Les faits de carte se lisent par `useDeckCardFacts` (`anyOf` sur
   `cards` puis `cardDetails`), pas dans le catalogue chargé en mémoire (A1).
 - **Une ligne par carte (P2).** Les lignes carte × langue × extension d'une même carte
   se fusionnent ; un stepper si la carte n'a qu'une ligne, sinon une icône `ph-stack`
@@ -2212,8 +2219,8 @@ validés sur captures dans `docs/qa-baselines/lot9-mobile-390x844/` et
 - **Export au format `TEXT` de VDB (P9, A5)**, depuis un deck (archivé compris) et
   depuis la liste d'une version jouée, lu dans le miroir, hors ligne : « Copier » et
   « Télécharger (.txt) » (`Banu Princes#1234.txt`, `… v2.txt`). Mise en page vérifiée
-  à l'octet près contre un export réel de VDB, ordre des types de VDB (différent de
-  celui des tableaux : `VDB_LIBRARY_TYPE_ORDER`), `(G6)` pour la version récente d'un
+  à l'octet près contre un export réel de VDB, ordre des types de VDB (commun aux
+  tableaux depuis le 2026-11-23 : `libraryTypeOrder.ts`), `(G6)` pour la version récente d'un
   vampire réimprimé, « X, The ». Pas de ligne `Author:` ; une version s'exporte sans
   les notes. Hors contexte sécurisé, « Copier » sélectionne le texte et le dit.
 - **Pas de handoff (P10)** : composants existants, captures à 390 et 1440px.

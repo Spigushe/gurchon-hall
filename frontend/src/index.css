@@ -4410,6 +4410,28 @@ fieldset:disabled .chip {
 }
 
 /*
+ * Icône en SVG (type Master, absent d'ankha2) : un carré de 1em, aligné comme
+ * une lettre, avec le même filet clair que `.glyph--ankha` (dessin sombre sur
+ * clair). `drop-shadow` suit la forme du dessin, comme `text-shadow` la lettre.
+ */
+.glyph--image {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.glyph--image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter:
+    drop-shadow(1px 0 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(-1px 0 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(0 1px 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(0 -1px 0 var(--glyph-line, var(--color-neutral-100)));
+}
+
+/*
  * Les glyphes de clan sont détaillés : en `--color-neutral-300`, moins
  * contrastés, et lissés en gris. Le lissage sous-pixel de Chrome sous Windows
  * frange leurs traits fins de bleu et d'orangé ; un filtre neutre le remplace

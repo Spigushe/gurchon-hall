@@ -1,4 +1,5 @@
 import type { CardDetailRow, CardRow, LocalDeckCard } from "../../offline/vtes";
+import { compareLibraryTypeGroups, libraryTypeGroup, type LibraryTypeGroup } from "./libraryTypeOrder";
 
 /**
  * Tableaux crypte / bibliothèque d'un deck (lot Affichage des decks, handoff
@@ -51,7 +52,7 @@ export type LibraryGroupKind = "types" | "pending-details" | "outside-catalog";
 export interface LibraryGroup {
   key: string;
   kind: LibraryGroupKind;
-  /** Types du groupe dans l'ordre de `LIBRARY_TYPE_ORDER` (vide hors `types`). */
+  /** Types du groupe dans l'ordre du libellé de VDB (`libraryTypeOrder.ts`, vide hors `types`). */
   types: string[];
   /** « Action Modifier / Reaction » ; libellé d'état pour les deux autres genres. */
   label: string;
@@ -80,36 +81,8 @@ export interface DeckTables {
   library: LibrarySection;
 }
 
-/**
- * Ordre des groupes de bibliothèque : celui du handoff, puis les types que le
- * handoff oublie (cartes d'imbued), P6.
- */
-export const LIBRARY_TYPE_ORDER: readonly string[] = [
-  "Master",
-  "Action",
-  "Action Modifier",
-  "Political Action",
-  "Ally",
-  "Equipment",
-  "Retainer",
-  "Combat",
-  "Reaction",
-  "Event",
-  "Reflex",
-  "Power",
-  "Conviction",
-];
-
 export const PENDING_DETAILS_LABEL = "Bibliothèque · détails à venir";
 export const OUTSIDE_CATALOG_LABEL = "Hors catalogue local";
-
-const typeRank = (type: string) => {
-  const rank = LIBRARY_TYPE_ORDER.indexOf(type);
-  return rank === -1 ? LIBRARY_TYPE_ORDER.length : rank;
-};
-
-const orderTypes = (types: readonly string[]) =>
-  [...types].sort((a, b) => typeRank(a) - typeRank(b) || a.localeCompare(b));
 
 const compareText = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -202,23 +175,22 @@ function buildCrypt(rows: DeckTableRow[]): CryptSection {
 /** Clé et genre du groupe d'une carte de bibliothèque. */
 function libraryGroupOf(row: DeckTableRow): { key: string; kind: LibraryGroupKind; types: string[] } {
   if (row.facts === null) return { key: "outside-catalog", kind: "outside-catalog", types: [] };
-  const types = row.facts.details?.types ?? [];
-  if (types.length === 0) return { key: "pending-details", kind: "pending-details", types: [] };
-  const ordered = orderTypes(types);
-  return { key: `types:${ordered.join("/")}`, kind: "types", types: ordered };
+  const group = libraryTypeGroup(row.facts.details?.types ?? []);
+  if (group === null) return { key: "pending-details", kind: "pending-details", types: [] };
+  return { key: `types:${group.label}`, kind: "types", types: group.types };
 }
 
 const KIND_RANK: Record<LibraryGroupKind, number> = { types: 0, "pending-details": 1, "outside-catalog": 2 };
 
-/** Rang du premier type, puis un seul type avant une combinaison, puis libellé. */
+/** Ordre de VDB pour les groupes de types (`libraryTypeOrder.ts`), puis détails à venir, puis hors catalogue. */
 function compareGroups(a: LibraryGroup, b: LibraryGroup): number {
-  return (
-    KIND_RANK[a.kind] - KIND_RANK[b.kind] ||
-    typeRank(a.types[0] ?? "") - typeRank(b.types[0] ?? "") ||
-    a.types.length - b.types.length ||
-    compareText(a.label, b.label)
-  );
+  const kind = KIND_RANK[a.kind] - KIND_RANK[b.kind];
+  if (kind !== 0 || a.kind !== "types") return kind;
+  return compareLibraryTypeGroups(typeOrderOf(a), typeOrderOf(b));
 }
+
+const NO_TYPE: LibraryTypeGroup = { types: [], rank: Number.MAX_SAFE_INTEGER, label: "" };
+const typeOrderOf = (group: LibraryGroup) => libraryTypeGroup(group.types) ?? NO_TYPE;
 
 const groupLabel = (kind: LibraryGroupKind, types: string[]) =>
   kind === "types" ? types.join(" / ") : kind === "pending-details" ? PENDING_DETAILS_LABEL : OUTSIDE_CATALOG_LABEL;

@@ -54,7 +54,7 @@ Chaque section : fond `--color-surface`, `border-radius` 8px, `box-shadow: var(-
 
 - Stats d'en-tête : total sang, total réserve, nombre de proxies (masquable).
 - Groupes par type, dans cet ordre : Master, Action, Action Modifier, Political Action, Ally, Equipment, Retainer, Combat, Reaction, Event.
-- Titre de groupe : padding 11,2px 11,2px 5,6px ; icône de type (Ankha 18px), nom (12px majuscules, `.06em`, `--color-accent-300`), total (12px `--color-neutral-400`), et « · 7 trifle » pour les masters sans coût (12px `--color-neutral-500`).
+- Titre de groupe : padding 11,2px 11,2px 5,6px ; icône de type (Ankha 18px ; Master : `master.svg`, même taille), nom (12px majuscules, `.06em`, `--color-accent-300`), total (12px `--color-neutral-400`), et « · 7 trifle » pour les masters sans coût (12px `--color-neutral-500`).
 - Filet sous le titre : 1px, marge 0 11,2px 2,8px, `linear-gradient(90deg, var(--color-accent-600), var(--color-neutral-700) 40%, transparent)`.
 - Ligne de **32px**, grille `[qté] minmax(0,1fr) auto 28px 28px 24px` : qté · nom · disciplines (Ankha 20px) · clan requis (VTES Clans 20px) · coût (Ankha 20px, `title` « 2 réserve ») · proxies (`P2`, 11px `--color-neutral-500`, vide à 0).
 

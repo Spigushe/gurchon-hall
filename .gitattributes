@@ -1,2 +1,3 @@
 contracts/openapi.json text eol=lf
 ops/** text eol=lf
+frontend/src/assets/data/*.json text eol=lf
