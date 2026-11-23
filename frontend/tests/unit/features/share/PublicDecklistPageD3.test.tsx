@@ -69,7 +69,10 @@ describe("page publique : liste", () => {
     expect(screen.getByTestId("deck-tables-library-total").textContent).toBe("6");
     const rows = screen.getAllByTestId("deck-card");
     expect(rows).toHaveLength(3);
-    expect(within(tables).queryByRole("button")).toBeNull();
+    // Les seuls boutons sont les noms, qui montrent l'image (issue #71) : rien
+    // ne modifie la liste.
+    const buttons = within(tables).queryAllByRole("button");
+    expect(buttons.map((button) => button.getAttribute("data-testid"))).toEqual(["deck-card-name", "deck-card-name", "deck-card-name"]);
     expect(rows.every((row) => row.getAttribute("data-proxy-quantity") === "0")).toBe(true);
     expect(tables.textContent).not.toContain("Proxies");
   });

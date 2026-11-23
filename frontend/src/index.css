@@ -2167,6 +2167,25 @@ fieldset:disabled .chip {
   color: var(--color-accent-200);
 }
 
+/*
+ * — Nom qui montre l'image de la carte (issue #71) —
+ * `CardNamePreview.tsx` : l'aperçu est en `position: fixed`, placé par
+ * `cardPreviewPosition`, parce que `.deck-table` coupe ce qui déborde.
+ */
+.card-name-preview {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.card-name-preview__popup {
+  position: fixed;
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
 .deck-table__recent {
   flex: none;
   font-size: 11px;

@@ -5,6 +5,7 @@ import { PublicDecklistPage } from "../../../../src/features/share/PublicDecklis
 import type { ApiClient } from "../../../../src/offline/vtes";
 import { crypt, library } from "../../offline/fixtures/syntheticCatalog";
 
+const ANSON_IMAGE = "https://static.krcg.org/card/anson.jpg";
 const VESSEL = library({ id: 2, name: "Vessel", types: ["Master"] });
 const DEFLECTION = library({ id: 3, name: "Deflection", types: ["Reaction"] });
 const LIVE = {
@@ -15,7 +16,10 @@ const LIVE = {
   author: "alice",
   notes: null,
   cards: [
-    { card: crypt({ id: 1, name: "Anson", capacity: 9, group: "G6", disciplines: ["DOM"] }), quantity: 3 },
+    {
+      card: crypt({ id: 1, name: "Anson", capacity: 9, group: "G6", disciplines: ["DOM"], imageUrl: ANSON_IMAGE }),
+      quantity: 3,
+    },
     { card: VESSEL, quantity: 4 },
     { card: DEFLECTION, quantity: 2 },
   ],
@@ -183,5 +187,27 @@ describe("réviser une liste partagée", () => {
 
     fireEvent.click(screen.getByTestId("public-list-export"));
     expect((screen.getByTestId("deck-export-text") as HTMLTextAreaElement).value).toMatch(/3 Vessel|3x Vessel/);
+  });
+});
+
+describe("image de la carte depuis la page publique (issue #71)", () => {
+  it("le nom montre l'image de la carte, en lecture", async () => {
+    renderPage();
+    await screen.findByTestId("public-list-name");
+    fireEvent.click(within(rowOf("Anson")).getByTestId("deck-card-name"));
+    const preview = screen.getByTestId("deck-card-preview");
+    expect(within(preview).getByAltText("Anson").getAttribute("src")).toBe(ANSON_IMAGE);
+  });
+
+  it("en révision, le nom montre l'image et la quantité garde ses boutons", async () => {
+    renderPage();
+    await screen.findByTestId("public-list-name");
+    fireEvent.click(screen.getByTestId("public-list-revise"));
+    fireEvent.click(within(rowOf("Anson")).getByTestId("revision-plus"));
+    expect(addressRevision()).toBe("1=1");
+    expect(screen.queryByTestId("deck-card-preview")).toBeNull();
+    expect(within(rowOf("Anson")).getByTestId("revision-delta").textContent).toBe("+1");
+    fireEvent.click(within(rowOf("Anson")).getByTestId("deck-card-name"));
+    expect(screen.getByTestId("deck-card-preview")).toBeTruthy();
   });
 });

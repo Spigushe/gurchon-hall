@@ -13,6 +13,26 @@ export type CardImageSize = "sm" | "lg" | "picker";
 
 const PLACEHOLDER_ICON_SIZE: Record<CardImageSize, number> = { sm: 26, lg: 38, picker: 22 };
 
+export interface CardImageProps {
+  src?: string | null;
+  /**
+   * Seconde source (lot Chercher, D3, P7) : l'image générique de la carte,
+   * essayée quand l'image de l'impression manque ou échoue, avant le
+   * pictogramme.
+   */
+  fallbackSrc?: string | null;
+  alt: string;
+  size?: CardImageSize;
+  /**
+   * Le repli dit pourquoi l'image manque (handoff Chercher, écran 35) :
+   * « Image indisponible hors ligne », ou « Pas d'image pour cette impression ».
+   * Faux par défaut : les écrans d'avant le lot gardent le pictogramme seul.
+   */
+  explain?: boolean;
+  className?: string;
+  "data-testid"?: string;
+}
+
 /**
  * Scan d'une carte, avec repli sur un pictogramme neutre.
  *
@@ -32,34 +52,25 @@ const PLACEHOLDER_ICON_SIZE: Record<CardImageSize, number> = { sm: 26, lg: 38, p
  * de tenter un chargement voué à échouer (CLAUDE.md §3), et la connectivité
  * est relue par le hook générique de la couche offline, pas réinventée ici.
  */
-export function CardImage({
+export function CardImage(props: CardImageProps) {
+  return <CardImageView {...props} online={useConnectivity()} />;
+}
+
+/**
+ * Le même rendu, la connectivité passée par l'appelant (issue #71) : la page
+ * publique d'une liste partagée vit hors du runtime hors ligne, donc sans
+ * `useConnectivity`, et lit celle du navigateur (`useBrowserOnline`).
+ */
+export function CardImageView({
   src,
   fallbackSrc,
   alt,
   size = "sm",
   explain = false,
   className,
+  online,
   "data-testid": testId,
-}: {
-  src?: string | null;
-  /**
-   * Seconde source (lot Chercher, D3, P7) : l'image générique de la carte,
-   * essayée quand l'image de l'impression manque ou échoue, avant le
-   * pictogramme.
-   */
-  fallbackSrc?: string | null;
-  alt: string;
-  size?: CardImageSize;
-  /**
-   * Le repli dit pourquoi l'image manque (handoff Chercher, écran 35) :
-   * « Image indisponible hors ligne », ou « Pas d'image pour cette impression ».
-   * Faux par défaut : les écrans d'avant le lot gardent le pictogramme seul.
-   */
-  explain?: boolean;
-  className?: string;
-  "data-testid"?: string;
-}) {
-  const online = useConnectivity();
+}: CardImageProps & { online: boolean }) {
   const sources = [src, fallbackSrc].filter((value): value is string => Boolean(value));
   const [failed, setFailed] = useState(0);
   // Une nouvelle URL mérite un nouvel essai (ex. carte différente choisie dans

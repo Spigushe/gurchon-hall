@@ -2932,12 +2932,15 @@ changeant ; les lots suivants donnent des v2.x.
     toucher au téléphone (précisé le 2026-11-23). Front
     seul : `GET /listes/{token}` rend déjà `image_url` dans chaque
     `CardSearchItem` ; ni route, ni migration, ni type `/sync`. Image générique
-    de la carte (la liste publique n'a pas d'extension), pictogramme hors
-    ligne. À trancher en ouvrant la correction : l'aperçu reste propre à la
-    page publique ou passe dans `DeckTables` pour tous ses usages (aperçu de
-    `#/decks`, deckbuilder, version jouée, comparaison), et comment le
-    toucher qui montre l'image coexiste avec la modification d'une ligne en
-    mode « Réviser ».
+    de la carte (la liste publique n'a pas d'extension), repli expliqué hors
+    ligne. Seul le nom ouvre l'image : en révision, la quantité garde ses
+    boutons (décidé le 2026-11-23). Limité à la page publique ;
+    `CardNamePreview` se branche par le `renderName` de `DeckTables`, si bien
+    qu'un autre écran peut le reprendre. *Implémenté le 2026-11-23 sur la
+    branche `issue71-compte-rendu`* : aperçu en `position: fixed`
+    (`cardPreviewPosition`, `.deck-table` coupant ce qui déborde),
+    `CardImageView` qui prend la connectivité du navigateur hors du runtime ;
+    e2e `issue71-apercu-carte` au toucher à 390 px et au survol à 1440 px.
 16. **Lot Compte-rendu de tournoi (v1.3).** *Ouvert le 2026-11-23* : plan dans
     `docs/lot-compte-rendu-plan.md`, P1 à P12 tranchées le même jour (A0), qui
     amendent V7 sur le PDF et l'adresse des versions.
