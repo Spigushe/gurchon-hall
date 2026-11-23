@@ -2820,7 +2820,9 @@ def test_head_gives_an_autoincrement_key_to_the_four_tables_and_the_versions(
     """Les tables migrées et celles des modèles sont les mêmes ; rien d'autre.
     Les quatre de R11, plus `deck_version` (Lot 8, R13) : un client garde
     l'identifiant d'une version dans son miroir ; plus `deck_share` (Lot 13,
-    R16) : un lien purgé ne rend jamais son identifiant à un autre."""
+    R16) : un lien purgé ne rend jamais son identifiant à un autre ; plus les
+    deux tables du compte-rendu (lot Compte-rendu, R17), qui se suppriment
+    physiquement."""
     models_path = tmp_path / "models.db"
     engine = create_engine(url_for(models_path))
     try:
@@ -2828,7 +2830,13 @@ def test_head_gives_an_autoincrement_key_to_the_four_tables_and_the_versions(
     finally:
         engine.dispose()
 
-    expected = {*NEVER_REUSED, "deck_version", "deck_share"}
+    expected = {
+        *NEVER_REUSED,
+        "deck_version",
+        "deck_share",
+        "tournament_report",
+        "tournament_report_version",
+    }
     assert autoincrement_tables(migrated) == expected
     assert autoincrement_tables(models_path) == expected
 
