@@ -48,9 +48,11 @@ entier, l'issue a été précisée le même jour par cinq réponses de l'utilisa
 1. **Hors ligne et versionné.** La page du compte-rendu marche hors ligne.
    Chaque changement donne une nouvelle version. Tout visiteur du lien peut lire
    les versions antérieures (`…/compte-rendu?v=1`) si le propriétaire l'autorise
-   dans les paramètres du compte-rendu.
+   dans les paramètres du compte-rendu. *Amendé le 2026-11-23 (V9)* : aucune
+   adresse ne porte `?v=<n>`, la version se choisit dans la page.
 2. **PDF côté serveur**, pour une mise en page propre, à demander à Claude
-   Design.
+   Design. *Remplacé le 2026-11-23 (V9)* : le PDF est l'impression de la page
+   de l'application, sur une feuille de styles d'impression dédiée.
 3. **Noms et decks publics.** Les noms des adversaires et les decks joués
    figurent dans un compte-rendu partagé.
 4. **Commentaires reportés en v2.x**, avec leur extension aux listes partagées
@@ -69,7 +71,8 @@ Cinq précisions ont suivi, le même jour :
    version.
 8. **Tout peut être modifié lors de la régénération** : rien du texte d'une
    version n'est figé pour les suivantes.
-9. **La bibliothèque PDF côté serveur** se choisit pendant le lot.
+9. **La bibliothèque PDF côté serveur** se choisit pendant le lot. *Sans
+   objet depuis le 2026-11-23 (V9).*
 10. **Il faut régénérer le compte-rendu pour afficher une nouvelle liste.**
     Une version du compte-rendu désigne les versions de decklist du Lot 8
     qu'elle montre, et celles-ci ne se modifient jamais. Un « Figer sur la
@@ -83,6 +86,27 @@ frais. Il ne convertit aucune donnée existante, si bien qu'il peut se faire
 pendant la période de retours d'usage (V5). Il est nommé et non numéroté, comme
 Chercher, pour que les Lots 14 à 17 et les issues #48 et #49 gardent leur
 numéro.
+
+## Décision du 2026-11-23
+
+**V8. L'issue #71 sort en version corrective v1.2.1, et le lot Compte-rendu
+s'ouvre.** L'issue (« shared decklist > card image on hover », ouverte le
+2026-11-23, sans description) demande l'image de la carte au survol sur la
+page publique d'une liste partagée. C'est une correction du front seul, le
+contrat rendant déjà `image_url` : elle passe en v1.2.1, avant la v1.3, sans
+attendre le lot Compte-rendu ni en dépendre. Le lot Compte-rendu est ouvert
+le même jour, plan dans `docs/lot-compte-rendu-plan.md`.
+
+**V9. A0 du lot Compte-rendu amende V7**, le même jour (P1 à P12 du plan).
+Le PDF n'est plus rendu par le serveur : c'est l'impression de la page de
+l'application, sur une feuille de styles d'impression dédiée, dont Claude
+Design fait la mise en page pour le papier blanc (remplace les points 2 et 9).
+Aucune adresse ne porte plus `?v=<n>` : une version antérieure, quand le
+propriétaire l'autorise, se choisit dans la page (amende le point 1). Le
+compte-rendu est généré dans une trame type de l'application et se modifie
+par les notes ; les notes sur les adversaires ne sont publiques que si
+l'utilisateur les inclut dans les options du compte-rendu (précise le
+point 3).
 
 ## Ce que V1 change
 
@@ -242,18 +266,19 @@ Le lot livre :
 - **un lien public toujours vivant**, sur le patron des listes du Lot 13
   (jeton opaque, même 404 pour tout jeton invalide, limitation de débit, page
   hors `AuthGate`), mais sans lien figé. Il montre la dernière version ;
-- **les versions antérieures** (`…/compte-rendu?v=1`), lisibles par tout
-  visiteur si le propriétaire l'autorise dans les paramètres du compte-rendu ;
-- **un PDF généré par le serveur**, sur une mise en page propre, d'après un
-  handoff de Claude Design. Il ne se télécharge donc qu'en ligne.
+- **les versions antérieures**, lisibles par tout visiteur si le
+  propriétaire l'autorise dans les paramètres du compte-rendu, choisies dans
+  la page et jamais par l'adresse (V9) ;
+- **un PDF obtenu en imprimant la page**, sur une feuille de styles
+  d'impression mise en page par un handoff de Claude Design pour le papier
+  blanc (V9). Il marche donc aussi hors ligne.
 
 Les noms des adversaires et les decks joués sont publics dans un compte-rendu
 partagé : l'outil publie pour la première fois des noms tirés du carnet.
 
 Une version du compte-rendu désigne les versions de decklist du Lot 8 qu'elle
-montre ; une nouvelle liste n'apparaît qu'à la régénération (point 10). Reste à
-choisir pendant le lot la bibliothèque de PDF côté serveur (point 9), première
-dépendance de rendu du back.
+montre ; une nouvelle liste n'apparaît qu'à la régénération (point 10). Le
+back ne gagne aucune dépendance de rendu (V9).
 
 Les versions et les paramètres de partage demandent des tables neuves, donc une
 révision, mais ne convertissent aucune donnée.
@@ -356,7 +381,8 @@ attribué à l'ouverture, à la place que l'utilisateur choisira à ce moment-l�
 | 12 | consolidation v1.1 : comptes, observabilité, `prompt`, §1 réécrit, dettes | rien | |
 | 13 | partage : lien public, exports, art de l'extension | rien | |
 | | retours d'usage | Lot 12 | |
-| Compte-rendu | compte-rendu de tournoi v1.3 : texte hors ligne, versions, lien vivant, PDF serveur | Lot 13 | #68 en partie |
+| v1.2.1 | image de la carte au survol sur la page d'une liste partagée | Lot 13 | #71 |
+| Compte-rendu | compte-rendu de tournoi v1.3 : trame hors ligne, versions, lien vivant, PDF par l'impression | Lot 13 | #68 en partie |
 | 14 | inventaires et classeurs, transfert, migration de production | Lot 12, retours | #48 |
 | 15 | decks par inventaire | Lot 14 | #49 |
 | 16 | import d'une collection VDB | Lot 14, un vrai export | |

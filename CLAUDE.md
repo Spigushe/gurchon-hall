@@ -2865,8 +2865,8 @@ Limites connues à la clôture du Lot 13 :
 **Feuille de route de la v2**, arrêtée par l'utilisateur le 2026-11-17 et
 complétée le 2026-11-21 par le compte-rendu de tournoi (décisions V1 à V7, O1 et
 O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le détail).
-Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v1.3 à la fin du lot
-Compte-rendu, v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
+Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v1.2.1 pour
+l'issue #71, v1.3 à la fin du lot Compte-rendu, v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
 changeant ; les lots suivants donnent des v2.x.
 
 14. **Lot 12 — Consolidation (v1.1)** — *livré, v1.1.0 en production depuis le
@@ -2923,7 +2923,25 @@ changeant ; les lots suivants donnent des v2.x.
     recueillir les retours qu'attendent plusieurs pistes du Lot 9, tenir une
     collection réelle dans l'outil. Elle se termine sur une décision de
     l'utilisateur, pas sur une date.
-16. **Lot Compte-rendu de tournoi (v1.3).** Répond à l'issue #68, ajoutée à la
+
+    **Version corrective v1.2.1 — issue #71** (« shared decklist > card image
+    on hover »), ajoutée le 2026-11-23 (V8 de `docs/roadmap-v2-proposition.md`),
+    avant le lot Compte-rendu et sans en dépendre. Sur la page publique d'une
+    liste partagée (`#/liste/<jeton>`), l'image de la carte s'affiche au survol
+    d'une ligne au bureau, comme l'aperçu du tableau de la Collection, et au
+    toucher au téléphone (précisé le 2026-11-23). Front
+    seul : `GET /listes/{token}` rend déjà `image_url` dans chaque
+    `CardSearchItem` ; ni route, ni migration, ni type `/sync`. Image générique
+    de la carte (la liste publique n'a pas d'extension), pictogramme hors
+    ligne. À trancher en ouvrant la correction : l'aperçu reste propre à la
+    page publique ou passe dans `DeckTables` pour tous ses usages (aperçu de
+    `#/decks`, deckbuilder, version jouée, comparaison), et comment le
+    toucher qui montre l'image coexiste avec la modification d'une ligne en
+    mode « Réviser ».
+16. **Lot Compte-rendu de tournoi (v1.3).** *Ouvert le 2026-11-23* : plan dans
+    `docs/lot-compte-rendu-plan.md`, P1 à P12 tranchées le même jour (A0), qui
+    amendent V7 sur le PDF et l'adresse des versions.
+    Répond à l'issue #68, ajoutée à la
     feuille de route le 2026-11-21 (V7), sauf ses commentaires, qui la fermeront
     en v2.x ; nommé et non numéroté, comme Chercher,
     pour que les Lots 14 à 17 gardent leur numéro. Après le Lot 13, dont il
@@ -2933,9 +2951,10 @@ changeant ; les lots suivants donnent des v2.x.
     `game.notes`, `participation.notes`, depuis le Lot 7), mes rondes, ma
     finale et mon classement, et la liste jouée de chaque deck (une, ou
     plusieurs en multi-deck, versions du Lot 8). Il livre :
-    - un compte-rendu au format texte, sur le tournoi
-      (`#/tournois/<clé>/compte-rendu`), qui s'ouvre, se génère et se modifie
-      **hors ligne** ;
+    - un compte-rendu sur le tournoi (`#/tournois/<clé>/compte-rendu`),
+      généré dans une **trame type** de l'application, les notes y entrant en
+      texte, qui s'ouvre, se génère et se modifie **hors ligne** ; on le
+      modifie par les notes du tournoi et des parties ;
     - des **versions**, coupées par une action manuelle, « Mettre à jour le
       compte-rendu », qui intègre les changements faits depuis la précédente :
       notes, parties, classement, listes jouées, tout ce qui sert à le générer.
@@ -2944,22 +2963,24 @@ changeant ; les lots suivants donnent des v2.x.
       ce qu'elle contient, notes saisies comprises ;
     - un **lien public toujours vivant** (pas de lien figé, contrairement aux
       listes du Lot 13), qui montre la dernière version ;
-    - les versions antérieures lisibles par tout visiteur du lien
-      (`…/compte-rendu?v=1`), **si le propriétaire l'autorise** dans les
-      paramètres du compte-rendu ;
-    - un **PDF généré par le serveur**, sur une mise en page propre, à demander à
-      Claude Design (handoff) ; il ne se télécharge donc qu'en ligne.
+    - les versions antérieures lisibles par tout visiteur du lien, **si le
+      propriétaire l'autorise** dans les paramètres du compte-rendu, choisies
+      dans la page : aucune adresse ne porte `?v=<n>` (amendé le 2026-11-23) ;
+    - un **PDF obtenu en imprimant la page** de l'application, sur une feuille
+      de styles d'impression dédiée, mise en page par un handoff de Claude
+      Design pour le papier blanc ; il marche donc aussi hors ligne (amendé le
+      2026-11-23 : plus de PDF serveur ni de bibliothèque de rendu côté back).
 
     Les noms des adversaires et les decks joués à la table sont **publics** dans
     un compte-rendu partagé : c'est la première fois que l'outil publie le
-    carnet. Les **commentaires** sont **reportés en v2.x** (entrée 21 ci-dessous),
+    carnet. Les notes sur les adversaires ne le sont que si l'utilisateur les
+    inclut, dans les options du compte-rendu. Les **commentaires** sont **reportés en v2.x** (entrée 21 ci-dessous),
     avec leur extension aux listes partagées du Lot 13 ; une version verrouillera
     alors aussi les commentaires. Décisions prises par l'utilisateur le 2026-11-21
     (V7 de `docs/roadmap-v2-proposition.md`). Une version du compte-rendu
     désigne les versions de decklist du Lot 8 qu'elle montre : après un « Figer
     sur la liste actuelle », il faut régénérer le compte-rendu pour afficher la
-    nouvelle liste. Choix de la bibliothèque PDF côté serveur à faire
-    pendant le lot.
+    nouvelle liste.
 17. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
     Inventaires, proposé le 2026-11-03 et reporté après la mise en ligne le
     2026-11-13, est **découpé** en quatre lots et une suite (V3, classeurs avant
