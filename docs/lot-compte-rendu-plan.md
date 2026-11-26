@@ -617,7 +617,7 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
   impression depuis l'application et depuis la page publique, comparée au
   handoff (pied, numéros de page, bandeau d'aperçu et de version antérieure,
   aucune couleur claire sur blanc).
-- [ ] Relecture et commit.
+- [X] Relecture et commit.
 
 #### 2. Fusion et staging
 
