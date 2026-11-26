@@ -112,7 +112,8 @@ sans compte), « Dupliquer » et « Comparer » ; export d'un deck aux formats `
 `JOL` et `LACKEY` ; art de l'extension dans la Collection, en ligne (plan dans
 `docs/lot13-plan-partage.md`, décisions au §11). Lot Compte-rendu (#68), et
 l'issue #71, **implémentés sur la branche `issue71-compte-rendu`, pas encore en
-production**, à livrer ensemble en v1.2.1 : compte-rendu d'un tournoi généré dans une
+production**, à livrer ensemble en v1.2.1, dont la mise en service (F) est ouverte
+depuis le 2026-11-26 : compte-rendu d'un tournoi généré dans une
 trame fixe (`#/tournois/<clé>/compte-rendu`), modifié par les notes du tournoi et des
 parties, hors ligne ; versions figées par le serveur quand il applique « Mettre à
 jour » (champ `report` de `tournament.update`) ; lien public toujours vivant
@@ -3007,7 +3008,10 @@ changeant ; les lots suivants donnent des v2.x.
     `CardSearchItem` ; ni route, ni migration, ni type `/sync`. Image générique
     de la carte (la liste publique n'a pas d'extension), repli expliqué hors
     ligne. Seul le nom ouvre l'image : en révision, la quantité garde ses
-    boutons (décidé le 2026-11-23). Limité à la page publique ;
+    boutons (décidé le 2026-11-23). *Amendé le 2026-11-26* : au toucher, toute
+    la ligne ouvre l'image, sauf ses contrôles et, en révision, la cellule de
+    quantité (`wholeRow` de `CardNamePreview`) ; un clic de souris sur la ligne
+    ne fait rien. Limité à la page publique ;
     `CardNamePreview` se branche par le `renderName` de `DeckTables`, si bien
     qu'un autre écran peut le reprendre. *Implémenté le 2026-11-23 sur la
     branche `issue71-compte-rendu`* : aperçu en `position: fixed`
@@ -3016,7 +3020,9 @@ changeant ; les lots suivants donnent des v2.x.
     e2e `issue71-apercu-carte` au toucher à 390 px et au survol à 1440 px.
 16. **Lot Compte-rendu de tournoi (v1.2.1).** *Ouvert le 2026-11-23, implémenté le
     même jour sur la branche `issue71-compte-rendu`* (pas encore en production ;
-    vérification à l'œil des écrans et de l'impression à faire) : plan dans
+    mise en service ouverte le 2026-11-26, versions à 1.2.1, vérification à l'œil
+    des écrans et de l'impression à faire, checklist dans « Avancement de F » du
+    plan) : plan dans
     `docs/lot-compte-rendu-plan.md`, P1 à P12 tranchées le même jour (A0), qui
     amendent V7 sur le PDF et l'adresse des versions ; handoff d'impression dans
     `docs/design-handoff/COMPTE-RENDU.md`. Livré avec l'issue #71 et l'ordre des

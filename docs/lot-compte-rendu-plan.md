@@ -2,9 +2,10 @@
 
 Statut : **ouvert le 2026-11-23, P1 à P12 tranchées le même jour (A0),
 handoff d'impression reçu le même jour, A1 à E livrées le 2026-11-23 sur la
-branche `issue71-compte-rendu`** (cf. « Livré le 2026-11-23 »), non commitées
-au moment de l'écriture ; la vérification à l'œil des écrans et de
-l'impression, puis F, restent à faire. Rédigé sur `main` à `48cd1a4` (v1.2.0
+branche `issue71-compte-rendu`** (cf. « Livré le 2026-11-23 »), commitées le
+même jour (`3f9d1e0`, puis `928466e` et `b0a90ed`) et poussées ; **F ouverte le
+2026-11-26** (cf. « Avancement de F »), la vérification à l'œil des écrans et
+de l'impression comprise. Rédigé sur `main` à `48cd1a4` (v1.2.0
 en production depuis le 2026-11-22, Lot 13 clos le 2026-11-23). Les décisions A1 à A9 sont des
 décisions de conception que les agents de couche reprendront ou amenderont
 dans ce fichier. La forme suit `docs/lot13-plan-partage.md`.
@@ -465,7 +466,8 @@ avec l'issue #71 et l'ordre des types de VDB, au lieu d'une v1.3.0.
   retour du réseau avec la liste figée par le serveur ; et l'e2e
   d'impression de A6.
 - **F** : mise en service v1.2.1, R17 essayée sur une copie de la production,
-  impression en PDF vérifiée sur Chrome Android et Chrome Windows.
+  impression en PDF vérifiée sur Chrome Android et Chrome Windows — **ouverte
+  le 2026-11-26** (cf. « Avancement de F »).
 
 ### Livré le 2026-11-23
 
@@ -544,3 +546,110 @@ montre la dernière version, les antérieures seulement si le réglage
 l'autorise, sans `?v=` dans aucune adresse ; l'impression en PDF depuis
 l'application et depuis la page publique suit le handoff sur Chrome Android
 et Chrome Windows ; une purge fait tomber le lien.
+
+### Avancement de F
+
+Checklist ouverte le 2026-11-26, sur le modèle de celle du Lot 13, tenue à
+jour au fil de la mise en service. Les étapes sont dans l'ordre où elles se
+font. Les commandes `ansible-playbook` se lancent depuis `ops/` (WSL), les
+commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
+(`fcf5949`), l'ordre des types de VDB (`5574989`) et le compte-rendu (#68,
+`3f9d1e0`, `928466e`, `b0a90ed`).
+
+#### 0. Relevé de départ (2026-11-26)
+
+- [X] Production et staging : `/health` à `1.2.0`, tag `v1.2.0` sur `2b26ab1`,
+  release « Latest » du 2026-11-23.
+- [X] `origin/main` à `48cd1a4` ; `issue71-compte-rendu` six commits devant,
+  rien derrière, poussée jusqu'à `b0a90ed`, sans PR. La PR Dependabot #64 (`@types/node` 22 → 26)
+  reste ouverte et hors de la v1.2.1, pour la même raison qu'à la v1.2.0
+  (VPS et CI en Node 22).
+- [X] Trois documents hors du lot (« Prendre au stock » rangé au Lot 15 :
+  CLAUDE.md §12, `docs/pistes-evolution.md`, `docs/prendre-au-stock-plan.md`),
+  commités à part le 2026-11-26 (`204abb7`).
+- [ ] **Avant de toucher à la production**, sur le téléphone encore en v1.2.0 :
+  laisser une saisie hors ligne en file (mode avion, fermer l'application),
+  pour vérifier au 5 que le bandeau attend et qu'elle se rejoue sans perte à la
+  montée en Dexie version 8.
+
+#### 1. Préparation sur le poste
+
+- [X] Versions à `1.2.1` dans `frontend/package.json`, `backend/pyproject.toml`
+  et les deux lockfiles. Contrat réexporté : seule sa version change ; client
+  TS inchangé.
+- [X] README, `docs/deploiement.md` (vérifications après déploiement, retour
+  arrière vers `v1.2.0`), `backend/.env.example` (`REPORT_RATE_LIMIT`),
+  CLAUDE.md (en-tête, §12).
+- [ ] Suites relancées sur l'arbre préparé : `ruff`, pytest sous couverture,
+  `export_openapi.py --check`, CRAP back ; lint, `tsc` (application et tests),
+  vitest sous couverture, CRAP front, recensement des `data-testid` contre la
+  référence du Lot 13 ; `npm run test:e2e`.
+- [X] **Retour de l'utilisateur du 2026-11-26, corrigé** : issue #71, au
+  téléphone, un toucher n'importe où sur la ligne d'une liste partagée ouvre
+  l'image, sauf sur un contrôle et, en révision, sur la quantité (`wholeRow`
+  de `CardNamePreview`, `cardRowTrigger.ts`). Sept cas vitest, e2e
+  `issue71-apercu-carte` complété au toucher.
+- [ ] Référence de clôture des `data-testid` du lot
+  (`docs/qa-baselines/testids-compte-rendu-cloture.txt`).
+- [ ] **Vérification à l'œil**, par `scripts\run.ps1 preview`, aux deux
+  largeurs : écran du compte-rendu (aperçu, notes éditées sur place, options,
+  « Mettre à jour », versions), page publique, « Comptes-rendus partagés » de
+  l'écran Compte ; aperçu de carte de l'issue #71 au survol et au toucher ;
+  ordre des types de bibliothèque dans les tableaux et les exports ;
+  impression depuis l'application et depuis la page publique, comparée au
+  handoff (pied, numéros de page, bandeau d'aperçu et de version antérieure,
+  aucune couleur claire sur blanc).
+- [ ] Relecture et commit.
+
+#### 2. Fusion et staging
+
+- [ ] PR `issue71-compte-rendu` → `main`, CI verte, fusion.
+- [ ] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R17 s'y
+  applique.
+- [ ] Sur `gurchon-staging.spigushe.com` :
+  - bandeau « nouvelle version » sur un appareil déjà venu ;
+  - pied de Compte à `1.2.1`, comme `/health` ;
+  - un tournoi avec ses parties : aperçu, « Mettre à jour » (v1), note modifiée
+    puis « Mettre à jour » (v2), « Mettre à jour » sans changement (pas de v3) ;
+  - option des notes d'adversaire, visible à la version suivante seulement ;
+  - lien créé, ouvert dans une fenêtre privée, sans compte ; versions
+    antérieures cachées, puis montrées une fois le réglage coché, sans `?v=`
+    dans l'adresse ;
+  - purge depuis le compte-rendu et depuis « Comptes-rendus partagés » ;
+  - suppression du tournoi refusée tant qu'il a un compte-rendu, puis
+    suppression du compte-rendu ;
+  - aperçu de carte sur une liste partagée (#71), au bureau et au téléphone.
+
+#### 3. Essai de R17 sur une copie de la production
+
+- [ ] `bash ops/fetch_backups.sh`, puis `compare_db.py backup` de la
+  sauvegarde la plus récente vers `ops/sauvegardes/essai-r17/copie.db`.
+- [ ] `upgrade head` : `dda2c510a2f2` → `b3f1c7a9e2d4`. Les 30 tables
+  existantes identiques ligne à ligne, `tournament_report` et
+  `tournament_report_version` vides, `integrity_check` à `ok`,
+  `foreign_key_check` vide.
+- [ ] Contrôle fonctionnel sur une seconde copie (jetée ensuite) : l'API
+  démarre (`/health` à `1.2.1`), un compte-rendu coupé et lu sans cookie sur un
+  tournoi réel, jeton inconnu en 404, descente refusée.
+
+#### 4. Release et production
+
+- [ ] Tag `v1.2.1` sur la tête de `main`, **release complète, pas en
+  pré-release** (`fastapi_backend` ignore les pré-releases).
+- [ ] `ansible-playbook gurchon_hall.yml --tags backend` puis
+  `--tags frontend` ; sauvegarde d'avant déploiement présente et recopiée sur
+  le poste.
+- [ ] `/health` à `1.2.1` ; vérifications de `docs/deploiement.md` (v1.2.1).
+
+#### 5. Sur le téléphone et sans compte
+
+- [ ] Le bandeau du mode `prompt` attend la saisie laissée en file au 0, puis
+  propose la mise à jour ; saisie rejouée sans refus ni perte ; base IndexedDB
+  montée en version 8 ; ouverture en mode avion ; pied « Application 1.2.1 ·
+  Serveur 1.2.1 ».
+- [ ] Compte-rendu d'un vrai tournoi : notes modifiées et mise à jour demandée
+  en mode avion, version coupée au retour du réseau avec les bonnes listes.
+- [ ] Impression en PDF sur Chrome Android et sur Chrome Windows, depuis
+  l'application et depuis la page publique.
+- [ ] Lien ouvert sans compte en HTTPS ; purge qui le fait tomber.
+- [ ] Clôture : CLAUDE.md (en-tête, §11 « Appliqué le … », §12), ce plan.
