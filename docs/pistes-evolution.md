@@ -26,6 +26,7 @@ plus bas, marquée du lot qui la reprend ; les autres ont quitté ce fichier.
 | Export d'un deck aux formats `TWD`, `JOL`, `LACKEY` | Lot 13 |
 | L'art de l'extension dans la Collection | Lot 13 (conception plus bas) |
 | Import VDB : prendre au stock avant de mettre en proxy | Lot 15 |
+| Prendre au stock dans un deck (remplacer ses proxies par les exemplaires libres, décidé le 2026-11-23) | Lot 15 (plan dans `docs/prendre-au-stock-plan.md`) |
 | Export de la collection | Lot 16, avec l'import d'une collection VDB |
 | La liste des manques, la checklist d'assemblage | Lot 17 |
 | Not in TWD (filtre de Chercher), suggestions à partir des decks des adversaires | avec les suggestions de decklists, fin de v2 ou v3 |

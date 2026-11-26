@@ -3081,7 +3081,11 @@ changeant ; les lots suivants donnent des v2.x.
     d'un deck et le changer (A5, `carry_copies`) ; picker, `+` des tableaux et
     disponibilités lus dans l'inventaire du deck ; l'import d'un deck VDB prend
     d'abord les exemplaires libres de cet inventaire au lieu de tout mettre en
-    proxy (piste du Lot 9, à confirmer par les retours d'usage).
+    proxy (piste du Lot 9, à confirmer par les retours d'usage). « Prendre au
+    stock » sur un deck, ajouté le 2026-11-23 : ses proxies remplacés en une
+    action par les exemplaires libres de son inventaire sous la même impression,
+    proposé aussi juste après un import (`docs/prendre-au-stock-plan.md`, P6
+    ouvert).
 19. **Lot 16 — Import d'une collection VDB.** Bloqué par un vrai export de
     collection fourni par l'utilisateur, à verser dans les fixtures avant toute
     ligne de code (les relevés du 2026-11-03 divergent : CSV à identifiant VEKN ou
