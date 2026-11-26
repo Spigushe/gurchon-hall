@@ -561,9 +561,14 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
 - [X] Production et staging : `/health` à `1.2.0`, tag `v1.2.0` sur `2b26ab1`,
   release « Latest » du 2026-11-23.
 - [X] `origin/main` à `48cd1a4` ; `issue71-compte-rendu` six commits devant,
-  rien derrière, poussée jusqu'à `b0a90ed`, sans PR. La PR Dependabot #64 (`@types/node` 22 → 26)
-  reste ouverte et hors de la v1.2.1, pour la même raison qu'à la v1.2.0
-  (VPS et CI en Node 22).
+  rien derrière, poussée jusqu'à `b0a90ed`, sans PR. La PR Dependabot #64
+  (`@types/node` 22 → 26), écartée de la v1.2.0, entre dans la v1.2.1 :
+  commit d'origine `3b20524` fusionné dans la branche le 2026-11-26
+  (`0d62c3c`), si bien que la #64 se fermera avec la fusion sur `main`. Son
+  échec en CI venait de `stock.test.tsx` et `gamesLot8.test.tsx` sur une base
+  antérieure à la #66 (jsdom 31) ; sur la branche, `tsc` (application,
+  configuration Vite, tests) et le lint passent. Le VPS et la CI restent en
+  Node 22 : les types ne changent rien à l'exécution.
 - [X] Trois documents hors du lot (« Prendre au stock » rangé au Lot 15 :
   CLAUDE.md §12, `docs/pistes-evolution.md`, `docs/prendre-au-stock-plan.md`),
   commités à part le 2026-11-26 (`204abb7`).
