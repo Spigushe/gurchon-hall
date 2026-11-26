@@ -196,8 +196,15 @@ function RevisionSession({
         }
         renderName={(row: DeckTableRow) => {
           // Le nom montre l'image de la carte (issue #71), en lecture comme en
-          // révision ; la quantité garde ses boutons.
-          const label = <CardNamePreview name={row.name} imageUrl={row.facts?.card.imageUrl} />;
+          // révision ; au toucher, toute la ligne l'ouvre, sauf la quantité en
+          // révision, qui garde ses boutons.
+          const label = (
+            <CardNamePreview
+              name={row.name}
+              imageUrl={row.facts?.card.imageUrl}
+              wholeRow={{ exclude: revising ? ".deck-table__qty" : undefined }}
+            />
+          );
           return revising ? (
             <RevisionName
               name={row.name}

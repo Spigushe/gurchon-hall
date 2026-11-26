@@ -6,6 +6,8 @@ import { WEB_ORIGIN } from "./env";
  * Image de la carte sur la page publique d'une liste partagée (issue #71),
  * contre un vrai back : au survol à 1440 px, au toucher à 390 px (contexte
  * tactile), en lecture puis en révision, où la quantité garde ses boutons.
+ * Au toucher, toute la ligne ouvre l'image, sauf la quantité en révision
+ * (retour du 2026-11-26).
  * Les images de krcg sont servies par une route locale : le test ne joint
  * pas static.krcg.org.
  */
@@ -89,6 +91,15 @@ export async function cardPreviewScenario(
     await expectInViewport(page, viewport);
     await closePreview(page, name, input);
 
+    if (input === "touch") {
+      // Toute la ligne ouvre l'image, la quantité comprise en lecture ; un
+      // second toucher sur la ligne la referme.
+      await row.locator(".deck-table__qty").tap();
+      await expect(page.getByTestId("deck-card-preview")).toBeVisible();
+      await row.getByRole("cell").last().tap();
+      await expect(page.getByTestId("deck-card-preview")).toHaveCount(0);
+    }
+
     // En révision : « + » change la quantité sans ouvrir l'image, le nom l'ouvre toujours.
     await page.getByTestId("public-list-revise").click();
     const plus = row.getByTestId("revision-plus");
@@ -98,6 +109,15 @@ export async function cardPreviewScenario(
     await expect(page.getByTestId("deck-card-preview")).toHaveCount(0);
     await openPreview(page, name, input);
     await expectInViewport(page, viewport);
+
+    if (input === "touch") {
+      // En révision, la quantité n'ouvre rien ; le reste de la ligne, si.
+      await closePreview(page, name, input);
+      await row.getByTestId("revision-quantity").tap();
+      await expect(page.getByTestId("deck-card-preview")).toHaveCount(0);
+      await row.getByRole("cell").last().tap();
+      await expect(page.getByTestId("deck-card-preview")).toBeVisible();
+    }
   } finally {
     await context.close();
   }

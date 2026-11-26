@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CardNamePreview, PREVIEW_HOVER_DELAY_MS } from "../../../../src/features/decks/CardNamePreview";
+import { isRowTrigger } from "../../../../src/features/decks/cardRowTrigger";
 
 const IMAGE = "https://static.krcg.org/card/anson.jpg";
 
@@ -95,5 +96,96 @@ describe("nom d'une carte qui montre son image (issue #71)", () => {
     const name = renderName(null);
     fireEvent.click(name);
     expect(screen.getByRole("img", { name: "Anson : Pas d'image pour cette impression" })).toBeTruthy();
+  });
+});
+
+
+function renderRow() {
+  render(
+    <div>
+      <div role="row">
+        <span className="deck-table__qty" data-testid="qty">
+          2× <button type="button">Plus</button>
+        </span>
+        <span data-testid="cell">Disciplines</span>
+        <CardNamePreview name="Anson" imageUrl={IMAGE} wholeRow={{ exclude: ".deck-table__qty" }} />
+      </div>
+      <button type="button">Ailleurs</button>
+    </div>,
+  );
+}
+
+const touch = (element: Element) => {
+  fireEvent.pointerDown(element, { pointerType: "touch" });
+  fireEvent.click(element);
+};
+
+describe("toucher sur toute la ligne (retour du 2026-11-26)", () => {
+  it("un toucher sur la ligne ouvre l'aperçu, un second le referme", () => {
+    renderRow();
+    touch(screen.getByTestId("cell"));
+    expect(preview()).toBeTruthy();
+    expect(screen.getByTestId("deck-card-name").getAttribute("aria-expanded")).toBe("true");
+    touch(screen.getByTestId("cell"));
+    expect(preview()).toBeNull();
+  });
+
+  it("ouvert par le nom, un toucher ailleurs sur la ligne le referme", () => {
+    renderRow();
+    const name = screen.getByTestId("deck-card-name");
+    fireEvent.pointerDown(name, { pointerType: "touch" });
+    fireEvent.focus(name);
+    fireEvent.click(name);
+    expect(preview()).toBeTruthy();
+    fireEvent.pointerDown(screen.getByTestId("cell"), { pointerType: "touch" });
+    fireEvent.blur(name);
+    expect(preview()).toBeTruthy();
+    fireEvent.click(screen.getByTestId("cell"));
+    expect(preview()).toBeNull();
+  });
+
+  it("la quantité exclue et les contrôles de la ligne n'ouvrent rien", () => {
+    renderRow();
+    touch(screen.getByTestId("qty"));
+    expect(preview()).toBeNull();
+    touch(screen.getByText("Plus"));
+    expect(preview()).toBeNull();
+  });
+
+  it("un contrôle de la ligne referme l'aperçu ouvert", () => {
+    renderRow();
+    touch(screen.getByTestId("cell"));
+    expect(preview()).toBeTruthy();
+    fireEvent.pointerDown(screen.getByText("Plus"), { pointerType: "touch" });
+    expect(preview()).toBeNull();
+  });
+
+  it("un clic de souris sur la ligne ne fait rien", () => {
+    renderRow();
+    fireEvent.pointerDown(screen.getByTestId("cell"), { pointerType: "mouse" });
+    fireEvent.click(screen.getByTestId("cell"));
+    expect(preview()).toBeNull();
+  });
+
+  it("sans wholeRow, la ligne n'ouvre rien", () => {
+    render(
+      <div role="row">
+        <span data-testid="cell">Disciplines</span>
+        <CardNamePreview name="Anson" imageUrl={IMAGE} />
+      </div>,
+    );
+    touch(screen.getByTestId("cell"));
+    expect(preview()).toBeNull();
+  });
+
+  it("isRowTrigger écarte ce qui n'est pas un élément ou sort de la ligne", () => {
+    renderRow();
+    const row = screen.getByRole("row");
+    const root = screen.getByTestId("deck-card-name").parentElement!;
+    expect(isRowTrigger(null, row, root)).toBe(false);
+    expect(isRowTrigger(screen.getByText("Ailleurs"), row, root)).toBe(false);
+    expect(isRowTrigger(screen.getByTestId("deck-card-name"), row, root)).toBe(false);
+    expect(isRowTrigger(screen.getByTestId("qty"), row, root)).toBe(true);
+    expect(isRowTrigger(screen.getByTestId("qty"), row, root, ".deck-table__qty")).toBe(false);
   });
 });

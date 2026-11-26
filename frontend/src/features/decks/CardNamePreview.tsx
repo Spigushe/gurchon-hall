@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type 
 import { CardImageView } from "../../components/CardImage";
 import { useBrowserOnline } from "../auth/useBrowserOnline";
 import { cardPreviewPosition } from "./cardPreviewPosition";
+import { isRowTrigger } from "./cardRowTrigger";
 
 /** Délai de survol avant l'aperçu, celui du tableau de la Collection. */
 export const PREVIEW_HOVER_DELAY_MS = 300;
@@ -13,14 +14,26 @@ const PREVIEW_SIZE = { width: 180, height: 251 };
  * Nom d'une carte qui montre son image (issue #71) : au survol après 300ms et
  * au focus clavier, comme le tableau de la Collection ; au toucher ou au clic,
  * l'aperçu reste ouvert jusqu'à un second toucher, un toucher ailleurs, la
- * perte du focus ou `Échap`. Seul le nom ouvre l'image : en révision, la
- * quantité garde ses boutons.
+ * perte du focus ou `Échap`.
+ *
+ * Avec `wholeRow`, un toucher n'importe où sur la ligne fait comme un toucher
+ * sur le nom (retour de l'utilisateur du 2026-11-26), sauf sur un contrôle et
+ * sur ce que `wholeRow.exclude` désigne (la quantité en révision). Un clic de
+ * souris sur la ligne ne fait rien : au bureau, le survol du nom suffit.
  *
  * Image générique de la carte (une liste partagée n'a pas d'extension), et
  * repli expliqué hors ligne. La connectivité est celle du navigateur, pour
  * marcher hors du runtime hors ligne (page publique, hors `AuthGate`).
  */
-export function CardNamePreview({ name, imageUrl }: { name: string; imageUrl: string | null | undefined }) {
+export function CardNamePreview({
+  name,
+  imageUrl,
+  wholeRow,
+}: {
+  name: string;
+  imageUrl: string | null | undefined;
+  wholeRow?: { exclude?: string };
+}) {
   const online = useBrowserOnline();
   const previewId = useId();
   const button = useRef<HTMLButtonElement>(null);
@@ -29,6 +42,10 @@ export function CardNamePreview({ name, imageUrl }: { name: string; imageUrl: st
   // Un focus qui suit un toucher ou un clic n'ouvre rien : c'est le clic qui
   // décide, sans quoi le toucher ouvrirait puis refermerait aussitôt.
   const pointerFocus = useRef(false);
+  // Un toucher sur la ligne fait perdre le focus au nom : ce départ-là ne
+  // referme rien, c'est le clic sur la ligne qui décide.
+  const rowPointer = useRef(false);
+  const rowExclude = wholeRow ? (wholeRow.exclude ?? "") : null;
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
@@ -64,10 +81,42 @@ export function CardNamePreview({ name, imageUrl }: { name: string; imageUrl: st
     };
   }, [open]);
 
+  const rowOf = useCallback(
+    () => (rowExclude === null ? null : (root.current?.closest<HTMLElement>('[role="row"]') ?? null)),
+    [rowExclude],
+  );
+
+  useEffect(() => {
+    const row = rowOf();
+    if (!row || rowExclude === null) return;
+    let pointerType: string | null = null;
+    const onPointerDown = (event: PointerEvent) => {
+      pointerType = event.pointerType || null;
+      rowPointer.current = isRowTrigger(event.target, row, root.current!, rowExclude || undefined);
+    };
+    const onClick = (event: MouseEvent) => {
+      const trigger = isRowTrigger(event.target, row, root.current!, rowExclude || undefined);
+      rowPointer.current = false;
+      if (!trigger || pointerType === "mouse") return;
+      clearHoverTimer();
+      setHovered(false);
+      setPinned((was) => !was);
+    };
+    row.addEventListener("pointerdown", onPointerDown);
+    row.addEventListener("click", onClick);
+    return () => {
+      row.removeEventListener("pointerdown", onPointerDown);
+      row.removeEventListener("click", onClick);
+    };
+  }, [rowOf, rowExclude, clearHoverTimer]);
+
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) close();
+      if (root.current?.contains(event.target as Node)) return;
+      const row = rowOf();
+      if (row && isRowTrigger(event.target, row, root.current!, rowExclude || undefined)) return;
+      close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
@@ -78,7 +127,7 @@ export function CardNamePreview({ name, imageUrl }: { name: string; imageUrl: st
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, close]);
+  }, [open, close, rowOf, rowExclude]);
 
   return (
     <span
@@ -109,7 +158,7 @@ export function CardNamePreview({ name, imageUrl }: { name: string; imageUrl: st
         }}
         onBlur={() => {
           pointerFocus.current = false;
-          close();
+          if (!rowPointer.current) close();
         }}
         onClick={() => {
           clearHoverTimer();
