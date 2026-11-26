@@ -585,10 +585,21 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
 - [X] README, `docs/deploiement.md` (vérifications après déploiement, retour
   arrière vers `v1.2.0`), `backend/.env.example` (`REPORT_RATE_LIMIT`),
   CLAUDE.md (en-tête, §12).
-- [ ] Suites relancées sur l'arbre préparé : `ruff`, pytest sous couverture,
-  `export_openapi.py --check`, CRAP back ; lint, `tsc` (application et tests),
-  vitest sous couverture, CRAP front, recensement des `data-testid` contre la
-  référence du Lot 13 ; `npm run test:e2e`.
+- [X] Suites relancées le 2026-11-26 sur l'arbre préparé, `@types/node` 26
+  compris : `ruff` propre, pytest **3212 verts et 2 `xfail`**,
+  `export_openapi.py --check` à jour, aucune régression CRAP ; lint, `tsc`
+  (application, configuration Vite, tests) propres, vitest **2015 verts sur
+  118 fichiers** (un échec de `decks.test.tsx` sous charge à un passage, vert
+  seul puis au passage suivant), aucune régression CRAP, aucun `data-testid`
+  disparu par rapport à la référence du Lot 13. e2e : **110 sur 112** après
+  correction. Sept tests e2e étaient restés en retard sur le lot ou venaient
+  du correctif de l'issue #71 : Dexie en version 8 (`reportVersions`) dans
+  `offline-db-schema` et les deux `chercher-filtres` (dont `rebuildAsDexieV5`),
+  export du compte en forme 3 dans les deux `lot12-compte`, et le toucher sur
+  une cellule vide, sans taille, dans `issue71-apercu-carte`. Les deux échecs
+  restants, `navigation` du projet `desktop`, tombent sur « Reconnexion
+  nécessaire » parce qu'un back de développement tourne et que
+  `frontend/.env.local` pointe dessus (cas connu, CLAUDE.md).
 - [X] **Retour de l'utilisateur du 2026-11-26, corrigé** : issue #71, au
   téléphone, un toucher n'importe où sur la ligne d'une liste partagée ouvre
   l'image, sauf sur un contrôle et, en révision, sur la quantité (`wholeRow`

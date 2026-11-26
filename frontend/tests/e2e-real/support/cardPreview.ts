@@ -93,10 +93,11 @@ export async function cardPreviewScenario(
 
     if (input === "touch") {
       // Toute la ligne ouvre l'image, la quantité comprise en lecture ; un
-      // second toucher sur la ligne la referme.
+      // second toucher sur la ligne la referme. Ce second toucher vise la
+      // quantité, que l'aperçu ne couvre pas, à gauche de la ligne.
       await row.locator(".deck-table__qty").tap();
       await expect(page.getByTestId("deck-card-preview")).toBeVisible();
-      await row.getByRole("cell").last().tap();
+      await row.locator(".deck-table__qty").tap();
       await expect(page.getByTestId("deck-card-preview")).toHaveCount(0);
     }
 
@@ -111,11 +112,12 @@ export async function cardPreviewScenario(
     await expectInViewport(page, viewport);
 
     if (input === "touch") {
-      // En révision, la quantité n'ouvre rien ; le reste de la ligne, si.
+      // En révision, la quantité n'ouvre rien ; le reste de la ligne, si, ici
+      // la pastille « +1 », hors du nom (une cellule vide n'a pas de taille).
       await closePreview(page, name, input);
       await row.getByTestId("revision-quantity").tap();
       await expect(page.getByTestId("deck-card-preview")).toHaveCount(0);
-      await row.getByRole("cell").last().tap();
+      await row.getByTestId("revision-delta").tap();
       await expect(page.getByTestId("deck-card-preview")).toBeVisible();
     }
   } finally {

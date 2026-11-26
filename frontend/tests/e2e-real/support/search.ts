@@ -145,14 +145,14 @@ const ACTIVE_ACCOUNT_KEY = "gurchon-hall:active-account-id";
  * « anonymous »). La page, servie par le service worker, est alors sur la bonne
  * origine et ne tient aucune connexion. La base est relue en entier (structure
  * et lignes de chaque magasin), supprimée, puis recréée en version 50 avec les
- * mêmes magasins moins `cardDetails` (version 6) et `deckVersions` (version 7),
- * les seuls ajouts depuis la version 5 (`VTES_STORES_V5`). Recopier la structure lue plutôt que la réécrire évite de
+ * mêmes magasins moins `cardDetails` (version 6), `deckVersions` (version 7) et
+ * `reportVersions` (version 8), les seuls ajouts depuis la version 5 (`VTES_STORES_V5`). Recopier la structure lue plutôt que la réécrire évite de
  * figer ici une seconde description du schéma.
  *
  * `dropCard` retire une carte de `cards` : le catalogue est alors « ancien »,
  * plus court que celui du serveur, et sa relecture au retour du réseau se voit
  * au compteur. Le compte actif est rétabli à la fin, si bien que le prochain
- * chargement ouvre cette base et la monte en version 7.
+ * chargement ouvre cette base et la monte en version 8.
  *
  * À appeler hors ligne de préférence : en ligne, le mur de connexion ne
  * reconnecte personne d'office, mais rien ne doit partir pendant l'opération.
@@ -166,7 +166,7 @@ export async function rebuildAsDexieV5(page: Page, options: { dropCard?: string 
 
   const result = await page.evaluate(
     async ({ dbName, dropCard }) => {
-      const LATER_STORES = ["cardDetails", "deckVersions"];
+      const LATER_STORES = ["cardDetails", "deckVersions", "reportVersions"];
       const settle = <T,>(request: IDBRequest<T>) =>
         new Promise<T>((resolve, reject) => {
           request.onsuccess = () => resolve(request.result);
@@ -182,7 +182,7 @@ export async function rebuildAsDexieV5(page: Page, options: { dropCard?: string 
         });
 
       const current = await open();
-      if (current.version !== 70) throw new Error(`base ${dbName} en version ${current.version}, 70 attendue`);
+      if (current.version !== 80) throw new Error(`base ${dbName} en version ${current.version}, 80 attendue`);
       const names = [...current.objectStoreNames].filter((name) => !LATER_STORES.includes(name));
       const read = current.transaction(names, "readonly");
       const stores = await Promise.all(
