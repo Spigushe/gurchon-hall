@@ -605,9 +605,11 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
   l'image, sauf sur un contrôle et, en révision, sur la quantité (`wholeRow`
   de `CardNamePreview`, `cardRowTrigger.ts`). Sept cas vitest, e2e
   `issue71-apercu-carte` complété au toucher.
-- [ ] Référence de clôture des `data-testid` du lot
-  (`docs/qa-baselines/testids-compte-rendu-cloture.txt`).
-- [ ] **Vérification à l'œil**, par `scripts\run.ps1 preview`, aux deux
+- [X] Référence de clôture des `data-testid` du lot
+  (`docs/qa-baselines/testids-compte-rendu-cloture.txt`) : 825 littéraux
+  statiques distincts (768 à la clôture du Lot 13), 965 identifiants en tout,
+  aucun disparu ; la commande de contrôle de CLAUDE.md la vise.
+- [X] **Vérification à l'œil** faite par l'utilisateur le 2026-11-26, par `scripts\run.ps1 preview`, aux deux
   largeurs : écran du compte-rendu (aperçu, notes éditées sur place, options,
   « Mettre à jour », versions), page publique, « Comptes-rendus partagés » de
   l'écran Compte ; aperçu de carte de l'issue #71 au survol et au toucher ;

@@ -155,7 +155,7 @@ types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (v
 projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
 Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
 si le code a changé depuis),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-lot13-cloture.txt`
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-compte-rendu-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -2701,6 +2701,9 @@ Tranchées pendant le lot Compte-rendu (P1 à P12 tranchées par l'utilisateur l
 - **Dexie version 8** : magasin `reportVersions` (clé `<tournoi>:<numéro>`), ajouté
   sans changement de clé ; `TournamentRow.report` lu dans le détail du tournoi.
 - **Export du compte en forme 3** : les comptes-rendus et leurs versions, sans jeton.
+- **`data-testid`** : référence de clôture
+  `docs/qa-baselines/testids-compte-rendu-cloture.txt` (825 littéraux statiques
+  distincts, 768 à la clôture du Lot 13), aucun disparu.
 - **Livraison** : décision de l'utilisateur du 2026-11-23, la v1.2.1 reprend tous les
   changements de la branche `issue71-compte-rendu` (image au survol, ordre des types
   de VDB, compte-rendu), au lieu d'une v1.2.1 corrective suivie d'une v1.3.
