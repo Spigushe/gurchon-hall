@@ -2,6 +2,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { AuthGate } from "../features/auth/AuthGate.tsx";
 import { PublicDecklistPage } from "../features/share/PublicDecklistPage";
 import { isPublicListHash } from "../features/share/publicListRoute";
+import { PublicReportPage } from "../features/report/PublicReportPage";
+import { isPublicReportHash } from "../features/report/publicReportRoute";
 
 const subscribe = (notify: () => void) => {
   window.addEventListener("hashchange", notify);
@@ -11,7 +13,8 @@ const readHash = () => window.location.hash;
 const reloadPage = () => window.location.reload();
 
 /**
- * Aiguillage de la racine (Lot 13, C1, P6) : `#/liste/…` montre la page
+ * Aiguillage de la racine (Lot 13, C1, P6) : `#/liste/…`, et depuis le lot
+ * Compte-rendu `#/compte-rendu/…`, montrent la page
  * publique **à la place** d'`AuthGate`, qui ne se monte donc pas : pas de
  * lecture de session, pas de base IndexedDB, pas de moteur de sync, pas de
  * `GET /moi`.
@@ -28,15 +31,19 @@ const reloadPage = () => window.location.reload();
  * rechargement, servi par le precache, y compris hors ligne. Entre deux hash
  * du même côté, rien ne recharge (un autre jeton relit simplement sa liste).
  */
+/** Une page publique : liste partagée (Lot 13) ou compte-rendu (lot Compte-rendu). */
+const isPublicHash = (hash: string) => isPublicListHash(hash) || isPublicReportHash(hash);
+
 export function Root({ reload = reloadPage }: { reload?: () => void }) {
   const hash = useSyncExternalStore(subscribe, readHash);
-  const [startedPublic] = useState(() => isPublicListHash(window.location.hash));
-  const crossed = isPublicListHash(hash) !== startedPublic;
+  const [startedPublic] = useState(() => isPublicHash(window.location.hash));
+  const crossed = isPublicHash(hash) !== startedPublic;
 
   useEffect(() => {
     if (crossed) reload();
   }, [crossed, reload]);
 
   if (crossed) return null;
-  return startedPublic ?<PublicDecklistPage hash={hash} /> : <AuthGate />;
+  if (!startedPublic) return <AuthGate />;
+  return isPublicReportHash(hash) ? <PublicReportPage hash={hash} /> : <PublicDecklistPage hash={hash} />;
 }

@@ -3,10 +3,13 @@
  * Valeurs reprises de `docs/design-handoff/nocturne/styles.css` et du
  * handoff `docs/design-handoff/MOBILE.md`. Système exclusivement sombre
  * (décision du lot, CLAUDE.md §11) : pas de `color-scheme: light dark`, pas de
- * bloc `prefers-color-scheme`.
+ * bloc `prefers-color-scheme`. `color-scheme: dark` seul fait dessiner en sombre
+ * ce que le navigateur rend lui-même (liste d'un `<select>`, barres de
+ * défilement, calendrier d'un champ de date), qui sortait en blanc.
  */
 
 :root {
+  color-scheme: dark;
   --color-bg: #161826;
   --color-surface: #232532;
   --color-text: #e9e9ed;
@@ -2167,6 +2170,25 @@ fieldset:disabled .chip {
   color: var(--color-accent-200);
 }
 
+/*
+ * — Nom qui montre l'image de la carte (issue #71) —
+ * `CardNamePreview.tsx` : l'aperçu est en `position: fixed`, placé par
+ * `cardPreviewPosition`, parce que `.deck-table` coupe ce qui déborde.
+ */
+.card-name-preview {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.card-name-preview__popup {
+  position: fixed;
+  z-index: 40;
+  box-shadow: var(--shadow-lg);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
+
 .deck-table__recent {
   flex: none;
   font-size: 11px;
@@ -3609,24 +3631,71 @@ fieldset:disabled .chip {
   color: var(--color-accent-300);
 }
 
-.opponent-row__lend select {
-  background: transparent;
-  border: none;
-  color: inherit;
-  font: inherit;
-  max-width: 100%;
+/* Liste déroulante : Chrome sous Windows et Firefox appliquent ces couleurs aux options. */
+select option {
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
+.opponent-row__lend select {
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+  padding: 2px 16px 2px 0;
+  background: transparent
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d2cefd' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 2px center / 10px 6px;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.opponent-row__lend select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Siège d'un adversaire : chiffre centré, chevron dessiné, la liste suit le thème sombre. */
 .seat-select {
+  appearance: none;
   width: 44px;
   height: 44px;
+  padding: 0 12px 0 0;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-divider);
-  background: transparent;
+  background: var(--color-surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 1l3 3 3-3' fill='none' stroke='%23b2b6ca' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    no-repeat right 7px center / 8px 5px;
   color: var(--color-text);
   text-align: center;
   text-align-last: center;
-  font-size: 14px;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+
+.seat-select:hover {
+  border-color: var(--color-neutral-600);
+}
+
+.seat-select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+/* Sans siège : le tiret reste discret, le cadre invite à choisir. */
+.seat-select:has(option[value=""]:checked) {
+  background-color: transparent;
+  color: var(--color-neutral-500);
 }
 
 .icon-btn {
@@ -4388,6 +4457,28 @@ fieldset:disabled .chip {
     -1px -1px 0 var(--glyph-line, var(--color-neutral-100)),
     1px -1px 0 var(--glyph-line, var(--color-neutral-100)),
     -1px 1px 0 var(--glyph-line, var(--color-neutral-100));
+}
+
+/*
+ * Icône en SVG (type Master, absent d'ankha2) : un carré de 1em, aligné comme
+ * une lettre, avec le même filet clair que `.glyph--ankha` (dessin sombre sur
+ * clair). `drop-shadow` suit la forme du dessin, comme `text-shadow` la lettre.
+ */
+.glyph--image {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.glyph--image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter:
+    drop-shadow(1px 0 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(-1px 0 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(0 1px 0 var(--glyph-line, var(--color-neutral-100)))
+    drop-shadow(0 -1px 0 var(--glyph-line, var(--color-neutral-100)));
 }
 
 /*
@@ -7984,4 +8075,270 @@ button.revision-search__result:focus-visible {
   .compare-page .version-changes__groups {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+/*
+ * — Compte-rendu de tournoi (lot Compte-rendu) —
+ * `features/report/` : la trame (`ReportView`), l'écran du propriétaire
+ * (`TournamentReportPage`) et la page publique (`PublicReportPage`), à l'écran,
+ * dans les tokens Nocturne. L'impression a son bloc et sa feuille à part
+ * (`ReportPrint.tsx`, `features/report/reportPrint.css`, handoff P12).
+ */
+.report-page__top {
+  margin-bottom: var(--space-3);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-neutral-400);
+  text-decoration: none;
+}
+
+.report-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--color-neutral-800);
+  border-radius: var(--radius-md);
+}
+
+.report-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.report-panel__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-panel__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.report-panel__link {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.report-panel__pending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-accent-300);
+  font-size: 13px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tournament-report-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.account-reports {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-reports__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.account-reports__actions {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 960px;
+}
+
+.report__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report__title {
+  margin: 0;
+}
+
+.report__decks {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.report__dates,
+.report__facts,
+.report__author {
+  margin: 0;
+}
+
+.report__dates::first-letter {
+  text-transform: uppercase;
+}
+
+.report__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report__heading {
+  margin: 0;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-neutral-800);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.report__score {
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
+.report__facts-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+
+.report__facts-list dt {
+  color: var(--color-neutral-400);
+}
+
+.report__facts-list dd {
+  margin: 0;
+}
+
+.report__round-deck,
+.report__positions {
+  margin: 0;
+}
+
+.report__table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report__seat {
+  display: grid;
+  grid-template-columns: 2ch minmax(8rem, max-content) 1fr;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.report__seat--me .report__seat-name {
+  font-weight: 600;
+}
+
+.report__seat-number {
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.report__seat-deck {
+  color: var(--color-neutral-300);
+}
+
+.report__seat .report__notes {
+  grid-column: 2 / -1;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.report__notes {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.55;
+}
+
+.report__notes-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.report__notes-empty {
+  margin: 0;
+  font-style: italic;
+}
+
+.report__edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 13px;
+}
+
+.report__textarea {
+  width: 100%;
+  min-height: 8rem;
+  padding: var(--space-2);
+  border: 1px solid var(--color-neutral-700);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-900);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.report__editor-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.report__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report__list-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.report__footer {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-neutral-800);
 }

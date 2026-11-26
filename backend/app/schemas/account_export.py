@@ -47,8 +47,9 @@ from app.models.enums import (
     UserRole,
 )
 from app.schemas.base import ReadModel
+from app.schemas.report import ReportSnapshot
 
-ACCOUNT_EXPORT_FORMAT_VERSION = 2
+ACCOUNT_EXPORT_FORMAT_VERSION = 3
 
 _VEKN_ID = "Identifiant VEKN de la carte, stable d'une base à l'autre."
 _CARD_NAME = "Nom anglais de la carte, tel que le catalogue le porte."
@@ -242,14 +243,36 @@ class ExportedGame(ReadModel):
     participations: list[ExportedParticipation] = []
 
 
+class ExportedTournamentReportVersion(ReadModel):
+    """Une version d'un compte-rendu et son instantané (lot Compte-rendu)."""
+
+    number: int
+    created_at: datetime
+    snapshot: ReportSnapshot
+
+
+class ExportedTournamentReport(ReadModel):
+    """Le compte-rendu d'un tournoi, **sans le jeton** de son lien : un jeton
+    suffit à le lire, et le fichier peut traîner (comme les liens du Lot 13)."""
+
+    tournament_id: int
+    include_opponent_notes: bool
+    show_previous_versions: bool
+    shared: bool = Field(description="Le compte-rendu a un lien public.")
+    created_at: datetime
+    versions: list[ExportedTournamentReportVersion] = []
+
+
 class AccountExport(ReadModel):
     """Toutes les données d'un compte, lisibles sans la base (P3, A4)."""
 
-    format_version: Literal[1, 2] = Field(
+    format_version: Literal[1, 2, 3] = Field(
         description=(
             "Version de la forme du fichier ; change si un champ est retiré ou "
             "renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens "
-            "publics (`shares`) ; 1 reste décrit : même forme, sans ce champ."
+            "publics (`shares`), 3 depuis celui des comptes-rendus "
+            "(`tournament_reports`) ; les formes antérieures restent décrites, "
+            "sans ces champs."
         )
     )
     exported_at: datetime = Field(description="Instant de l'export, en UTC.")
@@ -264,3 +287,4 @@ class AccountExport(ReadModel):
     tournaments: list[ExportedTournament] = []
     games: list[ExportedGame] = []
     shares: list[ExportedDeckShare] = []
+    tournament_reports: list[ExportedTournamentReport] = []

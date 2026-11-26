@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { formatDelta, noticeMessages, type RevisionNoticeCounts } from "./revisionModel";
 import { MIN_SEARCH_LENGTH, useCardSearch, type RevisionCard } from "./useRevisionCards";
 
@@ -24,20 +24,24 @@ const MAX_COPIES = 99;
  * Nom d'une ligne et son écart à la liste d'origine (« nouvelle », « +1 »). La
  * marque vit dans la cellule du nom, qui a la place de la porter ; dans celle de
  * la quantité, trop étroite, elle débordait sur la capacité et sur le nom.
+ * `label` remplace le nom en texte, par exemple par le nom qui montre l'image
+ * (issue #71).
  */
 export function RevisionName({
   name,
   quantity,
   originalQuantity,
+  label,
 }: {
   name: string;
   quantity: number;
   originalQuantity: number;
+  label?: ReactNode;
 }) {
   const delta = quantity - originalQuantity;
   return (
     <>
-      <span className="deck-table__name-text">{name}</span>
+      {label ?? <span className="deck-table__name-text">{name}</span>}
       {delta !== 0 && (
         <span className="revision-delta" data-testid="revision-delta">
           {originalQuantity === 0 ? "nouvelle" : formatDelta(delta)}

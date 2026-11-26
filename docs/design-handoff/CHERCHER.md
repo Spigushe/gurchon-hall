@@ -25,7 +25,7 @@ Fichiers : `Gurchon Hall Chercher.dc.html` (mobile, écrans 26–42), `Gurchon H
 `@font-face` « Ankha VTES » (`ankha2.otf`) et « VTES Clans » (`vtes-clans.otf`), à servir depuis l'app et à mettre dans le précache. Correspondances (reprises de `krcg-blogger.js`) :
 
 - Disciplines, inférieure → lettre : abo w, ani i, aus a, cel c, chi k, dai y, dem e, dom d, for f, mel m, myt x, nec n, obe b, obf o, obt $, pot p, pre r, pro j, qui q, san g, ser s, spi z, tem ?, thn h, tha t, val l, vic v, vis u. Supérieure = majuscule, sauf TEM `!` et OBT `£`.
-- Types : action 0, action modifier 1, political 2, ally 3, combat 4, equipment 5, reflex 6, reaction 7, retainer 8, event `[`. Master n'a pas de glyphe.
+- Types : action 0, action modifier 1, political 2, ally 3, combat 4, equipment 5, reflex 6, reaction 7, retainer 8, event `[`. Master n'a pas de glyphe dans ankha2 : il s'affiche avec `src/assets/icons/master.svg`, repris de VDB (voir `COMPTE-RENDU.md`, « Glyphe Master »).
 - Coûts : sang 1 `'`, 2 `;`, 3 `.`, 4 `,`, X `-` ; pool 1 `"`, 2 `:`, 3 `/`, 4 `\`, 5 `]`, 6 `` ` ``, X `_`.
 - Divers : merged `µ`, advanced `|`, flight `^`, vertus inn #, def @, mar &, jus %, ven (, vin ), red *.
 - Clans (modernes) : Banu Haqim n, Brujah o, Gangrel p, Malkavian q, Ministry r, Nosferatu s, Toreador t, Tremere u, Ventrue v, Lasombra w ; le reste est dans `krcg-blogger.js`.

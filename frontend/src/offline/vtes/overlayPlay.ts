@@ -1,6 +1,6 @@
 import { foldText } from "../core/foldText";
 import type { RefBinding } from "../core/types";
-import type { GameRow, PlayerRow, TournamentRow, VenueRow } from "./db";
+import type { GameRow, PlayerRow, TournamentReportRow, TournamentRow, VenueRow } from "./db";
 import { certainGameWin, tournamentSummary, type RoundResult } from "./playRules";
 import { bindingsOfKind } from "./references";
 import type {
@@ -131,6 +131,14 @@ export interface LocalTournament extends LocalResource {
    * ligne. Un regel en file en retire les decks regelés.
    */
   deckVersions: LocalTournamentDeckVersion[];
+  /**
+   * Compte-rendu du tournoi au dernier rafraîchissement (lot Compte-rendu), ou
+   * nul ; une suppression en file le retire, un réglage des notes sur les
+   * adversaires en file s'y applique.
+   */
+  report: TournamentReportRow | null;
+  /** Demande au compte-rendu encore en file : `update` ou `delete`, sinon nul. */
+  reportRequest: "update" | "delete" | null;
 }
 
 /** La version figée d'un deck joué ; les deux champs sont nuls ensemble. */
@@ -387,6 +395,8 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       deckVersionNumber: version.deckVersionNumber,
       frozenByGameKey: `id:${version.frozenByGameId}` as ResourceKey,
     })),
+    report: row.report ?? null,
+    reportRequest: null,
   }));
 
   const playerKeyOfId = (id: number | null): ResourceKey | null =>
@@ -700,6 +710,8 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       summaryProvisional: false,
       admissibleFinalDecks: null,
       deckVersions: [],
+      report: null,
+      reportRequest: null,
     });
   }
 
@@ -729,6 +741,7 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       playerCount: data.player_count !== undefined ? data.player_count : tournament.playerCount,
       myRanking: data.my_ranking !== undefined ? data.my_ranking : tournament.myRanking,
       notes: data.notes !== undefined ? data.notes : tournament.notes,
+      ...reportState(tournament, data.report, pending),
       pending: tournament.pending || pending,
     });
   }
@@ -933,4 +946,25 @@ export function createPlayProjector(input: PlayInput, decks: DeckLookup): PlayPr
       };
     },
   };
+}
+
+type ReportRequestData = Extract<PlayOperation, { type: "tournament.update" }>["data"]["report"];
+
+/**
+ * Ce qu'une demande au compte-rendu fait au tournoi local (lot Compte-rendu) :
+ * une suppression retire le compte-rendu, un réglage des notes sur les
+ * adversaires s'applique ; tant qu'elle est en file, la demande est notée.
+ */
+export function reportState(
+  tournament: Pick<LocalTournament, "report" | "reportRequest">,
+  request: ReportRequestData,
+  pending: boolean,
+): Pick<LocalTournament, "report" | "reportRequest"> {
+  if (!request) return { report: tournament.report, reportRequest: tournament.reportRequest };
+  const reportRequest = pending ? request.action : tournament.reportRequest;
+  if (request.action === "delete") return { report: null, reportRequest };
+  const notes = request.include_opponent_notes;
+  const report =
+    tournament.report && notes != null ? { ...tournament.report, includeOpponentNotes: notes } : tournament.report;
+  return { report, reportRequest };
 }

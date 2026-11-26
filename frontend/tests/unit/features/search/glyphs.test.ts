@@ -32,7 +32,8 @@ describe("table des glyphes krcg", () => {
 
   it("types, coûts et clans", () => {
     expect(typeGlyph("Action Modifier")?.char).toBe("1");
-    expect(typeGlyph("Master")).toBeNull();
+    expect(typeGlyph("Master")).toMatchObject({ font: "image", char: "" });
+    expect(typeGlyph("master")?.src).toBeTruthy();
     expect(costGlyph("blood", "2")?.char).toBe(";");
     expect(costGlyph("pool", "x")?.char).toBe("_");
     expect(costGlyph("pool", "4")?.char).toBe("\\");

@@ -224,7 +224,37 @@ export interface TournamentRow {
   /** Decks admis en finale (A11), lus par le détail à chaque rafraîchissement ; `null` quand rien n'est contrôlable. */
   admissibleFinalDecks: number[] | null;
   notes: string | null;
+  /**
+   * Compte-rendu du tournoi (lot Compte-rendu) : réglages, lien et versions,
+   * sans les instantanés (magasin `reportVersions`). Absent d'une ligne écrite
+   * avant la version 8 de la base : la lecture le tient pour nul.
+   */
+  report?: TournamentReportRow | null;
   updatedAt: string;
+}
+
+/** Le compte-rendu d'un tournoi, tel que `TournamentDetailRead.report` le rend. */
+export interface TournamentReportRow {
+  includeOpponentNotes: boolean;
+  showPreviousVersions: boolean;
+  /** Jeton du lien public, nul tant que le compte-rendu n'est pas partagé. */
+  token: string | null;
+  createdAt: string;
+  /** Numéro et date de chaque version, par numéro croissant. */
+  versions: Array<{ number: number; createdAt: string }>;
+}
+
+/**
+ * Une version figée d'un compte-rendu et son instantané (lot Compte-rendu,
+ * P6), dans la forme du contrat. Une version ne change jamais : elle se lit une
+ * fois, comme une version de deck. Clé `<tournoi>:<numéro>`.
+ */
+export interface ReportVersionRow {
+  key: string;
+  tournamentId: number;
+  number: number;
+  createdAt: string;
+  snapshot: components["schemas"]["ReportSnapshot"];
 }
 
 /**
@@ -423,6 +453,14 @@ export const VTES_STORES_V6 = {
   deckVersions: "id, deckId",
 } as const;
 
+/**
+ * Lot Compte-rendu : les instantanés des versions des comptes-rendus, clé
+ * `<tournoi>:<numéro>`, index par tournoi. Ajout d'un magasin seulement.
+ */
+export const VTES_STORES_V7 = {
+  reportVersions: "key, tournamentId",
+} as const;
+
 export const DEFAULT_DB_NAME = "gurchon-hall-offline";
 
 export class VtesOfflineDb extends OfflineCoreDb {
@@ -438,6 +476,7 @@ export class VtesOfflineDb extends OfflineCoreDb {
   declare games: Table<GameRow, number>;
   declare cardDetails: Table<CardDetailRow, number>;
   declare deckVersions: Table<DeckVersionRow, number>;
+  declare reportVersions: Table<ReportVersionRow, string>;
 
   constructor(name: string = DEFAULT_DB_NAME) {
     super(name);
@@ -474,5 +513,9 @@ export class VtesOfflineDb extends OfflineCoreDb {
       .upgrade(async (tx) => {
         await tx.table("cardDetails").clear();
       });
+    // Version 8 (lot Compte-rendu) : les versions des comptes-rendus
+    // (`VTES_STORES_V7`). Ajout d'un magasin seulement ; `report` des
+    // tournois arrive au rafraîchissement suivant.
+    this.version(8).stores({ ...VTES_STORES_V7 });
   }
 }

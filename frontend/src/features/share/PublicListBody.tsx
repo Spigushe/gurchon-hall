@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ExportIcon, LinkIcon, PencilSimpleIcon } from "@phosphor-icons/react";
 import { LoadingState } from "../../components/Loading";
 import { DECK_ARCHETYPE_LABELS } from "../../offline/vtes";
+import { CardNamePreview } from "../decks/CardNamePreview";
 import { DeckTables } from "../decks/DeckTables";
 import type { DeckTableRow, DeckTables as DeckTablesModel } from "../decks/deckTablesModel";
 import { DeckExportSheet } from "../decks/export/DeckExportSheet";
@@ -193,17 +194,28 @@ function RevisionSession({
               )
             : undefined
         }
-        renderName={
-          revising
-            ? (row: DeckTableRow) => (
-                <RevisionName
-                  name={row.name}
-                  quantity={row.quantity}
-                  originalQuantity={lineById.get(row.cardId)?.originalQuantity ?? row.quantity}
-                />
-              )
-            : undefined
-        }
+        renderName={(row: DeckTableRow) => {
+          // Le nom montre l'image de la carte (issue #71), en lecture comme en
+          // révision ; au toucher, toute la ligne l'ouvre, sauf la quantité en
+          // révision, qui garde ses boutons.
+          const label = (
+            <CardNamePreview
+              name={row.name}
+              imageUrl={row.facts?.card.imageUrl}
+              wholeRow={{ exclude: revising ? ".deck-table__qty" : undefined }}
+            />
+          );
+          return revising ? (
+            <RevisionName
+              name={row.name}
+              quantity={row.quantity}
+              originalQuantity={lineById.get(row.cardId)?.originalQuantity ?? row.quantity}
+              label={label}
+            />
+          ) : (
+            label
+          );
+        }}
       />
       <RemovedCards
         cards={removed}

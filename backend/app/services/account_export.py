@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from alembic.runtime.migration import MigrationContext
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session, aliased, joinedload, lazyload
+from sqlalchemy.orm import Session, aliased, joinedload, lazyload, selectinload
 
 from app.models.account import UserAccount
 from app.models.catalog import Card
@@ -45,6 +45,7 @@ from app.models.play import (
     TournamentDeckVersion,
 )
 from app.models.reference import CardSet, Clan, Venue
+from app.models.report import TournamentReport
 from app.models.share import DeckShare, DeckShareCard
 from app.schemas.account_export import (
     ACCOUNT_EXPORT_FORMAT_VERSION,
@@ -62,8 +63,11 @@ from app.schemas.account_export import (
     ExportedPlayer,
     ExportedTournament,
     ExportedTournamentDeckVersion,
+    ExportedTournamentReport,
+    ExportedTournamentReportVersion,
     ExportedVenue,
 )
+from app.schemas.report import ReportSnapshot
 from app.services.text_search import folded_order
 
 UNKNOWN_REVISION = "inconnue"
@@ -396,6 +400,41 @@ def export_shares(db: Session, *, user_id: int) -> list[ExportedDeckShare]:
     ]
 
 
+# --- Comptes-rendus (lot Compte-rendu, A7) ----------------------------------
+
+
+def export_tournament_reports(
+    db: Session, *, user_id: int
+) -> list[ExportedTournamentReport]:
+    """Les comptes-rendus du compte et toutes leurs versions, **sans le jeton**.
+    `tournament_report_version` n'a pas de `user_id` : elle se lit par son
+    compte-rendu."""
+    reports = db.scalars(
+        select(TournamentReport)
+        .where(TournamentReport.user_id == user_id)
+        .options(selectinload(TournamentReport.versions))
+        .order_by(TournamentReport.id)
+    )
+    return [
+        ExportedTournamentReport(
+            tournament_id=report.tournament_id,
+            include_opponent_notes=report.include_opponent_notes,
+            show_previous_versions=report.show_previous_versions,
+            shared=report.token is not None,
+            created_at=report.created_at,
+            versions=[
+                ExportedTournamentReportVersion(
+                    number=version.number,
+                    created_at=version.created_at,
+                    snapshot=ReportSnapshot.model_validate_json(version.snapshot),
+                )
+                for version in report.versions
+            ],
+        )
+        for report in reports
+    ]
+
+
 # --- Assemblage --------------------------------------------------------------
 
 
@@ -416,6 +455,7 @@ def export_account(
         tournaments=export_tournaments(db, user_id=user_id),
         games=export_games(db, user_id=user_id),
         shares=export_shares(db, user_id=user_id),
+        tournament_reports=export_tournament_reports(db, user_id=user_id),
     )
 
 

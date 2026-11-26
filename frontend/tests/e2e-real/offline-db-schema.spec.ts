@@ -60,8 +60,8 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
                 ),
               };
             }
-            // Dexie multiplie la version par 10 : la version 7 du schéma (Lot 8, versions
-            // jouées, cf. `offline/vtes/db.ts`) est 70 côté IndexedDB.
+            // Dexie multiplie la version par 10 : la version 8 du schéma (lot Compte-rendu,
+            // versions des comptes-rendus, cf. `offline/vtes/db.ts`) est 80 côté IndexedDB.
             const version = db.version;
             db.close();
             resolve({ version, stores });
@@ -71,7 +71,7 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
       }),
   );
 
-  expect(schema.version).toBe(70);
+  expect(schema.version).toBe(80);
   expect(Object.keys(schema.stores).sort()).toEqual(
     [
       "cardDetails",
@@ -86,6 +86,7 @@ test("la base IndexedDB de la file existe avec son schéma, par compte, y compri
       "outbox",
       "players",
       "refs",
+      "reportVersions",
       "settled",
       "stock",
       "tournaments",

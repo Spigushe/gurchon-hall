@@ -116,6 +116,8 @@ function tournament(changes: Partial<LocalTournament> = {}): LocalTournament {
     summaryProvisional: false,
     admissibleFinalDecks: null,
     deckVersions: [],
+    report: null,
+    reportRequest: null,
     ...changes,
   };
 }

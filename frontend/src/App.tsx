@@ -41,6 +41,9 @@ const TournamentsPage = lazy(() =>
 const TournamentDetailPage = lazy(() =>
   import("./features/games/TournamentDetailPage").then((m) => ({ default: m.TournamentDetailPage })),
 );
+const TournamentReportPage = lazy(() =>
+  import("./features/report/TournamentReportPage").then((m) => ({ default: m.TournamentReportPage })),
+);
 const BilanPage = lazy(() => import("./features/analysis/BilanPage").then((m) => ({ default: m.BilanPage })));
 const DeckVersionPage = lazy(() =>
   import("./features/decks/DeckVersionPage").then((m) => ({ default: m.DeckVersionPage })),
@@ -82,6 +85,7 @@ for (const importRoute of [
   () => import("./features/games/GameDetailPage"),
   () => import("./features/games/TournamentsPage"),
   () => import("./features/games/TournamentDetailPage"),
+  () => import("./features/report/TournamentReportPage"),
   () => import("./features/games/NotebookPage"),
   () => import("./features/analysis/BilanPage"),
   () => import("./features/decks/DeckVersionPage"),
@@ -115,6 +119,7 @@ function navActive(route: Route): Record<NavKey, boolean> {
       route.name === "game" ||
       route.name === "tournaments" ||
       route.name === "tournament" ||
+      route.name === "tournamentReport" ||
       route.name === "bilan" ||
       route.name === "notebook",
     search: route.name === "search",
@@ -198,6 +203,8 @@ function Page({ route }: { route: Route }) {
       return <TournamentsPage />;
     case "tournament":
       return <TournamentDetailPage key={route.key} tournamentKey={route.key} />;
+    case "tournamentReport":
+      return <TournamentReportPage key={route.key} tournamentKey={route.key} />;
     case "bilan":
       // Le deck de l'adresse n'est lu qu'au montage ; une clé le remonte quand on vient d'un autre deck.
       return <BilanPage key={route.deck ?? "all"} initialDeck={route.deck ?? null} />;
@@ -464,7 +471,7 @@ function App() {
   // Après une navigation, le focus va au contenu : sans cela, un utilisateur au
   // clavier ou au lecteur d'écran reste sur le lien qu'il vient d'activer.
   const routeId =
-    route.name === "deck" || route.name === "game" || route.name === "tournament"
+    route.name === "deck" || route.name === "game" || route.name === "tournament" || route.name === "tournamentReport"
       ? `${route.name}:${route.key}`
       : route.name;
   const previousId = useRef(routeId);

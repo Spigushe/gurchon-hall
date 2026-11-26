@@ -12,7 +12,9 @@ import type {
   GameTableLineRow,
   LanguageRow,
   PlayerRow,
+  ReportVersionRow,
   StockRow,
+  TournamentReportRow,
   TournamentRow,
   VenueRow,
   VtesOfflineDb,
@@ -417,6 +419,8 @@ export async function refreshTournaments(client: ApiClient, db: VtesOfflineDb): 
         frozenByGameId: version.frozen_by_game_id,
       })),
       notes: detail.notes,
+      // Un serveur d'avant le lot Compte-rendu ne rend pas `report` : nul.
+      report: detail.report ? reportRow(detail.report) : null,
       updatedAt: detail.updated_at,
     });
   }
@@ -426,6 +430,19 @@ export async function refreshTournaments(client: ApiClient, db: VtesOfflineDb): 
     await pruneSettled(db, settledUpTo, isTournamentOperation);
   });
   return rows.length;
+}
+
+function reportRow(report: Schemas["TournamentReportRead"]): TournamentReportRow {
+  return {
+    includeOpponentNotes: report.include_opponent_notes,
+    showPreviousVersions: report.show_previous_versions,
+    token: report.token,
+    createdAt: report.created_at,
+    versions: report.versions.map((version) => ({
+      number: version.number,
+      createdAt: version.created_at,
+    })),
+  };
 }
 
 function gameRow(game: Schemas["GameRead"], table: GameTableLineRow[] | null): GameRow {
@@ -568,6 +585,53 @@ export async function refreshDeckVersions(client: ApiClient, db: VtesOfflineDb):
   await db.transaction("rw", db.deckVersions, async () => {
     await db.deckVersions.clear();
     await db.deckVersions.bulkPut(rows);
+  });
+  return rows.length;
+}
+
+// --- Versions des comptes-rendus (lot Compte-rendu) --------------------------
+
+export const reportVersionKey = (tournamentId: number, number: number): string =>
+  `${tournamentId}:${number}`;
+
+/**
+ * Instantanés des versions des comptes-rendus, lus par
+ * `GET /tournois/{id}/compte-rendu/versions/{n}` pour les seules versions que
+ * les tournois du miroir désignent et que le magasin n'a pas : à appeler
+ * **après** les tournois (`runtime.ts`). Une version ne change jamais. Une
+ * version qui n'est plus désignée (compte-rendu supprimé) sort du magasin ;
+ * une version introuvable (404) est omise ; toute autre erreur annule le
+ * rafraîchissement, l'ancien miroir restant intact.
+ */
+export async function refreshReportVersions(client: ApiClient, db: VtesOfflineDb): Promise<number> {
+  const tournaments = await db.tournaments.toArray();
+  const known = new Map((await db.reportVersions.toArray()).map((row) => [row.key, row]));
+  const rows: ReportVersionRow[] = [];
+  for (const tournament of tournaments) {
+    for (const version of tournament.report?.versions ?? []) {
+      const key = reportVersionKey(tournament.id, version.number);
+      const existing = known.get(key);
+      if (existing) {
+        rows.push(existing);
+        continue;
+      }
+      const result = await client.GET("/tournois/{tournament_id}/compte-rendu/versions/{number}", {
+        params: { path: { tournament_id: tournament.id, number: version.number } },
+      });
+      if (result.data === undefined && result.response.status === 404) continue;
+      const read = unwrap(result, `GET /tournois/${tournament.id}/compte-rendu/versions/${version.number}`);
+      rows.push({
+        key,
+        tournamentId: tournament.id,
+        number: read.number,
+        createdAt: read.created_at,
+        snapshot: read.snapshot,
+      });
+    }
+  }
+  await db.transaction("rw", db.reportVersions, async () => {
+    await db.reportVersions.clear();
+    await db.reportVersions.bulkPut(rows);
   });
   return rows.length;
 }

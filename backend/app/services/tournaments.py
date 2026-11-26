@@ -13,7 +13,11 @@ VP et GW de la finale. Pas de points de tournoi, pas de place à la table.
   classement contre le nombre de joueurs et ma finale ;
 * 409 : ce que les parties déjà saisies contredisent (mono-deck, deck de finale
   selon la règle annoncée, nombre de rondes sous une ronde déjà jouée) et la
-  suppression d'un tournoi qui contient des parties (A9).
+  suppression d'un tournoi qui contient des parties (A9) ou un compte-rendu
+  (lot Compte-rendu, P10).
+
+**Compte-rendu** : le champ `report` d'une modification s'applique après les
+autres, dans la même transaction (`tournament_reports.apply_request`).
 """
 
 from datetime import date
@@ -31,7 +35,7 @@ from app.schemas.play import (
     TournamentSummary,
     TournamentUpdate,
 )
-from app.services import deck_versions, games, refs, vtes_rules
+from app.services import deck_versions, games, refs, tournament_reports, vtes_rules
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import commit_or_conflict, integrity_as_conflict
 from app.services.play_checks import (
@@ -144,6 +148,7 @@ def get_tournament(
             TournamentDeckVersionRead.model_validate(row)
             for row in deck_versions.tournament_versions(db, user_id, tournament_id)
         ],
+        report=tournament_reports.read_for_tournament(db, user_id, tournament_id),
     )
 
 
@@ -190,7 +195,11 @@ def update_tournament(
     zéro ; les autres, omis, ne changent pas."""
     tournament = _load(db, user_id, tournament_id)
     fields = payload.model_fields_set
-    changes = {name: getattr(payload, name) for name in fields if name != "venue"}
+    changes = {
+        name: getattr(payload, name)
+        for name in fields
+        if name not in ("venue", "report")
+    }
 
     venue_id = tournament.venue_id
     if "venue" in fields:
@@ -224,6 +233,11 @@ def update_tournament(
     for name, value in changes.items():
         setattr(tournament, name, value)
     tournament.venue_id = venue_id
+    if payload.report is not None:
+        # Après les autres champs : l'instantané voit le tournoi modifié.
+        with integrity_as_conflict(db, _WRITE_CONFLICT):
+            db.flush()
+        tournament_reports.apply_request(db, user_id, tournament, payload.report)
     commit_or_conflict(db, _WRITE_CONFLICT)
     db.refresh(tournament)
     return _read(tournament, rounds)
@@ -243,6 +257,10 @@ def delete_tournament(db: Session, user_id: int, tournament_id: int) -> None:
         raise ConflictError(
             f"Ce tournoi contient {noun} : supprimez-les ou détachez-les du "
             "tournoi d'abord."
+        )
+    if tournament_reports.has_report(db, user_id, tournament_id):
+        raise ConflictError(
+            "Ce tournoi a un compte-rendu : supprimez-le d'abord (P10)."
         )
     db.delete(tournament)
     with integrity_as_conflict(db, _WRITE_CONFLICT):

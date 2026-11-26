@@ -163,6 +163,12 @@ export interface FakeServer {
       number,
       Array<{ deck_id: number; deck_version_id: number; deck_version_number: number; frozen_by_game_id: number }>
     >;
+    /**
+     * Comptes-rendus (lot Compte-rendu), par identifiant de tournoi : `report`
+     * rendu par `GET /tournois/{id}`, et l'instantané de chaque version servi
+     * par `GET /tournois/{id}/compte-rendu/versions/{n}`. Absent : `report: null`.
+     */
+    reports: Map<number, { read: FakeReportRead; snapshots: Map<number, unknown> }>;
     journal: Map<string, { fingerprint: string; verdict: Verdict }>;
     /**
      * Types d'opérations que le serveur factice refuse (`invalid`), pour obtenir
@@ -201,6 +207,16 @@ export interface FakeServer {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
+/** `TournamentReportRead` tel que le serveur le rend (lot Compte-rendu). */
+export interface FakeReportRead {
+  tournament_id: number;
+  include_opponent_notes: boolean;
+  show_previous_versions: boolean;
+  token: string | null;
+  created_at: string;
+  versions: Array<{ number: number; created_at: string }>;
+}
+
 export function createFakeServer(): FakeServer {
   const state: FakeServer["state"] = {
     stock: new Map(),
@@ -214,6 +230,7 @@ export function createFakeServer(): FakeServer {
     admissible: new Map(),
     deckVersions: [],
     tournamentDeckVersions: new Map(),
+    reports: new Map(),
     journal: new Map(),
     refusedTypes: new Set(),
     requests: [],
@@ -816,7 +833,17 @@ export function createFakeServer(): FakeServer {
           games: state.games.filter((g) => g.tournament_id === tournament.id).map(gameRead),
           admissible_final_decks: state.admissible.get(tournament.id) ?? null,
           deck_versions: state.tournamentDeckVersions.get(tournament.id) ?? [],
+          report: state.reports.get(tournament.id)?.read ?? null,
         });
+      }
+      const reportVersionMatch = url.pathname.match(/^\/tournois\/(\d+)\/compte-rendu\/versions\/(\d+)$/);
+      if (reportVersionMatch) {
+        const report = state.reports.get(Number(reportVersionMatch[1]));
+        const number = Number(reportVersionMatch[2]);
+        const snapshot = report?.snapshots.get(number);
+        const summary = report?.read.versions.find((version) => version.number === number);
+        if (!snapshot || !summary) return json({ detail: "introuvable" }, 404);
+        return json({ number, created_at: summary.created_at, snapshot });
       }
       if (url.pathname === "/parties") return json(state.games.map(gameRead));
       const gameMatch = url.pathname.match(/^\/parties\/(\d+)$/);

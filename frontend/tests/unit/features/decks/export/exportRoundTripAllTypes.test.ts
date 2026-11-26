@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DeckCardFacts } from "../../../../../src/features/decks/deckTablesModel";
-import {
-  VDB_LIBRARY_TYPE_ORDER,
-  exportVdbText,
-  reprintedCardIds,
-} from "../../../../../src/features/decks/export/exportVdbText";
+import { exportVdbText, reprintedCardIds } from "../../../../../src/features/decks/export/exportVdbText";
+import { VDB_CARDTYPE_ORDER } from "../../../../../src/features/decks/libraryTypeOrder";
 import { buildCardIndex } from "../../../../../src/features/decks/import/cardIndex";
 import { matchDecklist } from "../../../../../src/features/decks/import/matchDecklist";
 import { parseDecklist } from "../../../../../src/features/decks/import/parseDecklist";
@@ -12,8 +9,8 @@ import type { LocalDeckCard } from "../../../../../src/offline/vtes";
 import { crypt, library, mirrorRows, type CardSearchItem } from "../../../offline/fixtures/syntheticCatalog";
 
 // Lot 9, étape E : l'aller-retour export puis import sur une liste qui couvre la crypte
-// (advanced, groupe « Any », vampire réimprimé), **les treize types de bibliothèque** de VDB et
-// leurs combinaisons. Les cinq réponses d'API réelles ne portent pas tous les types, et leur
+// (advanced, groupe « Any », vampire réimprimé), **les dix-sept libellés de bibliothèque** de VDB
+// (`cardtypeSortedFull.json`), et des types ou combinaisons que VDB ne range pas. Les cinq réponses d'API réelles ne portent pas tous les types, et leur
 // aller-retour se fait sans détails de carte (tout part en « Unknown »), donc il ne prouve rien
 // sur l'ordre ni sur les en-têtes de type : celui-ci les exerce, avec les faits de carte.
 
@@ -32,7 +29,7 @@ const card = (id: number, name: string, types: string[], quantity = 1, text: str
   quantity,
 });
 
-/** Un type, ou une combinaison, par ligne : chacun des treize types de `VDB_LIBRARY_TYPE_ORDER`. */
+/** Un type, ou une combinaison, par ligne : chacun des libellés de `VDB_CARDTYPE_ORDER`, plus deux hors liste. */
 const TYPE_CARDS: Entry[] = [
   card(100, "Villein", ["Master"], 3, "Trifle. Put this card on a vampire you control."),
   card(101, "The Anarch Free Press", ["Master"], 1),
@@ -49,12 +46,15 @@ const TYPE_CARDS: Entry[] = [
   card(200, "Taste of Vitae", ["Combat"], 6),
   card(210, "Reflex Card", ["Reflex"], 1),
   card(220, "Unmasking, The", ["Event"], 1),
-  // Combinaisons : chacune forme son groupe, au rang de son premier type.
+  // Combinaisons : chacune prend le libellé de VDB qui a ses types, dans quelque ordre qu'ils viennent.
   card(230, "Earth Control", ["Reaction", "Action Modifier"], 2),
   card(231, "Wake with Evening's Freshness", ["Reaction", "Combat"], 1),
   card(232, "Sudden Reversal", ["Combat", "Reaction"], 1),
   card(233, "Deflection", ["Action", "Reaction"], 2),
-  card(234, "Rego Motus", ["Action", "Political Action"], 1),
+  card(235, "Ambush Card", ["Combat", "Action"], 1),
+  card(236, "Strike Modifier Card", ["Combat", "Action Modifier"], 1),
+  // Hors liste de VDB : après Event, par libellé.
+  card(234, "Rego Motus", ["Political Action", "Action"], 1),
 ];
 
 const CRYPT_CARDS: Entry[] = [
@@ -116,32 +116,17 @@ describe("aller-retour sur une liste qui couvre la crypte et tous les types de b
     expect(byId.get(5)?.groupCode).toBe("Any");
   });
 
-  it("écrit un en-tête par type, dans l'ordre de VDB, puis chaque combinaison au rang de son premier type", () => {
+  it("écrit un en-tête par libellé, dans l'ordre de VDB, puis les libellés hors liste après Event", () => {
     const titles = text
       .split("\n")
       .map((line) => /^([A-Z][A-Za-z /]+) \(\d+(?:; \d+ trifle)?\)$/.exec(line)?.[1])
       .filter((title): title is string => title !== undefined && title !== "Library" && title !== "Crypt");
     expect(titles).toEqual([
-      "Master",
-      "Conviction",
-      "Power",
-      "Action",
+      ...VDB_CARDTYPE_ORDER,
       "Action/Political Action",
-      "Action/Reaction",
-      "Political Action",
-      "Ally",
-      "Equipment",
-      "Retainer",
-      "Action Modifier",
-      "Action Modifier/Reaction",
-      "Reaction",
-      "Reaction/Combat",
-      "Combat",
       "Reflex",
-      "Event",
     ]);
-    // Les treize types de VDB figurent tous en simple.
-    for (const type of VDB_LIBRARY_TYPE_ORDER) expect(titles).toContain(type);
+    expect(VDB_CARDTYPE_ORDER).toContain("Combat/Reaction");
   });
 
   it("compte les trifles dans l'en-tête de Master et le total de bibliothèque", () => {

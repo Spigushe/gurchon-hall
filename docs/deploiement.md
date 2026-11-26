@@ -326,3 +326,17 @@ Après celui de la v1.2 (Lot 13, F ; checklist complète dans
 Retour arrière depuis la v1.2 : R16 ne redescend pas dès qu'un lien existe.
 Restaurer la copie d'avant déploiement (les liens créés depuis sont perdus),
 puis redéployer `v1.1.1`.
+
+Après celui de la v1.2.1 (lot Compte-rendu, F ; checklist complète dans
+`docs/lot-compte-rendu-plan.md`, « Avancement de F ») :
+
+- `curl -si https://api-gurchon.spigushe.com/comptes-rendus/zzzzzzzz` rend 404,
+  sans `Set-Cookie` ;
+- un compte-rendu partagé s'ouvre dans une fenêtre privée, et la ligne
+  `http.request` porte `/comptes-rendus/{token}`, jamais le jeton ;
+- l'impression de la page donne le PDF du handoff, sur Chrome Windows et
+  Chrome Android.
+
+Retour arrière depuis la v1.2.1 : R17 ne redescend pas dès qu'un compte-rendu
+existe. Restaurer la copie d'avant déploiement (les comptes-rendus créés depuis
+sont perdus), puis redéployer `v1.2.0`.

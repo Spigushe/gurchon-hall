@@ -138,6 +138,7 @@ const SCREEN_TITLES: Record<Route["name"], string> = {
   game: "Partie",
   tournaments: "Tournois",
   tournament: "Tournoi",
+  tournamentReport: "Compte-rendu",
   bilan: "Bilan",
   notebook: "Carnet",
   sync: "Synchronisation",

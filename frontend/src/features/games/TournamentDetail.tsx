@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ClockCountdownIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { ClockCountdownIcon, NotebookIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { Kbd } from "../../components/Kbd";
 import { useGuardedAction } from "../../components/useGuardedAction";
@@ -330,6 +330,19 @@ export function TournamentDetail({
 
       {games !== undefined && <TournamentDecks tournament={tournament} games={games} deckName={deckName} dense={dense} />}
 
+      <div className="tournament-report-entry" data-testid="tournament-report-entry">
+        <Link
+          to={{ name: "tournamentReport", key: tournament.key }}
+          className="btn btn-secondary"
+          data-testid="tournament-report-link"
+        >
+          <NotebookIcon size={16} aria-hidden="true" /> Compte-rendu
+        </Link>
+        <span className="page-meta" data-testid="tournament-report-status">
+          {reportStatus(tournament)}
+        </span>
+      </div>
+
       {!dense && actionsBlock}
 
       {games !== undefined && <RankingSection tournament={tournament} final={rounds.final} />}
@@ -342,7 +355,7 @@ export function TournamentDetail({
         </p>
       )}
 
-      <TournamentDeletion action={action} ready={games !== undefined} gameCount={gameCount} onDelete={() => actions.deleteTournament(tournament.key)} onDeleted={onDeleted} />
+      <TournamentDeletion action={action} ready={games !== undefined} gameCount={gameCount} hasReport={tournament.report !== null} onDelete={() => actions.deleteTournament(tournament.key)} onDeleted={onDeleted} />
 
       {editing === "tournament" && <TournamentForm tournament={tournament} onClose={() => setEditing(null)} />}
       {(editing === "round" || editing === "final") && (
@@ -526,12 +539,14 @@ function TournamentDeletion({
   action,
   ready,
   gameCount,
+  hasReport,
   onDelete,
   onDeleted,
 }: {
   action: ReturnType<typeof useGuardedAction>;
   ready: boolean;
   gameCount: number;
+  hasReport: boolean;
   onDelete: () => Promise<unknown>;
   onDeleted?: () => void;
 }) {
@@ -547,7 +562,7 @@ function TournamentDeletion({
             disabled={action.pending || !ready}
             data-testid="tournament-delete"
             onClick={() => {
-              const text = deleteRefusal(gameCount);
+              const text = deleteRefusal(gameCount, hasReport);
               setRefusal(text);
               setConfirming(text === null);
             }}
@@ -602,4 +617,12 @@ function TournamentDeletion({
       )}
     </>
   );
+}
+
+/** État du compte-rendu sous son lien (lot Compte-rendu). */
+function reportStatus(tournament: { report: { versions: unknown[] } | null; reportRequest: string | null }): string {
+  if (tournament.reportRequest === "update") return "Mise à jour en attente de synchronisation";
+  const count = tournament.report?.versions.length ?? 0;
+  if (count === 0) return "Pas encore de version";
+  return count === 1 ? "1 version" : `${count} versions`;
 }

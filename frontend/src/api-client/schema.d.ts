@@ -852,6 +852,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tournois/{tournament_id}/compte-rendu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compte-rendu d'un tournoi
+         * @description Réglages, lien et versions (sans leurs instantanés). 404 pour un tournoi inconnu ou d'un autre compte, et pour un tournoi sans compte-rendu.
+         */
+        get: operations["readTournamentReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Réglages en ligne d'un compte-rendu
+         * @description Dit si les versions antérieures se lisent par le lien public (P9). En ligne seulement. L'inclusion des notes sur les adversaires, elle, voyage avec la demande de mise à jour (`PATCH /tournois/{id}`, champ `report`).
+         */
+        patch: operations["updateTournamentReportSettings"];
+        trace?: never;
+    };
+    "/tournois/{tournament_id}/compte-rendu/versions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Une version d'un compte-rendu
+         * @description La version `number` et son instantané, figé par le serveur. Une version ne change jamais. 404 pour un numéro que le compte-rendu n'a pas.
+         */
+        get: operations["readTournamentReportVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tournois/{tournament_id}/compte-rendu/lien": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crée le lien public d'un compte-rendu
+         * @description Tire un jeton de huit caractères et rend le compte-rendu avec son `token` ; rend le lien existant s'il y en a déjà un. Le lien montre toujours la dernière version. 409 tant qu'aucune version n'est coupée.
+         */
+        post: operations["shareTournamentReport"];
+        /**
+         * Purge le lien public d'un compte-rendu
+         * @description Seul moyen de révoquer le lien (P8) : il rend 404 à sa lecture publique, dans la minute (cache). Idempotente. Un nouveau partage tire un jeton neuf.
+         */
+        delete: operations["revokeTournamentReportLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/moi/comptes-rendus": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Comptes-rendus du compte
+         * @description Les comptes-rendus du compte, du tournoi le plus récent au plus ancien, avec leur lien et leur dernière version (écran Compte, « Partages »).
+         */
+        get: operations["listMyTournamentReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comptes-rendus/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lit un compte-rendu partagé (publique)
+         * @description **Publique** : ni session ni cookie. Nom d'utilisateur de l'auteur, instantané de la version (noms des adversaires et decks joués compris, notes sur les adversaires seulement si l'auteur les inclut) et faits des cartes des listes jouées. 422 pour un jeton hors motif ; 429 au-delà de la limite de débit par adresse IP ; 404 « Compte-rendu introuvable. », le même pour un jeton inconnu ou purgé.
+         */
+        get: operations["readPublicTournamentReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comptes-rendus/{token}/versions/{number}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lit une version d'un compte-rendu partagé (publique)
+         * @description **Publique** : ni session ni cookie. Nom d'utilisateur de l'auteur, instantané de la version (noms des adversaires et decks joués compris, notes sur les adversaires seulement si l'auteur les inclut) et faits des cartes des listes jouées. 422 pour un jeton hors motif ; 429 au-delà de la limite de débit par adresse IP ; 404 « Compte-rendu introuvable. », le même pour un jeton inconnu ou purgé, et pour une version antérieure quand l'auteur ne les montre pas (P9).
+         */
+        get: operations["readPublicTournamentReportVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -863,10 +991,10 @@ export interface components {
         AccountExport: {
             /**
              * Format Version
-             * @description Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`) ; 1 reste décrit : même forme, sans ce champ.
+             * @description Version de la forme du fichier ; change si un champ est retiré ou renommé, pas quand un champ s'ajoute. 2 depuis l'ajout des liens publics (`shares`), 3 depuis celui des comptes-rendus (`tournament_reports`) ; les formes antérieures restent décrites, sans ces champs.
              * @enum {integer}
              */
-            format_version: 1 | 2;
+            format_version: 1 | 2 | 3;
             /**
              * Exported At
              * Format: date-time
@@ -914,6 +1042,11 @@ export interface components {
              * @default []
              */
             shares: components["schemas"]["ExportedDeckShare"][];
+            /**
+             * Tournament Reports
+             * @default []
+             */
+            tournament_reports: components["schemas"]["ExportedTournamentReport"][];
         };
         /**
          * BundleCardRead
@@ -2708,6 +2841,48 @@ export interface components {
             frozen_by_game_id: number;
         };
         /**
+         * ExportedTournamentReport
+         * @description Le compte-rendu d'un tournoi, **sans le jeton** de son lien : un jeton
+         *     suffit à le lire, et le fichier peut traîner (comme les liens du Lot 13).
+         */
+        ExportedTournamentReport: {
+            /** Tournament Id */
+            tournament_id: number;
+            /** Include Opponent Notes */
+            include_opponent_notes: boolean;
+            /** Show Previous Versions */
+            show_previous_versions: boolean;
+            /**
+             * Shared
+             * @description Le compte-rendu a un lien public.
+             */
+            shared: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Versions
+             * @default []
+             */
+            versions: components["schemas"]["ExportedTournamentReportVersion"][];
+        };
+        /**
+         * ExportedTournamentReportVersion
+         * @description Une version d'un compte-rendu et son instantané (lot Compte-rendu).
+         */
+        ExportedTournamentReportVersion: {
+            /** Number */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            snapshot: components["schemas"]["ReportSnapshot"];
+        };
+        /**
          * ExportedVenue
          * @description Un lieu.
          */
@@ -3069,6 +3244,25 @@ export interface components {
             sort_order: number;
         };
         /**
+         * MyTournamentReportRead
+         * @description Un compte-rendu du compte, pour l'écran Compte (« Partages »).
+         */
+        MyTournamentReportRead: {
+            /** Tournament Id */
+            tournament_id: number;
+            /** Tournament Name */
+            tournament_name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** Token */
+            token: string | null;
+            /** Latest Number */
+            latest_number: number | null;
+        };
+        /**
          * ParticipantRef
          * @description Le joueur d'une ligne de table : moi, ou un joueur désigné.
          *
@@ -3397,6 +3591,205 @@ export interface components {
          * @enum {string}
          */
         PrintOccurrence: "rarity" | "precon" | "single";
+        /**
+         * PublicTournamentReportRead
+         * @description Une version d'un compte-rendu lue par son lien, sans session (P8, P9).
+         *
+         *     `versions` liste les versions lisibles par le lien : toutes si le
+         *     propriétaire l'autorise, sinon la dernière seule. `cards` porte les faits
+         *     des cartes des listes jouées, sous la forme de `GET /cartes`.
+         */
+        PublicTournamentReportRead: {
+            /** Author */
+            author: string;
+            /** Number */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Latest Number */
+            latest_number: number;
+            /**
+             * Versions
+             * @default []
+             */
+            versions: components["schemas"]["TournamentReportVersionSummary"][];
+            snapshot: components["schemas"]["ReportSnapshot"];
+            /**
+             * Cards
+             * @default []
+             */
+            cards: components["schemas"]["CardSearchItem"][];
+        };
+        /**
+         * ReportDeck
+         * @description Un de mes decks joué dans le tournoi, avec la liste que la version montre
+         *     (la version du Lot 8 qu'il a dans ce tournoi), copiée. Nom sans
+         *     discriminant, comme sur une page publique du Lot 13.
+         */
+        ReportDeck: {
+            /** Deck Id */
+            deck_id: number;
+            /** Name */
+            name: string;
+            archetype: components["schemas"]["DeckArchetype"] | null;
+            /**
+             * Version Number
+             * @description Numéro de la version jouée (Lot 8) ; nul si aucune n'est figée.
+             */
+            version_number: number | null;
+            /**
+             * Cards
+             * @default []
+             */
+            cards: components["schemas"]["ReportDeckCard"][];
+        };
+        /**
+         * ReportDeckCard
+         * @description Une carte d'une liste jouée, avec sa quantité totale.
+         */
+        ReportDeckCard: {
+            /** Card Id */
+            card_id: number;
+            /** Quantity */
+            quantity: number;
+        };
+        /**
+         * ReportRound
+         * @description Une ronde préliminaire ou la finale : sa table et ses notes.
+         */
+        ReportRound: {
+            round_type: components["schemas"]["RoundType"];
+            /** Round Number */
+            round_number: number | null;
+            /**
+             * Played At
+             * Format: date-time
+             */
+            played_at: string;
+            /** Player Count */
+            player_count: number;
+            /** Notes */
+            notes: string | null;
+            /**
+             * Seats
+             * @default []
+             */
+            seats: components["schemas"]["ReportSeat"][];
+        };
+        /**
+         * ReportSeat
+         * @description Une ligne de la table d'une ronde, dans l'ordre des sièges.
+         *
+         *     Ma ligne porte `is_me`, le deck que j'y joue (`deck_id`, qui renvoie à
+         *     `ReportSnapshot.decks`), mes VP et mon GW. Une ligne d'adversaire porte son
+         *     nom (nul pour un joueur non nommé) et son deck : un de mes decks prêté
+         *     (`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,
+         *     `deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu
+         *     les inclut (P4).
+         */
+        ReportSeat: {
+            /** Seat */
+            seat: number | null;
+            /** Is Me */
+            is_me: boolean;
+            /** Player Name */
+            player_name: string | null;
+            /** Deck Id */
+            deck_id: number | null;
+            /** Deck Name */
+            deck_name: string | null;
+            deck_archetype: components["schemas"]["DeckArchetype"] | null;
+            /** Clan Name */
+            clan_name: string | null;
+            /** Victory Points */
+            victory_points: number | null;
+            /** Game Win */
+            game_win: boolean | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
+         * ReportSnapshot
+         * @description Tout ce que montre une version du compte-rendu (P3, P6, A3).
+         */
+        ReportSnapshot: {
+            /**
+             * Format Version
+             * @description Forme de l'instantané (1).
+             */
+            format_version: number;
+            tournament: components["schemas"]["ReportTournament"];
+            summary: components["schemas"]["ReportSummary"];
+            /**
+             * Decks
+             * @description Mes decks joués, dans l'ordre de leur première ronde.
+             * @default []
+             */
+            decks: components["schemas"]["ReportDeck"][];
+            /**
+             * Rounds
+             * @description Les rondes dans l'ordre, la finale en dernier.
+             * @default []
+             */
+            rounds: components["schemas"]["ReportRound"][];
+        };
+        /**
+         * ReportSummary
+         * @description Mon bilan, celui de `TournamentRead.my_summary` au moment de la version.
+         */
+        ReportSummary: {
+            /** Preliminary Game Wins */
+            preliminary_game_wins: number;
+            /** Preliminary Victory Points */
+            preliminary_victory_points: number;
+            /** Rounds Played */
+            rounds_played: number;
+            /** Final Victory Points */
+            final_victory_points: number | null;
+            /** Final Game Win */
+            final_game_win: boolean | null;
+        };
+        /**
+         * ReportTournament
+         * @description Le tournoi, tel que la trame l'affiche en tête (P3).
+         */
+        ReportTournament: {
+            /** Name */
+            name: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /** End Date */
+            end_date: string | null;
+            venue: components["schemas"]["ReportVenue"] | null;
+            deck_policy: components["schemas"]["DeckPolicy"];
+            format: components["schemas"]["TournamentFormat"];
+            event_tier: components["schemas"]["EventTier"];
+            final_deck_rule: components["schemas"]["FinalDeckRule"] | null;
+            /** Round Count */
+            round_count: number | null;
+            /** Player Count */
+            player_count: number | null;
+            /** My Ranking */
+            my_ranking: number | null;
+            /** Notes */
+            notes: string | null;
+        };
+        /**
+         * ReportVenue
+         * @description Le lieu du tournoi : nom et ville, jamais ses notes (P4).
+         */
+        ReportVenue: {
+            /** Name */
+            name: string;
+            /** City */
+            city: string | null;
+        };
         /**
          * RoundType
          * @description Nature d'une partie dans un tournoi (ou hors tournoi).
@@ -4012,6 +4405,8 @@ export interface components {
              * @default []
              */
             deck_versions: components["schemas"]["TournamentDeckVersionRead"][];
+            /** @description Le compte-rendu du tournoi (lot Compte-rendu), sans les instantanés de ses versions ; nul tant qu'aucun n'a été demandé. */
+            report: components["schemas"]["TournamentReportRead"] | null;
         };
         /**
          * TournamentFormat
@@ -4084,6 +4479,94 @@ export interface components {
             client_ref?: string | null;
         };
         /**
+         * TournamentReportRead
+         * @description Le compte-rendu d'un tournoi : réglages, lien et versions.
+         */
+        TournamentReportRead: {
+            /** Tournament Id */
+            tournament_id: number;
+            /** Include Opponent Notes */
+            include_opponent_notes: boolean;
+            /**
+             * Show Previous Versions
+             * @description Les versions antérieures se lisent par le lien public (P9).
+             */
+            show_previous_versions: boolean;
+            /**
+             * Token
+             * @description Jeton du lien public (`#/compte-rendu/<jeton>`), nul tant que le compte-rendu n'est pas partagé ou après une purge.
+             */
+            token: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Versions
+             * @description Les versions, par numéro croissant.
+             * @default []
+             */
+            versions: components["schemas"]["TournamentReportVersionSummary"][];
+        };
+        /**
+         * TournamentReportRequest
+         * @description Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.
+         *
+         *     `update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il
+         *     n'existe pas, applique `include_opponent_notes` s'il est fourni, puis
+         *     coupe une version si l'instantané diffère de la dernière (P5). `delete`
+         *     supprime le compte-rendu, ses versions et son lien (P10). Les deux
+         *     s'appliquent après les autres champs de la même écriture.
+         */
+        TournamentReportRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "update" | "delete";
+            /**
+             * Include Opponent Notes
+             * @description Inclure les notes sur les adversaires (P4), avec `update` seulement ; omis, le réglage ne change pas (faux à la création).
+             */
+            include_opponent_notes?: boolean | null;
+        };
+        /**
+         * TournamentReportSettings
+         * @description Corps de `PATCH /tournois/{id}/compte-rendu` : réglages en ligne (P7).
+         */
+        TournamentReportSettings: {
+            /** Show Previous Versions */
+            show_previous_versions: boolean;
+        };
+        /**
+         * TournamentReportVersionRead
+         * @description Une version et son instantané.
+         */
+        TournamentReportVersionRead: {
+            /** Number */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            snapshot: components["schemas"]["ReportSnapshot"];
+        };
+        /**
+         * TournamentReportVersionSummary
+         * @description Une version, sans son instantané : numéro et date.
+         */
+        TournamentReportVersionSummary: {
+            /** Number */
+            number: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * TournamentSummary
          * @description Mon bilan d'un tournoi (A12), calculé par le serveur.
          *
@@ -4144,6 +4627,8 @@ export interface components {
             my_ranking?: number | null;
             /** Notes */
             notes?: string | null;
+            /** @description Compte-rendu du tournoi : `update` coupe une version si quelque chose a changé (« Mettre à jour le compte-rendu »), `delete` le supprime. Appliqué après les autres champs. Omis, rien ne change. */
+            report?: components["schemas"]["TournamentReportRequest"] | null;
         };
         /**
          * TournamentUpdateOperation
@@ -7824,6 +8309,452 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SharedDecklistRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`. */
+            429: {
+                headers: {
+                    /** @description Délai avant une nouvelle tentative, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readTournamentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentReportRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateTournamentReportSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TournamentReportSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentReportRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    readTournamentReportVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentReportVersionRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    shareTournamentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentReportRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revokeTournamentReportLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tournament_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TournamentReportRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflit avec l'état des données (doublon, stock, règle). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listMyTournamentReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyTournamentReportRead"][];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readPublicTournamentReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client). */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La dernière version. */
+            200: {
+                headers: {
+                    /** @description `public, max-age=60` : une purge prend effet en une minute au plus. */
+                    "Cache-Control"?: string;
+                    /** @description `noindex` : un compte-rendu ne s'indexe pas. */
+                    "X-Robots-Tag"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTournamentReportRead"];
+                };
+            };
+            /** @description Ressource introuvable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Trop de tentatives depuis cette adresse IP : réessayer après le délai de l'en-tête `Retry-After`. */
+            429: {
+                headers: {
+                    /** @description Délai avant une nouvelle tentative, en secondes. */
+                    "Retry-After": number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readPublicTournamentReportVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Jeton du lien, huit caractères parmi les lettres des deux casses, les chiffres et `_`. La casse compte. Adresse publique du compte-rendu (`#/compte-rendu/<jeton>` côté client). */
+                token: string;
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description La version demandée. */
+            200: {
+                headers: {
+                    /** @description `public, max-age=60` : une purge prend effet en une minute au plus. */
+                    "Cache-Control"?: string;
+                    /** @description `noindex` : un compte-rendu ne s'indexe pas. */
+                    "X-Robots-Tag"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicTournamentReportRead"];
                 };
             };
             /** @description Ressource introuvable. */

@@ -33,6 +33,12 @@ sémantique offline) :
   1b-43, 1b-44. Reçu le 2026-11-06 hors brief ; sa section « Raccord au code » liste ce qu'il
   ignore du code actuel et les points à trancher avant implémentation.
 
+- [`COMPTE-RENDU.md`](COMPTE-RENDU.md) — compte-rendu de tournoi, **page imprimée** seulement
+  (A4, trame A « Fiche ») : prototype `Gurchon Hall Compte-rendu Impression.dc.html`, feuille
+  `compte-rendu-print.css`, et l'icône Master en SVG pour tout le projet. Produit à partir du
+  brief [`compte-rendu-brief-claude-design.md`](compte-rendu-brief-claude-design.md), le
+  2026-11-23.
+
 - [`LOT12.md`](LOT12.md) — consolidation (Lot 12) : écran Compte `#/compte` (mot de passe,
   sessions, export, déconnexion, versions), menu du compte au bureau, légende des raccourcis
   `?`, bandeau « nouvelle version », catalogue en cours de chargement ; mobile 1b-59 à 1b-78,

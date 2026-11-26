@@ -428,8 +428,11 @@ export function defaultRanking(tournament: LocalTournament, final: LocalGame | n
 }
 
 /** « 3 parties », pour le refus de suppression d'un tournoi qui en contient. */
-export function deleteRefusal(gameCount: number): string | null {
-  if (gameCount === 0) return null;
-  const count = gameCount === 1 ? "1 partie" : `${gameCount} parties`;
-  return `Ce tournoi contient ${count} : supprimez-les ou détachez-les du tournoi d'abord.`;
+export function deleteRefusal(gameCount: number, hasReport = false): string | null {
+  if (gameCount > 0) {
+    const count = gameCount === 1 ? "1 partie" : `${gameCount} parties`;
+    return `Ce tournoi contient ${count} : supprimez-les ou détachez-les du tournoi d'abord.`;
+  }
+  // Lot Compte-rendu (P10) : le serveur refuserait aussi.
+  return hasReport ? "Ce tournoi a un compte-rendu : supprimez-le d'abord, depuis le compte-rendu." : null;
 }

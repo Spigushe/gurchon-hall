@@ -11,7 +11,7 @@ import {
   type SearchCatalog,
   type SearchCriteria,
 } from "./cardSearch";
-import type { CardRow, CardSetRow, DeckVersionRow } from "./db";
+import type { CardRow, CardSetRow, DeckVersionRow, ReportVersionRow } from "./db";
 import type {
   LocalDeck,
   LocalDeckCard,
@@ -33,6 +33,7 @@ import {
   readAllDeckVersions,
   readDeckVersion,
   readDeckVersions,
+  readReportVersions,
   readDecks,
   readGame,
   readGames,
@@ -286,6 +287,18 @@ export function useLocalGame(key: ResourceKey): LocalGame | null | undefined {
   const { db } = useVtesOffline();
   const read = useCallback((k: ResourceKey) => readGame(db, k), [db]);
   return useByKey(read, key);
+}
+
+// --- Versions des comptes-rendus (lot Compte-rendu) ------------------------
+
+/** Versions au miroir du compte-rendu d'un tournoi (par son identifiant serveur). */
+export function useLocalReportVersions(tournamentId: number | null): ReportVersionRow[] | undefined {
+  const { db } = useVtesOffline();
+  const querier = useCallback(
+    async () => (tournamentId === null ? [] : readReportVersions(db, tournamentId)),
+    [db, tournamentId],
+  );
+  return useLiveQuery(querier);
 }
 
 // --- Versions de deck jouées et clans (Lot 8) -------------------------------

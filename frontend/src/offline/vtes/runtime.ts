@@ -53,6 +53,7 @@ import {
   refreshCatalog,
   refreshDecks,
   refreshDeckVersions,
+  refreshReportVersions,
   refreshGames,
   refreshLanguages,
   refreshPlayers,
@@ -344,6 +345,8 @@ export function createVtesOffline(options: VtesOfflineOptions = {}): VtesOffline
       // Lot 8 : les versions que les parties et les tournois désignent, une
       // fois ces deux miroirs relus.
       ["deckVersions", () => refreshDeckVersions(client, db)],
+      // Lot Compte-rendu : les instantanés que les tournois désignent.
+      ["reportVersions", () => refreshReportVersions(client, db)],
     ];
     let report: RefreshReport = { complete: false, refreshed: [], errors: [], authRequired: false };
     // Un verdict tombé pendant la lecture rendrait l'instantané périmé (une

@@ -51,6 +51,7 @@ export type Route =
   | { name: "game"; key: GameKey }
   | { name: "tournaments" }
   | { name: "tournament"; key: ResourceKey }
+  | { name: "tournamentReport"; key: ResourceKey }
   | { name: "bilan"; deck?: DeckKey }
   | { name: "notebook" }
   | { name: "sync" }
@@ -241,6 +242,11 @@ export function parseHash(hash: string): Route {
     const key = decodeKey(gameMatch[1]);
     if (key !== null && RESOURCE_KEY.test(key)) return { name: "game", key: key as GameKey };
   }
+  const reportMatch = /^\/tournois\/(.+)\/compte-rendu$/.exec(path);
+  if (reportMatch) {
+    const key = decodeKey(reportMatch[1]);
+    if (key !== null && RESOURCE_KEY.test(key)) return { name: "tournamentReport", key: key as ResourceKey };
+  }
   const tournamentMatch = /^\/tournois\/(.+)$/.exec(path);
   if (tournamentMatch) {
     const key = decodeKey(tournamentMatch[1]);
@@ -271,6 +277,8 @@ export function hrefFor(route: Route): string {
       return "#/tournois";
     case "tournament":
       return `#/tournois/${keySegment(route.key)}`;
+    case "tournamentReport":
+      return `#/tournois/${keySegment(route.key)}/compte-rendu`;
     case "bilan":
       return route.deck ? `#/bilan?deck=${keySegment(route.deck)}` : "#/bilan";
     case "notebook":

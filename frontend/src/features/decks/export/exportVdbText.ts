@@ -1,6 +1,7 @@
 import { foldText } from "../../../offline/core/foldText";
 import type { CardRow, LocalDeckCard } from "../../../offline/vtes";
 import { isTrifle, mergeDeckLines, type DeckCardFacts, type DeckTableRow } from "../deckTablesModel";
+import { libraryTypeGroup } from "../libraryTypeOrder";
 
 /**
  * Export d'un deck au format `TEXT` de VDB (Lot 9, A5, P9), en fonctions pures.
@@ -22,23 +23,6 @@ import { isTrifle, mergeDeckLines, type DeckCardFacts, type DeckTableRow } from 
  * Écart assumé : une carte absente du miroir local (catalogue pas encore lu)
  * s'exporte sous son nom en bibliothèque, dans un groupe « Unknown ».
  */
-
-/** Ordre des types de bibliothèque à l'export, celui de VDB (Reaction avant Combat, Action Modifier après Retainer). */
-export const VDB_LIBRARY_TYPE_ORDER: readonly string[] = [
-  "Master",
-  "Conviction",
-  "Power",
-  "Action",
-  "Political Action",
-  "Ally",
-  "Equipment",
-  "Retainer",
-  "Action Modifier",
-  "Reaction",
-  "Combat",
-  "Reflex",
-  "Event",
-];
 
 const UNKNOWN_GROUP = "Unknown";
 
@@ -177,39 +161,28 @@ export function cryptLines(rows: readonly DeckTableRow[], reprinted: ReadonlySet
 
 export interface ExportGroup {
   label: string;
+  /** Rang dans l'ordre de VDB ; les libellés hors liste à égalité, départagés par libellé. */
   rank: number;
-  size: number;
   rows: DeckTableRow[];
 }
 
-const typeRank = (type: string) => {
-  const rank = VDB_LIBRARY_TYPE_ORDER.indexOf(type);
-  return rank === -1 ? VDB_LIBRARY_TYPE_ORDER.length : rank;
-};
+const UNKNOWN_RANK = Number.MAX_SAFE_INTEGER;
 
-/** Types d'une carte dans l'ordre de VDB ; vide pour une carte sans détails. */
-function libraryTypes(row: DeckTableRow): string[] {
-  return [...(row.facts?.details?.types ?? [])].sort((a, b) => typeRank(a) - typeRank(b) || a.localeCompare(b));
-}
-
-/** Groupes de bibliothèque : un par combinaison de types (`Action Modifier/Reaction`), au rang du premier. */
+/**
+ * Groupes de bibliothèque, dans l'ordre de VDB (`libraryTypeOrder.ts`), commun
+ * à toutes les decklists : un par libellé (`Action Modifier/Reaction`), puis
+ * « Unknown » pour les cartes sans détails.
+ */
 export function libraryGroups(rows: readonly DeckTableRow[]): ExportGroup[] {
   const groups = new Map<string, ExportGroup>();
   for (const row of rows) {
-    const types = libraryTypes(row);
-    const label = types.length > 0 ? types.join("/") : UNKNOWN_GROUP;
-    const group = groups.get(label) ?? {
-      label,
-      rank: types.length > 0 ? typeRank(types[0]) : VDB_LIBRARY_TYPE_ORDER.length + 1,
-      size: types.length,
-      rows: [],
-    };
+    const typeGroup = libraryTypeGroup(row.facts?.details?.types ?? []);
+    const label = typeGroup?.label ?? UNKNOWN_GROUP;
+    const group = groups.get(label) ?? { label, rank: typeGroup?.rank ?? UNKNOWN_RANK, rows: [] };
     group.rows.push(row);
     groups.set(label, group);
   }
-  return [...groups.values()].sort(
-    (a, b) => a.rank - b.rank || a.size - b.size || compareFolded(a.label, b.label),
-  );
+  return [...groups.values()].sort((a, b) => a.rank - b.rank || compareFolded(a.label, b.label));
 }
 
 export const sumQuantity = (rows: readonly DeckTableRow[]) => rows.reduce((sum, row) => sum + row.quantity, 0);

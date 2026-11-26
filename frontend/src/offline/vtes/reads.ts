@@ -1,5 +1,5 @@
 import { compareCodeUnits, compareFolded, compareFoldedKeys, foldText } from "../core/foldText";
-import type { CardRow, CardSetRow, DeckVersionRow, VtesOfflineDb } from "./db";
+import type { CardRow, CardSetRow, DeckVersionRow, ReportVersionRow, VtesOfflineDb } from "./db";
 import {
   findByKey,
   project,
@@ -455,6 +455,15 @@ export async function readDeckVersions(db: VtesOfflineDb, key: DeckKey): Promise
 /** Toutes les versions jouées du miroir (bilan du Lot 8 : clan principal et prêts). */
 export async function readAllDeckVersions(db: VtesOfflineDb): Promise<DeckVersionRow[]> {
   return db.deckVersions.toArray();
+}
+
+/**
+ * Versions d'un compte-rendu au miroir (lot Compte-rendu), par numéro
+ * croissant ; vide pour un tournoi sans compte-rendu ou pas encore relu.
+ */
+export async function readReportVersions(db: VtesOfflineDb, tournamentId: number): Promise<ReportVersionRow[]> {
+  const versions = await db.reportVersions.where("tournamentId").equals(tournamentId).toArray();
+  return versions.sort((a, b) => a.number - b.number);
 }
 
 /** Une version par son identifiant ; `undefined` si le miroir ne l'a pas (encore) lue. */

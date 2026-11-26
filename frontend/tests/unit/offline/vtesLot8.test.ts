@@ -466,7 +466,7 @@ describe("version 7 du schéma (Lot 8 : versions de deck)", () => {
     const after = new VtesOfflineDb(name);
     try {
       await after.open();
-      expect(after.verno).toBe(7);
+      expect(after.verno).toBe(8);
       expect(await after.deckVersions.count()).toBe(0);
       expect(await after.cards.count()).toBe(1);
       expect(await after.cardDetails.count()).toBe(0);

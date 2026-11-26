@@ -51,6 +51,10 @@ export const API_ROUTE_PREFIXES: readonly string[] = [
   // en ligne seulement. La page côté client vit dans le hash
   // (`#/liste/<jeton>`), jamais sous ce chemin.
   "/listes",
+  // Lot Compte-rendu : lecture publique d'un compte-rendu
+  // (`GET /comptes-rendus/{jeton}`), en ligne seulement. La page côté client
+  // vit dans le hash (`#/compte-rendu/<jeton>`), au singulier.
+  "/comptes-rendus",
   // Documentation générée par FastAPI.
   "/docs",
   "/redoc",

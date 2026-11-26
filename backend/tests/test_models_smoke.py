@@ -65,6 +65,8 @@ from app.models import (
     Tournament,
     TournamentDeckVersion,
     TournamentFormat,
+    TournamentReport,
+    TournamentReportVersion,
     Venue,
 )
 from app.models.account import AuthSession, UserAccount
@@ -291,6 +293,13 @@ def seeded(session):
     )
     share.cards.append(DeckShareCard(card_id=card.id, quantity=4))
     session.add(share)
+
+    # Le compte-rendu du tournoi, avec une version (lot Compte-rendu).
+    report = TournamentReport(
+        user_id=user_id, tournament_id=tournament.id, token="Zz_00000"
+    )
+    report.versions.append(TournamentReportVersion(number=1, snapshot="{}"))
+    session.add(report)
 
     # Journal de la file hors ligne (Lot 3) : la création du deck ci-dessus,
     # telle qu'elle serait revenue d'un `POST /sync`. Aucune clé étrangère —

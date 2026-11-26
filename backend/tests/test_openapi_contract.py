@@ -155,6 +155,23 @@ EXPECTED_OPERATIONS = {
     ("get", "/moi/partages"): "listMyShares",
     ("delete", "/moi/partages"): "purgeShares",
     ("get", "/listes/{token}"): "readSharedDecklist",
+    # Lot Compte-rendu (A1).
+    ("get", "/tournois/{tournament_id}/compte-rendu"): "readTournamentReport",
+    ("patch", "/tournois/{tournament_id}/compte-rendu"): (
+        "updateTournamentReportSettings"
+    ),
+    ("get", "/tournois/{tournament_id}/compte-rendu/versions/{number}"): (
+        "readTournamentReportVersion"
+    ),
+    ("post", "/tournois/{tournament_id}/compte-rendu/lien"): "shareTournamentReport",
+    ("delete", "/tournois/{tournament_id}/compte-rendu/lien"): (
+        "revokeTournamentReportLink"
+    ),
+    ("get", "/moi/comptes-rendus"): "listMyTournamentReports",
+    ("get", "/comptes-rendus/{token}"): "readPublicTournamentReport",
+    ("get", "/comptes-rendus/{token}/versions/{number}"): (
+        "readPublicTournamentReportVersion"
+    ),
 }
 
 
