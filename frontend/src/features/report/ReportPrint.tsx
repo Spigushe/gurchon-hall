@@ -21,7 +21,7 @@ import {
   roundTitle,
   type PrintState,
 } from "./printModel";
-import type { ReportDeck, ReportRound, ReportSnapshot } from "./reportModel";
+import { myName, type ReportDeck, type ReportRound, type ReportSnapshot } from "./reportModel";
 import "./reportPrint.css";
 
 /**
@@ -63,10 +63,10 @@ function ClanName({ name }: { name: string }) {
   );
 }
 
-function Round({ round, snapshot }: { round: ReportRound; snapshot: ReportSnapshot }) {
+function Round({ round, snapshot, author }: { round: ReportRound; snapshot: ReportSnapshot; author: string | null }) {
   const sub = roundSub(round, snapshot);
   const score = roundScore(round);
-  const seats = round.seats.length > 1 ? printSeats(round) : [];
+  const seats = round.seats.length > 1 ? printSeats(round, myName(author, snapshot.my_display_name)) : [];
   return (
     <section className="cr-round" data-testid="cr-round">
       <div className="cr-round__top">
@@ -279,7 +279,7 @@ export function ReportPrint({ snapshot, facts, author, state, site = window.loca
       )}
       <div className="cr-rounds">
         {snapshot.rounds.map((round, index) => (
-          <Round key={index} round={round} snapshot={snapshot} />
+          <Round key={index} round={round} snapshot={snapshot} author={author} />
         ))}
       </div>
       {snapshot.decks.map((deck, index) => (

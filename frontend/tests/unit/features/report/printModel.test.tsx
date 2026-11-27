@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   bandText,
@@ -55,6 +55,7 @@ const me = seat({ seat: 2, is_me: true, deck_id: 7, deck_name: "Guns and shit (m
 function snapshot(overrides: Partial<ReportSnapshot> = {}): ReportSnapshot {
   return {
     format_version: 1,
+    my_display_name: null,
     tournament: {
       name: "Coupe de Lutèce",
       start_date: "2026-11-14",
@@ -177,6 +178,11 @@ describe("rondes", () => {
     ]);
   });
 
+  it("écrit mon nom à ma ligne, sans badge", () => {
+    const rows = printSeats(snapshot().rounds[0], "Spig");
+    expect(rows.map((row) => row.player)).toEqual(["Marc", "Spig", "Joueur non nommé"]);
+  });
+
   it("met ma ligne sans siège en dernier, « – », sans position", () => {
     const rows = printSeats(round({ seats: [{ ...me, seat: null }, seat({ seat: 1, player_name: "Léa" })] }));
     expect(rows.map((row) => [row.number, row.player, row.deck, row.position])).toEqual([
@@ -188,6 +194,22 @@ describe("rondes", () => {
   it("à deux joueurs, le même siège est proie et prédateur", () => {
     const rows = printSeats(round({ player_count: 2, seats: [{ ...me, seat: 1 }, seat({ seat: 2, player_name: "Léa" })] }));
     expect(rows[1].position).toBe("ma proie et mon prédateur");
+  });
+});
+
+describe("nom de ma ligne à l'impression (A12)", () => {
+  const facts = new Map();
+  const names = (snap: ReportSnapshot, author: string | null) => {
+    render(<ReportPrint snapshot={snap} facts={facts} author={author} state={{ kind: "preview", date: "2026-11-27" }} />);
+    return screen.getAllByTestId("cr-seat").map((row) => row.querySelector(".cr-seat__player")?.textContent);
+  };
+
+  it("prend le nom à afficher, à défaut @pseudo, à défaut « Moi »", () => {
+    expect(names(snapshot({ my_display_name: "Spig" }), "spigushe")).toContain("Spig");
+    cleanup();
+    expect(names(snapshot(), "spigushe")).toContain("@spigushe");
+    cleanup();
+    expect(names(snapshot(), null)).toContain("Moi");
   });
 });
 

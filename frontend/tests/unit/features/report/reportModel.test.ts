@@ -4,12 +4,14 @@ import {
   deckTitle,
   finalLabel,
   headerFacts,
+  myName,
   myPositions,
   myScore,
   normalizeInstant,
   orderedGames,
   preliminaryLabel,
   rankingLabel,
+  rankingParts,
   roundTitle,
   sameSnapshot,
   seatDeck,
@@ -220,6 +222,30 @@ describe("aperçu du compte-rendu depuis le miroir", () => {
   });
 });
 
+describe("nom à afficher dans l'aperçu (A11, A12)", () => {
+  it("buildPreview le prend du compte, nul sans nom", () => {
+    expect(buildPreview(input({ games: [game(1, table)], myDisplayName: "Spig" })).my_display_name).toBe("Spig");
+    expect(buildPreview(input({ games: [game(1, table)] })).my_display_name).toBeNull();
+    expect(buildPreview(input({ games: [game(1, table)], myDisplayName: null })).my_display_name).toBeNull();
+  });
+
+  it("myName et myPositions suivent la même règle", () => {
+    expect(myName(null, null)).toBe("Moi");
+    expect(myName("auteur", undefined)).toBe("@auteur");
+    expect(myName("auteur", "Spig")).toBe("Spig");
+    const round = buildPreview(input({ games: [game(1, table)] })).rounds[0];
+    expect(myPositions(round, "auteur", "Spig")).toEqual({ prey: "siège 3", predator: "Marc" });
+  });
+
+  it("sameSnapshot tient un nom absent pour nul, pas pour un nom", () => {
+    const base = buildPreview(input({ games: [game(1, table)] }));
+    const legacy = JSON.parse(JSON.stringify(base)) as Record<string, unknown>;
+    delete legacy.my_display_name;
+    expect(sameSnapshot(base, legacy as unknown as ReportSnapshot)).toBe(true);
+    expect(sameSnapshot(base, { ...base, my_display_name: "Spig" })).toBe(false);
+  });
+});
+
 describe("comparaison de deux instantanés", () => {
   const base = buildPreview(input({ games: [game(1, table)] }));
 
@@ -252,6 +278,9 @@ describe("mise en forme de la trame", () => {
     expect(rankingLabel(3, 22)).toBe("3e sur 22");
     expect(rankingLabel(1, null)).toBe("1er");
     expect(rankingLabel(null, 22)).toBeNull();
+    expect(rankingParts(3, 22)).toEqual({ place: "3e", of: "sur 22" });
+    expect(rankingParts(1, null)).toEqual({ place: "1er", of: null });
+    expect(rankingParts(null, 22)).toBeNull();
     const snapshot = buildPreview(input());
     expect(preliminaryLabel(snapshot.summary)).toBe("2 GW · 6,5 VP en 3 rondes");
     // « pas de GW » ne s'écrit nulle part (handoff `COMPTE-RENDU.md`).
@@ -269,7 +298,9 @@ describe("mise en forme de la trame", () => {
 
   it("nomme les lignes, leurs decks et mes positions de départ", () => {
     const round = buildPreview(input({ games: [game(1, table)] })).rounds[0];
-    expect(seatName(round.seats[1], "auteur")).toBe("Moi (@auteur)");
+    expect(seatName(round.seats[1], "auteur")).toBe("@auteur");
+    expect(seatName(round.seats[1], "auteur", "Spig")).toBe("Spig");
+    expect(seatName(round.seats[1], null)).toBe("Moi");
     expect(seatName(round.seats[2], null)).toBe("Joueur non nommé");
     expect(seatDeck(round.seats[2])).toBe("Ventrue · Bleed · Nos");
     expect(myScore(round)).toBe("3 VP · GW");

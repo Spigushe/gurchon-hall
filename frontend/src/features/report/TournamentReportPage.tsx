@@ -1,10 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
-import { ArrowLeftIcon, ClockCountdownIcon, LinkIcon, PrinterIcon, TrashIcon } from "@phosphor-icons/react";
-import { useApiClient } from "../../app/apiClientContext";
+import { ArrowLeftIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { LoadingState } from "../../components/Loading";
-import { useGuardedAction } from "../../components/useGuardedAction";
-import { useConnectivity } from "../../offline/react";
+import { useIsDesktop } from "../../components/useIsDesktop";
 import { useLiveQuery } from "../../offline/react/useLiveQuery";
 import {
   findByKey,
@@ -20,17 +18,14 @@ import {
   useLocalVenues,
   useVtesOffline,
   type LocalTournament,
-  type ReportVersionRow,
   type ResourceKey,
-  type TournamentReportPatch,
   type TournamentReportRow,
 } from "../../offline/vtes";
-import { browserClipboard, copyText, type CopyOutcome } from "../decks/export/exportFile";
 import { useDeckCardFacts } from "../decks/useDeckCardFacts";
 import { NotesEditor } from "./NotesEditor";
 import type { PrintState } from "./printModel";
+import { ReportPanel, ReportVersionBar, type ReportSettingsProps, type Selection } from "./ReportSettings";
 import { ReportPrint } from "./ReportPrint";
-import { reportLink, revokeReportLink, shareReport, updateReportSettings, type TournamentReportRead } from "./reportApi";
 import { buildPreview, orderedGames, sameSnapshot, versionDate, type ReportSnapshot } from "./reportModel";
 import { ReportView } from "./ReportView";
 
@@ -42,20 +37,18 @@ import { ReportView } from "./ReportView";
  * notes sur les adversaires (P4, P7) ; tout passe par la file. En ligne
  * seulement : le lien public et le réglage des versions antérieures (P8, P9).
  * Le PDF est l'impression de la page (P11).
+ *
+ * Mise en page du handoff `COMPTE-RENDU-ECRAN.md` : au bureau, le
+ * compte-rendu et un panneau de réglages côte à côte ; au mobile, une barre de
+ * version et une feuille « Réglages » (`ReportSettings.tsx`).
  */
 
-type Selection = "preview" | number;
-
-const toReportRow = (read: TournamentReportRead): TournamentReportRow => ({
-  includeOpponentNotes: read.include_opponent_notes,
-  includeMyNotes: read.include_my_notes,
-  showPreviousVersions: read.show_previous_versions,
-  token: read.token,
-  createdAt: read.created_at,
-  versions: read.versions.map((version) => ({ number: version.number, createdAt: version.created_at })),
-});
-
-function usePreview(tournament: LocalTournament, includeOpponentNotes: boolean, includeMyNotes: boolean) {
+function usePreview(
+  tournament: LocalTournament,
+  includeOpponentNotes: boolean,
+  includeMyNotes: boolean,
+  myDisplayName: string | null,
+) {
   const games = useLocalGames({ tournamentKey: tournament.key });
   const players = useLocalPlayers();
   const venues = useLocalVenues();
@@ -78,155 +71,11 @@ function usePreview(tournament: LocalTournament, includeOpponentNotes: boolean, 
         clans,
         includeOpponentNotes,
         includeMyNotes,
+        myDisplayName,
       }),
       games: orderedGames(games),
     };
-  }, [tournament, includeOpponentNotes, includeMyNotes, games, players, venues, decks, deckCards, deckVersions, clans]);
-}
-
-/** La demande « Mettre à jour » : ne porte que les réglages qui ont changé. */
-function updateRequest(
-  report: TournamentReportRow | null,
-  includeNotes: boolean,
-  includeMine: boolean,
-): TournamentReportPatch {
-  const opponents = includeNotes !== (report?.includeOpponentNotes ?? false);
-  const mine = includeMine !== (report?.includeMyNotes ?? true);
-  return {
-    action: "update",
-    ...(opponents ? { includeOpponentNotes: includeNotes } : {}),
-    ...(mine ? { includeMyNotes: includeMine } : {}),
-  };
-}
-
-function SelectionBar({
-  versions,
-  selected,
-  onSelect,
-}: {
-  versions: readonly ReportVersionRow[] | readonly { number: number; createdAt: string }[];
-  selected: Selection;
-  onSelect: (selection: Selection) => void;
-}) {
-  return (
-    <div className="chip-row report__versions" role="group" aria-label="Version affichée" data-testid="report-versions">
-      {versions.map((version) => (
-        <button
-          key={version.number}
-          type="button"
-          className="chip"
-          aria-pressed={selected === version.number}
-          onClick={() => onSelect(version.number)}
-          data-testid="report-version"
-        >
-          v{version.number} · {versionDate(version.createdAt)}
-        </button>
-      ))}
-      <button
-        type="button"
-        className="chip"
-        aria-pressed={selected === "preview"}
-        onClick={() => onSelect("preview")}
-        data-testid="report-version-preview"
-      >
-        Aperçu
-      </button>
-    </div>
-  );
-}
-
-function ShareBlock({
-  tournamentId,
-  report,
-  onChange,
-}: {
-  tournamentId: number | null;
-  report: TournamentReportRow | null;
-  onChange: (report: TournamentReportRow) => void;
-}) {
-  const client = useApiClient();
-  const online = useConnectivity();
-  const action = useGuardedAction();
-  const [copied, setCopied] = useState<CopyOutcome | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
-  const hasVersion = (report?.versions.length ?? 0) > 0;
-  const blocked = !online
-    ? "Le partage demande une connexion."
-    : tournamentId === null || !hasVersion
-      ? "Mettez le compte-rendu à jour, puis synchronisez, avant de le partager."
-      : null;
-
-  const call = (task: () => Promise<{ kind: string; value?: TournamentReportRead }>) =>
-    action.run(async () => {
-      setFailure(null);
-      const outcome = await task();
-      if (outcome.kind === "ok" && outcome.value) onChange(toReportRow(outcome.value));
-      else setFailure("L'opération n'a pas abouti. Réessayez.");
-    });
-
-  return (
-    <section className="report-panel__block" data-testid="report-share">
-      <h2 className="report-panel__title">Lien public</h2>
-      <p className="page-meta">
-        Toujours la dernière version. Les noms des adversaires et leurs decks y sont publics.
-      </p>
-      {report?.token ? (
-        <>
-          <p className="report-panel__link" data-testid="report-link">
-            {reportLink(report.token)}
-          </p>
-          <div className="report-panel__actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={async () => setCopied(await copyText(reportLink(report.token as string), browserClipboard()))}
-              data-testid="report-link-copy"
-            >
-              <LinkIcon size={16} /> Copier le lien
-            </button>
-            <button
-              type="button"
-              className="btn-danger-text"
-              disabled={!online || action.pending || tournamentId === null}
-              onClick={() => void call(() => revokeReportLink(client, tournamentId as number))}
-              data-testid="report-link-purge"
-            >
-              Purger le lien
-            </button>
-          </div>
-          {copied && <p className="page-meta" role="status">{copied === "copied" ? "Lien copié." : "Sélectionnez le lien pour le copier."}</p>}
-        </>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={blocked !== null || action.pending}
-          title={blocked ?? undefined}
-          onClick={() => void call(() => shareReport(client, tournamentId as number))}
-          data-testid="report-link-create"
-        >
-          <LinkIcon size={16} /> Créer le lien
-        </button>
-      )}
-      {blocked && !report?.token && <p className="page-meta">{blocked}</p>}
-      {report && (
-        <label className="switch-row">
-          <input
-            type="checkbox"
-            checked={report.showPreviousVersions}
-            disabled={!online || action.pending || tournamentId === null}
-            onChange={(event) => {
-              const value = event.target.checked;
-              void call(() => updateReportSettings(client, tournamentId as number, value));
-            }}
-            data-testid="report-show-previous"
-          />
-          Montrer les versions antérieures par le lien
-        </label>
-      )}
-      {failure && <p className="error-text">{failure}</p>}
-    </section>
-  );
+  }, [tournament, includeOpponentNotes, includeMyNotes, myDisplayName, games, players, venues, decks, deckCards, deckVersions, clans]);
 }
 
 /** Ce que l'impression marque : version, version antérieure ou aperçu (handoff, « États »). */
@@ -245,10 +94,12 @@ function printStateOf(selected: Selection, report: TournamentReportRow | null, t
   };
 }
 
-function useUsername(): string | null {
+/** Pseudo et nom à afficher du compte, lus dans la copie locale de `GET /moi` (hors ligne). */
+function useAccountNames(): { username: string | null; displayName: string | null } {
   const { db } = useVtesOffline();
   const query = useCallback(() => readLocalAccount(db), [db]);
-  return useLiveQuery(query)?.username ?? null;
+  const account = useLiveQuery(query);
+  return { username: account?.username ?? null, displayName: account?.display_name ?? null };
 }
 
 /** La phrase qui compare l'aperçu à la dernière version, ou rien. */
@@ -265,100 +116,9 @@ function versionLabelOf(selected: Selection, report: TournamentReportRow | null)
   return `Version ${selected} du ${versionDate(createdAt)}`;
 }
 
-/** L'en-tête d'actions : mise à jour, impression, état, option, versions, lien, suppression. */
-function ReportControls({
-  tournament,
-  report,
-  selected,
-  onSelect,
-  includeNotes,
-  onIncludeNotes,
-  includeMine,
-  onIncludeMine,
-  diffText,
-  onReportRead,
-}: {
-  tournament: LocalTournament;
-  report: TournamentReportRow | null;
-  selected: Selection;
-  onSelect: (selection: Selection) => void;
-  includeNotes: boolean;
-  onIncludeNotes: (value: boolean) => void;
-  includeMine: boolean;
-  onIncludeMine: (value: boolean) => void;
-  diffText: string | null;
-  onReportRead: (report: TournamentReportRow) => void;
-}) {
-  const { actions } = useVtesOffline();
-  const update = useGuardedAction();
-  const remove = useGuardedAction();
-  const askUpdate = () =>
-    update.run(async () => {
-      await actions.updateTournament(tournament.key, {
-        report: updateRequest(report, includeNotes, includeMine),
-      });
-      onSelect("preview");
-    });
-  const askDelete = () => {
-    if (!window.confirm("Supprimer le compte-rendu, ses versions et son lien ? Les notes du tournoi et des parties restent.")) return;
-    void remove.run(() => actions.updateTournament(tournament.key, { report: { action: "delete" } }));
-  };
-  const error = update.error ?? remove.error;
-  return (
-    <div className="report-panel" data-testid="report-panel">
-      <div className="report-panel__actions">
-        <button type="button" className="btn btn-primary" disabled={update.pending} onClick={() => void askUpdate()} data-testid="report-update">
-          Mettre à jour le compte-rendu
-        </button>
-        <button type="button" className="btn btn-secondary" onClick={() => window.print()} data-testid="report-print">
-          <PrinterIcon size={16} /> Imprimer ou enregistrer en PDF
-        </button>
-      </div>
-      {tournament.reportRequest === "update" && (
-        <p className="report-panel__pending" role="status" data-testid="report-pending">
-          <ClockCountdownIcon size={14} aria-hidden="true" /> Mise à jour en attente : la version sera figée à la
-          synchronisation.
-        </p>
-      )}
-      {selected === "preview" && diffText && (
-        <p className="page-meta" data-testid="report-preview-diff">
-          {diffText}
-        </p>
-      )}
-      <label className="switch-row">
-        <input
-          type="checkbox"
-          checked={includeNotes}
-          onChange={(event) => onIncludeNotes(event.target.checked)}
-          data-testid="report-include-notes"
-        />
-        Inclure les notes sur les adversaires
-      </label>
-      <p className="page-meta">Les notes sur les adversaires se saisissent dans le formulaire de partie, sur chaque ligne de la table.</p>
-      <label className="switch-row">
-        <input
-          type="checkbox"
-          checked={includeMine}
-          onChange={(event) => onIncludeMine(event.target.checked)}
-          data-testid="report-include-my-notes"
-        />
-        Inclure mes notes de table
-      </label>
-      <p className="page-meta">Ma note de table (mon tirage de départ, ce qui ne concerne que moi) se saisit aussi dans le formulaire de partie.</p>
-      {report && report.versions.length > 0 && <SelectionBar versions={report.versions} selected={selected} onSelect={onSelect} />}
-      <ShareBlock tournamentId={tournament.id} report={report} onChange={onReportRead} />
-      {report && (
-        <button type="button" className="btn-danger-text" onClick={askDelete} disabled={remove.pending} data-testid="report-delete">
-          <TrashIcon size={14} /> Supprimer le compte-rendu
-        </button>
-      )}
-      {error && <p className="error-text">{error}</p>}
-    </div>
-  );
-}
-
 /** La trame d'écran, avec les notes modifiables dans l'aperçu. */
 function ReportContent({
+  author,
   tournament,
   shown,
   facts,
@@ -367,6 +127,7 @@ function ReportContent({
   versionLabel,
   previewGames,
 }: {
+  author: string | null;
   tournament: LocalTournament;
   shown: ReportSnapshot | null;
   facts: ReturnType<typeof useDeckCardFacts>;
@@ -390,8 +151,9 @@ function ReportContent({
     <ReportView
       snapshot={shown}
       facts={facts}
-      author={null}
+      author={author}
       versionLabel={versionLabel}
+      showVersionBadge
       renderTournamentNotes={
         editing
           ? (notes) => (
@@ -423,13 +185,14 @@ function ReportContent({
 }
 
 function ReportBody({ tournament }: { tournament: LocalTournament }) {
-  const username = useUsername();
+  const desktop = useIsDesktop();
+  const { username, displayName } = useAccountNames();
   const [today] = useState(() => new Date().toISOString());
   const [serverReport, setServerReport] = useState<TournamentReportRow | null>(null);
   const report = serverReport ?? tournament.report;
   const [includeNotes, setIncludeNotes] = useState(report?.includeOpponentNotes ?? false);
   const [includeMine, setIncludeMine] = useState(report?.includeMyNotes ?? true);
-  const preview = usePreview(tournament, includeNotes, includeMine);
+  const preview = usePreview(tournament, includeNotes, includeMine, displayName);
   const versions = useLocalReportVersions(tournament.id);
   const latest = report?.versions.at(-1)?.number ?? null;
   const [selected, setSelected] = useState<Selection>(() =>
@@ -444,31 +207,44 @@ function ReportBody({ tournament }: { tournament: LocalTournament }) {
   const facts = useDeckCardFacts(cardIds);
   const same = preview && latestSnapshot ? sameSnapshot(preview.snapshot, latestSnapshot) : null;
 
+  const settings: ReportSettingsProps = {
+    tournament,
+    report,
+    selected,
+    onSelect: setSelected,
+    includeNotes,
+    onIncludeNotes: setIncludeNotes,
+    includeMine,
+    onIncludeMine: setIncludeMine,
+    diffText: previewDiffText(same, latest),
+    onReportRead: setServerReport,
+  };
+  const content = (
+    <ReportContent
+      author={username}
+      tournament={tournament}
+      shown={shown}
+      facts={facts}
+      selected={selected}
+      versionsLoaded={versions !== undefined}
+      versionLabel={versionLabelOf(selected, report)}
+      previewGames={preview?.games ?? null}
+    />
+  );
+
   return (
     <>
-      <div className="cr-screen">
-        <ReportControls
-          tournament={tournament}
-          report={report}
-          selected={selected}
-          onSelect={setSelected}
-          includeNotes={includeNotes}
-          onIncludeNotes={setIncludeNotes}
-          includeMine={includeMine}
-          onIncludeMine={setIncludeMine}
-          diffText={previewDiffText(same, latest)}
-          onReportRead={setServerReport}
-        />
-        <ReportContent
-          tournament={tournament}
-          shown={shown}
-          facts={facts}
-          selected={selected}
-          versionsLoaded={versions !== undefined}
-          versionLabel={versionLabelOf(selected, report)}
-          previewGames={preview?.games ?? null}
-        />
-      </div>
+      {desktop ? (
+        <div className="cr-screen report-layout">
+          <div className="report-layout__main">{content}</div>
+          <ReportPanel {...settings} />
+        </div>
+      ) : (
+        <div className="cr-screen report-mobile">
+          <ReportVersionBar {...settings} />
+          {content}
+        </div>
+      )}
       {shown !== null && facts !== undefined && (
         <ReportPrint snapshot={shown} facts={facts} author={username} state={printStateOf(selected, report, today)} />
       )}

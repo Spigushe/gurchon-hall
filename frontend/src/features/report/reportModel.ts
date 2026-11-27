@@ -54,6 +54,8 @@ export interface PreviewInput {
   clans: readonly ClanOption[];
   includeOpponentNotes: boolean;
   includeMyNotes: boolean;
+  /** Nom à afficher du compte (copie locale de `GET /moi`), `null` sans nom. */
+  myDisplayName?: string | null;
 }
 
 /** Un instant ISO dans la forme du serveur (`…Z`, sans millisecondes). */
@@ -157,6 +159,7 @@ export function buildPreview(input: PreviewInput): ReportSnapshot {
   const games = [...input.games].sort(gameOrder);
   return {
     format_version: REPORT_FORMAT_VERSION,
+    my_display_name: input.myDisplayName ?? null,
     tournament: {
       name: tournament.name,
       start_date: tournament.startDate,
@@ -215,6 +218,8 @@ function canonical(value: unknown): unknown {
 function comparable(snapshot: ReportSnapshot): unknown {
   return canonical({
     ...snapshot,
+    // Absent d'une version d'avant la v1.2.2, nul sans nom : même chose.
+    my_display_name: snapshot.my_display_name ?? null,
     rounds: snapshot.rounds.map((round) => ({ ...round, played_at: normalizeInstant(round.played_at) })),
   });
 }
@@ -296,9 +301,18 @@ export function deckTitle(deck: Pick<ReportDeck, "name" | "archetype">): string 
 
 /** « 3e sur 22 », « 1er », ou `null` sans classement. */
 export function rankingLabel(ranking: number | null, players: number | null): string | null {
+  const parts = rankingParts(ranking, players);
+  if (parts === null) return null;
+  return parts.of === null ? parts.place : `${parts.place} ${parts.of}`;
+}
+
+/** « 3e » et « sur 22 », séparés pour la grille du résultat ; `null` sans classement. */
+export function rankingParts(
+  ranking: number | null,
+  players: number | null,
+): { place: string; of: string | null } | null {
   if (ranking === null) return null;
-  const place = ranking === 1 ? "1er" : `${ranking}e`;
-  return players === null ? place : `${place} sur ${players}`;
+  return { place: ranking === 1 ? "1er" : `${ranking}e`, of: players === null ? null : `sur ${players}` };
 }
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
@@ -351,20 +365,29 @@ export function seatDeck(seat: ReportSeat): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
-/** Le nom d'une ligne : « Moi », le joueur, ou « Joueur non nommé ». */
-export function seatName(seat: ReportSeat, author: string | null): string {
-  if (seat.is_me) return author ? `Moi (@${author})` : "Moi";
+/** Mon nom : le nom à afficher de l'instantané, à défaut « @pseudo », à défaut « Moi » (A12). */
+export function myName(author: string | null, displayName: string | null | undefined): string {
+  return displayName || (author ? `@${author}` : "Moi");
+}
+
+/** Le nom d'une ligne : le mien (`myName`), le joueur, ou « Joueur non nommé ». */
+export function seatName(seat: ReportSeat, author: string | null, displayName: string | null = null): string {
+  if (seat.is_me) return myName(author, displayName);
   return seat.player_name ?? "Joueur non nommé";
 }
 
 /** Ma proie et mon prédateur au départ, par leur nom, quand mon siège est saisi. */
-export function myPositions(round: ReportRound): { prey: string | null; predator: string | null } {
+export function myPositions(
+  round: ReportRound,
+  author: string | null = null,
+  displayName: string | null = null,
+): { prey: string | null; predator: string | null } {
   const me = round.seats.find((seat) => seat.is_me);
   const { prey, predator } = seatPositions(me?.seat ?? null, round.player_count);
   const nameAt = (seat: number | null) => {
     if (seat === null) return null;
     const line = round.seats.find((item) => item.seat === seat);
-    return line ? seatName(line, null) : `siège ${seat}`;
+    return line ? seatName(line, author, displayName) : `siège ${seat}`;
   };
   return { prey: nameAt(prey), predator: nameAt(predator) };
 }

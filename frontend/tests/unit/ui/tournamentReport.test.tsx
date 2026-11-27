@@ -148,6 +148,65 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     expect(screen.getByTestId("report-share")).toHaveTextContent("Le partage demande une connexion.");
   });
 
+  it("au bureau, le panneau de réglages est en place, avec ses interrupteurs et le badge de version", async () => {
+    await openReport();
+    const panel = screen.getByTestId("report-panel");
+    expect(within(panel).getByTestId("report-update")).toHaveTextContent("Mettre à jour le compte-rendu");
+    expect(within(panel).getByTestId("report-print")).toBeInTheDocument();
+    expect(within(panel).getByTestId("report-status")).toHaveTextContent("Les notes se modifient sur place.");
+    const options = within(panel).getByTestId("report-notes-options");
+    expect(within(options).getByTestId("report-include-notes")).toHaveAttribute("role", "switch");
+    expect(within(options).getByTestId("report-include-my-notes")).toHaveAttribute("role", "switch");
+    expect(within(options).getAllByText(/^Prises en compte à la prochaine mise à jour\./)).toHaveLength(2);
+    expect(within(options).getByText(/Elles se saisissent dans le formulaire de partie\./)).toBeInTheDocument();
+    expect(screen.queryByTestId("report-settings-open")).toBeNull();
+    expect(screen.getByTestId("report-version-badge")).toHaveTextContent("Aperçu, non synchronisé");
+  });
+
+  describe("au mobile", () => {
+    const original = window.innerWidth;
+    afterEach(() => {
+      window.innerWidth = original;
+    });
+
+    it("garde « Mettre à jour » dans la barre et range les réglages dans la feuille", async () => {
+      window.innerWidth = 390;
+      const app = await openReport();
+      expect(screen.queryByTestId("report-panel")).toBeNull();
+      expect(screen.getByTestId("report-version-bar")).toContainElement(screen.getByTestId("report-update"));
+      expect(screen.queryByTestId("report-include-notes")).toBeNull();
+      expect(screen.queryByTestId("report-print")).toBeNull();
+
+      fireEvent.click(screen.getByTestId("report-settings-open"));
+      const sheet = await screen.findByTestId("report-settings-sheet");
+      expect(within(sheet).getByRole("heading", { name: "Réglages" })).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-include-notes")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-include-my-notes")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-print")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-share")).toBeInTheDocument();
+
+      fireEvent.click(within(sheet).getByTestId("report-include-notes"));
+      fireEvent.click(screen.getByLabelText("Fermer"));
+      expect(screen.queryByTestId("report-settings-sheet")).toBeNull();
+      fireEvent.click(screen.getByTestId("report-update"));
+      await waitFor(async () => {
+        const [operation] = await queuedOps(app);
+        expect(operation).toMatchObject({ data: { report: { action: "update", include_opponent_notes: true } } });
+      });
+    });
+
+    it("ferme la feuille avant d'imprimer", async () => {
+      window.innerWidth = 390;
+      const print = vi.spyOn(window, "print").mockImplementation(() => {
+        expect(screen.queryByTestId("report-settings-sheet")).toBeNull();
+      });
+      await openReport();
+      fireEvent.click(screen.getByTestId("report-settings-open"));
+      fireEvent.click(await screen.findByTestId("report-print"));
+      expect(print).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("le détail du tournoi y mène", async () => {
     const server = seededServer();
     const app = await renderApp({ server, hash: "#/tournois/id:1", online: true });
@@ -166,6 +225,7 @@ describe("compte-rendu dans l'application, hors ligne", () => {
 
 const SNAPSHOT = {
   format_version: 1,
+  my_display_name: null as string | null,
   tournament: {
     name: "Coupe de Lutèce",
     start_date: "2026-11-14",
@@ -230,6 +290,20 @@ const ok = (data: unknown) => Promise.resolve({ data, response: { status: 200, h
 afterEach(() => vi.restoreAllMocks());
 
 describe("page publique d'un compte-rendu", () => {
+  it("écrit mon nom à afficher avec le badge, et « Moi » sans badge sans pseudo ni nom (A12)", async () => {
+    renderPublic(() => ok({ ...publicReport(1, [1]), snapshot: { ...SNAPSHOT, my_display_name: "Spig" } }));
+    const round = await screen.findByTestId("report-round");
+    expect(round).toHaveTextContent("Spig");
+    expect(round).not.toHaveTextContent("@auteur");
+    expect(screen.getByTestId("report-seat-me-badge")).toBeInTheDocument();
+  });
+
+  it("sans nom ni auteur, ma ligne dit « Moi » sans badge", async () => {
+    renderPublic(() => ok({ ...publicReport(1, [1]), author: "" }));
+    expect(await screen.findByTestId("report-round")).toHaveTextContent("Moi");
+    expect(screen.queryByTestId("report-seat-me-badge")).not.toBeInTheDocument();
+  });
+
   it("lit la dernière version sans cookie et la met en page", async () => {
     const GET = renderPublic(() => ok(publicReport(1, [1])));
     expect(await screen.findByTestId("report-title")).toHaveTextContent("Coupe de Lutèce");
@@ -238,10 +312,15 @@ describe("page publique d'un compte-rendu", () => {
       credentials: "omit",
     });
     expect(screen.getByText("par @auteur")).toBeInTheDocument();
-    expect(screen.getByTestId("report-round")).toHaveTextContent("Moi (@auteur)");
+    expect(screen.getByTestId("report-round")).toHaveTextContent("@auteur");
+    expect(screen.getByTestId("report-seat-me-badge")).toHaveTextContent("Moi");
     expect(screen.getByTestId("report-list")).toHaveTextContent("Guns (Rush)");
     expect(screen.queryByTestId("public-report-versions")).toBeNull();
     expect(screen.getByTestId("public-report-print")).toBeInTheDocument();
+    // Ni badge de version (écran du propriétaire seulement), ni panneau ; badge « Moi » sur ma ligne.
+    expect(screen.queryByTestId("report-version-badge")).toBeNull();
+    expect(screen.queryByTestId("report-panel")).toBeNull();
+    expect(screen.getByTestId("report-seat-me-badge")).toHaveTextContent("Moi");
   });
 
   it("choisit une version antérieure dans la page, jamais dans l'adresse (P9)", async () => {

@@ -69,6 +69,8 @@ export interface UiServer {
     exportFileName: string;
     serverVersion: string;
     passwordBodies: unknown[];
+    /** Corps reçus par `PATCH /moi` (nom à afficher). */
+    profileBodies: unknown[];
   };
   /**
    * Liens de partage (Lot 13, D2) : `GET/POST /decks/{id}/partages`, `GET` et
@@ -100,6 +102,7 @@ function createUiServer(): UiServer {
       exportFileName: "gurchon-hall-alice-2026-11-19.json",
       serverVersion: "9.9.9",
       passwordBodies: [],
+      profileBodies: [],
     },
     shares: { list: [], bodies: [], failures: new Map(), nextId: 100 },
     requests: [],
@@ -167,6 +170,19 @@ async function accountResponse(ui: UiServer, request: Request, url: URL): Promis
   if (key === "POST /moi/mot-de-passe") {
     ui.account.passwordBodies.push(await request.json());
     return new Response(null, { status: 204 });
+  }
+  if (key === "PATCH /moi") {
+    const body = (await request.json()) as { display_name?: string | null };
+    ui.account.profileBodies.push(body);
+    const name = (body.display_name ?? "").trim();
+    return json({
+      id: 1,
+      email: "lea@example.org",
+      username: "lea-v",
+      role: "user",
+      created_at: "2026-11-01T10:00:00Z",
+      display_name: name === "" ? null : name,
+    });
   }
   if (key === "GET /moi/export") {
     return new Response(JSON.stringify(ui.account.exportBody), {
@@ -255,7 +271,7 @@ export interface AppOptions {
   catalog?: boolean;
   server?: FakeServer;
   /** Compte connu localement (copie du dernier `GET /moi`), écrit avant le premier rendu (Lot 12). */
-  account?: { id: number; email: string; username: string; role: "user" | "admin" };
+  account?: { id: number; email: string; username: string; role: "user" | "admin"; display_name?: string | null };
   /** Réglage du serveur simulé des lectures en ligne avant le premier rendu (sessions du compte…). */
   configure?: (ui: UiServer) => void;
 }

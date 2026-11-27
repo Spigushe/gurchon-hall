@@ -28,6 +28,7 @@ interface ReportRead {
   versions: Array<{ number: number }>;
 }
 
+const MY_NAME = "Spig e2e";
 const NOTE = "Journée au club, sans réseau.";
 const MY_NOTE = "Tirage de départ correct.";
 const OPPONENT_NOTE = "Joue vite, bleed lourd.";
@@ -36,6 +37,23 @@ async function goToHash(page: Page, hash: string): Promise<void> {
   await page.evaluate((target) => {
     window.location.hash = target;
   }, hash);
+}
+
+/**
+ * Les réglages : en place au bureau, dans la feuille « Réglages » au mobile
+ * (B4 de la v1.2.2). `task` s'exécute avec eux visibles ; la feuille se referme
+ * ensuite, pour que le reste de l'écran redevienne atteignable.
+ */
+async function withSettings<T>(page: Page, desktop: boolean, task: () => Promise<T>): Promise<T> {
+  if (desktop) return task();
+  await page.getByTestId("report-settings-open").click();
+  await expect(page.getByTestId("report-settings-sheet")).toBeVisible();
+  try {
+    return await task();
+  } finally {
+    await page.getByTestId("report-settings-sheet").getByRole("button", { name: "Fermer" }).click();
+    await expect(page.getByTestId("report-settings-sheet")).toHaveCount(0);
+  }
 }
 
 export async function runReportScenario({ page, context, browser, api }: Fixtures, desktop: boolean): Promise<void> {
@@ -75,13 +93,22 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
   await expect(page.getByTestId("report-footer")).toContainText("Aperçu, non synchronisé");
 
   // A8 : ma note est incluse d'office, celle de l'adversaire attend sa case.
-  await expect(page.getByTestId("report-include-my-notes")).toBeChecked();
+  await withSettings(page, desktop, () => expect(page.getByTestId("report-include-my-notes")).toBeChecked());
   await expect(page.getByTestId("report-round")).toContainText(MY_NOTE);
   await expect(page.getByTestId("report-round")).not.toContainText(OPPONENT_NOTE);
 
+  // A9 à A12 : le nom à afficher se pose dans Compte (en ligne), l'aperçu le reprend.
+  await goToHash(page, "#/compte");
+  await page.getByTestId("account-display-name").fill(MY_NAME);
+  await page.getByTestId("account-display-name-save").click();
+  await expect(page.getByTestId("account-display-name-done")).toBeVisible();
+  await goToHash(page, `#/tournois/id:${tournament.id}/compte-rendu`);
+  await expect(page.getByTestId("report-round")).toContainText(MY_NAME);
+  await expect(page.getByTestId("report-seat-me-badge")).toBeVisible();
+
   // 1. Au club, sans réseau : la note du tournoi, la case des adversaires, puis « Mettre à jour ».
   await context.setOffline(true);
-  await page.getByTestId("report-include-notes").check();
+  await withSettings(page, desktop, () => page.getByTestId("report-include-notes").check());
   await expect(page.getByTestId("report-round")).toContainText(OPPONENT_NOTE);
   await page.getByTestId("report-tournament-notes-editor-edit").click();
   await page.getByTestId("report-tournament-notes-editor-input").fill(NOTE);
@@ -90,7 +117,7 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
   await page.getByTestId("report-update").click();
   await expect(page.getByTestId("report-pending")).toBeVisible();
   await expectPending(page, 2);
-  await expect(page.getByTestId("report-link-create")).toBeDisabled();
+  await withSettings(page, desktop, () => expect(page.getByTestId("report-link-create")).toBeDisabled());
 
   // Retour du réseau : la file part dans l'ordre, la version porte la note.
   await context.setOffline(false);
@@ -102,6 +129,7 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
     `/tournois/${tournament.id}/compte-rendu/versions/1`,
   );
   expect(version.snapshot.tournament.notes).toBe(NOTE);
+  expect((version.snapshot as { my_display_name?: string | null }).my_display_name).toBe(MY_NAME);
   const seats = await api.get<{ snapshot: { rounds: Array<{ seats: Array<{ is_me: boolean; notes: string | null }> }> } }>(
     `/tournois/${tournament.id}/compte-rendu/versions/1`,
   );
@@ -118,10 +146,12 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
   await expect(page.getByTestId("report-tournament-notes")).toContainText(NOTE);
 
   // 2. Le lien public, en ligne, lu sans session.
-  await page.getByTestId("report-link-create").click();
-  const link = page.getByTestId("report-link");
-  await expect(link).toContainText("/#/compte-rendu/");
-  const token = (await link.textContent())?.split("/#/compte-rendu/")[1]?.trim() ?? "";
+  const token = await withSettings(page, desktop, async () => {
+    await page.getByTestId("report-link-create").click();
+    const link = page.getByTestId("report-link");
+    await expect(link).toContainText("/#/compte-rendu/");
+    return (await link.textContent())?.split("/#/compte-rendu/")[1]?.trim() ?? "";
+  });
   expect(token).toMatch(/^[A-Za-z0-9_]{8}$/);
 
   const visitor = await browser.newContext({ baseURL: WEB_ORIGIN, viewport: page.viewportSize() ?? undefined });
@@ -144,8 +174,10 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
   }
 
   // 3. La purge fait tomber le lien (contexte neuf : la page publique se met en cache une minute).
-  await page.getByTestId("report-link-purge").click();
-  await expect(page.getByTestId("report-link-create")).toBeVisible();
+  await withSettings(page, desktop, async () => {
+    await page.getByTestId("report-link-purge").click();
+    await expect(page.getByTestId("report-link-create")).toBeVisible();
+  });
   const late = await browser.newContext({ baseURL: WEB_ORIGIN });
   try {
     const gone = await late.newPage();
