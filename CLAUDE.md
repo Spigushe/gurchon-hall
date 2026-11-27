@@ -3019,7 +3019,8 @@ complétée le 2026-11-21 par le compte-rendu de tournoi (décisions V1 à V7, O
 O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le détail).
 Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v1.2.1 pour
 l'issue #71, l'ordre des types de VDB et le lot Compte-rendu ensemble (décision du
-2026-11-23, qui remplace la v1.3 prévue), v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
+2026-11-23, qui remplace la v1.3 prévue), v1.2.2 pour les issues #72 et #73
+et la note sur un adversaire (décision du 2026-11-26), v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
 changeant ; les lots suivants donnent des v2.x.
 
 14. **Lot 12 — Consolidation (v1.1)** — *livré, v1.1.0 en production depuis le
@@ -3155,6 +3156,22 @@ changeant ; les lots suivants donnent des v2.x.
     désigne les versions de decklist du Lot 8 qu'elle montre : après un « Figer
     sur la liste actuelle », il faut régénérer le compte-rendu pour afficher la
     nouvelle liste.
+
+    **v1.2.2 — retours d'usage** — *ouverte le 2026-11-27 sur la branche
+    `issues72-73-notes-adversaire`*, contenu arrêté par l'utilisateur le
+    2026-11-26, front seul (ni route, ni migration, ni type `/sync`, ni version
+    Dexie). Issue #72 : plus aucun recalcul manuel de la légalité (pastille,
+    `R`, « recalculer » du mobile), la relecture automatique suffit ; étiquette
+    « Légal » ou « Illégal », motifs au survol au bureau et au toucher au
+    téléphone ; sur une erreur de lecture, on modifie le deck pour relancer.
+    Issue #73 : « Verser un produit » choisit dans une liste déroulante de tous
+    les produits, groupés par extension, plus récents en tête, au lieu de la
+    recherche à deux caractères. Note sur un adversaire : un champ « Note » par
+    ligne d'adversaire dans le formulaire de partie, sans quoi la case « Inclure
+    les notes sur les adversaires » du compte-rendu n'a rien à publier. Plan,
+    points à trancher (P1 à P3) et étapes dans `docs/v1.2.2-plan.md`. Elle
+    embarque d'abord les PR Dependabot ouvertes (#75, #76, #77), validées par
+    la même passe de tests.
 17. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
     Inventaires, proposé le 2026-11-03 et reporté après la mise en ligne le
     2026-11-13, est **découpé** en quatre lots et une suite (V3, classeurs avant
