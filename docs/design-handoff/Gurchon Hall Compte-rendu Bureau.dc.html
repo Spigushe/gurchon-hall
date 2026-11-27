@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Compte-rendu de tournoi — proposition</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#161826}
+a{color:#d2cefd}a:hover{color:#e7e5fe}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #9184d9;outline-offset:2px}
+.sw{appearance:none;flex:none;width:46px;height:28px;border-radius:999px;background:#292b31;border:1px solid rgba(233,233,237,.16);position:relative;margin:0;cursor:pointer;transition:background 140ms ease-out}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:#9397ab;transition:transform 140ms ease-out}
+.sw:checked{background:#423a6a;border-color:#9184d9}
+.sw:checked::after{transform:translateX(18px);background:#e7e5fe}
+.rule{height:1px;background:linear-gradient(90deg,transparent,rgba(233,233,237,.16) 48px,rgba(233,233,237,.16) calc(100% - 48px),transparent)}
+</style>
+</helmet>
+<div style="box-sizing:border-box;min-height:100%;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;padding:32px">
+<div style="max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:22px">
+
+<a href="#" style="display:inline-flex;align-items:center;gap:6px;color:#b2b6ca;text-decoration:none;font-size:14px;align-self:flex-start">
+<svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M216 128H40M112 56l-72 72 72 72" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+[Nom du tournoi]</a>
+
+<div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start">
+
+<!-- ===== Colonne compte-rendu ===== -->
+<article style="flex:999 1 560px;min-width:0;max-width:760px;display:flex;flex-direction:column;gap:26px">
+
+<header style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+<p style="margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab">Compte-rendu de tournoi</p>
+<span style="font-size:12px;padding:2px 8px;border-radius:4px;background:#2b2741;color:#e7e5fe">{{shownLabel}}</span>
+</div>
+<h1 style="margin:0;font-size:30px;font-weight:500;letter-spacing:-.02em;line-height:1.2">[Nom du tournoi]</h1>
+<p style="margin:0;font-size:17px;font-weight:500;color:#cfd3e5">[Deck joué] · [Archétype]</p>
+<p style="margin:0;font-size:13px;color:#b2b6ca">[Date du tournoi] · [Lieu] · [Format] · [N] joueurs</p>
+</header>
+
+<section aria-label="Résultat" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid rgba(233,233,237,.16);border-bottom:1px solid rgba(233,233,237,.16)">
+<div style="padding:14px 16px 14px 0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:12px;color:#9397ab">Classement</span>
+<span style="font-size:22px;font-weight:500;font-variant-numeric:tabular-nums">[N]<span style="font-size:14px;color:#b2b6ca;font-weight:400"> sur [N]</span></span>
+</div>
+<div style="padding:14px 16px;border-left:1px solid rgba(233,233,237,.16);display:flex;flex-direction:column;gap:2px">
+<span style="font-size:12px;color:#9397ab">Préliminaires</span>
+<span style="font-size:22px;font-weight:500;font-variant-numeric:tabular-nums">[N] GW · [N] VP</span>
+<span style="font-size:12px;color:#b2b6ca">en [N] rondes</span>
+</div>
+<div style="padding:14px 16px;border-left:1px solid rgba(233,233,237,.16);display:flex;flex-direction:column;gap:2px">
+<span style="font-size:12px;color:#9397ab">Finale</span>
+<span style="font-size:22px;font-weight:500;font-variant-numeric:tabular-nums">[N] VP</span>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">Notes</h2>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}">
+<button type="button" style="display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px;border:none;background:none;color:#d2cefd;font-size:13px">
+<svg width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><path d="M92.7 216H48a8 8 0 0 1-8-8v-44.7a8 8 0 0 1 2.3-5.6l120-120a8 8 0 0 1 11.4 0l44.6 44.6a8 8 0 0 1 0 11.4l-120 120a8 8 0 0 1-5.6 2.3zM136 64l56 56" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"></path></svg>
+Modifier</button>
+</sc-if>
+</div>
+<div class="rule"></div>
+<p style="margin:0;white-space:pre-line;line-height:1.6;color:#e9e9ed">[Notes du tournoi : déroulé général, ce qui a marché, ce qui a manqué.]</p>
+</section>
+
+<sc-for list="{{rounds}}" as="round" hint-placeholder-count="2">
+<section style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">{{round.title}} <span style="font-weight:400;color:#b2b6ca">· {{round.score}}</span></h2>
+<span style="font-size:13px;color:#b2b6ca">Proie : {{round.prey}} · Prédateur : {{round.predator}}</span>
+</div>
+<div class="rule"></div>
+<ol aria-label="Table" style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column">
+<sc-for list="{{round.seats}}" as="seat" hint-placeholder-count="5">
+<li style="display:grid;grid-template-columns:28px minmax(9rem,max-content) 1fr auto;gap:2px 14px;align-items:baseline;padding:10px 0;border-bottom:1px solid rgba(233,233,237,.08)">
+<span style="font-size:13px;color:#9397ab;font-variant-numeric:tabular-nums">{{seat.n}}</span>
+<span style="font-weight:{{seat.weight}}">{{seat.name}}</span>
+<span style="color:#cfd3e5;font-size:14px">{{seat.deck}}</span>
+<sc-if value="{{seat.me}}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;padding:1px 8px;border-radius:4px;background:#423a6a;color:#f5f4ff">Moi</span></sc-if>
+<sc-if value="{{seat.hasNote}}" hint-placeholder-val="{{ false }}"><span style="grid-column:2 / -1;font-size:13px;color:#b2b6ca">{{seat.note}}</span></sc-if>
+</li>
+</sc-for>
+</ol>
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+<p style="margin:0;white-space:pre-line;line-height:1.6">{{round.notes}}</p>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}">
+<button type="button" style="flex:none;display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px;border:none;background:none;color:#d2cefd;font-size:13px">Modifier</button>
+</sc-if>
+</div>
+</section>
+</sc-for>
+
+<section style="display:flex;flex-direction:column;gap:10px">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">Liste jouée</h2>
+<div class="rule"></div>
+<div style="min-height:120px;border:1px dashed rgba(233,233,237,.16);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9397ab;font-size:13px">Tables de deck existantes (DeckTables), inchangées</div>
+</section>
+
+<footer style="padding-top:12px;border-top:1px solid rgba(233,233,237,.16);font-size:12px;color:#9397ab">Compte-rendu de [Nom du tournoi] · {{shownLabel}} · Gurchon Hall</footer>
+</article>
+
+<!-- ===== Panneau de contrôle ===== -->
+<aside aria-label="Réglages du compte-rendu" style="flex:1 1 320px;max-width:380px;box-sizing:border-box;background:#232532;border-radius:8px;box-shadow:0 0 0 1px #3f424d;padding:22px;display:flex;flex-direction:column;gap:22px">
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab">Version affichée</p>
+<div role="group" aria-label="Version affichée" style="display:flex;flex-wrap:wrap;gap:6px">
+<sc-for list="{{versions}}" as="v" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}" style="min-height:40px;padding:0 14px;border-radius:999px;border:1px solid {{v.border}};background:{{v.bg}};color:{{v.color}};font-size:13px;font-variant-numeric:tabular-nums">{{v.label}}</button>
+</sc-for>
+</div>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}">
+<p style="margin:0;font-size:13px;color:#b2b6ca">L'aperçu diffère de la version 2. Les notes se modifient sur place.</p>
+</sc-if>
+<sc-if value="{{notEditing}}" hint-placeholder-val="{{ false }}">
+<p style="margin:0;font-size:13px;color:#b2b6ca">Version figée, en lecture seule. Passez sur l'aperçu pour modifier les notes.</p>
+</sc-if>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #9184d9;background:transparent;color:#9184d9;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px">
+<svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M176 104h48V56M224 104l-28.3-28.3a96 96 0 1 0 0 135.8" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+Mettre à jour le compte-rendu</button>
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px">
+<svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M64 80V40h128v40M64 176H32V88h192v88h-32M64 152h128v64H64z" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"></path></svg>
+Imprimer ou enregistrer en PDF</button>
+<p style="margin:0;display:flex;gap:6px;align-items:center;font-size:13px;color:#d2cefd">
+<svg width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><circle cx="128" cy="128" r="96" fill="none" stroke="currentColor" stroke-width="16"></circle><path d="M128 72v56h56" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"></path></svg>
+Mise à jour en attente : la version sera figée à la synchronisation.</p>
+</div>
+
+<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid rgba(233,233,237,.16);border-bottom:1px solid rgba(233,233,237,.16);cursor:pointer">
+<span style="display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px">Inclure les notes sur les adversaires</span>
+<span style="font-size:12px;color:#9397ab">Prises en compte à la prochaine mise à jour.</span>
+</span>
+<input class="sw" type="checkbox" checked="{{notesOn}}" onChange="{{toggleNotes}}">
+</label>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<p style="margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab">Lien public</p>
+<p style="margin:0;font-size:13px;color:#b2b6ca">Toujours la dernière version. Les noms des adversaires et leurs decks y sont publics.</p>
+<div style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px 0 12px;border-radius:8px;background:#161826;box-shadow:0 0 0 1px #3f424d">
+<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,monospace;font-size:13px;color:#cfd3e5">[adresse du lien public]</span>
+<button type="button" aria-label="Copier le lien" style="flex:none;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed;font-size:13px;display:inline-flex;align-items:center;gap:6px">
+<svg width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><path d="M168 168h48V40H88v48M40 88h128v128H40z" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"></path></svg>
+Copier</button>
+</div>
+<label style="display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;min-height:44px">
+<span style="font-size:14px">Montrer les versions antérieures</span>
+<input class="sw" type="checkbox" checked="{{olderOn}}" onChange="{{toggleOlder}}">
+</label>
+<button type="button" style="align-self:flex-start;border:none;background:none;padding:0;min-height:32px;color:#d2cefd;font-size:13px">Purger le lien</button>
+</div>
+
+<div style="padding-top:14px;border-top:1px solid rgba(233,233,237,.16)">
+<button type="button" style="border:none;background:none;padding:0;min-height:32px;color:#d2cefd;font-size:13px;display:inline-flex;align-items:center;gap:6px">
+<svg width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><path d="M216 56H40M104 104v64M152 104v64M200 56v152H56V56M168 56V40H88v16" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+Supprimer le compte-rendu…</button>
+<p style="margin:4px 0 0;font-size:12px;color:#9397ab">Les notes du tournoi et des parties restent.</p>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1640}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { sel: 'preview', notesOn: true, olderOn: false }; }
+  renderVals() {
+    const sel = this.state.sel;
+    const defs = [
+      { id: 1, label: 'v1 · [date]' },
+      { id: 2, label: 'v2 · [date]' },
+      { id: 'preview', label: 'Aperçu' }
+    ];
+    const versions = defs.map((d) => {
+      const on = d.id === sel;
+      return { label: d.label, pressed: on ? 'true' : 'false',
+        border: on ? '#9184d9' : 'rgba(233,233,237,.16)',
+        bg: on ? '#2b2741' : 'transparent', color: on ? '#e7e5fe' : '#cfd3e5',
+        pick: () => this.setState({ sel: d.id }) };
+    });
+    const editing = sel === 'preview';
+    const seat = (n, name, deck, me, note) => ({ n, name, deck, me, weight: me ? 500 : 400, hasNote: !!note && this.state.notesOn, note: note || '' });
+    const rounds = [
+      { title: 'Ronde 1', score: '[N] VP', prey: '[Joueur]', predator: '[Joueur]', notes: '[Notes de la partie.]',
+        seats: [seat(1,'[Joueur]','[Deck]',false,'[Note sur l’adversaire]'), seat(2,'Moi','[Deck joué]',true), seat(3,'[Joueur]','[Deck]',false), seat(4,'[Joueur]','[Deck]',false), seat(5,'[Joueur]','[Deck]',false)] },
+      { title: 'Ronde 2', score: '[N] VP', prey: '[Joueur]', predator: '[Joueur]', notes: '[Notes de la partie.]',
+        seats: [seat(1,'[Joueur]','[Deck]',false), seat(2,'[Joueur]','[Deck]',false), seat(3,'[Joueur]','[Deck]',false), seat(4,'Moi','[Deck joué]',true)] }
+    ];
+    return {
+      versions, rounds, editing, notEditing: !editing,
+      shownLabel: editing ? 'Aperçu, non synchronisé' : ('Version ' + sel + ' du [date]'),
+      notesOn: this.state.notesOn, olderOn: this.state.olderOn,
+      toggleNotes: () => this.setState({ notesOn: !this.state.notesOn }),
+      toggleOlder: () => this.setState({ olderOn: !this.state.olderOn })
+    };
+  }
+}
+</script>
+</body>
+</html>
