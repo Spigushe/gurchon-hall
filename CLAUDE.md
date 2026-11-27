@@ -3159,17 +3159,20 @@ changeant ; les lots suivants donnent des v2.x.
 
     **v1.2.2 — retours d'usage** — *ouverte le 2026-11-27 sur la branche
     `issues72-73-notes-adversaire`*, contenu arrêté par l'utilisateur le
-    2026-11-26, front seul (ni route, ni migration, ni type `/sync`, ni version
-    Dexie). Issue #72 : plus aucun recalcul manuel de la légalité (pastille,
+    2026-11-26, front seul sauf une révision, R18 (ni route, ni type `/sync`,
+    ni version Dexie). Issue #72 : plus aucun recalcul manuel de la légalité (pastille,
     `R`, « recalculer » du mobile), la relecture automatique suffit ; étiquette
     « Légal » ou « Illégal », motifs au survol au bureau et au toucher au
     téléphone ; sur une erreur de lecture, on modifie le deck pour relancer.
     Issue #73 : « Verser un produit » choisit dans une liste déroulante de tous
     les produits, groupés par extension, plus récents en tête, au lieu de la
-    recherche à deux caractères. Note sur un adversaire : un champ « Note » par
-    ligne d'adversaire dans le formulaire de partie, sans quoi la case « Inclure
-    les notes sur les adversaires » du compte-rendu n'a rien à publier. Plan,
-    points à trancher (P1 à P3) et étapes dans `docs/v1.2.2-plan.md`. Elle
+    recherche à deux caractères. Notes de table : un champ « Note » par ligne de
+    la table dans le formulaire de partie, la mienne comprise (le tirage de
+    départ, quand les notes de la partie racontent son déroulé), sans quoi la
+    case « Inclure les notes sur les adversaires » du compte-rendu n'a rien à
+    publier ; ma note paraît au compte-rendu derrière une case « Inclure mes
+    notes de table », cochée par défaut (R18, `tournament_report.include_my_notes`). Plan, points tranchés
+    (P1 à P3, le 2026-11-27) et étapes dans `docs/v1.2.2-plan.md`. Elle
     embarque d'abord les PR Dependabot ouvertes (#75, #76, #77), validées par
     la même passe de tests.
 17. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
