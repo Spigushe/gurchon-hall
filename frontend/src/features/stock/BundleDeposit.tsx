@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { useApiClient } from "../../app/apiClientContext";
 import { LanguageChips } from "../../components/LanguageChips";
 import { Pill } from "../../components/Pill";
@@ -8,25 +8,16 @@ import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { useConnectivity } from "../../offline/react";
 import { useVtesOffline } from "../../offline/vtes";
-import type { components } from "../../api-client/schema";
+import { bundleLabel, bundleOptionLabel, groupBundles, type Bundle } from "./bundleOptions";
+import { useCardSetOptions } from "./useCardSetOptions";
 import { useLanguageOptions } from "./useLanguageOptions";
-
-type Bundle = components["schemas"]["BundleRead"];
-
-interface Found {
-  term: string;
-  bundles: Bundle[] | "error";
-}
-
-const bundleLabel = (bundle: Bundle) =>
-  [bundle.name ?? "Produit sans nom", bundle.code && `(${bundle.code})`].filter(Boolean).join(" ");
 
 /**
  * Verse le contenu d'un produit (précon, boîte) dans la collection.
  *
  * Écran poussé (`Sheet`, handoff Nocturne « Verser un produit »), tab bar visible.
- * Trouver le produit demande le réseau : il n'y a pas de miroir local des
- * produits. Le versement, lui, passe par la file (`actions.depositBundle`), avec
+ * Lister les produits demande le réseau : il n'y a pas de miroir local des
+ * produits (un seul `GET /bundles`, relancé au retour du réseau). Le versement, lui, passe par la file (`actions.depositBundle`), avec
  * une clé d'idempotence : rejoué, il n'additionne pas deux fois.
  */
 export function BundleDeposit({ onClose }: { onClose: () => void }) {
@@ -39,33 +30,36 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
   const titleId = `${formId}-title`;
   const titleRef = useRef<HTMLHeadingElement>(null);
   const isDesktop = useIsDesktop();
-  const [term, setTerm] = useState("");
-  const deferred = useDeferredValue(term.trim());
-  const [found, setFound] = useState<Found | null>(null);
-  const [chosen, setChosen] = useState<Bundle | null>(null);
+  const cardSets = useCardSetOptions();
+  const [bundles, setBundles] = useState<Bundle[] | "error" | null>(null);
+  const [chosenId, setChosenId] = useState("");
   const [languageCode, setLanguageCode] = useState("FR");
   const [count, setCount] = useState(1);
   const [invalid, setInvalid] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
-  const searchable = online && deferred.length >= 2;
+  const loaded = Array.isArray(bundles);
   useEffect(() => {
-    if (!searchable) return;
+    if (!online || loaded) return;
     let cancelled = false;
     client
-      .GET("/bundles", { params: { query: { q: deferred } } })
+      .GET("/bundles")
       .then((result) => {
-        if (!cancelled) setFound({ term: deferred, bundles: result.data ?? "error" });
+        if (!cancelled) setBundles(result.data ?? "error");
       })
       .catch(() => {
-        if (!cancelled) setFound({ term: deferred, bundles: "error" });
+        if (!cancelled) setBundles("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [client, searchable, deferred]);
+  }, [client, online, loaded]);
 
-  const results = searchable && found?.term === deferred ? found.bundles : null;
+  const groups = useMemo(
+    () => (Array.isArray(bundles) ? groupBundles(bundles, cardSets.list ?? []) : []),
+    [bundles, cardSets.list],
+  );
+  const chosen = Array.isArray(bundles) ? (bundles.find((bundle) => String(bundle.id) === chosenId) ?? null) : null;
 
   const runSubmit = async () => {
     setSaved(null);
@@ -79,7 +73,7 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
     setSaved(
       `Versement de ${bundleLabel(chosen)} enregistré. Les cartes apparaîtront dans la collection après la synchronisation.`,
     );
-    setChosen(null);
+    setChosenId("");
     setCount(1);
   };
 
@@ -119,72 +113,39 @@ export function BundleDeposit({ onClose }: { onClose: () => void }) {
         className="sheet-form"
         aria-label="Verser un produit dans la collection"
       >
-        {chosen ? (
-          <div className="field">
-            <span className="field__label">Produit</span>
-            <div className="chosen-row">
-              <strong>{bundleLabel(chosen)}</strong>
-              <button type="button" className="btn-text" onClick={() => setChosen(null)}>
-                Changer
-              </button>
-            </div>
-            {online ? (
-              <p className="hint">
-                {chosen.size !== null && `${chosen.size} cartes · `}
-                la recherche d'un produit demande le réseau
-              </p>
-            ) : (
-              <p className="hint" data-testid="bundle-offline-hint">
-                La recherche d'un produit demande une connexion.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="picker">
-            <label htmlFor={`${formId}-search`}>Rechercher un produit</label>
-            <input
-              id={`${formId}-search`}
-              type="search"
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              disabled={!online}
-              autoComplete="off"
-              placeholder="Nom du produit (2 lettres au moins)"
-            />
-            {!online && (
-              <p className="hint" data-testid="bundle-offline-hint">
-                La recherche d'un produit demande une connexion.
-              </p>
-            )}
-            {results === "error" && (
-              <p className="error-text" role="alert">
-                Les produits n'ont pas pu être chargés.
-              </p>
-            )}
-            {Array.isArray(results) && results.length === 0 && (
-              <p className="hint">Aucun produit ne correspond.</p>
-            )}
-            {Array.isArray(results) && results.length > 0 && (
-              <ul className="picker__results">
-                {results.slice(0, 20).map((bundle) => (
-                  <li key={bundle.id}>
-                    <button
-                      type="button"
-                      className="picker__option"
-                      onClick={() => {
-                        setChosen(bundle);
-                        setTerm("");
-                      }}
-                    >
-                      <span>{bundleLabel(bundle)}</span>
-                      {bundle.size !== null && <small>{bundle.size} cartes</small>}
-                    </button>
-                  </li>
+        <div className="field">
+          <label htmlFor={`${formId}-bundle`} className="field__label">
+            Produit
+          </label>
+          <select
+            id={`${formId}-bundle`}
+            value={chosen ? chosenId : ""}
+            onChange={(event) => setChosenId(event.target.value)}
+            disabled={!online || !loaded}
+            data-testid="bundle-select"
+          >
+            <option value="">Choisir un produit…</option>
+            {groups.map((group) => (
+              <optgroup key={group.cardSetId} label={group.label}>
+                {group.bundles.map((bundle) => (
+                  <option key={bundle.id} value={String(bundle.id)}>
+                    {bundleOptionLabel(bundle)}
+                  </option>
                 ))}
-              </ul>
-            )}
-          </div>
-        )}
+              </optgroup>
+            ))}
+          </select>
+          {!online && (
+            <p className="hint" data-testid="bundle-offline-hint">
+              La liste des produits demande une connexion.
+            </p>
+          )}
+          {bundles === "error" && (
+            <p className="error-text" role="alert">
+              Les produits n'ont pas pu être chargés.
+            </p>
+          )}
+        </div>
 
         <LanguageChips
           legend="Langue du produit"

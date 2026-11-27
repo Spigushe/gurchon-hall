@@ -360,14 +360,14 @@ describe("collection : saisie hors ligne", () => {
     fireEvent.click(await screen.findByTestId("bundle-open"));
     const panel = await screen.findByTestId("bundle-deposit");
 
-    fireEvent.change(within(panel).getByLabelText("Rechercher un produit"), {
-      target: { value: "brujah" },
-    });
-    fireEvent.click(await within(panel).findByText("Précon Brujah (PB)"));
+    const select = await within(panel).findByLabelText("Produit");
+    await within(panel).findByRole("option", { name: "Précon Brujah (PB) · 90 cartes" });
+    fireEvent.change(select, { target: { value: "7" } });
     fireEvent.change(within(panel).getByLabelText("Nombre de produits"), { target: { value: "2" } });
     fireEvent.click(within(panel).getByTestId("bundle-submit"));
 
     await waitFor(() => expect(within(panel).getByTestId("bundle-feedback")).toHaveTextContent("enregistré"));
+    expect(select).toHaveValue("");
     await runtime.engine.whenIdle();
     // Rejoué par le moteur sous une clé d'idempotence, jamais par un appel direct.
     expect(ui.requests.filter((request) => request.method === "POST")).toEqual([]);
@@ -462,10 +462,9 @@ describe("bundle : verser un produit, pied bureau/mobile (Lot 5bis)", () => {
     fireEvent.click(await screen.findByTestId("bundle-open"));
     const panel = await screen.findByTestId("bundle-deposit");
 
-    fireEvent.change(within(panel).getByLabelText("Rechercher un produit"), {
-      target: { value: "brujah" },
-    });
-    fireEvent.click(await within(panel).findByText("Précon Brujah (PB)"));
+    const select = await within(panel).findByLabelText("Produit");
+    await within(panel).findByRole("option", { name: "Précon Brujah (PB) · 90 cartes" });
+    fireEvent.change(select, { target: { value: "7" } });
 
     fireEvent.keyDown(document, { key: "Enter", ctrlKey: true });
 
