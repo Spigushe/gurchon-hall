@@ -156,9 +156,15 @@ def _seat_order(line: Participation) -> tuple[bool, int, int]:
     return (line.seat is None, line.seat or 0, line.id)
 
 
-def _seat(line: Participation, include_opponent_notes: bool) -> ReportSeat:
+def _seat(
+    line: Participation, *, include_my_notes: bool, include_opponent_notes: bool
+) -> ReportSeat:
+    """Une ligne de la table. Sa note n'y entre que si le réglage de son camp
+    l'inclut : ma ligne selon `include_my_notes` (A8 de la v1.2.2, vrai par
+    défaut), une ligne d'adversaire selon `include_opponent_notes` (P4)."""
     is_me = line.player is not None and line.player.is_me
     deck: Deck | None = line.deck
+    keep_notes = include_my_notes if is_me else include_opponent_notes
     return ReportSeat(
         seat=line.seat,
         is_me=is_me,
@@ -175,11 +181,13 @@ def _seat(line: Participation, include_opponent_notes: bool) -> ReportSeat:
         ),
         victory_points=line.victory_points if is_me else None,
         game_win=line.game_win if is_me else None,
-        notes=line.notes if is_me or include_opponent_notes else None,
+        notes=line.notes if keep_notes else None,
     )
 
 
-def _round(game: Game, include_opponent_notes: bool) -> ReportRound:
+def _round(
+    game: Game, *, include_my_notes: bool, include_opponent_notes: bool
+) -> ReportRound:
     return ReportRound(
         round_type=game.round_type,
         round_number=game.round_number,
@@ -187,7 +195,11 @@ def _round(game: Game, include_opponent_notes: bool) -> ReportRound:
         player_count=game.player_count,
         notes=game.notes,
         seats=[
-            _seat(line, include_opponent_notes)
+            _seat(
+                line,
+                include_my_notes=include_my_notes,
+                include_opponent_notes=include_opponent_notes,
+            )
             for line in sorted(game.participations, key=_seat_order)
         ],
     )
@@ -242,9 +254,15 @@ def _decks(
 
 
 def build_snapshot(
-    db: Session, user_id: int, tournament: Tournament, include_opponent_notes: bool
+    db: Session,
+    user_id: int,
+    tournament: Tournament,
+    *,
+    include_my_notes: bool,
+    include_opponent_notes: bool,
 ) -> ReportSnapshot:
-    """L'instantané du tournoi, depuis la base seule (A3)."""
+    """L'instantané du tournoi, depuis la base seule (A3), avec les notes de
+    table que les deux réglages du compte-rendu incluent."""
     games = sorted(
         db.scalars(
             select(Game)
@@ -265,7 +283,14 @@ def build_snapshot(
         tournament=_tournament_part(tournament),
         summary=_summary(db, user_id, tournament.id),
         decks=_decks(db, user_id, tournament.id, games),
-        rounds=[_round(game, include_opponent_notes) for game in games],
+        rounds=[
+            _round(
+                game,
+                include_my_notes=include_my_notes,
+                include_opponent_notes=include_opponent_notes,
+            )
+            for game in games
+        ],
     )
 
 
@@ -296,7 +321,13 @@ def _cut_version(
     db: Session, user_id: int, tournament: Tournament, report: TournamentReport
 ) -> bool:
     text = canonical(
-        build_snapshot(db, user_id, tournament, report.include_opponent_notes)
+        build_snapshot(
+            db,
+            user_id,
+            tournament,
+            include_my_notes=report.include_my_notes,
+            include_opponent_notes=report.include_opponent_notes,
+        )
     )
     last = report.versions[-1] if report.versions else None
     if last is not None and last.snapshot == text:
@@ -307,6 +338,24 @@ def _cut_version(
         )
     )
     return True
+
+
+# Réglages du compte-rendu que porte une demande `update` : omis (None), un
+# réglage ne change pas.
+_REQUEST_SETTINGS = ("include_opponent_notes", "include_my_notes")
+
+
+def _apply_settings(
+    report: TournamentReport, request: TournamentReportRequest
+) -> bool:
+    """Pose sur le compte-rendu les réglages fournis ; dit si l'un a changé."""
+    changed = False
+    for name in _REQUEST_SETTINGS:
+        value = getattr(request, name)
+        if value is not None and value != getattr(report, name):
+            setattr(report, name, value)
+            changed = True
+    return changed
 
 
 def apply_request(
@@ -321,17 +370,18 @@ def apply_request(
             db.delete(report)
             _touch(tournament)
         return
-    changed = False
+    created = report is None
     if report is None:
-        report = TournamentReport(user_id=user_id, tournament_id=tournament.id)
+        # Réglages posés explicitement : `_cut_version` lit l'objet avant tout
+        # `flush`, donc avant que la base n'applique ses valeurs par défaut.
+        report = TournamentReport(
+            user_id=user_id,
+            tournament_id=tournament.id,
+            include_opponent_notes=False,
+            include_my_notes=True,
+        )
         db.add(report)
-        changed = True
-    if (
-        request.include_opponent_notes is not None
-        and request.include_opponent_notes != report.include_opponent_notes
-    ):
-        report.include_opponent_notes = request.include_opponent_notes
-        changed = True
+    changed = _apply_settings(report, request) or created
     if _cut_version(db, user_id, tournament, report) or changed:
         _touch(tournament)
 
@@ -356,6 +406,7 @@ def to_read(report: TournamentReport) -> TournamentReportRead:
     return TournamentReportRead(
         tournament_id=report.tournament_id,
         include_opponent_notes=report.include_opponent_notes,
+        include_my_notes=report.include_my_notes,
         show_previous_versions=report.show_previous_versions,
         token=report.token,
         created_at=report.created_at,

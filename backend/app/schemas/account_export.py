@@ -257,6 +257,12 @@ class ExportedTournamentReport(ReadModel):
 
     tournament_id: int
     include_opponent_notes: bool
+    include_my_notes: bool = Field(
+        description=(
+            "Mes notes de table entrent au compte-rendu (v1.2.2, A8) ; champ "
+            "ajouté sans changer `format_version`."
+        )
+    )
     show_previous_versions: bool
     shared: bool = Field(description="Le compte-rendu a un lien public.")
     created_at: datetime

@@ -6,8 +6,9 @@ les notes du tournoi et des parties, qui vivent dans leurs tables. Il n'a donc
 aucun texte propre : seulement des réglages et des versions.
 
 * `tournament_report` — le compte-rendu d'un tournoi : ses réglages (notes sur
-  les adversaires incluses ou non, P4 ; versions antérieures visibles par le
-  lien ou non, P9) et le jeton de son lien public, nul tant qu'il n'est pas
+  les adversaires incluses ou non, P4 ; mes notes de table incluses ou non,
+  cochées par défaut, v1.2.2 A8 ; versions antérieures visibles par le lien ou
+  non, P9) et le jeton de son lien public, nul tant qu'il n'est pas
   partagé ou après une purge (P8). Jeton au format du Lot 13, en clair.
 * `tournament_report_version` — une version figée, numérotée (v1, v2…), qui
   porte l'**instantané** de tout ce que le compte-rendu affiche (P6, A3), en
@@ -36,6 +37,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     func,
+    true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -78,6 +80,11 @@ class TournamentReport(Base):
     )
     include_opponent_notes: Mapped[bool] = mapped_column(
         default=False, server_default=false()
+    )
+    # Ma note de table (`participation.notes` de ma ligne) au compte-rendu,
+    # cochée par défaut (v1.2.2, A8, R18).
+    include_my_notes: Mapped[bool] = mapped_column(
+        default=True, server_default=true()
     )
     show_previous_versions: Mapped[bool] = mapped_column(
         default=False, server_default=false()

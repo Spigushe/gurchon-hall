@@ -419,6 +419,7 @@ def export_tournament_reports(
         ExportedTournamentReport(
             tournament_id=report.tournament_id,
             include_opponent_notes=report.include_opponent_notes,
+            include_my_notes=report.include_my_notes,
             show_previous_versions=report.show_previous_versions,
             shared=report.token is not None,
             created_at=report.created_at,

@@ -6,7 +6,8 @@ Ce que ce fichier éprouve :
   version seulement si l'instantané change (P5, P6) ;
 * le contenu de l'instantané : tournoi, bilan, tables dans l'ordre des sièges,
   adversaire nommé ou non, deck prêté ou adverse, listes jouées (P3), notes
-  sur les adversaires selon l'option (P4) ;
+  sur les adversaires selon l'option (P4), mes notes de table selon la
+  sienne, cochée par défaut (A8 de la v1.2.2, `docs/v1.2.2-plan.md`) ;
 * la permanence : une partie supprimée reste dans la version qui la montrait,
   un tournoi ne se supprime pas tant qu'il a un compte-rendu (P10) ;
 * `/sync` : la demande voyage dans `tournament.update`, rejouable ;
@@ -14,13 +15,18 @@ Ce que ce fichier éprouve :
 * l'isolation entre comptes.
 """
 
+import json
 import uuid
+from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
 
+from app.main import app
 from app.models.enums import CardCategory
+from app.schemas.sync import TournamentUpdateOperation, fingerprint
 from app.services import players
+from app.services.tournament_reports import _seat
 from tests.auth_helpers import DEFAULT_PASSWORD, log_in, make_account
 from tests.helpers import add_languages, make_card, make_card_set, make_printing
 
@@ -128,6 +134,7 @@ def test_update_creates_the_report_and_its_first_version(w):
     report = _update(w, tournament)
     assert _numbers(report) == [1]
     assert report["include_opponent_notes"] is False
+    assert report["include_my_notes"] is True
     assert report["show_previous_versions"] is False
     assert report["token"] is None
     snapshot = _snapshot(w, tournament, 1)
@@ -284,6 +291,122 @@ def test_the_venue_shows_its_name_and_city_but_never_its_notes(w):
 
 
 # --------------------------------------------------------------------------
+# Mes notes de table (v1.2.2, A8)
+# --------------------------------------------------------------------------
+
+MY_NOTE = "Tirage sans vampire à 1."
+
+
+def _line(*, is_me, notes):
+    """Une ligne de table réduite à ce que lit `_seat`."""
+    return SimpleNamespace(
+        seat=1,
+        player=SimpleNamespace(is_me=is_me, name="Marc"),
+        deck=None,
+        opponent_deck_name=None,
+        opponent_deck_archetype=None,
+        opponent_clan=None,
+        victory_points=None,
+        game_win=None,
+        notes=notes,
+    )
+
+
+@pytest.mark.parametrize(
+    ("include_my_notes", "include_opponent_notes", "mine", "theirs"),
+    [
+        (True, False, MY_NOTE, None),
+        (True, True, MY_NOTE, "Joue vite."),
+        (False, False, None, None),
+        (False, True, None, "Joue vite."),
+    ],
+)
+def test_each_setting_keeps_the_notes_of_its_own_side(
+    include_my_notes, include_opponent_notes, mine, theirs
+):
+    settings = {
+        "include_my_notes": include_my_notes,
+        "include_opponent_notes": include_opponent_notes,
+    }
+    me = _seat(_line(is_me=True, notes=MY_NOTE), **settings)
+    other = _seat(_line(is_me=False, notes="Joue vite."), **settings)
+    assert (me.notes, other.notes) == (mine, theirs)
+
+
+def _my_notes_game(w):
+    """Un tournoi d'une ronde, avec une note sur ma ligne et une sur Marc."""
+    marc = w.api.post("/joueurs", json={"name": "Marc"}).json()["id"]
+    tournament = _tournament(w)
+    body = {
+        "played_at": "2026-11-14T14:00:00+01:00",
+        "player_count": 4,
+        "tournament": {"tournament_id": tournament},
+        "round_type": "preliminary",
+        "round_number": 1,
+        "notes": "Table bloquée.",
+        "participations": [
+            {"player": ME, "seat": 1, "notes": MY_NOTE},
+            {"player": {"player_id": marc}, "seat": 2, "notes": "Joue vite."},
+        ],
+    }
+    response = w.api.post("/parties", json=body)
+    assert response.status_code == 201, response.text
+    return tournament
+
+
+def _seat_notes(w, tournament, number):
+    seats = _snapshot(w, tournament, number)["rounds"][0]["seats"]
+    return [(s["is_me"], s["notes"]) for s in seats]
+
+
+def test_my_table_notes_are_in_by_default(w):
+    tournament = _my_notes_game(w)
+    report = _update(w, tournament)
+    assert report["include_my_notes"] is True
+    assert _seat_notes(w, tournament, 1) == [(True, MY_NOTE), (False, None)]
+
+
+def test_excluding_my_notes_cuts_a_version_without_them_and_keeps_the_old_one(w):
+    tournament = _my_notes_game(w)
+    _update(w, tournament)
+    report = _update(w, tournament, include_my_notes=False)
+    assert report["include_my_notes"] is False
+    assert _numbers(report) == [1, 2]
+    assert _seat_notes(w, tournament, 2) == [(True, None), (False, None)]
+    # La version figée avant le changement garde ce qu'elle contenait.
+    assert _seat_notes(w, tournament, 1)[0] == (True, MY_NOTE)
+    # Omis, le réglage ne change pas ; l'autre case se règle à part.
+    report = _update(w, tournament, include_opponent_notes=True)
+    assert report["include_my_notes"] is False
+    assert _seat_notes(w, tournament, 3) == [(True, None), (False, "Joue vite.")]
+    read = w.api.get(f"/tournois/{tournament}/compte-rendu").json()
+    assert read["include_my_notes"] is False
+    # Recochée, la case rend ma note à la version suivante.
+    _update(w, tournament, include_my_notes=True)
+    assert _seat_notes(w, tournament, 4)[0] == (True, MY_NOTE)
+
+
+def test_excluding_my_notes_at_creation_cuts_a_first_version_without_them(w):
+    tournament = _my_notes_game(w)
+    report = _update(w, tournament, include_my_notes=False)
+    assert report["include_my_notes"] is False
+    assert _numbers(report) == [1]
+    assert _seat_notes(w, tournament, 1) == [(True, None), (False, None)]
+
+
+def test_a_setting_change_alone_touches_the_tournament(w):
+    """Sans partie, la case décochée ne change pas l'instantané : aucune
+    version, mais le réglage est posé et le miroir relira le tournoi."""
+    tournament = _tournament(w)
+    _update(w, tournament)
+    before = w.api.get(f"/tournois/{tournament}").json()["updated_at"]
+    report = _update(w, tournament, include_my_notes=False)
+    assert report["include_my_notes"] is False
+    assert _numbers(report) == [1]
+    assert w.api.get(f"/tournois/{tournament}").json()["updated_at"] > before
+
+
+# --------------------------------------------------------------------------
 # Permanence et suppressions
 # --------------------------------------------------------------------------
 
@@ -326,13 +449,16 @@ def test_deleting_a_missing_report_does_nothing(w):
     assert response.status_code == 200
 
 
-def test_opponent_notes_go_with_update_only(w):
+@pytest.mark.parametrize("setting", ["include_opponent_notes", "include_my_notes"])
+@pytest.mark.parametrize("value", [True, False])
+def test_note_settings_go_with_update_only(w, setting, value):
     tournament = _tournament(w)
     response = w.api.patch(
         f"/tournois/{tournament}",
-        json={"report": {"action": "delete", "include_opponent_notes": True}},
+        json={"report": {"action": "delete", setting: value}},
     )
     assert response.status_code == 422
+    assert f"{setting} ne vaut qu'avec action=update." in response.text
 
 
 # --------------------------------------------------------------------------
@@ -366,6 +492,50 @@ def test_the_request_travels_in_tournament_update_and_replays_safely(w):
     report = w.api.get(f"/tournois/{tournament}").json()["report"]
     assert _numbers(report) == [1]
     assert report["include_opponent_notes"] is True
+
+
+def test_my_notes_setting_travels_in_tournament_update_and_replays_safely(w):
+    tournament = _my_notes_game(w)
+    operation = _report_operation(tournament, include_my_notes=False)
+    assert _sync(w, [operation])[0]["outcome"] == "applied"
+    assert _sync(w, [operation])[0]["outcome"] == "replayed"
+    report = w.api.get(f"/tournois/{tournament}").json()["report"]
+    assert report["include_my_notes"] is False
+    assert _numbers(report) == [1]
+    assert _seat_notes(w, tournament, 1)[0] == (True, None)
+
+
+def test_an_operation_written_before_v122_keeps_its_fingerprint():
+    """Une demande en file d'avant la v1.2.2 n'a pas le champ : `exclude_unset`
+    le laisse hors de l'empreinte, et le rejeu reste un rejeu."""
+    body = {
+        "operation_id": "6f1d2a4e-0e9e-4a1a-9a0f-2f7b3c4d5e6f",
+        "recorded_at": "2026-11-14T20:00:00Z",
+        "type": "tournament.update",
+        "tournament": {"tournament_id": 7},
+        "data": {"report": {"action": "update", "include_opponent_notes": True}},
+    }
+    operation = TournamentUpdateOperation.model_validate(body)
+    legacy = json.dumps(body, sort_keys=True, separators=(",", ":"))
+    assert fingerprint(operation) == sha256(legacy.encode("utf-8")).hexdigest()
+    report = body["data"]["report"] | {"include_my_notes": True}
+    with_setting = TournamentUpdateOperation.model_validate(
+        body | {"data": {"report": report}}
+    )
+    assert fingerprint(operation) != fingerprint(with_setting)
+
+
+def test_replaying_an_operation_without_the_field_leaves_the_setting_alone(w):
+    tournament = _my_notes_game(w)
+    legacy = _report_operation(tournament)
+    assert _sync(w, [legacy])[0]["outcome"] == "applied"
+    off = _report_operation(tournament, include_my_notes=False)
+    assert _sync(w, [off])[0]["outcome"] == "applied"
+    # Réponse perdue : la file renvoie l'ancienne opération, telle quelle.
+    assert _sync(w, [legacy])[0]["outcome"] == "replayed"
+    report = w.api.get(f"/tournois/{tournament}").json()["report"]
+    assert report["include_my_notes"] is False
+    assert _numbers(report) == [1, 2]
 
 
 def test_a_game_queued_before_the_request_is_in_the_version(w):
@@ -554,6 +724,46 @@ def test_the_export_carries_the_reports_but_never_their_token(shared):
     assert shared.token not in response.text
     (report,) = body["tournament_reports"]
     assert report["tournament_id"] == shared.tournament
+    assert report["include_opponent_notes"] is False
+    assert report["include_my_notes"] is True
     assert report["shared"] is True
     assert [v["number"] for v in report["versions"]] == [1, 2]
     assert report["versions"][1]["snapshot"]["rounds"][0]["notes"] == "v2"
+
+
+def test_the_export_carries_an_excluded_my_notes_setting(shared):
+    _update(shared, shared.tournament, include_my_notes=False)
+    body = shared.api.get("/moi/export").json()
+    assert body["format_version"] == 3  # champ ajouté : la forme ne change pas
+    (report,) = body["tournament_reports"]
+    assert report["include_my_notes"] is False
+
+
+# --------------------------------------------------------------------------
+# Contrat (v1.2.2, A8)
+# --------------------------------------------------------------------------
+
+
+def _component(name):
+    return app.openapi()["components"]["schemas"][name]
+
+
+@pytest.mark.parametrize("name", ["TournamentReportRead", "ExportedTournamentReport"])
+def test_the_my_notes_setting_is_always_read(name):
+    component = _component(name)
+    assert component["properties"]["include_my_notes"]["type"] == "boolean"
+    assert "include_my_notes" in component["required"]
+
+
+def test_the_my_notes_setting_is_optional_and_nullable_in_the_request():
+    component = _component("TournamentReportRequest")
+    field = component["properties"]["include_my_notes"]
+    assert {variant.get("type") for variant in field["anyOf"]} == {"boolean", "null"}
+    assert component["required"] == ["action"]
+
+
+def test_the_contract_keeps_seventy_operations_on_45_paths():
+    paths = app.openapi()["paths"]
+    methods = {"get", "post", "put", "patch", "delete"}
+    count = sum(1 for item in paths.values() for method in item if method in methods)
+    assert (count, len(paths)) == (70, 45)

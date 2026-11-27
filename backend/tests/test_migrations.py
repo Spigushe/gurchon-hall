@@ -55,7 +55,8 @@ VDB_LINK_REVISION = "5f2b8e9d0c41"  # lien VDB sur le deck (Lot 9, R14)
 SESSION_DEVICE_REVISION = "c4e8a1f2d7b3"  # appareil, dernière utilisation (Lot 12, R15)
 SHARES_REVISION = "dda2c510a2f2"  # liens publics vers une decklist (Lot 13, R16)
 REPORTS_REVISION = "b3f1c7a9e2d4"  # comptes-rendus de tournoi (lot Compte-rendu, R17)
-HEAD_REVISION = REPORTS_REVISION
+MY_NOTES_REVISION = "e6d2a4b8c1f5"  # mes notes de table au compte-rendu (v1.2.2, R18)
+HEAD_REVISION = MY_NOTES_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -74,6 +75,7 @@ REVISIONS = [
     SESSION_DEVICE_REVISION,
     SHARES_REVISION,
     REPORTS_REVISION,
+    MY_NOTES_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -271,7 +273,7 @@ def empty_db(tmp_path) -> Path:
 
 
 def test_history_has_a_single_head_and_a_single_root():
-    """Dix-sept révisions à la suite, sans branche : une racine, une tête."""
+    """Dix-huit révisions à la suite, sans branche : une racine, une tête."""
     script = ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
     assert script.get_heads() == [HEAD_REVISION]
     assert script.get_bases() == [INITIAL_REVISION]
@@ -4274,7 +4276,7 @@ def test_head_creates_the_two_report_tables_with_their_named_checks(migrated):
 
 @pytest.fixture
 def reported(empty_db) -> Path:
-    """La base peuplée, montée à la tête, avec le tournoi 9001 du compte 1."""
+    """La base peuplée, montée à R17, avec le tournoi 9001 du compte 1."""
     populated_at_r16(empty_db)
     alembic(empty_db, "upgrade", REPORTS_REVISION)
     return empty_db
@@ -4394,6 +4396,178 @@ def test_the_reports_revision_downgrade_does_not_render_offline(empty_db):
         empty_db,
         "downgrade",
         f"{REPORTS_REVISION}:{SHARES_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# v1.2.2 : mes notes de table au compte-rendu (R18)
+# --------------------------------------------------------------------------
+
+
+def report_column_names(db_path: Path) -> list[str]:
+    return [row[1] for row in rows(db_path, "PRAGMA table_info(tournament_report)")]
+
+
+def populated_at_r17(db_path: Path) -> None:
+    """La base peuplée des tests de R13 à R17, montée à R17, avec deux
+    comptes-rendus sur deux tournois du compte 1 (l'un partagé, l'autre avec
+    les notes sur les adversaires) et une version chacun."""
+    populated_at_r16(db_path)
+    alembic(db_path, "upgrade", REPORTS_REVISION)
+    execute(
+        db_path,
+        "INSERT INTO tournament (id, user_id, name, start_date, format, deck_policy,"
+        " event_tier, created_at, updated_at) VALUES (9002, 1, 'Ligue', '2026-11-21',"
+        " 'constructed', 'mono', 'standard', '2026-11-21 10:00:00',"
+        " '2026-11-21 10:00:00')",
+    )
+    execute(
+        db_path,
+        REPORT_INSERT.format(
+            "(1, 1, 9001, 'aB3x_9pQ', 0, 1), (2, 1, 9002, NULL, 1, 0)"
+        ),
+    )
+    execute(
+        db_path,
+        "INSERT INTO tournament_report_version (report_id, number, snapshot)"
+        " VALUES (1, 1, '{}'), (2, 1, '[]')",
+    )
+
+
+def test_head_adds_include_my_notes_true_by_default(migrated):
+    column = next(
+        row
+        for row in rows(migrated, "PRAGMA table_info(tournament_report)")
+        if row[1] == "include_my_notes"
+    )
+    # (cid, name, type, notnull, dflt_value, pk)
+    assert column[2:] == ("BOOLEAN", 1, "1", 0)
+
+
+def test_the_my_notes_revision_adds_no_table_and_no_index(empty_db):
+    alembic(empty_db, "upgrade", REPORTS_REVISION)
+    tables = table_names(empty_db)
+    indexes = rows(empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+
+    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert rows(
+        empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
+    ) == indexes
+
+
+def test_upgrade_to_my_notes_keeps_every_row_and_checks_the_box_everywhere(empty_db):
+    """Aucune conversion : toutes les tables ressortent identiques, et chaque
+    compte-rendu existant a la case cochée, ce qu'il montrait déjà."""
+    populated_at_r17(empty_db)
+    before = every_row(empty_db)
+    columns_before = report_column_names(empty_db)
+
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+
+    assert report_column_names(empty_db) == [*columns_before, "include_my_notes"]
+    after = every_row(empty_db)
+    assert {t: lines for t, lines in after.items() if t != "tournament_report"} == {
+        t: lines for t, lines in before.items() if t != "tournament_report"
+    }
+    reports = after["tournament_report"]
+    assert sorted((line[:-1] for line in reports), key=repr) == before[
+        "tournament_report"
+    ]
+    assert len(reports) == 2
+    assert {line[-1] for line in reports} == {1}
+    assert len(before["deck"]) >= 4
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_head_takes_the_default_and_refuses_a_null_setting(empty_db):
+    populated_at_r16(empty_db)
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+    execute(empty_db, REPORT_INSERT.format("(1, 1, 9001, NULL, 0, 0)"))
+    assert scalar(empty_db, "SELECT include_my_notes FROM tournament_report") == 1
+    assert "NOT NULL" in refusal(
+        empty_db, "UPDATE tournament_report SET include_my_notes = NULL"
+    )
+
+
+def test_downgrade_with_every_box_checked_drops_the_column_and_keeps_every_row(
+    empty_db,
+):
+    populated_at_r17(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+
+    alembic(empty_db, "downgrade", REPORTS_REVISION)
+
+    assert every_row(empty_db) == before
+    assert schema_text(empty_db) == ddl_before
+    assert foreign_key_violations(empty_db) == []
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == REPORTS_REVISION
+    )
+
+
+def test_downgrade_refuses_an_unchecked_box_before_any_change(empty_db):
+    """La case décochée est un choix de l'utilisateur : une nouvelle montée la
+    rendrait cochée. La descente s'arrête et compte les comptes-rendus."""
+    populated_at_r17(empty_db)
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+    execute(empty_db, "UPDATE tournament_report SET include_my_notes = 0 WHERE id = 2")
+    ddl_before = schema_text(empty_db)
+    data_before = every_row(empty_db)
+
+    result = alembic(empty_db, "downgrade", REPORTS_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "1 compte(s)-rendu(s) excluent les notes de table" in output
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == MY_NOTES_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+    assert every_row(empty_db) == data_before
+
+
+def test_the_my_notes_revision_round_trip_keeps_the_ddl_and_the_rows(empty_db):
+    populated_at_r17(empty_db)
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+    ddl = schema_text(empty_db)
+    data = every_row(empty_db)
+
+    alembic(empty_db, "downgrade", REPORTS_REVISION)
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert every_row(empty_db) == data
+
+
+def test_the_my_notes_revision_upgrade_renders_offline(empty_db):
+    up = alembic(
+        empty_db, "upgrade", f"{REPORTS_REVISION}:{MY_NOTES_REVISION}", "--sql"
+    )
+    assert (
+        "ALTER TABLE tournament_report ADD COLUMN include_my_notes BOOLEAN"
+        " DEFAULT 1 NOT NULL" in up.stdout
+    )
+    assert "CREATE TABLE" not in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_my_notes_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{MY_NOTES_REVISION}:{REPORTS_REVISION}",
         "--sql",
         check=False,
     )

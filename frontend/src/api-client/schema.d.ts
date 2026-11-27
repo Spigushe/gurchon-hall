@@ -2850,6 +2850,11 @@ export interface components {
             tournament_id: number;
             /** Include Opponent Notes */
             include_opponent_notes: boolean;
+            /**
+             * Include My Notes
+             * @description Mes notes de table entrent au compte-rendu (v1.2.2, A8) ; champ ajouté sans changer `format_version`.
+             */
+            include_my_notes: boolean;
             /** Show Previous Versions */
             show_previous_versions: boolean;
             /**
@@ -3688,7 +3693,8 @@ export interface components {
          *     nom (nul pour un joueur non nommé) et son deck : un de mes decks prêté
          *     (`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,
          *     `deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu
-         *     les inclut (P4).
+         *     les inclut (P4) ; les miennes, que s'il inclut mes notes de table (A8 de
+         *     la v1.2.2, case cochée par défaut).
          */
         ReportSeat: {
             /** Seat */
@@ -4488,6 +4494,11 @@ export interface components {
             /** Include Opponent Notes */
             include_opponent_notes: boolean;
             /**
+             * Include My Notes
+             * @description Mes notes de table entrent au compte-rendu (v1.2.2, A8).
+             */
+            include_my_notes: boolean;
+            /**
              * Show Previous Versions
              * @description Les versions antérieures se lisent par le lien public (P9).
              */
@@ -4514,10 +4525,10 @@ export interface components {
          * @description Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.
          *
          *     `update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il
-         *     n'existe pas, applique `include_opponent_notes` s'il est fourni, puis
-         *     coupe une version si l'instantané diffère de la dernière (P5). `delete`
-         *     supprime le compte-rendu, ses versions et son lien (P10). Les deux
-         *     s'appliquent après les autres champs de la même écriture.
+         *     n'existe pas, applique `include_opponent_notes` et `include_my_notes`
+         *     s'ils sont fournis, puis coupe une version si l'instantané diffère de la
+         *     dernière (P5). `delete` supprime le compte-rendu, ses versions et son lien
+         *     (P10). Les deux s'appliquent après les autres champs de la même écriture.
          */
         TournamentReportRequest: {
             /**
@@ -4530,6 +4541,11 @@ export interface components {
              * @description Inclure les notes sur les adversaires (P4), avec `update` seulement ; omis, le réglage ne change pas (faux à la création).
              */
             include_opponent_notes?: boolean | null;
+            /**
+             * Include My Notes
+             * @description Inclure mes notes de table, celles de ma ligne (v1.2.2, A8), avec `update` seulement ; omis, le réglage ne change pas (vrai à la création).
+             */
+            include_my_notes?: boolean | null;
         };
         /**
          * TournamentReportSettings

@@ -9452,6 +9452,11 @@
             "type": "boolean",
             "title": "Include Opponent Notes"
           },
+          "include_my_notes": {
+            "type": "boolean",
+            "title": "Include My Notes",
+            "description": "Mes notes de table entrent au compte-rendu (v1.2.2, A8) ; champ ajouté sans changer `format_version`."
+          },
           "show_previous_versions": {
             "type": "boolean",
             "title": "Show Previous Versions"
@@ -9479,6 +9484,7 @@
         "required": [
           "tournament_id",
           "include_opponent_notes",
+          "include_my_notes",
           "show_previous_versions",
           "shared",
           "created_at",
@@ -11229,7 +11235,7 @@
           "notes"
         ],
         "title": "ReportSeat",
-        "description": "Une ligne de la table d'une ronde, dans l'ordre des sièges.\n\nMa ligne porte `is_me`, le deck que j'y joue (`deck_id`, qui renvoie à\n`ReportSnapshot.decks`), mes VP et mon GW. Une ligne d'adversaire porte son\nnom (nul pour un joueur non nommé) et son deck : un de mes decks prêté\n(`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,\n`deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu\nles inclut (P4)."
+        "description": "Une ligne de la table d'une ronde, dans l'ordre des sièges.\n\nMa ligne porte `is_me`, le deck que j'y joue (`deck_id`, qui renvoie à\n`ReportSnapshot.decks`), mes VP et mon GW. Une ligne d'adversaire porte son\nnom (nul pour un joueur non nommé) et son deck : un de mes decks prêté\n(`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,\n`deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu\nles inclut (P4) ; les miennes, que s'il inclut mes notes de table (A8 de\nla v1.2.2, case cochée par défaut)."
       },
       "ReportSnapshot": {
         "properties": {
@@ -12858,6 +12864,11 @@
             "type": "boolean",
             "title": "Include Opponent Notes"
           },
+          "include_my_notes": {
+            "type": "boolean",
+            "title": "Include My Notes",
+            "description": "Mes notes de table entrent au compte-rendu (v1.2.2, A8)."
+          },
           "show_previous_versions": {
             "type": "boolean",
             "title": "Show Previous Versions",
@@ -12894,6 +12905,7 @@
         "required": [
           "tournament_id",
           "include_opponent_notes",
+          "include_my_notes",
           "show_previous_versions",
           "token",
           "created_at",
@@ -12923,6 +12935,18 @@
             ],
             "title": "Include Opponent Notes",
             "description": "Inclure les notes sur les adversaires (P4), avec `update` seulement ; omis, le réglage ne change pas (faux à la création)."
+          },
+          "include_my_notes": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Include My Notes",
+            "description": "Inclure mes notes de table, celles de ma ligne (v1.2.2, A8), avec `update` seulement ; omis, le réglage ne change pas (vrai à la création)."
           }
         },
         "additionalProperties": false,
@@ -12931,7 +12955,7 @@
           "action"
         ],
         "title": "TournamentReportRequest",
-        "description": "Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.\n\n`update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il\nn'existe pas, applique `include_opponent_notes` s'il est fourni, puis\ncoupe une version si l'instantané diffère de la dernière (P5). `delete`\nsupprime le compte-rendu, ses versions et son lien (P10). Les deux\ns'appliquent après les autres champs de la même écriture."
+        "description": "Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.\n\n`update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il\nn'existe pas, applique `include_opponent_notes` et `include_my_notes`\ns'ils sont fournis, puis coupe une version si l'instantané diffère de la\ndernière (P5). `delete` supprime le compte-rendu, ses versions et son lien\n(P10). Les deux s'appliquent après les autres champs de la même écriture."
       },
       "TournamentReportSettings": {
         "properties": {
