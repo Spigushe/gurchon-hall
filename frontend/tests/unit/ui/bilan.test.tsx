@@ -372,7 +372,7 @@ describe("résultats d'un deck et decks d'un tournoi", () => {
     // L'année ne s'affiche que hors de l'année en cours : le test reste vrai l'an prochain.
     await waitFor(() => expect(tags()[0]).toHaveTextContent(/^Légal le 24 octobre( 2026)?$/));
     expect(tags()[0]).toHaveAttribute("data-legal", "true");
-    await waitFor(() => expect(tags()[1]).toHaveTextContent(/^Illégal le 24 octobre( 2026)? · bibliothèque 58\/60$/));
+    await waitFor(() => expect(tags()[1]).toHaveTextContent(/^Illégal le 24 octobre( 2026)?$/));
     expect(tags()[1]).toHaveAttribute("data-legal", "false");
     expect(tags()[1]).toHaveAttribute("title", "Library trop petite : 58 carte(s), 60 minimum.");
     const reads = app.ui.requests.filter((request) => request.path.includes("/versions/"));
