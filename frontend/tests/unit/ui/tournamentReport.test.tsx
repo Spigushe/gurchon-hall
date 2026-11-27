@@ -217,6 +217,28 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     expect(await screen.findByTestId("tournament-report-status")).toHaveTextContent("Pas encore de version");
     expect(screen.getByTestId("tournament-report-link")).toHaveAttribute("href", "#/tournois/id:1/compte-rendu");
   });
+
+  it("au bureau, le lien est dans la rangée d'actions, après « Modifier »", async () => {
+    const original = window.innerWidth;
+    window.innerWidth = 1440;
+    try {
+      const server = seededServer();
+      const app = await renderApp({ server, hash: "#/tournois", online: true });
+      await act(async () => {
+        await app.runtime.refresh();
+      });
+      await app.settle();
+      const detail = await screen.findByTestId("tournaments-detail");
+      const group = await within(detail).findByRole("group", { name: "Actions sur le tournoi" });
+      const link = within(group).getByTestId("tournament-report-link");
+      const edit = within(group).getByTestId("tournament-edit");
+      expect(edit.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(group).getByTestId("tournament-report-status")).toHaveTextContent("Pas encore de version");
+      expect(within(detail).queryByTestId("tournament-report-entry")).toBeNull();
+    } finally {
+      window.innerWidth = original;
+    }
+  });
 });
 
 // --------------------------------------------------------------------------
