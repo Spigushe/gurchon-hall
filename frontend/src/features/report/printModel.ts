@@ -166,7 +166,7 @@ function opponentDeck(seat: ReportSeat): string | null {
  * Les lignes de la table : les sièges dans l'ordre ; ma ligne sans siège vient
  * en dernier, « – », avec « siège non saisi » et sans position.
  */
-export function printSeats(round: ReportRound): PrintSeat[] {
+export function printSeats(round: ReportRound, myLabel = "Moi"): PrintSeat[] {
   const me = round.seats.find((seat) => seat.is_me);
   const { prey, predator } = seatPositions(me?.seat ?? null, round.player_count);
   const position = (seat: ReportSeat) => {
@@ -178,16 +178,16 @@ export function printSeats(round: ReportRound): PrintSeat[] {
   };
   const rows = round.seats.map((seat): PrintSeat => {
     const named = seat.player_name ?? null;
-    const noteFor = named ? `Note sur ${named} ·` : seat.seat !== null ? `Note sur le siège ${seat.seat} ·` : "Note ·";
+    const noteFor = seat.is_me ? "Ma note ·" : named ? `Note sur ${named} ·` : seat.seat !== null ? `Note sur le siège ${seat.seat} ·` : "Note ·";
     return {
       seat,
       number: seat.seat === null ? "–" : String(seat.seat),
-      player: seat.is_me ? "Moi" : (named ?? "Joueur non nommé"),
+      player: seat.is_me ? myLabel : (named ?? "Joueur non nommé"),
       deck: seat.is_me
         ? [seat.deck_name, seat.seat === null ? "siège non saisi" : null].filter(Boolean).join(" · ") || null
         : opponentDeck(seat),
       position: position(seat),
-      noteLabel: !seat.is_me && seat.notes ? noteFor : null,
+      noteLabel: seat.notes ? noteFor : null,
     };
   });
   const mine = rows.filter((row) => row.seat.is_me && row.seat.seat === null);

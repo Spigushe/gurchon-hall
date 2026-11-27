@@ -28,6 +28,9 @@ lister et fermer ses sessions (étape B1), exporter son compte (étape B2,
 `app.services.account_export`). Depuis B1, la connexion et
 l'inscription notent l'appareil (`User-Agent`, A2) sur la session qu'elles
 ouvrent, et le changement de mot de passe est limité en débit comme elles.
+
+**v1.2.2** (`docs/v1.2.2-plan.md`, A10) : `PATCH /moi` règle le nom à afficher
+dans les comptes-rendus (`display_name`), sous session, en ligne seulement.
 """
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -55,6 +58,7 @@ from app.schemas.account import (
     UserLogIn,
     UserRead,
     UserSignUp,
+    UserUpdate,
 )
 from app.schemas.account_export import AccountExport
 from app.schemas.errors import ErrorResponse
@@ -202,6 +206,30 @@ def log_out(token: SessionToken, response: Response, db: DbSession) -> Response:
 )
 def read_current_user(current_user: CurrentUser) -> UserRead:
     return current_user
+
+
+@router.patch(
+    "/moi",
+    response_model=UserRead,
+    operation_id="updateCurrentUser",
+    summary="Modifier son compte",
+    description=(
+        "Modification partielle du compte de la session (v1.2.2) : "
+        "aujourd'hui le seul nom à afficher dans les comptes-rendus "
+        "(`display_name`), rogné, 64 caractères au plus, sur une seule ligne "
+        "(un caractère de contrôle rend 422) ; `null`, une chaîne "
+        "vide ou blanche l'efface, un champ omis ne change pas. Tout autre "
+        "champ rend 422 : ni l'adresse, ni le nom d'utilisateur, ni le rôle "
+        "ne se modifient ici. Le nom entre dans la prochaine version coupée "
+        "d'un compte-rendu, jamais dans une version déjà figée. En ligne "
+        "seulement, hors `/sync`."
+    ),
+    responses={**UNAUTHENTICATED, **FORBIDDEN_ORIGIN},
+)
+def update_current_user(
+    payload: UserUpdate, current_user: CurrentUser, db: DbSession
+) -> UserRead:
+    return auth_service.update_account(db, current_user, payload)
 
 
 # ---------------------------------------------------------------------------

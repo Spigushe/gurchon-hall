@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ClockCountdownIcon, NotebookIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { Kbd } from "../../components/Kbd";
@@ -277,6 +277,22 @@ export function TournamentDetail({
   const deckInfo = finalDeckInfo(tournament, rounds, (key) => deckName(key) ?? "deck");
   const gameCount = games?.length ?? 0;
 
+  const reportEntry = (
+    <>
+      <Link
+        to={{ name: "tournamentReport", key: tournament.key }}
+        className="btn btn-secondary"
+        data-testid="tournament-report-link"
+      >
+        <NotebookIcon size={16} aria-hidden="true" /> Compte-rendu
+      </Link>
+      <span className="page-meta" data-testid="tournament-report-status">
+        {reportStatus(tournament)}
+      </span>
+    </>
+  );
+
+  // Au bureau, le compte-rendu rejoint les actions, à côté de « Modifier ».
   const actionsBlock = (
     <TournamentActions
       addNumber={addNumber}
@@ -285,6 +301,7 @@ export function TournamentDetail({
       pending={action.pending}
       isDesktop={isDesktop}
       onEdit={setEditing}
+      extra={dense ? reportEntry : undefined}
     />
   );
 
@@ -330,18 +347,11 @@ export function TournamentDetail({
 
       {games !== undefined && <TournamentDecks tournament={tournament} games={games} deckName={deckName} dense={dense} />}
 
-      <div className="tournament-report-entry" data-testid="tournament-report-entry">
-        <Link
-          to={{ name: "tournamentReport", key: tournament.key }}
-          className="btn btn-secondary"
-          data-testid="tournament-report-link"
-        >
-          <NotebookIcon size={16} aria-hidden="true" /> Compte-rendu
-        </Link>
-        <span className="page-meta" data-testid="tournament-report-status">
-          {reportStatus(tournament)}
-        </span>
-      </div>
+      {!dense && (
+        <div className="tournament-report-entry" data-testid="tournament-report-entry">
+          {reportEntry}
+        </div>
+      )}
 
       {!dense && actionsBlock}
 
@@ -368,7 +378,7 @@ export function TournamentDetail({
   );
 }
 
-/** Ajouter la ronde, saisir la finale, modifier le tournoi. */
+/** Ajouter la ronde, saisir la finale, modifier le tournoi ; au bureau, le compte-rendu. */
 function TournamentActions({
   addNumber,
   canFinal,
@@ -376,6 +386,7 @@ function TournamentActions({
   pending,
   isDesktop,
   onEdit,
+  extra,
 }: {
   addNumber: number | null;
   canFinal: boolean;
@@ -383,6 +394,8 @@ function TournamentActions({
   pending: boolean;
   isDesktop: boolean;
   onEdit: (editing: Exclude<Editing, null>) => void;
+  /** Ce qui suit « Modifier » dans la rangée (le compte-rendu, au bureau). */
+  extra?: ReactNode;
 }) {
   return (
     <div className="confirm-row" role="group" aria-label="Actions sur le tournoi">
@@ -422,6 +435,7 @@ function TournamentActions({
       >
         Modifier
       </button>
+      {extra}
     </div>
   );
 }

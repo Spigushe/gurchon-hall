@@ -345,3 +345,22 @@ reçoit que des relevés en lecture seule ou des saisies réelles (consigne du
 Retour arrière depuis la v1.2.1 : R17 ne redescend pas dès qu'un compte-rendu
 existe. Restaurer la copie d'avant déploiement (les comptes-rendus créés depuis
 sont perdus), puis redéployer `v1.2.0`.
+
+Après celui de la v1.2.2 (checklist complète dans `docs/v1.2.2-plan.md`,
+« Avancement de F ») :
+
+- `curl -s https://api-gurchon.spigushe.com/health` rend la version `1.2.2`, et
+  le pied de l'écran Compte dit « Application 1.2.2 · Serveur 1.2.2 » ;
+- après un réglage du nom à afficher dans l'écran Compte (sur le staging, ou une
+  saisie réelle en production), une ligne `http.request` porte `"method":"PATCH"`,
+  `"route":"/moi"` et `"status":200`, sans le nom ;
+- un appareil déjà venu garde sa base IndexedDB en version 8 : la v1.2.2 n'ajoute
+  ni version Dexie ni type d'opération `/sync`.
+
+Retour arrière depuis la v1.2.2 : R19 ne redescend pas dès qu'un compte a un nom
+à afficher, R18 dès qu'un compte-rendu a la case « Inclure mes notes de table »
+décochée. Restaurer la copie d'avant déploiement (les saisies faites depuis sont
+perdues, noms et réglages compris), puis redéployer `v1.2.1`. Un
+`tournament.update` portant `include_my_notes`, resté en file sur un appareil
+encore en v1.2.2, serait refusé par l'API v1.2.1 (422, champ inconnu) et isolé
+par la bissection : le redemander une fois la coquille redescendue.

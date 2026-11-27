@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Compte-rendu de tournoi — mobile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#161826}
+a{color:#d2cefd}a:hover{color:#e7e5fe}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid #9184d9;outline-offset:2px}
+.rule{height:1px;background:linear-gradient(90deg,transparent,rgba(233,233,237,.16) 48px,rgba(233,233,237,.16) calc(100% - 48px),transparent)}
+</style>
+</helmet>
+<div style="width:390px;box-sizing:border-box;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;padding:16px 26px 32px;display:flex;flex-direction:column;gap:22px">
+
+<a href="#" style="display:inline-flex;align-items:center;gap:6px;min-height:44px;color:#b2b6ca;text-decoration:none;font-size:14px;align-self:flex-start">
+<svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M216 128H40M112 56l-72 72 72 72" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+[Nom du tournoi]</a>
+
+<div style="display:flex;flex-direction:column;gap:10px;padding-bottom:16px;border-bottom:1px solid rgba(233,233,237,.16)">
+<div role="group" aria-label="Version affichée" style="display:flex;gap:6px;overflow-x:auto;margin:0 -26px;padding:0 26px">
+<sc-for list="{{versions}}" as="v" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{v.pressed}}" onClick="{{v.pick}}" style="flex:none;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid {{v.border}};background:{{v.bg}};color:{{v.color}};font-size:13px;font-variant-numeric:tabular-nums">{{v.label}}</button>
+</sc-for>
+</div>
+<p style="margin:0;font-size:13px;color:#b2b6ca">{{status}}</p>
+<div style="display:flex;gap:8px">
+<button type="button" style="flex:1;min-height:44px;padding:0 12px;border-radius:8px;border:1px solid #9184d9;background:transparent;color:#9184d9;font-weight:500;font-size:14px">Mettre à jour</button>
+<a href="Gurchon%20Hall%20Compte-rendu%20Reglages.dc.html" style="flex:none;min-height:44px;box-sizing:border-box;padding:0 14px;border-radius:8px;border:1px solid rgba(233,233,237,.16);color:#e9e9ed;font-weight:500;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+<svg width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><path d="M40 80h56M144 80h72M40 176h120M208 176h8M120 56v48M184 152v48" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"></path></svg>
+Réglages</a>
+</div>
+<p style="margin:0;display:flex;gap:6px;align-items:flex-start;font-size:12px;color:#d2cefd">
+<svg width="14" height="14" viewBox="0 0 256 256" aria-hidden="true" style="flex:none;margin-top:2px"><circle cx="128" cy="128" r="96" fill="none" stroke="currentColor" stroke-width="16"></circle><path d="M128 72v56h56" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"></path></svg>
+Mise à jour en attente : la version sera figée à la synchronisation.</p>
+</div>
+
+<header style="display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<p style="margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab">Compte-rendu</p>
+<span style="font-size:12px;padding:1px 8px;border-radius:4px;background:#2b2741;color:#e7e5fe">{{shownLabel}}</span>
+</div>
+<h1 style="margin:0;font-size:26px;font-weight:500;letter-spacing:-.02em;line-height:1.2">[Nom du tournoi]</h1>
+<p style="margin:0;font-size:16px;font-weight:500;color:#cfd3e5">[Deck joué] · [Archétype]</p>
+<p style="margin:0;font-size:13px;color:#b2b6ca">[Date du tournoi] · [Lieu]<br>[Format] · [N] joueurs</p>
+</header>
+
+<section aria-label="Résultat" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border-top:1px solid rgba(233,233,237,.16);border-bottom:1px solid rgba(233,233,237,.16)">
+<div style="padding:12px 12px 12px 0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:12px;color:#9397ab">Classement</span>
+<span style="font-size:20px;font-weight:500;font-variant-numeric:tabular-nums">[N]<span style="font-size:13px;color:#b2b6ca;font-weight:400"> sur [N]</span></span>
+</div>
+<div style="padding:12px 0 12px 12px;border-left:1px solid rgba(233,233,237,.16);display:flex;flex-direction:column;gap:2px">
+<span style="font-size:12px;color:#9397ab">Finale</span>
+<span style="font-size:20px;font-weight:500;font-variant-numeric:tabular-nums">[N] VP</span>
+</div>
+<div style="grid-column:1 / -1;padding:12px 0;border-top:1px solid rgba(233,233,237,.16);display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+<span style="font-size:12px;color:#9397ab">Préliminaires</span>
+<span style="font-size:16px;font-weight:500;font-variant-numeric:tabular-nums">[N] GW · [N] VP <span style="font-size:12px;color:#b2b6ca;font-weight:400">en [N] rondes</span></span>
+</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">Notes</h2>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}"><button type="button" style="min-height:44px;padding:0 4px;border:none;background:none;color:#d2cefd;font-size:13px">Modifier</button></sc-if>
+</div>
+<div class="rule"></div>
+<p style="margin:0;white-space:pre-line;line-height:1.6">[Notes du tournoi : déroulé général, ce qui a marché, ce qui a manqué.]</p>
+</section>
+
+<sc-for list="{{rounds}}" as="round" hint-placeholder-count="2">
+<section style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">{{round.title}} <span style="font-weight:400;color:#b2b6ca">· {{round.score}}</span></h2>
+</div>
+<div class="rule"></div>
+<p style="margin:0;font-size:13px;color:#b2b6ca">Proie : {{round.prey}} · Prédateur : {{round.predator}}</p>
+<ol aria-label="Table" style="margin:0;padding:0;list-style:none">
+<sc-for list="{{round.seats}}" as="seat" hint-placeholder-count="5">
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:0 10px;align-items:baseline;padding:10px 0;border-bottom:1px solid rgba(233,233,237,.08)">
+<span style="font-size:13px;color:#9397ab;font-variant-numeric:tabular-nums">{{seat.n}}</span>
+<span style="display:flex;flex-direction:column;min-width:0">
+<span style="font-weight:{{seat.weight}}">{{seat.name}}</span>
+<span style="font-size:13px;color:#cfd3e5">{{seat.deck}}</span>
+<sc-if value="{{seat.hasNote}}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:#b2b6ca;margin-top:2px">{{seat.note}}</span></sc-if>
+</span>
+<sc-if value="{{seat.me}}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;padding:1px 8px;border-radius:4px;background:#423a6a;color:#f5f4ff">Moi</span></sc-if>
+</li>
+</sc-for>
+</ol>
+<p style="margin:0;white-space:pre-line;line-height:1.6">{{round.notes}}</p>
+<sc-if value="{{editing}}" hint-placeholder-val="{{ true }}"><button type="button" style="align-self:flex-start;min-height:44px;padding:0 4px;border:none;background:none;color:#d2cefd;font-size:13px">Modifier les notes de la partie</button></sc-if>
+</section>
+</sc-for>
+
+<section style="display:flex;flex-direction:column;gap:8px">
+<h2 style="margin:0;font-size:18px;font-weight:500;letter-spacing:-.02em">Liste jouée</h2>
+<div class="rule"></div>
+<div style="min-height:100px;border:1px dashed rgba(233,233,237,.16);border-radius:8px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 16px;color:#9397ab;font-size:13px">Tables de deck existantes (DeckTables), inchangées</div>
+</section>
+
+<footer style="padding-top:12px;border-top:1px solid rgba(233,233,237,.16);font-size:12px;color:#9397ab">Compte-rendu de [Nom du tournoi] · {{shownLabel}} · Gurchon Hall</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { sel: 'preview' }; }
+  renderVals() {
+    const sel = this.state.sel;
+    const defs = [{ id: 1, label: 'v1 · [date]' }, { id: 2, label: 'v2 · [date]' }, { id: 'preview', label: 'Aperçu' }];
+    const versions = defs.map((d) => {
+      const on = d.id === sel;
+      return { label: d.label, pressed: on ? 'true' : 'false',
+        border: on ? '#9184d9' : 'rgba(233,233,237,.16)', bg: on ? '#2b2741' : 'transparent',
+        color: on ? '#e7e5fe' : '#cfd3e5', pick: () => this.setState({ sel: d.id }) };
+    });
+    const editing = sel === 'preview';
+    const seat = (n, name, deck, me, note) => ({ n, name, deck, me, weight: me ? 500 : 400, hasNote: !!note, note: note || '' });
+    const rounds = [
+      { title: 'Ronde 1', score: '[N] VP', prey: '[Joueur]', predator: '[Joueur]', notes: '[Notes de la partie.]',
+        seats: [seat(1,'[Joueur]','[Deck]',false,'[Note sur l’adversaire]'), seat(2,'Moi','[Deck joué]',true), seat(3,'[Joueur]','[Deck]',false), seat(4,'[Joueur]','[Deck]',false), seat(5,'[Joueur]','[Deck]',false)] },
+      { title: 'Ronde 2', score: '[N] VP', prey: '[Joueur]', predator: '[Joueur]', notes: '[Notes de la partie.]',
+        seats: [seat(1,'[Joueur]','[Deck]',false), seat(2,'[Joueur]','[Deck]',false), seat(3,'[Joueur]','[Deck]',false), seat(4,'Moi','[Deck joué]',true)] }
+    ];
+    return { versions, rounds, editing,
+      status: editing ? 'L’aperçu diffère de la version 2. Les notes se modifient sur place.' : 'Version figée, en lecture seule.',
+      shownLabel: editing ? 'Aperçu, non synchronisé' : ('Version ' + sel + ' du [date]') };
+  }
+}
+</script>
+</body>
+</html>

@@ -63,6 +63,13 @@ class ExportedAccount(ReadModel):
     username: str
     role: UserRole
     created_at: datetime
+    display_name: str | None = Field(
+        default=None,
+        description=(
+            "Nom à afficher dans les comptes-rendus (v1.2.2, A10), nul s'il "
+            "n'a pas été choisi ; champ ajouté sans changer `format_version`."
+        ),
+    )
 
 
 class ExportedCollectionEntry(ReadModel):
@@ -257,6 +264,12 @@ class ExportedTournamentReport(ReadModel):
 
     tournament_id: int
     include_opponent_notes: bool
+    include_my_notes: bool = Field(
+        description=(
+            "Mes notes de table entrent au compte-rendu (v1.2.2, A8) ; champ "
+            "ajouté sans changer `format_version`."
+        )
+    )
     show_previous_versions: bool
     shared: bool = Field(description="Le compte-rendu a un lien public.")
     created_at: datetime

@@ -4,7 +4,8 @@ Quatre routes les consomment (`docs/lot6-plan-comptes.md`, « Contrat d'API ») 
 `POST /inscription` (`UserSignUp` → `UserRead`), `POST /connexion`
 (`UserLogIn` → `UserRead`), `POST /deconnexion` (sans corps) et `GET /moi`
 (→ `UserRead`). Aucun jeton ni aucune empreinte ne figure dans un corps : le
-jeton de session ne circule que dans l'en-tête `Set-Cookie`.
+jeton de session ne circule que dans l'en-tête `Set-Cookie`. Depuis la
+v1.2.2, `PATCH /moi` (`UserUpdate` → `UserRead`) règle le nom à afficher.
 
 Les règles de saisie sont celles de barrins-project
 (`apps/barrins_identity/app/schemas/auth.py`), à deux écarts près, tous deux
@@ -23,12 +24,23 @@ l'API, et une adresse y est normalisée de la même façon.
 """
 
 import re
+import unicodedata
 from datetime import datetime
 from typing import Annotated, Self
 
-from pydantic import AfterValidator, EmailStr, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    EmailStr,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
-from app.models.account import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
+from app.models.account import (
+    DISPLAY_NAME_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
+    USERNAME_MAX_LENGTH,
+)
 from app.models.enums import UserRole
 from app.schemas.base import ReadModel, WriteModel
 
@@ -286,6 +298,76 @@ class UserRead(ReadModel):
         )
     )
     created_at: datetime = Field(description="Création du compte, en UTC.")
+    display_name: str | None = Field(
+        default=None,
+        description=(
+            "Nom à afficher dans les comptes-rendus de tournoi (v1.2.2), rogné, "
+            "1 à 64 caractères ; nul s'il n'a pas été choisi. Se règle par "
+            "`PATCH /moi`."
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# v1.2.2 : nom à afficher (`docs/v1.2.2-plan.md`, A9, A10)
+# ---------------------------------------------------------------------------
+
+
+def blank_to_none(value: str | None) -> str | None:
+    """Une saisie vide (déjà rognée) devient nulle : « rien » n'a qu'une forme
+    en base."""
+    return value or None
+
+
+DISPLAY_NAME_RULE = (
+    "Une seule ligne : aucun caractère de contrôle (saut de ligne, tabulation…)."
+)
+
+
+def single_line(value: str | None) -> str | None:
+    """Refuse tout caractère de contrôle (catégorie Unicode `Cc`) d'un nom
+    déjà rogné : le nom tient sur une ligne de table (v1.2.2, A9). Les sauts de
+    ligne et tabulations de bord sont partis avec le rognage ; ceux du milieu
+    restent et font refuser la saisie."""
+    if value is not None and any(unicodedata.category(c) == "Cc" for c in value):
+        raise ValueError(DISPLAY_NAME_RULE)
+    return value
+
+
+DisplayName = Annotated[
+    Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, max_length=DISPLAY_NAME_MAX_LENGTH),
+    ]
+    | None,
+    AfterValidator(single_line),
+    AfterValidator(blank_to_none),
+]
+"""Nom à afficher saisi : rogné de ses espaces de bord, puis 64 caractères au
+plus et sur une seule ligne, sans caractère de contrôle. Le rognage précède
+les contrôles, comme pour `RequiredText` ; une chaîne vide ou blanche devient
+`None`, comme `null`, qui efface le nom."""
+
+
+class UserUpdate(WriteModel):
+    """Corps de `PATCH /moi` (A10) : modification partielle du compte.
+
+    Un seul champ aujourd'hui, `display_name`. Omis, il ne change pas ; `null`,
+    vide ou blanc, il efface le nom. Tout autre champ (`username`, `email`,
+    `role`…) rend 422 (`extra="forbid"`) : aucune route ne modifie l'identité
+    de connexion ni le rôle.
+    """
+
+    display_name: DisplayName = Field(
+        default=None,
+        description=(
+            "Nom à afficher dans les comptes-rendus, rogné, 64 caractères au "
+            "plus, sur une seule ligne : un caractère de contrôle (catégorie "
+            "Unicode `Cc`, saut de ligne et tabulation compris) restant après "
+            "le rognage rend 422. `null`, une chaîne vide ou blanche l'efface ; "
+            "omis, il ne change pas."
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

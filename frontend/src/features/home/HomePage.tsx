@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowUpRightIcon, CardsIcon, DatabaseIcon, PlusIcon, TrophyIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { LoadingState } from "../../components/Loading";
@@ -21,6 +21,7 @@ import {
 import { CatalogPanel } from "../catalog/CatalogPanel";
 import { GameForm } from "../games/GameForm";
 import { lastRoundLine, nextRoundOf, roundsOf, tournamentInProgress } from "../games/tournamentModel";
+import { deckLegalityVersion } from "../decks/deckLegalityVersion";
 import { useDeckLegality, type LegalityOutcome } from "../decks/useDeckLegality";
 import { useLocalDeckCounts } from "../decks/useLocalDeckCounts";
 
@@ -83,7 +84,7 @@ function SyncAlert() {
 /**
  * Verdict de légalité et comptes réduits à une ligne de tableau (colonnes
  * « comptes » et « légalité », d08). Ne recode aucune règle VtES : mêmes
- * états que `DeckLegalityPanel` (indisponible hors ligne, création pas
+ * états que `DeckLegalityDetails` (indisponible hors ligne, création pas
  * encore synchronisée, erreur), juste condensés pour tenir sur une ligne.
  */
 function legalityDisplay(
@@ -106,7 +107,7 @@ function legalityDisplay(
 /**
  * Ligne du tableau « Joués » bureau (d08) : nom, comptes, légalité, flèche.
  * Verdict lu **en ligne** (`GET /decks/{id}/legalite`, comme
- * `DeckLegalityPanel`) : indisponible hors ligne plutôt que recalculé
+ * `DeckLegalityBadge`) : indisponible hors ligne plutôt que recalculé
  * localement, sans appel bloquant (l'effet se résout en arrière-plan). Rendue
  * seulement en disposition bureau (`useIsDesktop`, voir `HomePage`) : la
  * lecture par deck ne part jamais sur l'écran mobile, qui n'affiche pas cette
@@ -114,7 +115,9 @@ function legalityDisplay(
  */
 function HomeDeckTableRow({ deck }: { deck: LocalDeck }) {
   const online = useConnectivity();
-  const outcome = useDeckLegality(deck.id, online, deck.pending ? "pending" : "synced", 0);
+  const lines = useLocalDeckCards(deck.key);
+  const version = useMemo(() => deckLegalityVersion(deck, lines), [deck, lines]);
+  const outcome = useDeckLegality(deck.id, online, version);
   const display = legalityDisplay(deck, online, outcome);
 
   return (

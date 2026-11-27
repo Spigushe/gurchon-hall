@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Compte-rendu de tournoi — état actuel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#161826}
+a{color:#b2b6ca}a:hover{color:#e9e9ed}
+button{font:inherit}
+</style>
+</helmet>
+<div style="box-sizing:border-box;min-height:100%;background:#161826;color:#e9e9ed;font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.5;padding:32px">
+<div style="max-width:1200px;margin:0 auto">
+<a href="#" style="display:inline-flex;gap:6px;text-decoration:none;margin-bottom:8px">← [Nom du tournoi]</a>
+
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:17px;padding:11px;border:1px solid #3f424d;border-radius:8px">
+<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #9184d9;background:transparent;color:#9184d9">Mettre à jour le compte-rendu</button>
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed">Imprimer ou enregistrer en PDF</button>
+</div>
+<p style="margin:0;font-size:13px;color:#d2cefd">Mise à jour en attente : la version sera figée à la synchronisation.</p>
+<p style="margin:0;font-size:13px;color:#b2b6ca">L'aperçu diffère de la version 2.</p>
+<label style="display:flex;align-items:center;justify-content:space-between;gap:11px;padding:16px 0;border-top:1px solid rgba(233,233,237,.16);border-bottom:1px solid rgba(233,233,237,.16)"><input type="checkbox" checked style="margin:0"><span>Inclure les notes sur les adversaires</span></label>
+<div style="display:flex;flex-wrap:wrap;gap:6px">
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed">v1 · [date]</button>
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed">v2 · [date]</button>
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid #9184d9;background:#2b2741;color:#e7e5fe">Aperçu</button>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;font-size:14px;font-weight:500">Lien public</h2>
+<p style="margin:0;font-size:13px;color:#b2b6ca">Toujours la dernière version. Les noms des adversaires et leurs decks y sont publics.</p>
+<p style="margin:0;font-family:ui-monospace,monospace;font-size:13px">[adresse du lien public]</p>
+<div style="display:flex;gap:6px;align-items:center">
+<button type="button" style="min-height:44px;padding:0 16px;border-radius:8px;border:1px solid rgba(233,233,237,.16);background:transparent;color:#e9e9ed">Copier le lien</button>
+<button type="button" style="border:none;background:none;color:#d2cefd;font-size:13px;padding:0">Purger le lien</button>
+</div>
+<label style="display:flex;align-items:center;justify-content:space-between;gap:11px;padding:16px 0;border-top:1px solid rgba(233,233,237,.16);border-bottom:1px solid rgba(233,233,237,.16)"><input type="checkbox" style="margin:0"><span>Montrer les versions antérieures par le lien</span></label>
+</div>
+<button type="button" style="align-self:flex-start;border:none;background:none;color:#d2cefd;font-size:13px;padding:0">Supprimer le compte-rendu</button>
+</div>
+
+<article style="display:flex;flex-direction:column;gap:17px;max-width:960px">
+<header style="display:flex;flex-direction:column;gap:3px">
+<p style="margin:0;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9397ab">Compte-rendu de tournoi</p>
+<h1 style="margin:0;font-size:30px;font-weight:500;letter-spacing:-.02em">[Nom du tournoi]</h1>
+<p style="margin:0;font-size:16px;font-weight:500">[Deck joué] · [Archétype]</p>
+<p style="margin:0">[Date du tournoi]</p>
+<p style="margin:0;font-size:13px;color:#b2b6ca">[Lieu] · [Format] · [N] joueurs</p>
+</header>
+<section style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;padding-bottom:3px;border-bottom:1px solid #3f424d;font-size:18px;font-weight:500">Résultat</h2>
+<dl style="display:grid;grid-template-columns:max-content 1fr;gap:3px 11px;margin:0">
+<dt style="color:#b2b6ca">Classement</dt><dd style="margin:0">[N] sur [N]</dd>
+<dt style="color:#b2b6ca">Préliminaires</dt><dd style="margin:0">[N] GW · [N] VP en [N] rondes</dd>
+<dt style="color:#b2b6ca">Finale</dt><dd style="margin:0">[N] VP</dd>
+</dl>
+</section>
+<section style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;padding-bottom:3px;border-bottom:1px solid #3f424d;font-size:18px;font-weight:500">Notes</h2>
+<p style="margin:0">[Notes du tournoi.]</p>
+<button type="button" style="align-self:flex-start;border:none;background:none;color:#d2cefd;font-size:13px;padding:0">✎ Modifier</button>
+</section>
+<section style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;padding-bottom:3px;border-bottom:1px solid #3f424d;font-size:18px;font-weight:500">Ronde 1 <span style="font-weight:400;color:#b2b6ca">· [N] VP</span></h2>
+<p style="margin:0;font-size:13px;color:#b2b6ca">Proie : [Joueur] · Prédateur : [Joueur]</p>
+<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px">
+<li style="display:grid;grid-template-columns:2ch minmax(8rem,max-content) 1fr;gap:3px 8px"><span style="color:#9397ab">1</span><span>[Joueur]</span><span style="color:#cfd3e5">[Deck]</span></li>
+<li style="display:grid;grid-template-columns:2ch minmax(8rem,max-content) 1fr;gap:3px 8px"><span style="color:#9397ab">2</span><span style="font-weight:500">Moi</span><span style="color:#cfd3e5">[Deck joué]</span></li>
+<li style="display:grid;grid-template-columns:2ch minmax(8rem,max-content) 1fr;gap:3px 8px"><span style="color:#9397ab">3</span><span>[Joueur]</span><span style="color:#cfd3e5">[Deck]</span></li>
+<li style="display:grid;grid-template-columns:2ch minmax(8rem,max-content) 1fr;gap:3px 8px"><span style="color:#9397ab">4</span><span>[Joueur]</span><span style="color:#cfd3e5">[Deck]</span></li>
+</ol>
+<p style="margin:0">[Notes de la partie.]</p>
+<button type="button" style="align-self:flex-start;border:none;background:none;color:#d2cefd;font-size:13px;padding:0">✎ Modifier</button>
+</section>
+</article>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

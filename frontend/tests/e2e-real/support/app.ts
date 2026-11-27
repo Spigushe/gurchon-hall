@@ -93,6 +93,18 @@ export async function openBundleDeposit(page: Page): Promise<Locator> {
 }
 
 /**
+ * Choisit un produit dans le `<select>` de la feuille (v1.2.2, A6) : l'option dont
+ * le libellé contient `search`, une fois la liste des produits chargée.
+ */
+export async function selectBundle(deposit: Locator, search: string): Promise<void> {
+  const select = deposit.getByTestId("bundle-select");
+  const option = select.locator("option", { hasText: search }).first();
+  await expect(option).toBeAttached();
+  const label = (await option.textContent()) ?? "";
+  await select.selectOption({ label });
+}
+
+/**
  * Choisit une langue dans des puces `LanguageChips` (Lot 5) : EN, FR et ES sont des
  * puces, le reste passe par « Autre » et son sélecteur.
  */

@@ -98,7 +98,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Modifier son compte
+         * @description Modification partielle du compte de la session (v1.2.2) : aujourd'hui le seul nom à afficher dans les comptes-rendus (`display_name`), rogné, 64 caractères au plus, sur une seule ligne (un caractère de contrôle rend 422) ; `null`, une chaîne vide ou blanche l'efface, un champ omis ne change pas. Tout autre champ rend 422 : ni l'adresse, ni le nom d'utilisateur, ni le rôle ne se modifient ici. Le nom entre dans la prochaine version coupée d'un compte-rendu, jamais dans une version déjà figée. En ligne seulement, hors `/sync`.
+         */
+        patch: operations["updateCurrentUser"];
         trace?: never;
     };
     "/moi/mot-de-passe": {
@@ -2488,6 +2492,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description Nom à afficher dans les comptes-rendus (v1.2.2, A10), nul s'il n'a pas été choisi ; champ ajouté sans changer `format_version`.
+             */
+            display_name: string | null;
         };
         /**
          * ExportedCollectionEntry
@@ -2850,6 +2859,11 @@ export interface components {
             tournament_id: number;
             /** Include Opponent Notes */
             include_opponent_notes: boolean;
+            /**
+             * Include My Notes
+             * @description Mes notes de table entrent au compte-rendu (v1.2.2, A8) ; champ ajouté sans changer `format_version`.
+             */
+            include_my_notes: boolean;
             /** Show Previous Versions */
             show_previous_versions: boolean;
             /**
@@ -3688,7 +3702,8 @@ export interface components {
          *     nom (nul pour un joueur non nommé) et son deck : un de mes decks prêté
          *     (`deck_name`, `deck_archetype`) ou un deck adverse (`clan_name`,
          *     `deck_archetype`, `deck_name`). Ses notes n'y sont que si le compte-rendu
-         *     les inclut (P4).
+         *     les inclut (P4) ; les miennes, que s'il inclut mes notes de table (A8 de
+         *     la v1.2.2, case cochée par défaut).
          */
         ReportSeat: {
             /** Seat */
@@ -3735,6 +3750,11 @@ export interface components {
              * @default []
              */
             rounds: components["schemas"]["ReportRound"][];
+            /**
+             * My Display Name
+             * @description Nom à afficher de l'auteur au moment de la version (v1.2.2, A11), nul s'il n'en avait pas : ma ligne le porte, à défaut `@pseudo`. Absent d'une version figée avant la v1.2.2, qui se lit avec nul ; omis du texte canonique quand il est nul, pour qu'un compte sans nom ne fasse couper aucune version.
+             */
+            my_display_name: string | null;
         };
         /**
          * ReportSummary
@@ -4488,6 +4508,11 @@ export interface components {
             /** Include Opponent Notes */
             include_opponent_notes: boolean;
             /**
+             * Include My Notes
+             * @description Mes notes de table entrent au compte-rendu (v1.2.2, A8).
+             */
+            include_my_notes: boolean;
+            /**
              * Show Previous Versions
              * @description Les versions antérieures se lisent par le lien public (P9).
              */
@@ -4514,10 +4539,10 @@ export interface components {
          * @description Champ `report` de `TournamentUpdate` : ce que le compte-rendu doit faire.
          *
          *     `update` (« Mettre à jour le compte-rendu ») crée le compte-rendu s'il
-         *     n'existe pas, applique `include_opponent_notes` s'il est fourni, puis
-         *     coupe une version si l'instantané diffère de la dernière (P5). `delete`
-         *     supprime le compte-rendu, ses versions et son lien (P10). Les deux
-         *     s'appliquent après les autres champs de la même écriture.
+         *     n'existe pas, applique `include_opponent_notes` et `include_my_notes`
+         *     s'ils sont fournis, puis coupe une version si l'instantané diffère de la
+         *     dernière (P5). `delete` supprime le compte-rendu, ses versions et son lien
+         *     (P10). Les deux s'appliquent après les autres champs de la même écriture.
          */
         TournamentReportRequest: {
             /**
@@ -4530,6 +4555,11 @@ export interface components {
              * @description Inclure les notes sur les adversaires (P4), avec `update` seulement ; omis, le réglage ne change pas (faux à la création).
              */
             include_opponent_notes?: boolean | null;
+            /**
+             * Include My Notes
+             * @description Inclure mes notes de table, celles de ma ligne (v1.2.2, A8), avec `update` seulement ; omis, le réglage ne change pas (vrai à la création).
+             */
+            include_my_notes?: boolean | null;
         };
         /**
          * TournamentReportSettings
@@ -4715,6 +4745,11 @@ export interface components {
              * @description Création du compte, en UTC.
              */
             created_at: string;
+            /**
+             * Display Name
+             * @description Nom à afficher dans les comptes-rendus de tournoi (v1.2.2), rogné, 1 à 64 caractères ; nul s'il n'a pas été choisi. Se règle par `PATCH /moi`.
+             */
+            display_name: string | null;
         };
         /**
          * UserRole
@@ -4760,6 +4795,22 @@ export interface components {
              * @description Au moins 12 caractères, dont une minuscule, une majuscule, un chiffre et un symbole ; 128 au plus.
              */
             password: string;
+        };
+        /**
+         * UserUpdate
+         * @description Corps de `PATCH /moi` (A10) : modification partielle du compte.
+         *
+         *     Un seul champ aujourd'hui, `display_name`. Omis, il ne change pas ; `null`,
+         *     vide ou blanc, il efface le nom. Tout autre champ (`username`, `email`,
+         *     `role`…) rend 422 (`extra="forbid"`) : aucune route ne modifie l'identité
+         *     de connexion ni le rôle.
+         */
+        UserUpdate: {
+            /**
+             * Display Name
+             * @description Nom à afficher dans les comptes-rendus, rogné, 64 caractères au plus, sur une seule ligne : un caractère de contrôle (catégorie Unicode `Cc`, saut de ligne et tabulation compris) restant après le rognage rend 422. `null`, une chaîne vide ou blanche l'efface ; omis, il ne change pas.
+             */
+            display_name?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -5189,6 +5240,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    updateCurrentUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

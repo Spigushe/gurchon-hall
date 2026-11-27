@@ -51,7 +51,7 @@ function seededServer() {
     notes: "Ronde serrée.",
     updated_at: "2026-10-24T12:00:00Z",
     participations: [
-      { player_id: 1, is_me: true, deck_id: 1, seat: 1, victory_points: 2, game_win: true, notes: null },
+      { player_id: 1, is_me: true, deck_id: 1, seat: 1, victory_points: 2, game_win: true, notes: "Tirage correct." },
       { player_id: 2, is_me: false, deck_id: null, seat: 2, victory_points: null, game_win: null, notes: "Joue vite." },
     ],
   });
@@ -84,8 +84,10 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     const round = screen.getByTestId("report-round");
     expect(round).toHaveTextContent("Ronde 1");
     expect(round).toHaveTextContent("Marc F.");
-    // Notes sur les adversaires exclues par défaut (P4).
+    // Notes sur les adversaires exclues par défaut (P4), ma note incluse (A8).
     expect(within(round).queryByText("Joue vite.")).toBeNull();
+    expect(within(round).getByText("Tirage correct.")).toBeInTheDocument();
+    expect(screen.getByTestId("report-include-my-notes")).toBeChecked();
     expect(screen.getByTestId("report-footer")).toHaveTextContent("Aperçu, non synchronisé");
   });
 
@@ -115,6 +117,18 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     });
   });
 
+  it("la case de ma note retire ma note de l'aperçu et voyage avec la demande, elle seule", async () => {
+    const app = await openReport();
+    fireEvent.click(screen.getByTestId("report-include-my-notes"));
+    await waitFor(() => expect(within(screen.getByTestId("report-round")).queryByText("Tirage correct.")).toBeNull());
+    fireEvent.click(screen.getByTestId("report-update"));
+    await waitFor(async () => {
+      const [operation] = await queuedOps(app);
+      expect(operation).toMatchObject({ data: { report: { action: "update", include_my_notes: false } } });
+      expect((operation as { data: { report: object } }).data.report).not.toHaveProperty("include_opponent_notes");
+    });
+  });
+
   it("modifie la note d'une partie sur place, par la file", async () => {
     const app = await openReport();
     const editor = screen.getByTestId("report-round-notes-editor");
@@ -134,6 +148,65 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     expect(screen.getByTestId("report-share")).toHaveTextContent("Le partage demande une connexion.");
   });
 
+  it("au bureau, le panneau de réglages est en place, avec ses interrupteurs et le badge de version", async () => {
+    await openReport();
+    const panel = screen.getByTestId("report-panel");
+    expect(within(panel).getByTestId("report-update")).toHaveTextContent("Mettre à jour le compte-rendu");
+    expect(within(panel).getByTestId("report-print")).toBeInTheDocument();
+    expect(within(panel).getByTestId("report-status")).toHaveTextContent("Les notes se modifient sur place.");
+    const options = within(panel).getByTestId("report-notes-options");
+    expect(within(options).getByTestId("report-include-notes")).toHaveAttribute("role", "switch");
+    expect(within(options).getByTestId("report-include-my-notes")).toHaveAttribute("role", "switch");
+    expect(within(options).getAllByText(/^Prises en compte à la prochaine mise à jour\./)).toHaveLength(2);
+    expect(within(options).getByText(/Elles se saisissent dans le formulaire de partie\./)).toBeInTheDocument();
+    expect(screen.queryByTestId("report-settings-open")).toBeNull();
+    expect(screen.getByTestId("report-version-badge")).toHaveTextContent("Aperçu, non synchronisé");
+  });
+
+  describe("au mobile", () => {
+    const original = window.innerWidth;
+    afterEach(() => {
+      window.innerWidth = original;
+    });
+
+    it("garde « Mettre à jour » dans la barre et range les réglages dans la feuille", async () => {
+      window.innerWidth = 390;
+      const app = await openReport();
+      expect(screen.queryByTestId("report-panel")).toBeNull();
+      expect(screen.getByTestId("report-version-bar")).toContainElement(screen.getByTestId("report-update"));
+      expect(screen.queryByTestId("report-include-notes")).toBeNull();
+      expect(screen.queryByTestId("report-print")).toBeNull();
+
+      fireEvent.click(screen.getByTestId("report-settings-open"));
+      const sheet = await screen.findByTestId("report-settings-sheet");
+      expect(within(sheet).getByRole("heading", { name: "Réglages" })).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-include-notes")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-include-my-notes")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-print")).toBeInTheDocument();
+      expect(within(sheet).getByTestId("report-share")).toBeInTheDocument();
+
+      fireEvent.click(within(sheet).getByTestId("report-include-notes"));
+      fireEvent.click(screen.getByLabelText("Fermer"));
+      expect(screen.queryByTestId("report-settings-sheet")).toBeNull();
+      fireEvent.click(screen.getByTestId("report-update"));
+      await waitFor(async () => {
+        const [operation] = await queuedOps(app);
+        expect(operation).toMatchObject({ data: { report: { action: "update", include_opponent_notes: true } } });
+      });
+    });
+
+    it("ferme la feuille avant d'imprimer", async () => {
+      window.innerWidth = 390;
+      const print = vi.spyOn(window, "print").mockImplementation(() => {
+        expect(screen.queryByTestId("report-settings-sheet")).toBeNull();
+      });
+      await openReport();
+      fireEvent.click(screen.getByTestId("report-settings-open"));
+      fireEvent.click(await screen.findByTestId("report-print"));
+      expect(print).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it("le détail du tournoi y mène", async () => {
     const server = seededServer();
     const app = await renderApp({ server, hash: "#/tournois/id:1", online: true });
@@ -144,6 +217,28 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     expect(await screen.findByTestId("tournament-report-status")).toHaveTextContent("Pas encore de version");
     expect(screen.getByTestId("tournament-report-link")).toHaveAttribute("href", "#/tournois/id:1/compte-rendu");
   });
+
+  it("au bureau, le lien est dans la rangée d'actions, après « Modifier »", async () => {
+    const original = window.innerWidth;
+    window.innerWidth = 1440;
+    try {
+      const server = seededServer();
+      const app = await renderApp({ server, hash: "#/tournois", online: true });
+      await act(async () => {
+        await app.runtime.refresh();
+      });
+      await app.settle();
+      const detail = await screen.findByTestId("tournaments-detail");
+      const group = await within(detail).findByRole("group", { name: "Actions sur le tournoi" });
+      const link = within(group).getByTestId("tournament-report-link");
+      const edit = within(group).getByTestId("tournament-edit");
+      expect(edit.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(group).getByTestId("tournament-report-status")).toHaveTextContent("Pas encore de version");
+      expect(within(detail).queryByTestId("tournament-report-entry")).toBeNull();
+    } finally {
+      window.innerWidth = original;
+    }
+  });
 });
 
 // --------------------------------------------------------------------------
@@ -152,6 +247,7 @@ describe("compte-rendu dans l'application, hors ligne", () => {
 
 const SNAPSHOT = {
   format_version: 1,
+  my_display_name: null as string | null,
   tournament: {
     name: "Coupe de Lutèce",
     start_date: "2026-11-14",
@@ -216,6 +312,20 @@ const ok = (data: unknown) => Promise.resolve({ data, response: { status: 200, h
 afterEach(() => vi.restoreAllMocks());
 
 describe("page publique d'un compte-rendu", () => {
+  it("écrit mon nom à afficher avec le badge, et « Moi » sans badge sans pseudo ni nom (A12)", async () => {
+    renderPublic(() => ok({ ...publicReport(1, [1]), snapshot: { ...SNAPSHOT, my_display_name: "Spig" } }));
+    const round = await screen.findByTestId("report-round");
+    expect(round).toHaveTextContent("Spig");
+    expect(round).not.toHaveTextContent("@auteur");
+    expect(screen.getByTestId("report-seat-me-badge")).toBeInTheDocument();
+  });
+
+  it("sans nom ni auteur, ma ligne dit « Moi » sans badge", async () => {
+    renderPublic(() => ok({ ...publicReport(1, [1]), author: "" }));
+    expect(await screen.findByTestId("report-round")).toHaveTextContent("Moi");
+    expect(screen.queryByTestId("report-seat-me-badge")).not.toBeInTheDocument();
+  });
+
   it("lit la dernière version sans cookie et la met en page", async () => {
     const GET = renderPublic(() => ok(publicReport(1, [1])));
     expect(await screen.findByTestId("report-title")).toHaveTextContent("Coupe de Lutèce");
@@ -224,10 +334,15 @@ describe("page publique d'un compte-rendu", () => {
       credentials: "omit",
     });
     expect(screen.getByText("par @auteur")).toBeInTheDocument();
-    expect(screen.getByTestId("report-round")).toHaveTextContent("Moi (@auteur)");
+    expect(screen.getByTestId("report-round")).toHaveTextContent("@auteur");
+    expect(screen.getByTestId("report-seat-me-badge")).toHaveTextContent("Moi");
     expect(screen.getByTestId("report-list")).toHaveTextContent("Guns (Rush)");
     expect(screen.queryByTestId("public-report-versions")).toBeNull();
     expect(screen.getByTestId("public-report-print")).toBeInTheDocument();
+    // Ni badge de version (écran du propriétaire seulement), ni panneau ; badge « Moi » sur ma ligne.
+    expect(screen.queryByTestId("report-version-badge")).toBeNull();
+    expect(screen.queryByTestId("report-panel")).toBeNull();
+    expect(screen.getByTestId("report-seat-me-badge")).toHaveTextContent("Moi");
   });
 
   it("choisit une version antérieure dans la page, jamais dans l'adresse (P9)", async () => {

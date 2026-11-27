@@ -1094,6 +1094,8 @@ function MyLineFields({
         )}
       </div>
 
+      <MyNoteField formId={formId} draft={draft} patch={patch} />
+
       <div>
         <Switch
           id={`${formId}-gw`}
@@ -1123,6 +1125,27 @@ function MyLineFields({
         )}
       </div>
     </>
+  );
+}
+
+/** Ma note de table, distincte des notes de la partie. */
+function MyNoteField({ formId, draft, patch }: { formId: string; draft: GameDraft; patch: Patch }) {
+  return (
+    <div className="field">
+      <label htmlFor={`${formId}-me-notes`}>Note</label>
+      <textarea
+        id={`${formId}-me-notes`}
+        className="underline-field"
+        rows={2}
+        value={draft.meNotes ?? ""}
+        onChange={(event) => patch({ meNotes: event.target.value })}
+        aria-describedby={`${formId}-me-notes-hint`}
+        data-testid="game-form-me-notes"
+      />
+      <p className="hint" id={`${formId}-me-notes-hint`}>
+        Ce qui ne concerne que vous, comme votre tirage de départ. Le déroulé de la partie va dans ses notes.
+      </p>
+    </div>
   );
 }
 

@@ -197,6 +197,12 @@ export function vpOverTable(playerCount: number, vp: number): string | null {
   return `Au plus ${formatVp(playerCount)} VP à ${numberWord(playerCount)} joueurs.`;
 }
 
+/** Note d'une ligne de table : rognée, `null` si vide (le brouillon garde le texte tel quel). */
+export function normalizeNote(notes: string | null | undefined): string | null {
+  const trimmed = notes?.trim();
+  return trimmed ? trimmed : null;
+}
+
 /** La table du brouillon, ma ligne en tête, telle que `createGame` / `updateGame` l'attendent. */
 export function buildParticipations(draft: GameDraft): ParticipationInput[] {
   // Un `null` n'est jamais envoyé : une valeur non saisie le reste (même forme que `participationsOf`).
@@ -206,13 +212,15 @@ export function buildParticipations(draft: GameDraft): ParticipationInput[] {
   if (gameWin !== null) me.gameWin = gameWin;
   if (draft.deckKey !== null) me.deck = draft.deckKey;
   if (draft.seat !== null) me.seat = draft.seat;
-  if (draft.meNotes !== null) me.notes = draft.meNotes;
+  const meNote = normalizeNote(draft.meNotes);
+  if (meNote !== null) me.notes = meNote;
   const others = draft.opponents.map((opponent): ParticipationInput => {
     const line: ParticipationInput = { player: opponent.playerKey };
     if (opponent.deckKey !== null) line.deck = opponent.deckKey;
     if (opponent.seat !== null) line.seat = opponent.seat;
     if (opponent.deckKey === null) copyOpponentDeck(opponent, line);
-    if (opponent.notes !== null) line.notes = opponent.notes;
+    const note = normalizeNote(opponent.notes);
+    if (note !== null) line.notes = note;
     return line;
   });
   return [me, ...others];
@@ -232,7 +240,8 @@ export function participationsOf(game: LocalGame): ParticipationInput[] | null {
     if (line.deckKey !== null) out.deck = line.deckKey;
     if (line.seat !== null) out.seat = line.seat;
     if (!line.isMe && line.deckKey === null) copyOpponentDeck(line, out);
-    if (line.notes !== null) out.notes = line.notes;
+    const note = normalizeNote(line.notes);
+    if (note !== null) out.notes = note;
     return out;
   });
 }

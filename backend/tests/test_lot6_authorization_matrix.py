@@ -122,6 +122,8 @@ _PROTECTED_ROUTES = [
     ("POST", "/bundles/1/stock", {"language_code": "EN", "count": 1}),
     ("POST", "/sync", {"operations": [_deck_create_operation("Deck sans session")]}),
     ("GET", "/moi", None),
+    # v1.2.2 (A10) : nom à afficher dans les comptes-rendus.
+    ("PATCH", "/moi", {"display_name": "Martin"}),
     ("POST", "/langues", {"code": "DE", "label": "Allemand"}),
     # Lot 7, étape B1 : le Carnet.
     ("GET", "/joueurs", None),

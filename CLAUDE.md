@@ -7,7 +7,8 @@
 **État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11, 12, 13 et
 Compte-rendu livrés, v1.0.0 en ligne le 2026-11-17, v1.1.0 (Lot 12) le 2026-11-20, v1.1.1
 (connexion par le nom) le 2026-11-21, v1.2.0 (Lot 13) le 2026-11-22, v1.2.1 (Compte-rendu
-et issue #71) en production depuis le 2026-11-26**
+et issue #71) en production depuis le 2026-11-26 ; v1.2.2 (issues #72 et #73, notes de
+table) en préparation sur la branche `issues72-73-notes-adversaire` depuis le 2026-11-27**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
@@ -122,14 +123,14 @@ jour » (champ `report` de `tournament.update`) ; lien public toujours vivant
 (`#/compte-rendu/<jeton>`) ; PDF par l'impression de la page, sur la mise en page du
 handoff `docs/design-handoff/COMPTE-RENDU.md` (plan dans
 `docs/lot-compte-rendu-plan.md`, décisions au §11). Le modèle compte **32 tables** et
-dix-sept révisions Alembic. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
+dix-neuf révisions Alembic, R18 et R19 (v1.2.2) sur la branche de la v1.2.2. L'arborescence du §4 existe, avec en plus `scripts/` (commandes unifiées),
 `.github/` (CI, Dependabot), `docs/` (briefs de lot) et `ops/` (playbook du Lot 11).
 
 Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|test|crap|build|dev|preview>`
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (3212 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (3293 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -147,7 +148,7 @@ le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e),
 (Lot 12 : refus `/sync` comptés par motif, par type et par jour, base ouverte en
 lecture seule, sur le VPS ou sur une copie).
 Front (depuis `frontend/`) : `npm run lint`, `npm run typecheck:tests` (contrôle de
-types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 2015 tests sur 118 fichiers, à lancer depuis PowerShell en
+types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 2040 tests sur 120 fichiers, à lancer depuis PowerShell en
 `C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
 `npm run test:e2e` (Playwright, 112 tests sur quatre projets : à 390 × 844, 9 dans
 `chromium` et 57 contre un vrai back sur base éphémère — projet `real-backend`, cf.
@@ -157,7 +158,7 @@ types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (v
 projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
 Playwright, alors qu'un `npx playwright test` seul tourne sur le dernier build, périmé
 si le code a changé depuis),
-`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-compte-rendu-cloture.txt`
+`node scripts/testid-census.mjs --check ../docs/qa-baselines/testids-v1.2.2-cloture.txt`
 (recensement des `data-testid`, échoue si un identifiant a disparu),
 `npx tsc --noEmit -p tsconfig.app.json` (le `tsconfig.json` racine ne liste aucun
 fichier : un `tsc --noEmit` sans `-p` ne vérifie rien),
@@ -243,7 +244,7 @@ Compte-rendu `GET/PATCH /tournois/{id}/compte-rendu`,
 `GET /tournois/{id}/compte-rendu/versions/{number}`,
 `POST/DELETE /tournois/{id}/compte-rendu/lien`, `GET /moi/comptes-rendus`,
 `GET /comptes-rendus/{token}` et `GET /comptes-rendus/{token}/versions/{number}`
-(publiques) — 70 opérations sur 45 chemins au contrat, détail au §7. Hors catalogue,
+(publiques), et depuis la v1.2.2 `PATCH /moi` — 71 opérations sur 45 chemins au contrat, détail au §7. Hors catalogue,
 lecture d'une liste partagée ou d'un compte-rendu, et authentification, toute route
 exige une session. Une UI
 métier de consultation et de saisie existe pour la collection, les decks, les parties,
@@ -634,17 +635,30 @@ aux tables existantes ni convertir de données. Aucun type d'opération `/sync` 
 donc le journal et ses CHECK ne bougent pas. La montée se rend hors ligne ; la descente
 refuse de tourner dès qu'un compte-rendu existe et ne se rend pas hors ligne.
 Appliquée en production le 2026-11-26, troisième révision à l'être, après un essai sur
-une copie de la base servie (les 30 tables existantes identiques ligne à ligne). Le modèle compte **32 tables** et dix-sept révisions.
+une copie de la base servie (les 30 tables existantes identiques ligne à ligne).
+La v1.2.2 ajoute la dix-huitième révision, `e6d2a4b8c1f5` (R18, A8 de
+`docs/v1.2.2-plan.md`) : un `ADD COLUMN` non nullable, `tournament_report.include_my_notes`
+(`BOOLEAN NOT NULL DEFAULT 1`), sur le patron de R12, R14 et R15, sans recréer la
+table ni convertir de données ; un compte-rendu existant passe à vrai, ce qui ne change
+pas son instantané. La montée se rend hors ligne ; la descente refuse de tourner dès
+qu'un compte-rendu a la case décochée, seule valeur qu'elle perdrait, et ne se rend
+pas hors ligne. Pas encore appliquée en production.
+La v1.2.2 ajoute aussi la dix-neuvième révision, `f7a3c9e1b5d2` (R19, A9 du plan) :
+`ADD COLUMN user_account.display_name VARCHAR(64)`, nullable, le nom à afficher dans
+les comptes-rendus, sur le patron de R15. La montée se rend hors ligne ; la descente
+refuse de tourner dès qu'un compte a un nom (une saisie, comme le lien VDB de R14) et
+ne se rend pas hors ligne. Pas encore appliquée en production. Le modèle compte
+**32 tables** et dix-neuf révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
-| Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé, jusqu'au Lot 12). Révoquer une session, c'est supprimer sa ligne. Depuis le Lot 12 (R15) : `user_agent` (en-tête de la connexion ou de l'inscription, débarrassé des caractères non imprimables, coupé à 256, nul s'il manque) et `last_used_at` (posé par le renouvellement, nul lu comme `created_at`) ; `expires_at` glisse, au plus une fois par jour, jusqu'à `min(maintenant + 14 jours, created_at + 90 jours)` |
+| Comptes | `user_account`, `auth_session` | Lot 6. `user_account` : `email` (identifiant de connexion, unique, rogné et mis en minuscules à l'écriture comme à la recherche), `username` (handle public unique, `^[A-Za-z0-9_-]{3,32}$`), `password_hash` (chaîne PHC Argon2id, `!` pour un mot de passe inutilisable), `role` (`user`/`admin`, CHECK nommé), depuis la v1.2.2 (R19) `display_name` (nom à afficher dans les comptes-rendus, 64 caractères au plus, une ligne, nullable). `auth_session` : `user_id` (FK, `ON DELETE CASCADE`), `token_hash` (SHA-256 du jeton, unique ; jamais le jeton en clair), `created_at`, `expires_at` (connexion + 14 jours, jamais repoussé, jusqu'au Lot 12). Révoquer une session, c'est supprimer sa ligne. Depuis le Lot 12 (R15) : `user_agent` (en-tête de la connexion ou de l'inscription, débarrassé des caractères non imprimables, coupé à 256, nul s'il manque) et `last_used_at` (posé par le renouvellement, nul lu comme `created_at`) ; `expires_at` glisse, au plus une fois par jour, jusqu'à `min(maintenant + 14 jours, created_at + 90 jours)` |
 | Référence | `language`, `clan`, `discipline`, `sect`, `card_type`, `card_set`, `venue`, `bundle` | tout est partagé entre comptes, sauf `venue`, privée à chaque compte depuis le Lot 6 (`user_id`, nom unique par compte) ; `language` est une table ouverte (seed EN/FR/ES/XX « autre »), pas un enum ; `bundle` = produit (précon) rattaché à une extension ; `card_set.is_placeholder` marque l'extension tampon créée par l'import pour une carte publiée sans impression (§11, Lot 4) |
 | Catalogue | `card`, `card_type_link`, `card_discipline_link`, `card_printing`, `card_printing_occurrence`, `card_translation` | `card` = identité indépendante de la langue, clé naturelle `vekn_id` ; dates de légalité `banned_on` et `legal_from` ; `sect_id` rempli par l'import pour toute carte de crypte (secte dérivée du texte, lot Chercher), nul en bibliothèque ; `library_requirement`, exigence brute de `vteslibmeta.csv`, lue à la sortie par `library_requirement` (R12) ; index non unique `ix_card_name_group_code_advanced` (retrouver un vampire par son triplet nom + groupe + advanced) ; `card_translation` (nom, texte, flavor, image par langue) ; impressions = carte × extension, avec occurrences détaillées (rareté, précon + copies, date) |
 | Collection | `card_copy`, `deck`, `deck_card`, `deleted_deck_card` | identité d'inventaire **carte × langue × extension** (Lot 4) : PK de `card_copy` (`card_id`, `language_code`, `card_set_id`), FK composite vers `card_printing`, si bien que la base refuse un exemplaire dans une extension où la carte n'a pas été imprimée ; `deck_card` reprend les trois colonnes dans sa PK, mais ses FK visent `card_printing` (carte + extension) et `language`, pas `card_copy` — une ligne entièrement jouée en proxy ne consomme rien et n'a donc pas d'entrée de collection en face (`f3a91c47b2de`) ; `deleted_deck_card` garde l'extension, avec une FK vers `card_set` seulement (une decklist figée ne réserve rien, pas même l'extension tampon) ; `deck.proxy_allowed` porte l'autorisation de proxy. Depuis le Lot 6 : `user_id` en tête de la PK de `card_copy` (`user_id`, `card_id`, `language_code`, `card_set_id`), si bien que deux comptes ont chacun leur entrée pour la même impression et la même langue ; `deck.user_id`, avec l'unicité `uq_deck_user_id_name_discriminator` et une unicité (`id`, `user_id`) qui sert de cible aux FK composites ; `deck_card.user_id`, copie de celui du deck garantie par la FK composite (`deck_id`, `user_id`) → `deck`, qui rend la correspondance avec `card_copy` à nouveau une égalité de quatre colonnes depuis que `f3a91c47b2de` a retiré la FK entre elles ; `deleted_deck_card` sans `user_id` (elle se lit par son deck et ne compte dans aucune somme). Depuis le Lot 8 : `deck.archetype` est l'enum `DeckArchetype` (six codes, CHECK `ck_deck_deck_archetype`, nullable). Depuis le Lot 9 : `deck.vdb_deck_id`, identifiant du deck VDB dont le deck a été importé par son adresse (`^[A-Za-z0-9:_-]{1,64}$`, nullable, sans index ni unicité : deux decks liés au même deck VDB restent possibles), posé à la création seulement |
 | Versions jouées | `deck_version`, `deck_version_card` | Lot 8. `deck_version` : `user_id`, `deck_id`, `number` (≥ 1, unique par deck), `created_at` seul (une version ne se modifie jamais), en `AUTOINCREMENT` ; FK composite (`deck_id`, `user_id`) → `deck`, et unicité (`id`, `deck_id`, `user_id`) qui sert de cible à `participation`. `deck_version_card` : carte × quantité (≥ 1), PK (`deck_version_id`, `card_id`), FK vers `card` seulement, comme `deleted_deck_card` vers `card_set` : une liste figée ne réserve rien. Pas d'empreinte, la comparaison se fait en mémoire. Une version vide existe (deck joué sans carte) |
 | Partage | `deck_share`, `deck_share_card` | Lot 13. `deck_share` : un lien public vers la liste d'un deck, en `AUTOINCREMENT` ; FK composite (`deck_id`, `user_id`) → `deck` (la ligne d'un deck supprimé reste, si bien que son figé garde sa FK) ; `token`, huit caractères de `[A-Za-z0-9_]` en clair, unique, sous CHECK (`GLOB`, propre à SQLite) ; `kind` (`live`, `frozen`), `show_notes`, `created_at` ; pour un figé seulement (CHECK `ck_deck_share_frozen_fields_match_kind`), `frozen_name` obligatoire, `frozen_archetype`, `frozen_notes` (copiées seulement si `show_notes`) et `deck_version_id` (FK composite vers `deck_version`, provenance). Pas d'`updated_at` : un lien se crée puis se purge. `deck_share_card` : carte × quantité (≥ 1) d'un figé, FK vers `card` seulement, supprimée avec son lien (`ON DELETE CASCADE`). Les versions du Lot 8 ne voient pas les liens |
-| Comptes-rendus | `tournament_report`, `tournament_report_version` | Lot Compte-rendu. `tournament_report` : au plus un par tournoi (unicité de `tournament_id`), FK composite (`tournament_id`, `user_id`) → `tournament`, en `AUTOINCREMENT` ; `token` nul ou au format du Lot 13 (CHECK `ck_tournament_report_token_format`), unique ; `include_opponent_notes` et `show_previous_versions`, faux par défaut ; `created_at`. `tournament_report_version` : `report_id` (`ON DELETE CASCADE`), `number` (≥ 1, unique par compte-rendu), `created_at`, `snapshot` (texte JSON canonique de `ReportSnapshot`, clés triées : deux versions sont égales si leurs textes le sont). Un tournoi ne se supprime pas tant qu'il a un compte-rendu (service) |
+| Comptes-rendus | `tournament_report`, `tournament_report_version` | Lot Compte-rendu. `tournament_report` : au plus un par tournoi (unicité de `tournament_id`), FK composite (`tournament_id`, `user_id`) → `tournament`, en `AUTOINCREMENT` ; `token` nul ou au format du Lot 13 (CHECK `ck_tournament_report_token_format`), unique ; `include_opponent_notes` et `show_previous_versions`, faux par défaut ; depuis la v1.2.2 (R18), `include_my_notes`, vrai par défaut ; `created_at`. `tournament_report_version` : `report_id` (`ON DELETE CASCADE`), `number` (≥ 1, unique par compte-rendu), `created_at`, `snapshot` (texte JSON canonique de `ReportSnapshot`, clés triées : deux versions sont égales si leurs textes le sont). Un tournoi ne se supprime pas tant qu'il a un compte-rendu (service) |
 | Pratique | `player`, `tournament`, `game`, `participation`, `tournament_deck_version` | `user_id` posé dès le Lot 6 (D7), routes et données au Lot 7 ; exactement un « Moi » **par compte**, créé par R10, à l'inscription et par `manage_accounts.py create`, renommable mais jamais supprimable (index unique partiel `ux_player_is_me` en dernier filet) ; nom de joueur et de lieu unique par compte ; FK composites (`…_id`, `user_id`) entre partie, tournoi, lieu, participation et deck, si bien que la base refuse qu'une partie pointe le deck ou le tournoi d'un autre compte (une colonne nullable à NULL désactive le contrôle, `MATCH SIMPLE`) ; `tournament.event_tier` (`standard` par défaut, `national_championship`, `grand_prix`, `continental_championship`), `final_deck_rule` (`best_performing`, `free_choice` ou nul, nul imposé en mono), `player_count` saisi et nullable, `my_ranking` saisi et contrôlé ; une partie hors tournoi est `casual`, une préliminaire porte un numéro de ronde unique dans son tournoi, une seule finale par tournoi (CHECK et index partiels) ; VP et GW seulement sur la ligne du « Moi », `participation.game_win` déclaré, posé par le serveur quand il est certain ; une ligne d'adversaire peut pointer un de mes decks prêté ; `venue`, `player`, `tournament` et `game` en `AUTOINCREMENT` (R11) ; aucun point de tournoi ni place à la table. Depuis le Lot 8 : `participation.player_id` nullable (adversaire non nommé, P6 ; l'unicité (`game_id`, `player_id`) tient, SQLite ne comparant pas les NULL), `deck_version_id` avec une FK composite (`deck_version_id`, `deck_id`, `user_id`) → `deck_version` et le CHECK `ck_participation_version_requires_deck`, et sur une ligne d'adversaire `opponent_deck_name` (120 caractères), `opponent_deck_archetype` (`DeckArchetype`) et `opponent_clan_id` (FK vers `clan`). `tournament_deck_version` (A9) : PK (`tournament_id`, `deck_id`), `deck_version_id` et `frozen_by_game_id`, non nul et sans cascade, si bien que la base refuse de supprimer la partie qui a figé tant que la ligne la désigne ; le service la fait passer à la partie restante au plus petit identifiant, ou la retire |
 | Synchronisation | `sync_operation` | journal d'idempotence de `POST /sync` (Lot 3) : `operation_id` (clé, unique **par compte** depuis le Lot 6 : `uq_sync_operation_user_id_operation_id`), empreinte du corps reçu, verdict rendu (`applied`/`replayed`/`rejected`), `client_ref` et `deck_id` pour résoudre un deck créé hors ligne. Sans clé étrangère, en ajout seul : son `user_id` (Lot 6) est un identifiant, pas une relation, et l'index partiel des `client_ref` appliquées porte sur (`user_id`, `client_ref`). Reste portable pour Barrin et ne retient rien du cycle de vie des decks. Son `downgrade` supprime la table, donc le journal — à garder en tête avant tout retour arrière, comme pour `deleted_deck_card` (§11) |
 
@@ -735,14 +749,15 @@ Ressources principales (REST) : `/cartes`, `/stock`, `/decks`,
 `POST /sync` (opérations idempotentes, clé d'idempotence côté client) — livré au Lot 3.
 
 Livré aux Lots 2 à 13 et au lot Compte-rendu (chemins en français, `operationId` en
-anglais camelCase), 70 opérations sur 45 chemins :
+anglais camelCase), 71 opérations sur 45 chemins depuis la v1.2.2 :
 
 | Route | Rôle |
 | --- | --- |
 | `POST /inscription` (`signUp`) | Lot 6. Crée un compte (`email`, `username`, `password`), actif aussitôt, rôle `user` posé par le serveur (un `role` envoyé rend 422, comme tout champ inconnu), et ouvre la session : 201 `UserRead` + `Set-Cookie` ; 409 adresse ou nom déjà pris ; 429 + `Retry-After` |
 | `POST /connexion` (`logIn`) | Lot 6. Ouvre une session : 200 `UserRead` + `Set-Cookie` ; 401 unique pour un identifiant inconnu et un mauvais mot de passe ; 429 + `Retry-After`. Depuis le correctif du 2026-11-21, `identifier` porte l'adresse ou le nom d'utilisateur (« @ » ou non) ; `email`, obsolète, reste accepté pour une coquille v1.1.0 ; exactement l'un des deux (422 sinon) |
 | `POST /deconnexion` (`logOut`) | Lot 6. Supprime la session courante et efface le cookie ; 204 toujours, même sans session valide |
-| `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`) ; 401 sans session |
+| `GET /moi` (`readCurrentUser`) | Lot 6. Compte de la session (`UserRead` : `id`, `email`, `username`, `role`, `created_at`, et `display_name` depuis la v1.2.2) ; 401 sans session |
+| `PATCH /moi` (`updateCurrentUser`) | v1.2.2. Règle le nom à afficher dans les comptes-rendus (`UserUpdate` : `display_name`, rogné, 64 caractères au plus, une seule ligne, vide ou `null` l'efface, omis ne change rien) ; rend `UserRead` ; 422 pour un caractère de contrôle ou un champ inconnu ; en ligne seulement, hors `/sync` |
 | `POST /moi/mot-de-passe` (`changePassword`) | Lot 12. `current_password`, `new_password` (règles de l'inscription) ; 204 ; rehache et ferme les autres sessions du compte, la courante gardée, en une transaction ; **422** « Mot de passe actuel incorrect. » sur `current_password`, jamais 401 ; 429 + `Retry-After` au-delà de `PASSWORD_CHANGE_RATE_LIMIT` (5 par minute). Ordre : 401, 422, 429 |
 | `GET /moi/sessions` (`listSessions`) | Lot 12. Sessions non expirées du compte (`SessionRead` : `id`, `created_at`, `last_used_at`, `expires_at`, `user_agent`, `current`), la courante en tête puis par dernière utilisation décroissante |
 | `DELETE /moi/sessions/{session_id}` (`revokeSession`) | Lot 12. 204 ; 404 « Session N introuvable. » pour une session inconnue, expirée ou d'un autre compte ; **409 pour la session courante**, qui se ferme par la déconnexion (seule à purger la base locale) |
@@ -767,7 +782,7 @@ anglais camelCase), 70 opérations sur 45 chemins :
 | `GET/POST /decks/{id}/partages` (`listDeckShares`, `createDeckShare`) | Lot 13. Liens publics du deck (`DeckShareRead` : `id`, `token`, `kind`, `show_notes`, `created_at`, `frozen_name`, `deck_version_number`, `deck`), lisibles pour un deck supprimé ; création d'un vivant (`live`) ou d'un figé (`frozen`, de la liste courante ou d'une version jouée par `deck_version_number`) : 201, 409 pour un deck supprimé, 422 pour `deck_version_number` sur un vivant |
 | `GET/DELETE /moi/partages` (`listMyShares`, `purgeShares`) | Lot 13. Tous les liens du compte, decks supprimés compris ; purge, **seul moyen de révoquer** : `scope` `selected` (avec `share_id` répété, decks supprimés compris, refusée en entier pour un lien inconnu ou d'un autre compte, 404), `deleted_decks` ou `all` ; 200 `{"revoked": n}` |
 | `GET /listes/{token}` (`readSharedDecklist`) | Lot 13. **Publique**, sans session ni cookie : `SharedDecklistRead` (`name`, `archetype`, `kind`, `frozen_at`, `author`, `notes`, `cards` en `{card: CardSearchItem, quantity}`, `reprinted_card_ids`). Jeton au motif `^[A-Za-z0-9_]{8}$` (422), puis 429 + `Retry-After` au-delà de `SHARED_LIST_RATE_LIMIT` (60 par minute et par IP), puis 404 « Liste introuvable. », le même pour tout jeton inconnu ou purgé ; `Cache-Control: public, max-age=60` et `X-Robots-Tag: noindex` |
-| `GET/PATCH /tournois/{id}/compte-rendu` (`readTournamentReport`, `updateTournamentReportSettings`) | Lot Compte-rendu. `TournamentReportRead` (réglages, `token`, versions sans instantané) ; 404 sans compte-rendu ; le `PATCH` règle `show_previous_versions`, en ligne seulement. Couper une version, régler `include_opponent_notes` et supprimer le compte-rendu passent par `PATCH /tournois/{id}` et `tournament.update`, champ `report` (`update` ou `delete`) ; `TournamentDetailRead.report` porte le compte-rendu |
+| `GET/PATCH /tournois/{id}/compte-rendu` (`readTournamentReport`, `updateTournamentReportSettings`) | Lot Compte-rendu. `TournamentReportRead` (réglages, `token`, versions sans instantané) ; 404 sans compte-rendu ; le `PATCH` règle `show_previous_versions`, en ligne seulement. Couper une version, régler `include_opponent_notes` et, depuis la v1.2.2, `include_my_notes` (facultatif, vrai à la création), et supprimer le compte-rendu passent par `PATCH /tournois/{id}` et `tournament.update`, champ `report` (`update` ou `delete`) ; `TournamentDetailRead.report` porte le compte-rendu |
 | `GET /tournois/{id}/compte-rendu/versions/{number}` (`readTournamentReportVersion`) | Lot Compte-rendu. Une version et son instantané (`ReportSnapshot`) |
 | `POST/DELETE /tournois/{id}/compte-rendu/lien` (`shareTournamentReport`, `revokeTournamentReportLink`) | Lot Compte-rendu. Tire le jeton (rend l'existant s'il y en a un ; 409 sans version), ou le purge, seul moyen de révoquer |
 | `GET /moi/comptes-rendus` (`listMyTournamentReports`) | Lot Compte-rendu. Les comptes-rendus du compte, avec leur lien et leur dernière version |
@@ -2757,7 +2772,8 @@ relevés complets dans « Avancement de F » de `docs/lot-compte-rendu-plan.md`)
 
 Limites connues à la clôture du lot Compte-rendu :
 
-- **Les notes sur un adversaire ne se saisissent nulle part** : aucun écran n'écrit
+- **Les notes sur un adversaire ne se saisissent nulle part** (*soldée en v1.2.2*,
+  champ « Note » par ligne de la table) : aucun écran n'écrit
   `participation.notes` depuis le Lot 7 (le formulaire de partie garde celles qui
   existent et crée chaque ligne sans note). L'option « Inclure les notes sur les
   adversaires » marche, mais n'a rien à publier. Un champ « Note » par ligne de la
@@ -2783,6 +2799,47 @@ Limites connues à la clôture du lot Compte-rendu :
   de `test_migrations.py`, matrice d'autorisation ; côté client
   `tests/unit/features/report/`, `CardNamePreview.test.tsx` ; e2e `compte-rendu`
   et `issue71-apercu-carte` aux deux largeurs contre le vrai back.
+
+Tranchées pendant la v1.2.2 (contenu arrêté par l'utilisateur le 2026-11-26, P1 à P3
+tranchées et A8 amendée le 2026-11-27 ; plan, décisions et écarts dans
+`docs/v1.2.2-plan.md`, qui fait foi pour le détail) :
+
+- **Mises à jour Dependabot embarquées (étape 0).** Les PR ouvertes (#75, #76, #77)
+  entrent dans la branche par fusion de leur tête, avant le code, pour qu'une seule
+  passe de tests les valide avec le reste et qu'une seule mise en service les livre.
+- **Légalité sans recalcul manuel (issue #72).** Ni clic sur la pastille, ni `R`, ni
+  « recalculer » au mobile : `useDeckLegality` se relance sur une empreinte de la
+  composition lue dans le miroir (`deckLegalityVersion`, état en attente, statut,
+  carte × quantité), si bien qu'un deck modifié sur un autre appareil se relit dès
+  que le miroir le reflète. Étiquette « Légal » / « Illégal », motifs au survol au
+  bureau et au toucher au téléphone, une seule pastille (`DeckLegalityBadge`) aux deux
+  largeurs ; `DeckLegalityPanel` et `DeckLegalityTag` disparaissent. Une version jouée
+  dit « Illégal le 24 octobre » (P1). Sur une erreur de lecture, on modifie le deck.
+- **Produits en liste (issue #73).** Un `<select>` groupé par extension, plus récentes
+  en tête, lu par un seul `GET /bundles` (`groupBundles`).
+- **Notes de table (P2, A7, A8).** Un champ « Note » par ligne de la table, la mienne
+  comprise : elle décrit ce qui ne concerne que moi (le tirage de départ), là où les
+  notes de la partie racontent son déroulé. Au compte-rendu, ma note passe derrière une
+  case « Inclure mes notes de table », cochée par défaut, réglage du serveur puisqu'il
+  construit l'instantané (R18) ; l'instantané ne change pas de forme.
+- **Écran du compte-rendu refait (handoff `COMPTE-RENDU-ECRAN.md`, ajouté le
+  2026-11-27).** Au bureau, le compte-rendu et un panneau de réglages non collant
+  (P5) ; au téléphone, une barre de version et une feuille Réglages, qui reçoit
+  l'impression (P6) ; interrupteurs par `Switch`, badge de version à l'écran du
+  propriétaire, résultat en grille, une ligne par siège. La page publique suit
+  (`ReportView`), la page imprimée ne change pas de mise en page.
+- **Nom à afficher (P4, A9 à A12).** Plutôt que de choisir entre « Moi (@pseudo) » et
+  un badge qui le redit, l'écran Compte règle un nom à afficher (R19, `PATCH /moi`).
+  Il entre dans l'instantané (`my_display_name`, omis du texte canonique quand il est
+  nul, pour qu'une version d'avant la v1.2.2 ne paraisse pas changée) : une version
+  garde le nom de son époque. Ma ligne porte ce nom, à défaut `@pseudo`, à défaut
+  « Moi », avec le badge « Moi » sauf dans ce dernier cas. Le nom est sur une seule
+  ligne : un caractère de contrôle rend 422.
+- **`data-testid`** : référence de clôture `docs/qa-baselines/testids-v1.2.2-cloture.txt`
+  (834 littéraux statiques distincts, 825 à la clôture du lot Compte-rendu) ;
+  disparus et justifiés, les six du panneau de légalité mobile (`legality-panel`,
+  `legality-verdict`, `legality-badge`, `legality-crypt`, `legality-library`,
+  `legality-refresh`) et `deck-legality-refresh`, devenu `deck-legality-toggle`.
 
 ---
 
@@ -3019,7 +3076,8 @@ complétée le 2026-11-21 par le compte-rendu de tournoi (décisions V1 à V7, O
 O2 dans `docs/roadmap-v2-proposition.md`, qui fait foi pour le détail).
 Versions : v1.1 à la fin du Lot 12, v1.2 à la fin du Lot 13, v1.2.1 pour
 l'issue #71, l'ordre des types de VDB et le lot Compte-rendu ensemble (décision du
-2026-11-23, qui remplace la v1.3 prévue), v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
+2026-11-23, qui remplace la v1.3 prévue), v1.2.2 pour les issues #72 et #73
+et la note sur un adversaire (décision du 2026-11-26), v2.0.0 avec le Lot 14, l'identité d'une entrée de collection y
 changeant ; les lots suivants donnent des v2.x.
 
 14. **Lot 12 — Consolidation (v1.1)** — *livré, v1.1.0 en production depuis le
@@ -3155,6 +3213,29 @@ changeant ; les lots suivants donnent des v2.x.
     désigne les versions de decklist du Lot 8 qu'elle montre : après un « Figer
     sur la liste actuelle », il faut régénérer le compte-rendu pour afficher la
     nouvelle liste.
+
+    **v1.2.2 — retours d'usage** — *ouverte le 2026-11-27 sur la branche
+    `issues72-73-notes-adversaire`, B et C (passe complète verte) livrées le même jour*, contenu arrêté par l'utilisateur le
+    2026-11-26 et complété le 2026-11-27 (écran du compte-rendu, nom à afficher),
+    deux révisions, R18 et R19, et une route, `PATCH /moi` (ni type `/sync`, ni
+    version Dexie). Issue #72 : plus aucun recalcul manuel de la légalité (pastille,
+    `R`, « recalculer » du mobile), la relecture automatique suffit ; étiquette
+    « Légal » ou « Illégal », motifs au survol au bureau et au toucher au
+    téléphone ; sur une erreur de lecture, on modifie le deck pour relancer.
+    Issue #73 : « Verser un produit » choisit dans une liste déroulante de tous
+    les produits, groupés par extension, plus récents en tête, au lieu de la
+    recherche à deux caractères. Notes de table : un champ « Note » par ligne de
+    la table dans le formulaire de partie, la mienne comprise (le tirage de
+    départ, quand les notes de la partie racontent son déroulé), sans quoi la
+    case « Inclure les notes sur les adversaires » du compte-rendu n'a rien à
+    publier ; ma note paraît au compte-rendu derrière une case « Inclure mes
+    notes de table », cochée par défaut (R18, `tournament_report.include_my_notes`). Plan, points tranchés
+    (P1 à P6, le 2026-11-27) et étapes dans `docs/v1.2.2-plan.md`. L'écran
+    du compte-rendu est refait sur le handoff `docs/design-handoff/COMPTE-RENDU-ECRAN.md`
+    (panneau au bureau, feuille Réglages au téléphone), et ma ligne y porte le
+    nom à afficher réglé dans l'écran Compte, avec un badge « Moi ». Elle
+    embarque d'abord les PR Dependabot ouvertes (#75, #76, #77), validées par
+    la même passe de tests.
 17. **Lot 14 — Inventaires et classeurs (v2.0.0).** Ferme l'issue #48. Le lot
     Inventaires, proposé le 2026-11-03 et reporté après la mise en ligne le
     2026-11-13, est **découpé** en quatre lots et une suite (V3, classeurs avant

@@ -87,6 +87,8 @@ EXPECTED_OPERATIONS = {
     ("post", "/connexion"): "logIn",
     ("post", "/deconnexion"): "logOut",
     ("get", "/moi"): "readCurrentUser",
+    # v1.2.2 (A10) : nom à afficher dans les comptes-rendus.
+    ("patch", "/moi"): "updateCurrentUser",
     ("get", "/cartes"): "listCards",
     ("get", "/cartes/{card_id}"): "getCard",
     ("get", "/bundles"): "listBundles",

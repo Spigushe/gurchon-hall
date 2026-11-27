@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { hrefFor } from "../../../src/app/routes";
+import { readLocalAccount } from "../../../src/offline/vtes/account";
 import { renderApp, setOnline, type UiServer } from "./harness";
 
 /**
@@ -385,5 +386,52 @@ describe("D5 : Synchronisation depuis le compte (A11)", () => {
     await renderApp({ hash: "#/synchronisation" });
     await screen.findByTestId("sync-page");
     expect(screen.getByTestId("nav-home")).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("écran Compte : nom à afficher dans les comptes-rendus", () => {
+  it("envoie le nom rogné par PATCH /moi, puis met la copie locale à jour", async () => {
+    const app = await openAccount();
+    const input = await screen.findByTestId("account-display-name");
+    await waitFor(() => expect(input).toBeEnabled());
+    expect(input).toHaveValue("");
+    expect(screen.getByTestId("account-display-name-save")).toBeDisabled();
+    fireEvent.change(input, { target: { value: "  Spig  " } });
+    fireEvent.click(screen.getByTestId("account-display-name-save"));
+    expect(await screen.findByTestId("account-display-name-done")).toBeInTheDocument();
+    expect(app.ui.account.profileBodies).toEqual([{ display_name: "Spig" }]);
+    await waitFor(async () => expect((await readLocalAccount(app.runtime.db))?.display_name).toBe("Spig"));
+    expect(screen.getByTestId("account-display-name")).toHaveValue("Spig");
+  });
+
+  it("vide, il s'efface : null est envoyé", async () => {
+    const app = await openAccount({ account: { ...ACCOUNT, display_name: "Spig" } });
+    const input = await screen.findByTestId("account-display-name");
+    await waitFor(() => expect(input).toHaveValue("Spig"));
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.click(screen.getByTestId("account-display-name-save"));
+    await screen.findByTestId("account-display-name-done");
+    expect(app.ui.account.profileBodies).toEqual([{ display_name: null }]);
+    await waitFor(async () => expect((await readLocalAccount(app.runtime.db))?.display_name).toBeNull());
+  });
+
+  it("hors ligne, le champ et le bouton sont désactivés, avec l'aide habituelle", async () => {
+    await openAccount({ online: false });
+    expect(await screen.findByTestId("account-display-name")).toBeDisabled();
+    expect(screen.getByTestId("account-display-name-save")).toBeDisabled();
+  });
+
+  it("affiche sous le champ l'erreur du serveur", async () => {
+    await openAccount({
+      configure: (ui) => {
+        threeSessions(ui);
+        ui.account.failures.set("PATCH /moi", { status: 422, body: { detail: [{ loc: ["body", "display_name"], msg: "Caractère de contrôle refusé." }] } });
+      },
+    });
+    const input = await screen.findByTestId("account-display-name");
+    await waitFor(() => expect(input).toBeEnabled());
+    fireEvent.change(input, { target: { value: "Spig" } });
+    fireEvent.click(screen.getByTestId("account-display-name-save"));
+    expect(await screen.findByTestId("account-display-name-error")).toHaveTextContent("Caractère de contrôle refusé.");
   });
 });

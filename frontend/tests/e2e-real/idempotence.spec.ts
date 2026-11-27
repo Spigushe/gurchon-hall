@@ -17,6 +17,7 @@ import {
   openApp,
   openBundleDeposit,
   readOutbox,
+  selectBundle,
   stockEntry,
   syncStatus,
   type DeckRead,
@@ -53,8 +54,7 @@ test("réponse de /sync perdue deux fois : le rejeu ne double rien, versement de
   // Le produit se trouve en ligne (pas de miroir local des produits) ; son
   // versement, lui, part dans la file avec sa clé d'idempotence.
   const deposit = await openBundleDeposit(page);
-  await deposit.getByLabel("Rechercher un produit").fill(BUNDLE_KIASYD.search);
-  await deposit.getByRole("button", { name: new RegExp(BUNDLE_KIASYD.search) }).click();
+  await selectBundle(deposit, BUNDLE_KIASYD.search);
   await chooseLanguage(deposit, "EN");
 
   await context.setOffline(true);
@@ -127,8 +127,7 @@ test("rechargement de la page en plein envoi : le serveur a appliqué, le client
   await goToStock(page);
 
   const deposit = await openBundleDeposit(page);
-  await deposit.getByLabel("Rechercher un produit").fill(BUNDLE_KIASYD.search);
-  await deposit.getByRole("button", { name: new RegExp(BUNDLE_KIASYD.search) }).click();
+  await selectBundle(deposit, BUNDLE_KIASYD.search);
   await chooseLanguage(deposit, "EN");
 
   // Le premier envoi va jusqu'au serveur (qui applique) mais sa réponse n'arrive

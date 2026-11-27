@@ -211,6 +211,7 @@ const json = (body: unknown, status = 200) =>
 export interface FakeReportRead {
   tournament_id: number;
   include_opponent_notes: boolean;
+  include_my_notes: boolean;
   show_previous_versions: boolean;
   token: string | null;
   created_at: string;

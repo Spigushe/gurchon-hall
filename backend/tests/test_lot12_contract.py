@@ -275,7 +275,14 @@ def test_the_export_carries_no_secret_and_no_account_identifier(schema):
     assert not names & set(SECRET_WORDS)
     assert "user_id" not in names
     account = schema["components"]["schemas"]["ExportedAccount"]["properties"]
-    assert set(account) == {"email", "username", "role", "created_at"}
+    # `display_name` depuis la v1.2.2 (A10) : un nom choisi, pas un secret.
+    assert set(account) == {
+        "email",
+        "username",
+        "role",
+        "created_at",
+        "display_name",
+    }
 
 
 def test_the_export_format_version_is_three_and_still_describes_the_others(schema):

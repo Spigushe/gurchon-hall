@@ -2587,7 +2587,7 @@ fieldset:disabled .chip {
   color: var(--color-neutral-300);
 }
 
-/* Badge de légalité (« Légal », « Illégal · crypte 8/12 ») : `.tag` de Nocturne. */
+/* Badge de légalité (« Légal », « Illégal ») : `.tag` de Nocturne. */
 .legality-tag {
   display: inline-flex;
   align-items: center;
@@ -2610,6 +2610,43 @@ fieldset:disabled .chip {
 .legality-tag--unknown {
   border: 1px solid var(--color-divider);
   color: var(--color-neutral-400);
+}
+
+/* Pastille de légalité d'un deck (v1.2.2) : au téléphone, le détail se déplie
+   sous la pastille à l'appui ; au bureau, `@media` plus bas en fait une
+   infobulle au survol et au focus. */
+.legality-badge__tag {
+  font: inherit;
+  font-size: 12px;
+  background: transparent;
+  background-clip: padding-box;
+  cursor: pointer;
+}
+
+/* Sans bordure ni fond du navigateur : la pastille reste un `.tag`, pas un
+   bouton (le bord clair par défaut du `<button>` la faisait ressortir). */
+.legality-badge__tag.legality-tag--legal {
+  border: 1px solid transparent;
+  background: var(--color-accent-800);
+}
+
+.legality-badge__tag:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.legality-badge__tooltip {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-neutral-200);
+}
+
+.legality-badge__tooltip:not(.legality-badge__tooltip--open) {
+  display: none;
 }
 
 /* — formulaire dans une feuille (pied poussé en bas) — */
@@ -3045,23 +3082,10 @@ fieldset:disabled .chip {
     position: relative;
   }
 
-  .legality-badge__tag {
-    font: inherit;
-    font-size: 12px;
-    background-clip: padding-box;
-    cursor: pointer;
-  }
-
-  .legality-badge__tag.legality-tag--legal {
-    border: 1px solid transparent;
-  }
-
-  .legality-badge__tag:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
-  }
-
-  .legality-badge__tooltip {
+  .legality-badge__tooltip,
+  .legality-badge__tooltip:not(.legality-badge__tooltip--open) {
+    display: block;
+    margin-top: 0;
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
@@ -3081,7 +3105,8 @@ fieldset:disabled .chip {
   }
 
   .legality-badge:hover .legality-badge__tooltip,
-  .legality-badge:focus-within .legality-badge__tooltip {
+  .legality-badge:focus-within .legality-badge__tooltip,
+  .legality-badge__tooltip--open {
     visibility: visible;
     opacity: 1;
   }
@@ -3090,12 +3115,6 @@ fieldset:disabled .chip {
     margin: 0 0 6px;
     font-weight: 500;
     color: var(--color-neutral-100);
-  }
-
-  .legality-badge__hint {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--color-neutral-400);
   }
 
   .legality-badge .deck-legality-details {
@@ -5700,6 +5719,14 @@ select option {
   min-width: 0;
 }
 
+.opponent-row__note {
+  grid-column: 2 / -1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .opponent-deck__toggle {
   display: flex;
   align-items: center;
@@ -8096,14 +8123,182 @@ button.revision-search__result:focus-visible {
   text-decoration: none;
 }
 
+/* Rangée du bureau : le compte-rendu, puis le panneau de réglages (non collant, P5). */
+.report-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.report-layout__main {
+  flex: 999 1 560px;
+  min-width: 0;
+  max-width: 760px;
+}
+
+.report-layout__main .report {
+  max-width: none;
+}
+
+/* Mobile : une colonne, la barre de version au-dessus du compte-rendu. */
+.report-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.report-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.report-bar__chips {
+  margin: 0 calc(var(--page-padding) * -1);
+  padding: 0 var(--page-padding);
+  overflow-x: auto;
+}
+
+.report-bar__chips .report__versions {
+  flex-wrap: nowrap;
+  width: max-content;
+}
+
+.report-bar__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.report-bar__actions .report-panel__update {
+  flex: 1;
+}
+
+.report__versions .chip {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: transparent;
+}
+
+.report__versions .chip[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-900);
+  color: var(--color-accent-200);
+}
+
 .report-panel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  margin-bottom: var(--space-6);
-  padding: var(--space-4);
-  border: 1px solid var(--color-neutral-800);
+  gap: 22px;
+  flex: 1 1 320px;
+  max-width: 380px;
+  min-width: 0;
+  padding: 22px;
+  background: var(--color-surface);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.report-panel__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.report-panel__kicker {
+  margin: 0;
+}
+
+.report-panel__text {
+  margin: 0;
+}
+
+.report-panel__status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-neutral-400);
+}
+
+.report-panel__actions-group .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.report-panel__options {
+  gap: 0;
+}
+
+.report-panel__options .switch-row {
+  border-top: 0;
+}
+
+.report-panel__options .switch-row + .switch-row {
+  border-top: 1px solid var(--color-divider);
+}
+
+.report-panel__purge {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+}
+
+.report-panel__delete {
+  padding-top: 22px;
+  border-top: 1px solid var(--color-divider);
+}
+
+.report-panel__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.report-link-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: 4px 4px 4px 12px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.report-sheet .report-link-field {
+  background: var(--color-surface);
+}
+
+.report-link-field__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.report-link-field__copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .report-panel__actions {
@@ -8111,25 +8306,6 @@ button.revision-search__result:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-.report-panel__block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.report-panel__title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.report-panel__link {
-  margin: 0;
-  font-family: ui-monospace, monospace;
-  font-size: 13px;
-  word-break: break-all;
 }
 
 .report-panel__pending {
@@ -8180,68 +8356,138 @@ button.revision-search__result:focus-visible {
 .report {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-8);
   max-width: 960px;
 }
 
 .report__header {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
+}
+
+.report__kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.report__kicker {
+  margin: 0;
+}
+
+.report__badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-900);
+  color: var(--color-accent-200);
+  font-size: 12px;
 }
 
 .report__title {
   margin: 0;
+  font-size: 26px;
 }
 
 .report__decks {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--color-neutral-300);
 }
 
-.report__dates,
-.report__facts,
+.report__meta,
 .report__author {
   margin: 0;
+  font-size: 13px;
+  color: var(--color-neutral-400);
 }
 
 .report__dates::first-letter {
   text-transform: uppercase;
 }
 
+/* Résultat : trois cellules entre deux filets, deux colonnes au mobile. */
+.report__result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--color-divider);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.report__result-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: 14px 0;
+}
+
+.report__result-cell--ranking {
+  order: 1;
+}
+
+.report__result-cell--final {
+  order: 2;
+  padding-left: 16px;
+  border-left: 1px solid var(--color-divider);
+}
+
+.report__result-cell--prelim {
+  order: 3;
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  border-top: 1px solid var(--color-divider);
+}
+
+.report__result-label {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+}
+
+.report__result-value {
+  font-size: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.report__result-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-neutral-400);
+}
+
 .report__section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
+  position: relative;
+}
+
+.report__heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
 }
 
 .report__heading {
   margin: 0;
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--color-neutral-800);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.report__rule {
+  flex: none;
 }
 
 .report__score {
   font-weight: 400;
   color: var(--color-neutral-400);
-}
-
-.report__facts-list {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: var(--space-1) var(--space-4);
-  margin: 0;
-}
-
-.report__facts-list dt {
-  color: var(--color-neutral-400);
-}
-
-.report__facts-list dd {
-  margin: 0;
 }
 
 .report__round-deck,
@@ -8252,34 +8498,56 @@ button.revision-search__result:focus-visible {
 .report__table {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* Une ligne par siège : numéro, nom, badge sur la première rangée ; deck et note dessous (mobile). */
 .report__seat {
   display: grid;
-  grid-template-columns: 2ch minmax(8rem, max-content) 1fr;
-  gap: var(--space-1) var(--space-3);
+  grid-template-columns: 22px 1fr auto;
+  gap: 2px var(--space-3);
   align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-divider) 50%, transparent);
 }
 
-.report__seat--me .report__seat-name {
-  font-weight: 600;
+.report__seat:last-child {
+  border-bottom: 0;
 }
 
 .report__seat-number {
+  grid-column: 1;
+  grid-row: 1;
   color: var(--color-neutral-500);
   font-variant-numeric: tabular-nums;
 }
 
+.report__seat-name {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.report__seat--me .report__seat-name {
+  font-weight: 500;
+}
+
+.report__seat-badge {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+}
+
 .report__seat-deck {
+  grid-column: 2 / -1;
+  grid-row: 2;
   color: var(--color-neutral-300);
 }
 
 .report__seat .report__notes {
   grid-column: 2 / -1;
+  grid-row: 3;
   font-size: 13px;
   color: var(--color-neutral-400);
 }
@@ -8293,7 +8561,7 @@ button.revision-search__result:focus-visible {
 .report__notes-editor {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: var(--space-2);
 }
 
@@ -8305,8 +8573,17 @@ button.revision-search__result:focus-visible {
 .report__edit {
   display: inline-flex;
   align-items: center;
+  align-self: flex-end;
   gap: var(--space-1);
+  min-height: 44px;
   font-size: 13px;
+}
+
+/* « Modifier » les notes du tournoi remonte au bout de la ligne du titre. */
+.report__section[data-testid="report-tournament-notes"] .report__edit {
+  position: absolute;
+  top: -9px;
+  right: 0;
 }
 
 .report__textarea {
@@ -8341,4 +8618,56 @@ button.revision-search__result:focus-visible {
 .report__footer {
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-neutral-800);
+}
+
+@media (min-width: 1024px) {
+  .report__title {
+    font-size: 30px;
+  }
+
+  .report__result-grid {
+    grid-template-columns: repeat(var(--report-cells, 3), minmax(0, 1fr));
+  }
+
+  .report__result-cell {
+    padding-right: 16px;
+  }
+
+  .report__result-cell--ranking,
+  .report__result-cell--prelim,
+  .report__result-cell--final {
+    order: 0;
+    grid-column: auto;
+    flex-direction: column;
+    justify-content: flex-start;
+    border-top: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .report__result-cell:not(:first-child) {
+    padding-left: 16px;
+    border-left: 1px solid var(--color-divider);
+  }
+
+  .report__result-cell--prelim .report__result-sub {
+    display: block;
+  }
+
+  .report__seat {
+    grid-template-columns: 28px minmax(9rem, max-content) 1fr auto;
+  }
+
+  .report__seat-deck {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .report__seat-badge {
+    grid-column: 4;
+  }
+
+  .report__seat .report__notes {
+    grid-row: 2;
+  }
 }

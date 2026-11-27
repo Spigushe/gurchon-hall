@@ -86,6 +86,16 @@ export function changePassword(
   });
 }
 
+export type UserRead = components["schemas"]["UserRead"];
+
+/** `PATCH /moi` : le nom à afficher dans les comptes-rendus (A10) ; `null` l'efface. En ligne seulement. */
+export function updateDisplayName(client: ApiClient, displayName: string | null): Promise<ApiOutcome<UserRead>> {
+  return attempt(async () => {
+    const { data, error, response } = await client.PATCH("/moi", { body: { display_name: displayName } });
+    return data ? { kind: "ok", value: data } : failureOf(response, error);
+  });
+}
+
 /** `GET /moi/sessions` : la courante en tête, puis par dernière utilisation. */
 export function listSessions(client: ApiClient): Promise<ApiOutcome<SessionRead[]>> {
   return attempt(async () => {

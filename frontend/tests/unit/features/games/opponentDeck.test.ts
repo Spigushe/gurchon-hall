@@ -3,6 +3,8 @@ import {
   buildParticipations,
   formErrors,
   isEmptyUnnamed,
+  normalizeNote,
+  participationsOf,
   opponentDeckSummary,
   recentClanIds,
   type GameDraft,
@@ -108,5 +110,44 @@ describe("clans récents (1b-49)", () => {
     const games = [withClans(5, null), withClans(3, 5), withClans(7), withClans(9)];
     expect(recentClanIds(games)).toEqual([5, 3, 7]);
     expect(recentClanIds([{ table: null } as unknown as LocalGame])).toEqual([]);
+  });
+});
+
+describe("note par ligne de la table (A7)", () => {
+  it("normalizeNote rogne et rend null pour une note vide", () => {
+    expect(normalizeNote("  tirage Rush  ")).toBe("tirage Rush");
+    expect(normalizeNote("   ")).toBeNull();
+    expect(normalizeNote("")).toBeNull();
+    expect(normalizeNote(null)).toBeNull();
+  });
+
+  it("part rognée sur ma ligne et sur l'adversaire, absente si vide", () => {
+    const base = draft([opponent({ notes: "  Joue lentement " })]);
+    const [me, line] = buildParticipations({ ...base, meNotes: " Main de départ faible " });
+    expect(me.notes).toBe("Main de départ faible");
+    expect(line.notes).toBe("Joue lentement");
+    const [meEmpty, lineEmpty] = buildParticipations({ ...base, meNotes: "   ", opponents: [opponent({ notes: " " })] });
+    expect(meEmpty).not.toHaveProperty("notes");
+    expect(lineEmpty).not.toHaveProperty("notes");
+  });
+
+  it("une note seule ne rend pas valide une ligne sans joueur", () => {
+    expect(isEmptyUnnamed(opponent({ playerKey: null, notes: "Grand gaillard" }))).toBe(true);
+  });
+
+  it("une note inchangée ne fait pas croire à une table modifiée", () => {
+    const game = {
+      table: [
+        { isMe: true, playerKey: "id:1", victoryPoints: 0, gameWin: false, deckKey: null, seat: 2, notes: "  tirage  " },
+        { isMe: false, playerKey: "id:2", deckKey: null, seat: null, notes: "Rapide " },
+      ],
+    } as unknown as LocalGame;
+    const wanted = buildParticipations({
+      ...draft([opponent({ notes: "Rapide " })]),
+      vp: 0,
+      gameWin: false,
+      meNotes: "  tirage  ",
+    });
+    expect(JSON.stringify(wanted)).toBe(JSON.stringify(participationsOf(game)));
   });
 });

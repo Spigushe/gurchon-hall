@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { CaretRightIcon, CheckCircleIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { Link } from "../../app/Link";
 import { useApiClient } from "../../app/apiClientContext";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import { useLiveQuery, useSyncStatus } from "../../offline/react";
-import { readLocalAccount, useVtesOffline, type LocalAccount } from "../../offline/vtes";
+import { readLocalAccount, saveLocalAccount, useVtesOffline, type LocalAccount } from "../../offline/vtes";
 import { downloadBlob } from "../decks/export/exportFile";
-import { exportAccount, readServerVersion } from "./accountApi";
+import { exportAccount, readServerVersion, updateDisplayName } from "./accountApi";
 import { syncRowMeta, unsyncedExportWarning, versionsLine } from "./accountModel";
 import { AccountSessions } from "./AccountSessions";
 import { ChangePasswordSheet } from "./ChangePasswordSheet";
@@ -61,6 +61,8 @@ export function AccountPage() {
       <div className="account-columns">
         <div className="account-main">
           <AccountHeader account={account ?? null} />
+
+          <DisplayNameSection account={account ?? null} online={status.online} />
 
           <section className="account-section" aria-labelledby="account-password-title">
             <h3 id="account-password-title" className="kicker">
@@ -171,6 +173,106 @@ function AccountHeader({ account }: { account: LocalAccount | null }) {
         </span>
       )}
     </header>
+  );
+}
+
+/**
+ * « Nom à afficher dans les comptes-rendus » (v1.2.2, A9 à A12) : `PATCH /moi`,
+ * en ligne seulement. La réponse met à jour la copie locale du compte, pour
+ * que l'aperçu hors ligne du compte-rendu suive.
+ */
+function DisplayNameSection({ account, online }: { account: LocalAccount | null; online: boolean }) {
+  const client = useApiClient();
+  const { db } = useVtesOffline();
+  const action = useGuardedAction();
+  const saved = account?.display_name ?? "";
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  const value = draft ?? saved;
+  const inputId = useId();
+  const unchanged = value.trim() === saved;
+
+  const save = () => {
+    if (!account) return;
+    setError(null);
+    setDone(false);
+    void action.run(async () => {
+      const outcome = await updateDisplayName(client, value.trim() === "" ? null : value.trim());
+      if (outcome.kind === "ok") {
+        await saveLocalAccount(db, outcome.value);
+        setDraft(null);
+        setDone(true);
+        return;
+      }
+      setError(
+        outcome.kind === "network"
+          ? "Le serveur est injoignable. Vérifiez la connexion puis réessayez."
+          : outcome.kind === "unauthenticated"
+            ? "Votre session a expiré : reconnectez-vous, puis recommencez."
+            : outcome.message,
+      );
+    });
+  };
+
+  return (
+    <section className="account-section" aria-labelledby="account-display-name-title">
+      <h3 id="account-display-name-title" className="kicker">
+        Comptes-rendus
+      </h3>
+      <form
+        className="field"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (online && !unchanged && !action.pending) save();
+        }}
+      >
+        <label htmlFor={inputId}>
+          Nom à afficher dans les comptes-rendus
+        </label>
+        <input
+          id={inputId}
+          className="underline-field"
+          type="text"
+          maxLength={64}
+          autoComplete="off"
+          value={value}
+          disabled={!online || !account}
+          aria-describedby={`${inputId}-hint`}
+          data-testid="account-display-name"
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setDone(false);
+          }}
+        />
+        <p id={`${inputId}-hint`} className="hint">
+          Remplace @{account?.username ?? "pseudo"} sur votre ligne. Laissez vide pour garder @
+          {account?.username ?? "pseudo"}.
+        </p>
+        {error && (
+          <p className="error-text" role="alert" data-testid="account-display-name-error">
+            {error}
+          </p>
+        )}
+        <div className="account-action">
+          <button
+            type="submit"
+            className="btn btn-secondary"
+            disabled={!online || !account || unchanged || action.pending}
+            data-testid="account-display-name-save"
+          >
+            {action.pending ? "Enregistrement…" : "Enregistrer"}
+          </button>
+          {!online && <p className="hint">{OFFLINE_REASON}</p>}
+        </div>
+        {done && (
+          <p className="feedback-text account-feedback" aria-live="polite" data-testid="account-display-name-done">
+            <CheckCircleIcon size={16} aria-hidden="true" />
+            Nom enregistré.
+          </p>
+        )}
+      </form>
+    </section>
   );
 }
 

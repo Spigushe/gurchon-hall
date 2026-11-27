@@ -127,12 +127,9 @@ export async function pastedTextBecomesAProxyDeck(width: Lot9Width, f: Fixtures)
   expect(legality.crypt_groups).toEqual(["G5", "G6"]);
 
   // Et l'écran la lit aussi.
-  if (width.desktop) {
-    await expect(page.getByTestId("deck-legality-tag")).not.toContainText("Illégal");
-    await expect(page.getByTestId("deck-legality-tag")).toContainText("Légal");
-  } else {
-    await expect(page.getByTestId("legality-verdict")).toHaveAttribute("data-legal", "true");
-  }
+  // v1.2.2 : une seule pastille aux deux largeurs.
+  await expect(page.getByTestId("deck-legality-tag")).not.toContainText("Illégal");
+  await expect(page.getByTestId("deck-legality-tag")).toContainText("Légal");
 }
 
 /** Un lien de deck VDB collé hors ligne : le message de P1 s'affiche et « Lire chez VDB » est grisé. */

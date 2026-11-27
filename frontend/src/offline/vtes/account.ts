@@ -9,7 +9,8 @@ type Schemas = components["schemas"];
  * d'empreinte : le cookie de session est `HttpOnly`, ce client ne le lit
  * jamais et n'en a pas besoin pour savoir qui est connecté hors ligne.
  */
-export type LocalAccount = Pick<Schemas["UserRead"], "id" | "email" | "username" | "role">;
+export type LocalAccount = Pick<Schemas["UserRead"], "id" | "email" | "username" | "role"> &
+  Partial<Pick<Schemas["UserRead"], "display_name">>;
 
 /** Nom de la base IndexedDB d'un compte : un compte, une base (P3, Lot 6). */
 export function dbNameForAccount(userId: number): string {

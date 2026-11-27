@@ -8,7 +8,6 @@ import { BackRow, Sheet, SheetHeader } from "../../components/Sheet";
 import { Switch } from "../../components/Switch";
 import { useGuardedAction } from "../../components/useGuardedAction";
 import { useIsDesktop } from "../../components/useIsDesktop";
-import { useKeyboardShortcuts } from "../../components/useKeyboardShortcuts";
 import { useConnectivity } from "../../offline/react";
 import { DECK_STATUS_LABELS } from "../../labels";
 import {
@@ -24,7 +23,6 @@ import { AddDeckCardForm } from "./AddDeckCardForm";
 import { ArchetypeChips } from "./ArchetypeChips";
 import { DeckComposition } from "./DeckComposition";
 import { SearchForDeckLink } from "./SearchForDeckLink";
-import { DeckLegalityPanel } from "./DeckLegalityPanel";
 import { DeckResults } from "./DeckResults";
 import { DeckLegalityBadge } from "./DeckLegalityBadge";
 import { LiveDeckExport } from "./export/DeckExport";
@@ -249,10 +247,10 @@ function DeckActions({
  * seulement — l'en-tête devient un fil (« ← Decks · Deck actif · #0001 »), et
  * la composition rejoint le picker d'`AddDeckCardForm` (repliable depuis le
  * lot Affichage des decks) au lieu de la pilule flottante + feuille pleine du
- * mobile. `DeckLegalityPanel` (verdict complet) reste la vue mobile ; au
- * bureau, la légalité est une pastille à côté de la méta (`DeckLegalityBadge`,
- * `DECKS.md` d23), dont l'infobulle porte le détail du Lot 5c (motifs, cartes
- * bannies, alertes) ; un clic ou `R` recalcule.
+ * mobile. La légalité est la même pastille aux deux largeurs
+ * (`DeckLegalityBadge`, `DECKS.md` d23, v1.2.2) : à côté de la méta au bureau,
+ * sous la méta au téléphone, son détail (motifs, cartes bannies, alertes)
+ * s'ouvrant au survol ou au toucher ; aucun recalcul manuel.
  */
 function DeckView({ deck }: { deck: LocalDeck }) {
   const { actions } = useVtesOffline();
@@ -264,22 +262,8 @@ function DeckView({ deck }: { deck: LocalDeck }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [legalityRefreshToken, setLegalityRefreshToken] = useState(0);
   const [pickerOpen, setPickerOpen] = usePickerOpen();
   const archived = deck.archivedAt !== null;
-
-  // `R` recalcule le verdict de la pastille de l'en-tête bureau (DESKTOP.md
-  // « d01 », `DECKS.md` d23) ; sans équivalent mobile (le bouton « recalculer » de
-  // `DeckLegalityPanel` a déjà son propre raccourci-clic, pas de kbd dédié).
-  useKeyboardShortcuts([
-      {
-        keys: ["r"],
-        onTrigger: () => setLegalityRefreshToken((token) => token + 1),
-        legend: "Recalculer la légalité",
-      },
-    ], {
-    enabled: isDesktop,
-  });
 
   const actionsBlock = (
     <DeckActions
@@ -318,11 +302,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
             </h2>
             <div className="deck-builder-meta">
               <p className="page-meta">{deckMeta(deck, archived, false)}</p>
-              <DeckLegalityBadge
-                deck={deck}
-                refreshToken={legalityRefreshToken}
-                onRefresh={() => setLegalityRefreshToken((token) => token + 1)}
-              />
+              <DeckLegalityBadge deck={deck} lines={lines} />
             </div>
           </div>
           {actionsBlock}
@@ -339,6 +319,7 @@ function DeckView({ deck }: { deck: LocalDeck }) {
               {deck.name}
             </h2>
             <p className="page-meta">{deckMeta(deck, archived, true)}</p>
+            <DeckLegalityBadge deck={deck} lines={lines} />
           </div>
         </>
       )}
@@ -411,7 +392,6 @@ function DeckView({ deck }: { deck: LocalDeck }) {
         </div>
       ) : (
         <>
-          <DeckLegalityPanel deck={deck} />
           <DeckResults deckKey={deck.key} dense={false} />
 
           <div>

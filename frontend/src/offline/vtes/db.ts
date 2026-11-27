@@ -236,6 +236,8 @@ export interface TournamentRow {
 /** Le compte-rendu d'un tournoi, tel que `TournamentDetailRead.report` le rend. */
 export interface TournamentReportRow {
   includeOpponentNotes: boolean;
+  /** Ma note de table au compte-rendu ; absent d'une ligne lue avant la v1.2.2, lu vrai. */
+  includeMyNotes?: boolean;
   showPreviousVersions: boolean;
   /** Jeton du lien public, nul tant que le compte-rendu n'est pas partagé. */
   token: string | null;
