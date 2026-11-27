@@ -1,8 +1,9 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useIsDesktop } from "../../components/useIsDesktop";
 import type { LocalDeckCard } from "../../offline/vtes";
+import { CardNamePreview } from "../decks/CardNamePreview";
 import { DeckTables } from "../decks/DeckTables";
-import { buildDeckTables, type DeckCardFacts } from "../decks/deckTablesModel";
+import { buildDeckTables, type DeckCardFacts, type DeckTableRow } from "../decks/deckTablesModel";
 import {
   deckTitle,
   finalLabel,
@@ -260,7 +261,16 @@ function PlayedLists({ decks, facts }: { decks: readonly ReportDeck[]; facts: Re
             {deckTitle(deck)}
             {deck.version_number !== null && <span className="page-meta"> · v{deck.version_number}</span>}
           </h3>
-          <DeckTables tables={tables[index]} showProxies={false} />
+          <DeckTables
+            tables={tables[index]}
+            showProxies={false}
+            // Le nom montre l'image de la carte, comme sur une liste partagée
+            // (issue #71) : au survol au bureau, au toucher de la ligne au
+            // téléphone.
+            renderName={(row: DeckTableRow) => (
+              <CardNamePreview name={row.name} imageUrl={row.facts?.card.imageUrl} wholeRow={{}} />
+            )}
+          />
         </div>
       ))}
     </section>
