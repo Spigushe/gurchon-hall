@@ -260,6 +260,7 @@ function OpponentRow({
   const positions = positionsOfSeat(draft.seat, draft.playerCount, opponent.seat);
   const position = positionLabel(positions);
   const unnamed = opponent.playerKey === null;
+  const noteId = useId();
   return (
     <div className="opponent-row" data-testid="game-form-opponent" data-unnamed={unnamed}>
       <select
@@ -331,6 +332,20 @@ function OpponentRow({
       >
         <XIcon size={18} />
       </button>
+      <div className="opponent-row__note">
+        <label className="opponent-deck__field-label" htmlFor={`${noteId}-note`}>
+          Note
+        </label>
+        <textarea
+          id={`${noteId}-note`}
+          className="underline-field"
+          rows={2}
+          value={opponent.notes ?? ""}
+          onChange={(event) => onUpdate(index, { notes: event.target.value })}
+          aria-label={`Note sur ${name}`}
+          data-testid="game-form-opponent-notes"
+        />
+      </div>
       {opponent.deckKey === null && (
         <OpponentDeckBlock
           index={index}

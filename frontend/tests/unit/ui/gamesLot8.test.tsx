@@ -104,6 +104,26 @@ describe("saisie : deck des adversaires et ligne sans nom", () => {
     });
   });
 
+  it("la note de ma ligne et celle de l'adversaire partent rognées, une note vide ne part pas", async () => {
+    const app = await renderApp({ online: false, hash: "#/parties" });
+    await screen.findByTestId("games-empty");
+    fireEvent.click(screen.getByTestId("game-add"));
+    await screen.findByTestId("game-form");
+    fireEvent.click(screen.getByTestId("game-form-seat-2"));
+    fireEvent.change(screen.getByTestId("game-form-me-notes"), { target: { value: "  Tirage faible " } });
+    expect(screen.getByText(/Ce qui ne concerne que vous/)).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("game-form-opponents-toggle"));
+    fireEvent.change(screen.getByTestId("game-form-opponent-input"), { target: { value: "Mikael" } });
+    fireEvent.click(await screen.findByTestId("game-form-opponent-create"));
+    fireEvent.change(await screen.findByTestId("game-form-opponent-notes"), { target: { value: " Joue vite  " } });
+    fireEvent.click(screen.getByTestId("game-form-submit"));
+    await waitFor(() => expect(screen.queryByTestId("game-form")).not.toBeInTheDocument());
+    const created = (await app.runtime.outbox.list()).map((entry) => entry.operation).find((op) => op.type === "game.create");
+    if (created?.type !== "game.create") throw new Error("game.create attendu");
+    expect(created.data.participations[0]).toMatchObject({ notes: "Tirage faible" });
+    expect(created.data.participations[1]).toMatchObject({ notes: "Joue vite" });
+  });
+
   it("une ligne sans nom exige un siège ou un deck ; un deck prêté n'a pas de sous-bloc", async () => {
     const app = await renderApp({ online: false, hash: "#/parties" });
     await seedClans(app);
