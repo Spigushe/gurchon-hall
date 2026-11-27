@@ -47,7 +47,7 @@ from app.models.account import (
     UserAccount,
 )
 from app.models.enums import UserRole
-from app.schemas.account import SessionRead, normalize_email
+from app.schemas.account import SessionRead, UserUpdate, normalize_email
 from app.services import players
 from app.services.errors import ConflictError, InvalidRequestError, NotFoundError
 from app.services.persistence import integrity_as_conflict
@@ -291,6 +291,25 @@ def change_password(
         )
     )
     db.commit()
+
+
+def update_account(
+    db: Session, account: UserAccount, changes: UserUpdate
+) -> UserAccount:
+    """Applique `PATCH /moi` (v1.2.2, A10) : les seuls champs envoyés.
+
+    `display_name` arrive déjà rogné, et nul s'il était vide (`UserUpdate`).
+    Pas de verrou d'écriture : une seule ligne, du seul compte de la session,
+    et aucun invariant entre plusieurs lignes. Le nom ne touche aucun
+    compte-rendu existant ; il entrera dans la prochaine version coupée
+    (A11).
+    """
+    for name, value in changes.model_dump(exclude_unset=True).items():
+        setattr(account, name, value)
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return account
 
 
 # ---------------------------------------------------------------------------

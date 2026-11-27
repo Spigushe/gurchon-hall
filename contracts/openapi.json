@@ -281,6 +281,71 @@
             "sessionCookie": []
           }
         ]
+      },
+      "patch": {
+        "tags": [
+          "comptes"
+        ],
+        "summary": "Modifier son compte",
+        "description": "Modification partielle du compte de la session (v1.2.2) : aujourd'hui le seul nom à afficher dans les comptes-rendus (`display_name`), rogné, 64 caractères au plus, sur une seule ligne (un caractère de contrôle rend 422) ; `null`, une chaîne vide ou blanche l'efface, un champ omis ne change pas. Tout autre champ rend 422 : ni l'adresse, ni le nom d'utilisateur, ni le rôle ne se modifient ici. Le nom entre dans la prochaine version coupée d'un compte-rendu, jamais dans une version déjà figée. En ligne seulement, hors `/sync`.",
+        "operationId": "updateCurrentUser",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentification requise : pas de session, ou session inconnue, expirée ou révoquée. Contrôlée avant tout le reste — sans session, on n'apprend rien de l'existence d'une ressource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Écriture refusée : l'en-tête `Origin` ne fait pas partie des origines autorisées. Ne porte sur aucune ressource ; une donnée d'un autre compte, elle, rend toujours 404.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ]
       }
     },
     "/moi/mot-de-passe": {
@@ -8598,6 +8663,18 @@
             "type": "string",
             "format": "date-time",
             "title": "Created At"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Nom à afficher dans les comptes-rendus (v1.2.2, A10), nul s'il n'a pas été choisi ; champ ajouté sans changer `format_version`."
           }
         },
         "type": "object",
@@ -8605,7 +8682,8 @@
           "email",
           "username",
           "role",
-          "created_at"
+          "created_at",
+          "display_name"
         ],
         "title": "ExportedAccount",
         "description": "Le compte, sans identifiant, hachage ni session."
@@ -11267,6 +11345,18 @@
             "title": "Rounds",
             "description": "Les rondes dans l'ordre, la finale en dernier.",
             "default": []
+          },
+          "my_display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "My Display Name",
+            "description": "Nom à afficher de l'auteur au moment de la version (v1.2.2, A11), nul s'il n'en avait pas : ma ligne le porte, à défaut `@pseudo`. Absent d'une version figée avant la v1.2.2, qui se lit avec nul ; omis du texte canonique quand il est nul, pour qu'un compte sans nom ne fasse couper aucune version."
           }
         },
         "type": "object",
@@ -11275,7 +11365,8 @@
           "tournament",
           "summary",
           "decks",
-          "rounds"
+          "rounds",
+          "my_display_name"
         ],
         "title": "ReportSnapshot",
         "description": "Tout ce que montre une version du compte-rendu (P3, P6, A3)."
@@ -13298,6 +13389,18 @@
             "format": "date-time",
             "title": "Created At",
             "description": "Création du compte, en UTC."
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Nom à afficher dans les comptes-rendus de tournoi (v1.2.2), rogné, 1 à 64 caractères ; nul s'il n'a pas été choisi. Se règle par `PATCH /moi`."
           }
         },
         "type": "object",
@@ -13306,7 +13409,8 @@
           "email",
           "username",
           "role",
-          "created_at"
+          "created_at",
+          "display_name"
         ],
         "title": "UserRead",
         "description": "Le compte de la session : `GET /moi`, et la réponse d'une inscription ou\nd'une connexion réussie.\n\nJamais d'empreinte de mot de passe ni de jeton. `email` est une chaîne et\nnon un `EmailStr` en sortie : l'adresse provisoire du compte historique\n(domaine `.invalid`) doit pouvoir être relue telle quelle avant que\n`claim-legacy` ne la remplace."
@@ -13355,6 +13459,27 @@
         ],
         "title": "UserSignUp",
         "description": "Corps de `POST /inscription`.\n\nPas de champ `role` : le serveur pose `user` lui-même (P2), et\n`extra=\"forbid\"` (hérité de `WriteModel`) fait d'un `role` envoyé — comme\nde tout champ inconnu — un 422 explicite plutôt qu'une valeur ignorée en\nsilence. Même défense que le `UserSignup` de Barrin."
+      },
+      "UserUpdate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Nom à afficher dans les comptes-rendus, rogné, 64 caractères au plus, sur une seule ligne : un caractère de contrôle (catégorie Unicode `Cc`, saut de ligne et tabulation compris) restant après le rognage rend 422. `null`, une chaîne vide ou blanche l'efface ; omis, il ne change pas."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserUpdate",
+        "description": "Corps de `PATCH /moi` (A10) : modification partielle du compte.\n\nUn seul champ aujourd'hui, `display_name`. Omis, il ne change pas ; `null`,\nvide ou blanc, il efface le nom. Tout autre champ (`username`, `email`,\n`role`…) rend 422 (`extra=\"forbid\"`) : aucune route ne modifie l'identité\nde connexion ni le rôle."
       },
       "ValidationError": {
         "properties": {

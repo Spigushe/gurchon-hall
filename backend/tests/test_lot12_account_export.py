@@ -235,6 +235,7 @@ def test_an_empty_account_exports_its_account_and_its_me(me_api, account):
         "username": "exporteur",
         "role": "user",
         "created_at": body["account"]["created_at"],
+        "display_name": None,
     }
     assert body["players"] == [
         {"id": body["players"][0]["id"], "name": "exporteur", "is_me": True}

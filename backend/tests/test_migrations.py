@@ -56,7 +56,8 @@ SESSION_DEVICE_REVISION = "c4e8a1f2d7b3"  # appareil, dernière utilisation (Lot
 SHARES_REVISION = "dda2c510a2f2"  # liens publics vers une decklist (Lot 13, R16)
 REPORTS_REVISION = "b3f1c7a9e2d4"  # comptes-rendus de tournoi (lot Compte-rendu, R17)
 MY_NOTES_REVISION = "e6d2a4b8c1f5"  # mes notes de table au compte-rendu (v1.2.2, R18)
-HEAD_REVISION = MY_NOTES_REVISION
+DISPLAY_NAME_REVISION = "f7a3c9e1b5d2"  # nom à afficher du compte (v1.2.2, R19)
+HEAD_REVISION = DISPLAY_NAME_REVISION
 REVISIONS = [
     INITIAL_REVISION,
     ARCHIVE_REVISION,
@@ -76,6 +77,7 @@ REVISIONS = [
     SHARES_REVISION,
     REPORTS_REVISION,
     MY_NOTES_REVISION,
+    DISPLAY_NAME_REVISION,
 ]
 
 # Compte historique créé par `ACCOUNTS_REVISION` (Lot 6, D6) : propriétaire de
@@ -4568,6 +4570,146 @@ def test_the_my_notes_revision_downgrade_does_not_render_offline(empty_db):
         empty_db,
         "downgrade",
         f"{MY_NOTES_REVISION}:{REPORTS_REVISION}",
+        "--sql",
+        check=False,
+    )
+    assert result.returncode != 0
+    assert "ne se rend pas hors ligne" in result.stdout + result.stderr
+    assert not empty_db.exists()
+
+
+# --------------------------------------------------------------------------
+# v1.2.2 : nom à afficher du compte (R19)
+# --------------------------------------------------------------------------
+
+
+def account_column_names(db_path: Path) -> list[str]:
+    return [row[1] for row in rows(db_path, "PRAGMA table_info(user_account)")]
+
+
+def populated_at_r18(db_path: Path) -> None:
+    """La base peuplée des tests de R13 à R18, montée à R18 : deux comptes,
+    leurs sessions, decks, parties, liens et deux comptes-rendus."""
+    populated_at_r17(db_path)
+    alembic(db_path, "upgrade", MY_NOTES_REVISION)
+
+
+def test_head_adds_a_nullable_display_name_to_the_account(migrated):
+    columns = {
+        row[1]: row[2:] for row in rows(migrated, "PRAGMA table_info(user_account)")
+    }
+    # (type, notnull, dflt_value, pk)
+    assert columns["display_name"] == ("VARCHAR(64)", 0, None, 0)
+    assert account_column_names(migrated)[-1] == "display_name"
+    assert scalar(migrated, "SELECT display_name FROM user_account") is None
+
+
+def test_the_display_name_revision_adds_no_table_and_no_index(empty_db):
+    alembic(empty_db, "upgrade", MY_NOTES_REVISION)
+    tables = table_names(empty_db)
+    indexes = rows(empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'")
+
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+
+    assert table_names(empty_db) == tables == EXPECTED_TABLES
+    assert rows(
+        empty_db, "SELECT name, sql FROM sqlite_master WHERE type = 'index'"
+    ) == indexes
+
+
+def test_upgrade_to_display_name_keeps_every_row_and_names_nobody(empty_db):
+    """Aucune conversion : toutes les tables ressortent identiques, et chaque
+    compte existant reste sans nom à afficher."""
+    populated_at_r18(empty_db)
+    before = every_row(empty_db)
+    columns_before = account_column_names(empty_db)
+
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+
+    assert account_column_names(empty_db) == [*columns_before, "display_name"]
+    after = every_row(empty_db)
+    assert {t: lines for t, lines in after.items() if t != "user_account"} == {
+        t: lines for t, lines in before.items() if t != "user_account"
+    }
+    accounts = after["user_account"]
+    assert sorted((line[:-1] for line in accounts), key=repr) == before[
+        "user_account"
+    ]
+    assert len(accounts) >= 2
+    assert {line[-1] for line in accounts} == {None}
+    assert len(before["tournament_report"]) == 2
+    assert foreign_key_violations(empty_db) == []
+    assert rows(empty_db, "PRAGMA integrity_check") == [("ok",)]
+
+
+def test_downgrade_without_any_name_drops_the_column_and_keeps_every_row(empty_db):
+    populated_at_r18(empty_db)
+    before = every_row(empty_db)
+    ddl_before = schema_text(empty_db)
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+
+    alembic(empty_db, "downgrade", MY_NOTES_REVISION)
+
+    assert every_row(empty_db) == before
+    assert schema_text(empty_db) == ddl_before
+    assert foreign_key_violations(empty_db) == []
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version") == MY_NOTES_REVISION
+    )
+
+
+def test_downgrade_refuses_a_display_name_before_any_change(empty_db):
+    """Le nom est une saisie de l'utilisateur : une nouvelle montée ne le
+    rendrait pas. La descente s'arrête et compte les comptes nommés."""
+    populated_at_r18(empty_db)
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+    execute(empty_db, "UPDATE user_account SET display_name = 'Martin' WHERE id = 1")
+    ddl_before = schema_text(empty_db)
+    data_before = every_row(empty_db)
+
+    result = alembic(empty_db, "downgrade", MY_NOTES_REVISION, check=False)
+
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert "avant toute modification" in output
+    assert "1 compte(s) ont un nom à afficher" in output
+    assert (
+        scalar(empty_db, "SELECT version_num FROM alembic_version")
+        == DISPLAY_NAME_REVISION
+    )
+    assert schema_text(empty_db) == ddl_before
+    assert every_row(empty_db) == data_before
+
+
+def test_the_display_name_revision_round_trip_keeps_the_ddl_and_the_rows(empty_db):
+    populated_at_r18(empty_db)
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+    ddl = schema_text(empty_db)
+    data = every_row(empty_db)
+
+    alembic(empty_db, "downgrade", MY_NOTES_REVISION)
+    alembic(empty_db, "upgrade", DISPLAY_NAME_REVISION)
+
+    assert schema_text(empty_db) == ddl
+    assert every_row(empty_db) == data
+
+
+def test_the_display_name_revision_upgrade_renders_offline(empty_db):
+    up = alembic(
+        empty_db, "upgrade", f"{MY_NOTES_REVISION}:{DISPLAY_NAME_REVISION}", "--sql"
+    )
+    assert (
+        "ALTER TABLE user_account ADD COLUMN display_name VARCHAR(64)" in up.stdout
+    )
+    assert "CREATE TABLE" not in up.stdout
+    assert not empty_db.exists()
+
+
+def test_the_display_name_revision_downgrade_does_not_render_offline(empty_db):
+    result = alembic(
+        empty_db,
+        "downgrade",
+        f"{DISPLAY_NAME_REVISION}:{MY_NOTES_REVISION}",
         "--sql",
         check=False,
     )

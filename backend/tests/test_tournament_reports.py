@@ -21,9 +21,12 @@ from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
+from sqlalchemy import select
 
 from app.main import app
+from app.models import TournamentReport, TournamentReportVersion
 from app.models.enums import CardCategory
+from app.schemas.report import REPORT_FORMAT_VERSION, ReportSnapshot
 from app.schemas.sync import TournamentUpdateOperation, fingerprint
 from app.services import players
 from app.services.tournament_reports import _seat
@@ -762,8 +765,128 @@ def test_the_my_notes_setting_is_optional_and_nullable_in_the_request():
     assert component["required"] == ["action"]
 
 
-def test_the_contract_keeps_seventy_operations_on_45_paths():
+def test_the_contract_has_seventy_one_operations_on_45_paths():
+    """70 au lot Compte-rendu, plus `PATCH /moi` (v1.2.2, A10)."""
     paths = app.openapi()["paths"]
     methods = {"get", "post", "put", "patch", "delete"}
     count = sum(1 for item in paths.values() for method in item if method in methods)
-    assert (count, len(paths)) == (70, 45)
+    assert (count, len(paths)) == (71, 45)
+# --------------------------------------------------------------------------
+# Nom à afficher dans l'instantané (v1.2.2, A11)
+# --------------------------------------------------------------------------
+
+
+def _stored_snapshots(w, tournament):
+    w.db.expire_all()
+    report = w.db.scalar(
+        select(TournamentReport).where(TournamentReport.tournament_id == tournament)
+    )
+    return [version.snapshot for version in report.versions]
+
+
+def _name(w, value):
+    response = w.api.patch("/moi", json={"display_name": value})
+    assert response.status_code == 200, response.text
+
+
+def test_a_version_without_a_name_reads_null_and_stores_no_key(w):
+    """Un compte sans nom produit le même texte qu'une version figée avant la
+    v1.2.2 : la clé n'y est pas, si bien que la mise à jour ne coupe rien."""
+    tournament = _tournament(w)
+    _game(w, tournament, 1, notes="Ronde 1")
+    report = _update(w, tournament)
+    assert _snapshot(w, tournament, 1)["my_display_name"] is None
+    (text,) = _stored_snapshots(w, tournament)
+    assert "my_display_name" not in json.loads(text)
+    assert _numbers(_update(w, tournament)) == [1] == _numbers(report)
+
+
+def test_a_version_frozen_before_v122_reads_without_the_field(w):
+    """Texte d'une version écrite par la v1.2.1, sans le champ : il se relit,
+    le nom à nul, et une mise à jour sans nom ni changement ne coupe rien."""
+    tournament = _tournament(w)
+    _update(w, tournament)
+    version = w.db.scalar(select(TournamentReportVersion))
+    data = json.loads(version.snapshot)
+    data.pop("my_display_name", None)
+    version.snapshot = json.dumps(
+        data, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    w.db.commit()
+    assert ReportSnapshot.model_validate_json(version.snapshot).my_display_name is None
+    assert _snapshot(w, tournament, 1)["my_display_name"] is None
+    assert _numbers(_update(w, tournament)) == [1]
+
+
+def test_a_new_name_cuts_a_version_and_the_old_one_keeps_its_name(w):
+    tournament = _tournament(w)
+    _game(w, tournament, 1)
+    _update(w, tournament)
+
+    _name(w, "Martin")
+    assert _numbers(_update(w, tournament)) == [1, 2]
+    assert _snapshot(w, tournament, 2)["my_display_name"] == "Martin"
+    assert _numbers(_update(w, tournament)) == [1, 2]
+
+    _name(w, "Martin le Toréador")
+    assert _numbers(_update(w, tournament)) == [1, 2, 3]
+    assert _snapshot(w, tournament, 3)["my_display_name"] == "Martin le Toréador"
+    assert _snapshot(w, tournament, 2)["my_display_name"] == "Martin"
+    assert _snapshot(w, tournament, 1)["my_display_name"] is None
+
+
+def test_changing_the_name_alone_touches_no_version(w):
+    """Le nom n'entre qu'à la mise à jour suivante : `PATCH /moi` ne coupe
+    rien et ne réécrit aucune version."""
+    tournament = _tournament(w)
+    _update(w, tournament)
+    before = _stored_snapshots(w, tournament)
+    _name(w, "Martin")
+    assert _stored_snapshots(w, tournament) == before
+    assert _numbers(w.api.get(f"/tournois/{tournament}").json()["report"]) == [1]
+
+
+def test_clearing_the_name_cuts_a_version_back_to_null(w):
+    tournament = _tournament(w)
+    _name(w, "Martin")
+    _update(w, tournament)
+    _name(w, None)
+    assert _numbers(_update(w, tournament)) == [1, 2]
+    assert _snapshot(w, tournament, 2)["my_display_name"] is None
+
+
+def test_the_name_is_the_owners_even_when_another_account_has_one(
+    w, api_client_factory
+):
+    make_account(w.db, email="voisin@example.com", username="voisin")
+    other = api_client_factory()
+    log_in(other, "voisin@example.com")
+    assert other.patch("/moi", json={"display_name": "Voisin"}).status_code == 200
+    tournament = _tournament(w)
+    _update(w, tournament)
+    assert _snapshot(w, tournament, 1)["my_display_name"] is None
+
+
+def test_the_public_page_shows_the_name_of_its_version(shared, api_client_factory):
+    _name(shared, "Martin")
+    _update(shared, shared.tournament)
+    shared.api.patch(
+        f"/tournois/{shared.tournament}/compte-rendu",
+        json={"show_previous_versions": True},
+    )
+    _name(shared, "Plus tard")  # pas de mise à jour : la version garde l'ancien
+    visitor = api_client_factory()
+    latest = visitor.get(f"/comptes-rendus/{shared.token}").json()
+    assert latest["number"] == 3
+    assert latest["author"] == "auteur"
+    assert latest["snapshot"]["my_display_name"] == "Martin"
+    earlier = visitor.get(f"/comptes-rendus/{shared.token}/versions/2").json()
+    assert earlier["snapshot"]["my_display_name"] is None
+
+
+def test_the_snapshot_always_reads_the_name_but_keeps_its_format():
+    component = _component("ReportSnapshot")
+    assert "my_display_name" in component["required"]
+    variants = component["properties"]["my_display_name"]["anyOf"]
+    assert {variant["type"] for variant in variants} == {"string", "null"}
+    assert REPORT_FORMAT_VERSION == 1

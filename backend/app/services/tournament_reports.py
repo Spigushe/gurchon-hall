@@ -280,6 +280,9 @@ def build_snapshot(
     )
     return ReportSnapshot(
         format_version=REPORT_FORMAT_VERSION,
+        my_display_name=db.scalar(
+            select(UserAccount.display_name).where(UserAccount.id == user_id)
+        ),
         tournament=_tournament_part(tournament),
         summary=_summary(db, user_id, tournament.id),
         decks=_decks(db, user_id, tournament.id, games),
@@ -296,9 +299,17 @@ def build_snapshot(
 
 def canonical(snapshot: ReportSnapshot) -> str:
     """JSON canonique : clés triées, sans espaces. Deux versions sont égales si
-    et seulement si leurs textes le sont."""
+    et seulement si leurs textes le sont.
+
+    `my_display_name` nul est omis (v1.2.2, A11) : une version figée avant le
+    champ ne le porte pas, et un compte toujours sans nom doit produire le même
+    texte qu'elle, sans quoi la v1.2.2 couperait une version d'elle-même. Un
+    nom posé, lui, change le texte et fait couper la version suivante."""
+    data = snapshot.model_dump(mode="json")
+    if data.get("my_display_name") is None:
+        data.pop("my_display_name", None)
     return json.dumps(
-        snapshot.model_dump(mode="json"),
+        data,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,

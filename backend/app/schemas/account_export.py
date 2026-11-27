@@ -63,6 +63,13 @@ class ExportedAccount(ReadModel):
     username: str
     role: UserRole
     created_at: datetime
+    display_name: str | None = Field(
+        default=None,
+        description=(
+            "Nom à afficher dans les comptes-rendus (v1.2.2, A10), nul s'il "
+            "n'a pas été choisi ; champ ajouté sans changer `format_version`."
+        ),
+    )
 
 
 class ExportedCollectionEntry(ReadModel):

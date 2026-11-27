@@ -72,6 +72,9 @@ compté depuis la connexion (90 jours) ; les deux durées se règlent par
 `SESSION_IDLE_DAYS` et `SESSION_MAX_DAYS`, lues par `app.services.auth`, dont
 cette constante n'est que la valeur par défaut de la première."""
 
+DISPLAY_NAME_MAX_LENGTH = 64
+"""Plafond de `user_account.display_name` (v1.2.2, R19, A9), une fois rogné."""
+
 USER_AGENT_MAX_LENGTH = 256
 """Plafond de `auth_session.user_agent` (Lot 12, A2) : l'en-tête est coupé à
 cette longueur avant écriture. Un `User-Agent` courant fait 100 à 200
@@ -87,6 +90,13 @@ class UserAccount(Base, TimestampMixin):
     pour que `A@x.fr` et `a@x.fr` désignent le même compte. L'unicité porte sur
     cette forme. `username`, lui, garde la casse saisie : c'est un nom affiché,
     et son unicité est sensible à la casse comme chez Barrin.
+
+    `display_name` (v1.2.2, R19, A9 de `docs/v1.2.2-plan.md`) est le nom que
+    l'utilisateur choisit pour signer sa ligne dans un compte-rendu de tournoi,
+    figé dans l'instantané de chaque version (`ReportSnapshot.my_display_name`).
+    Nullable, ni unique ni indexé ; jamais blanc, le schéma d'entrée rognant la
+    saisie et faisant d'une saisie vide un NULL. Ce n'est pas le « Moi » du
+    carnet, joueur renommable du Lot 7.
     """
 
     __tablename__ = "user_account"
@@ -103,6 +113,8 @@ class UserAccount(Base, TimestampMixin):
         default=UserRole.USER,
         server_default=UserRole.USER.value,
     )
+    # v1.2.2, R19 : ajoutée en fin de table par `ADD COLUMN`.
+    display_name: Mapped[str | None] = mapped_column(String(DISPLAY_NAME_MAX_LENGTH))
 
     sessions: Mapped[list[AuthSession]] = relationship(
         back_populates="user",

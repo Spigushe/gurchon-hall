@@ -149,6 +149,16 @@ class ReportSnapshot(ReadModel):
         default=[],
         description="Les rondes dans l'ordre, la finale en dernier.",
     )
+    my_display_name: str | None = Field(
+        default=None,
+        description=(
+            "Nom à afficher de l'auteur au moment de la version (v1.2.2, A11), "
+            "nul s'il n'en avait pas : ma ligne le porte, à défaut `@pseudo`. "
+            "Absent d'une version figée avant la v1.2.2, qui se lit avec nul ; "
+            "omis du texte canonique quand il est nul, pour qu'un compte sans "
+            "nom ne fasse couper aucune version."
+        ),
+    )
 
 
 # --------------------------------------------------------------------------
