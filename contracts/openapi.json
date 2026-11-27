@@ -3,7 +3,7 @@
   "info": {
     "title": "Suivi VtES API",
     "description": "API du suivi de pratique VtES (collection EN/FR, decks, parties, tournois). Pilote d'une PWA offline-first destinée à être portée sur barrins-project.",
-    "version": "1.2.1"
+    "version": "1.2.2"
   },
   "paths": {
     "/health": {
