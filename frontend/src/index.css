@@ -2587,7 +2587,7 @@ fieldset:disabled .chip {
   color: var(--color-neutral-300);
 }
 
-/* Badge de légalité (« Légal », « Illégal · crypte 8/12 ») : `.tag` de Nocturne. */
+/* Badge de légalité (« Légal », « Illégal ») : `.tag` de Nocturne. */
 .legality-tag {
   display: inline-flex;
   align-items: center;
@@ -2610,6 +2610,29 @@ fieldset:disabled .chip {
 .legality-tag--unknown {
   border: 1px solid var(--color-divider);
   color: var(--color-neutral-400);
+}
+
+/* Pastille de légalité d'un deck (v1.2.2) : au téléphone, le détail se déplie
+   sous la pastille à l'appui ; au bureau, `@media` plus bas en fait une
+   infobulle au survol et au focus. */
+.legality-badge__tag {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.legality-badge__tooltip {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-neutral-200);
+}
+
+.legality-badge__tooltip:not(.legality-badge__tooltip--open) {
+  display: none;
 }
 
 /* — formulaire dans une feuille (pied poussé en bas) — */
@@ -3061,7 +3084,10 @@ fieldset:disabled .chip {
     outline-offset: 2px;
   }
 
-  .legality-badge__tooltip {
+  .legality-badge__tooltip,
+  .legality-badge__tooltip:not(.legality-badge__tooltip--open) {
+    display: block;
+    margin-top: 0;
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
@@ -3081,7 +3107,8 @@ fieldset:disabled .chip {
   }
 
   .legality-badge:hover .legality-badge__tooltip,
-  .legality-badge:focus-within .legality-badge__tooltip {
+  .legality-badge:focus-within .legality-badge__tooltip,
+  .legality-badge__tooltip--open {
     visibility: visible;
     opacity: 1;
   }
@@ -3090,12 +3117,6 @@ fieldset:disabled .chip {
     margin: 0 0 6px;
     font-weight: 500;
     color: var(--color-neutral-100);
-  }
-
-  .legality-badge__hint {
-    margin: 6px 0 0;
-    font-size: 12px;
-    color: var(--color-neutral-400);
   }
 
   .legality-badge .deck-legality-details {

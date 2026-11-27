@@ -413,7 +413,7 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
     expect(within(library).getAllByText(/Élan vital/)).toHaveLength(1);
   });
 
-  it("badge de légalité : le premier motif du verdict du serveur, une fois le deck synchronisé", async () => {
+  it("badge de légalité : « Illégal » sans motif, une fois le deck synchronisé", async () => {
     const app = await renderApp({ online: true, catalog: true, hash: "#/decks" });
     app.ui.legality = { status: 200, body: LEGALITY };
     await app.runtime.actions.createDeck({ name: "Nosferatu" });
@@ -422,8 +422,8 @@ describe("decks : maître/détail bureau (Lot 5bis, étape 6)", () => {
       await app.runtime.refresh();
     });
 
-    await waitFor(() => expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Illégal · crypte 11/12"));
-    expect(screen.getByTestId("deck-legality-tag")).toHaveAttribute("data-legal", "false");
+    await waitFor(() => expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent(/^Illégal$/));
+    expect(screen.getByTestId("deck-legality-tag").closest("[data-legal]")).toHaveAttribute("data-legal", "false");
   });
 
   it("aucune régression mobile : liste plein écran, sans panneau de droite ni bouton d'en-tête (Lot 5)", async () => {
@@ -877,26 +877,31 @@ describe("decks : cycle de vie", () => {
 });
 
 describe("decks : légalité", () => {
-  // `DeckLegalityPanel` (verdict complet, `legality-refresh` compris) reste la
-  // vue mobile depuis le Lot 5bis étape 11 ; le bureau affiche l'équivalent
-  // compact (`DeckLegalitySummary`) dans l'en-tête du Deckbuilder, couvert par
-  // ses propres tests. Ceux-ci portent sur le verdict lui-même, pas sur la
-  // disposition qui l'affiche.
+  // Depuis la v1.2.2 (A3), la pastille `DeckLegalityBadge` est la même aux deux
+  // largeurs : au téléphone, un appui sur elle déplie le détail sous l'en-tête.
+  // Aucun recalcul manuel : le verdict suit le deck (`deckLegalityVersion`).
   beforeEach(() => setViewportWidth(390));
 
   it("affiche le verdict du serveur en ligne : effectifs, groupes et motifs en clair", async () => {
     const app = await renderApp({ online: true, catalog: true });
-    await withSyncedDeck(app);
     app.ui.legality = { status: 200, body: LEGALITY };
-    fireEvent.click(await screen.findByTestId("legality-refresh"));
+    await withSyncedDeck(app);
 
-    const verdict = await screen.findByTestId("legality-verdict");
-    expect(within(verdict).getByTestId("legality-badge")).toHaveTextContent("Deck illégal");
-    expect(within(verdict).getByTestId("legality-crypt")).toHaveTextContent("11");
-    expect(within(verdict).getByTestId("legality-crypt")).toHaveTextContent("min 12");
-    expect(within(verdict).getByTestId("legality-library")).toHaveTextContent("60–90");
-    expect(within(verdict).getByTestId("legality-issues")).toHaveTextContent("minimum 12");
-    expect(verdict).toHaveTextContent("G2");
+    const toggle = await screen.findByTestId("deck-legality-toggle");
+    await waitFor(() => expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Illégal"));
+    expect(screen.getByTestId("deck-legality-tag")).not.toHaveTextContent("crypte");
+    // Un appui ouvre le détail sous l'en-tête, un second le referme.
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("deck-legality-tooltip")).toHaveClass("legality-badge__tooltip--open");
+    const details = screen.getByTestId("legality-details");
+    expect(screen.getByTestId("deck-legality-tooltip")).toHaveTextContent("Deck illégal · crypte 11, bibliothèque");
+    expect(screen.getByTestId("deck-legality-tooltip")).toHaveTextContent("G2");
+    expect(within(details).getByTestId("legality-issues")).toHaveTextContent("minimum 12");
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("legality-panel")).not.toBeInTheDocument();
     // Un brouillon n'a pas à être légal : pas d'alerte.
     expect(screen.queryByTestId("legality-active-illegal")).not.toBeInTheDocument();
   });
@@ -912,8 +917,7 @@ describe("decks : légalité", () => {
     expect(await screen.findByTestId("legality-unavailable")).toHaveTextContent(
       "indisponible hors ligne",
     );
-    expect(screen.queryByTestId("legality-refresh")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("legality-verdict")).not.toBeInTheDocument();
+    expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Légalité hors ligne");
   });
 
   it("dit que le verdict n'existe pas encore pour un deck créé hors ligne", async () => {
@@ -944,17 +948,32 @@ describe("decks : légalité", () => {
 
   it("affiche l'échec du calcul (serveur en erreur ou injoignable) au lieu de se taire", async () => {
     const app = await renderApp({ online: true, catalog: true });
-    await withSyncedDeck(app);
-
     app.ui.legality = { status: 409, body: { detail: "Deck supprimé : composition figée." } };
-    fireEvent.click(await screen.findByTestId("legality-refresh"));
-    expect(await screen.findByTestId("legality-error")).toHaveTextContent("Deck supprimé");
+    await withSyncedDeck(app);
+    const error = await screen.findByTestId("legality-error");
+    expect(error).toHaveTextContent("Deck supprimé");
+    // Pas de bouton de recalcul : on invite à modifier le deck.
+    expect(error).toHaveTextContent("Modifiez le deck pour relancer le calcul.");
+    expect(screen.queryByRole("button", { name: /recalcul/i })).not.toBeInTheDocument();
+  });
 
-    app.ui.legality = { status: 0, body: null };
-    fireEvent.click(await screen.findByTestId("legality-refresh"));
-    await waitFor(() =>
-      expect(screen.getByTestId("legality-error")).toHaveTextContent("injoignable"),
-    );
+  it("relit le verdict quand la composition du deck change, sans aucun clic", async () => {
+    const app = await renderApp({ online: true, catalog: true });
+    app.ui.legality = { status: 200, body: LEGALITY };
+    const key = await withSyncedDeck(app);
+    await screen.findByTestId("deck-legality-tag");
+    const requests = () => app.ui.requests.filter((request) => request.path.endsWith("/legalite")).length;
+    const before = requests();
+    await act(async () => {
+      await app.runtime.actions.saveDeckCard(key, {
+        cardId: 1,
+        languageCode: "EN",
+        cardSetId: 1,
+        quantity: 1,
+        proxyQuantity: 1,
+      });
+    });
+    await waitFor(() => expect(requests()).toBeGreaterThan(before));
   });
 });
 
@@ -984,10 +1003,10 @@ describe("decks : légalité détaillée au bureau (Lot 5c, étape 1 ; pastille 
     // Brouillon illégal : note, mais pas d'alerte.
     expect(screen.getByTestId("legality-draft-note")).toBeInTheDocument();
     expect(screen.queryByTestId("legality-active-illegal")).not.toBeInTheDocument();
-    // La pastille porte le premier motif, l'infobulle le verdict chiffré et le
+    // La pastille ne porte plus de motif, l'infobulle le verdict chiffré et le
     // détail ; le mobile n'est pas rendu en double.
-    expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent("Illégal · crypte 11/12");
-    const pastille = screen.getByTestId("deck-legality-refresh");
+    expect(screen.getByTestId("deck-legality-tag")).toHaveTextContent(/^Illégal$/);
+    const pastille = screen.getByTestId("deck-legality-toggle");
     expect(pastille).toHaveAttribute("data-legal", "false");
     const tooltip = screen.getByTestId("deck-legality-tooltip");
     expect(tooltip).toHaveAttribute("role", "tooltip");
@@ -996,13 +1015,12 @@ describe("decks : légalité détaillée au bureau (Lot 5c, étape 1 ; pastille 
     expect(tooltip).toContainElement(issues);
     expect(screen.queryByTestId("legality-panel")).not.toBeInTheDocument();
 
-    // Un clic sur la pastille relance l'unique lecture : une requête de plus,
-    // pas deux (l'infobulle ne rappelle pas `useDeckLegality`).
+    // Le clic n'ouvre qu'un détail épinglé : aucune lecture de plus, aucun recalcul.
     const before = requestsForLegality(app).length;
-    fireEvent.click(screen.getByTestId("deck-legality-refresh"));
-    await waitFor(() => expect(requestsForLegality(app)).toHaveLength(before + 1));
+    fireEvent.click(pastille);
+    expect(pastille).toHaveAttribute("aria-expanded", "true");
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(requestsForLegality(app)).toHaveLength(before + 1);
+    expect(requestsForLegality(app)).toHaveLength(before);
   });
 
   it("signale un deck actif devenu illégal et le verdict d'une version non synchronisée", async () => {

@@ -19,19 +19,19 @@ interface Settled {
  * dupliquer ici violerait la règle de ne pas recoder les règles VtES.
  *
  * `null` tant que la lecture est en cours (ou non éligible). Éligible seulement
- * en ligne et pour un deck qui a un identifiant serveur. `version` relance la
- * lecture quand le deck a changé (fin d'une synchronisation, nouvelle saisie),
- * `refreshToken` quand l'utilisateur demande un recalcul.
+ * en ligne et pour un deck qui a un identifiant serveur. `version` est
+ * l'empreinte du deck (`deckLegalityVersion`) : elle relance la lecture dès que
+ * le deck a changé, y compris depuis un autre appareil ; `null` tant que ses
+ * lignes ne sont pas lues. Aucun recalcul manuel (v1.2.2, A1).
  */
 export function useDeckLegality(
   deckId: number | null,
   online: boolean,
-  version: string,
-  refreshToken: number,
+  version: string | null,
 ): LegalityOutcome | null {
   const client = useApiClient();
-  const eligible = online && deckId !== null;
-  const requestKey = `${deckId}|${version}|${refreshToken}`;
+  const eligible = online && deckId !== null && version !== null;
+  const requestKey = `${deckId}|${version}`;
   const [settled, setSettled] = useState<Settled | null>(null);
 
   useEffect(() => {

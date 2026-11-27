@@ -65,7 +65,7 @@ describe("versionLegalityTag", () => {
     });
   });
 
-  it("illégale : le premier motif dans la pastille, tous les motifs dans l'infobulle", () => {
+  it("illégale : la date seule dans la pastille, tous les motifs dans l'infobulle", () => {
     const issues = ["Carte(s) bannie(s) : Sort banni.", "Carte(s) pas encore légale(s) : Sort récent."];
     const outcome = {
       kind: "ready" as const,
@@ -78,12 +78,12 @@ describe("versionLegalityTag", () => {
     };
     expect(versionLegalityTag("2026-10-24", true, outcome, NOW)).toEqual({
       kind: "illegal",
-      label: "Illégal le 24 octobre · 1 carte bannie",
+      label: "Illégal le 24 octobre",
       detail: issues.join(" "),
     });
   });
 
-  it("illégale sans motif reconnu : la date seule, avec l'année d'un autre millésime", () => {
+  it("illégale sans motif : avec l'année d'un autre millésime", () => {
     const outcome = { kind: "ready" as const, legality: legality({ is_legal: false }) };
     expect(versionLegalityTag("2025-10-24", true, outcome, NOW)).toEqual({
       kind: "illegal",

@@ -36,7 +36,7 @@ import {
 import { CatalogLoadingComposition, CatalogLoadingNote } from "../catalog/CatalogLoadingState";
 import { useCatalogLoading } from "../catalog/catalogContext";
 import { ArchetypeChips } from "./ArchetypeChips";
-import { DeckLegalityTag } from "./DeckLegalityTag";
+import { DeckLegalityBadge } from "./DeckLegalityBadge";
 import { DeckResults } from "./DeckResults";
 import { DeckTables } from "./DeckTables";
 import { buildDeckTables, deckListSummary, type DeckListSummary } from "./deckTablesModel";
@@ -335,6 +335,7 @@ function DeckPreviewTables({ deck }: { deck: LocalDeck }) {
  * deckbuilder, puis les tableaux en lecture seule.
  */
 function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
+  const lines = useLocalDeckCards(deck.key);
   return (
     <>
       <div>
@@ -343,7 +344,7 @@ function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
           {deck.name}
         </h2>
         <div className="deck-preview__line">
-          <p className="deck-preview__meta">
+          <div className="deck-preview__meta">
             <span>
               <span data-testid="decks-detail-discriminator">
                 {deck.discriminator ? `#${deck.discriminator}` : "numéro à l'attribution"}
@@ -354,8 +355,8 @@ function DeckDetailPanel({ deck }: { deck: LocalDeck }) {
               {deck.archetype && ` · ${DECK_ARCHETYPE_LABELS[deck.archetype]}`}
               {deck.proxyAllowed && " · proxies autorisés"}
             </span>
-            <DeckLegalityTag deck={deck} />
-          </p>
+            <DeckLegalityBadge deck={deck} lines={lines} />
+          </div>
           <button
             type="button"
             className="btn btn-primary"

@@ -1,5 +1,5 @@
 import type { LocalGame } from "../../offline/vtes";
-import { illegalReason, type LegalityTagKind } from "../decks/legalityTagModel";
+import type { LegalityTagKind } from "../decks/legalityTagModel";
 import type { VersionLegalityOutcome } from "./useVersionLegality";
 import { roundLabel } from "./gameFormat";
 
@@ -45,8 +45,9 @@ export interface VersionLegalityTag {
 
 /**
  * Pastille de légalité d'une version à la date du tournoi (Lot 8, P11 ; 1b-54,
- * d32) : « Légal le 24 octobre », « Illégal le 24 octobre · 1 carte bannie »,
- * « Légalité hors ligne » (1b-58), sinon un état d'attente ou d'erreur.
+ * d32) : « Légal le 24 octobre », « Illégal le 24 octobre » (motifs dans
+ * l'infobulle, v1.2.2 P1), « Légalité hors ligne » (1b-58), sinon un état
+ * d'attente ou d'erreur.
  */
 export function versionLegalityTag(
   on: string,
@@ -59,10 +60,9 @@ export function versionLegalityTag(
   if (outcome.kind === "error") return { kind: "unknown", label: "Légalité indisponible", detail: null };
   const day = legalityDayLabel(on, now);
   if (outcome.legality.is_legal) return { kind: "legal", label: `Légal le ${day}`, detail: null };
-  const reason = illegalReason(outcome.legality);
   return {
     kind: "illegal",
-    label: reason ? `Illégal le ${day} · ${reason}` : `Illégal le ${day}`,
+    label: `Illégal le ${day}`,
     detail: outcome.legality.issues.join(" ") || null,
   };
 }

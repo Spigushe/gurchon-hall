@@ -2,17 +2,16 @@ import type { LocalDeck } from "../../offline/vtes";
 import type { LegalityOutcome } from "./useDeckLegality";
 
 /**
- * Détail du verdict de légalité du deckbuilder bureau (Lot 5c étape 1), dans
- * l'infobulle de la pastille `DeckLegalityBadge` depuis le lot Affichage des
- * decks.
+ * Détail du verdict de légalité (Lot 5c étape 1), dans l'infobulle (bureau)
+ * ou sous la pastille (téléphone) de `DeckLegalityBadge`, aux deux largeurs
+ * depuis la v1.2.2.
  *
  * Composant de présentation pur : il ne lit rien lui-même. Le verdict
  * (`outcome`) et l'état du réseau viennent de `DeckLegalityBadge`, qui est
  * le seul à appeler `useDeckLegality` sur l'écran — une seule lecture
- * serveur, relancée par un clic sur la pastille ou `R` (`refreshToken`).
+ * serveur, relancée quand le deck change (`deckLegalityVersion`).
  *
- * Il reprend ce que `DeckLegalityPanel` affiche au mobile, avec les mêmes
- * `data-testid` : motifs en clair (`legality-issues`), noms des cartes bannies
+ * Il montre, avec des `data-testid` : motifs en clair (`legality-issues`), noms des cartes bannies
  * et pas encore légales, alerte d'un deck actif devenu illégal
  * (`legality-active-illegal`), note brouillon, avertissement de version
  * (`legality-stale`), états indisponible (`legality-unavailable`) et erreur
@@ -45,7 +44,7 @@ export function DeckLegalityDetails({
   } else if (outcome?.kind === "error") {
     body = (
       <p className="error-text" role="alert" data-testid="legality-error">
-        Verdict indisponible : {outcome.message}.
+        Verdict indisponible : {outcome.message}. Modifiez le deck pour relancer le calcul.
       </p>
     );
   } else if (outcome?.kind === "ready") {

@@ -46,9 +46,9 @@ test("n°14 : la pastille de légalité du Deckbuilder détaille le verdict au s
   await openDeckbuilder(page, "Légalité bureau");
 
   // Lot Affichage des decks : le détail du Lot 5c passe dans l'infobulle de la
-  // pastille, masquée jusqu'au survol.
+  // pastille, masquée jusqu'au survol (v1.2.2 : « Illégal » sans motif, motifs au détail).
   const tag = page.getByTestId("deck-legality-tag");
-  await expect(tag).toContainText("Illégal · crypte 1/12");
+  await expect(tag).toHaveText("Illégal");
   const details = page.getByTestId("legality-details");
   await expect(details).toBeHidden();
   await tag.hover();

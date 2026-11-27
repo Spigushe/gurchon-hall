@@ -17,7 +17,7 @@ export interface LocalDeckCounts {
  * Factorisé depuis l'ancien `DeckLegalitySummary` (Lot 5c, étape 5) pour que
  * la liste « Joués » mobile de l'Atelier affiche les mêmes chiffres, sans les
  * recalculer autrement. `DeckLegalitySummary` a disparu au lot Affichage des
- * decks, remplacé au bureau par la pastille `DeckLegalityBadge`.
+ * decks, remplacé par la pastille `DeckLegalityBadge`.
  */
 export function useLocalDeckCounts(lines: LocalDeckCard[] | undefined): LocalDeckCounts | null {
   const cardIds = useMemo(() => (lines ?? []).map((line) => line.cardId), [lines]);
