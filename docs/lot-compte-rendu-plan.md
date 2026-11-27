@@ -4,8 +4,8 @@ Statut : **ouvert le 2026-11-23, P1 à P12 tranchées le même jour (A0),
 handoff d'impression reçu le même jour, A1 à E livrées le 2026-11-23 sur la
 branche `issue71-compte-rendu`** (cf. « Livré le 2026-11-23 »), commitées le
 même jour (`3f9d1e0`, puis `928466e` et `b0a90ed`) et poussées ; **F ouverte le
-2026-11-26** (cf. « Avancement de F »), la vérification à l'œil des écrans et
-de l'impression comprise. Rédigé sur `main` à `48cd1a4` (v1.2.0
+2026-11-26, v1.2.1 en production le même jour (PR #74, tag `v1.2.1` sur
+`a9573ea`), lot clos le 2026-11-27** (cf. « Avancement de F »). Rédigé sur `main` à `48cd1a4` (v1.2.0
 en production depuis le 2026-11-22, Lot 13 clos le 2026-11-23). Les décisions A1 à A9 sont des
 décisions de conception que les agents de couche reprendront ou amenderont
 dans ce fichier. La forme suit `docs/lot13-plan-partage.md`.
@@ -467,7 +467,7 @@ avec l'issue #71 et l'ordre des types de VDB, au lieu d'une v1.3.0.
   d'impression de A6.
 - **F** : mise en service v1.2.1, R17 essayée sur une copie de la production,
   impression en PDF vérifiée sur Chrome Android et Chrome Windows — **ouverte
-  le 2026-11-26** (cf. « Avancement de F »).
+  le 2026-11-26, close le 2026-11-27** (cf. « Avancement de F »).
 
 ### Livré le 2026-11-23
 
@@ -572,7 +572,7 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
 - [X] Trois documents hors du lot (« Prendre au stock » rangé au Lot 15 :
   CLAUDE.md §12, `docs/pistes-evolution.md`, `docs/prendre-au-stock-plan.md`),
   commités à part le 2026-11-26 (`204abb7`).
-- [ ] **Avant de toucher à la production**, sur le téléphone encore en v1.2.0 :
+- [X] **Avant de toucher à la production**, sur le téléphone encore en v1.2.0 :
   laisser une saisie hors ligne en file (mode avion, fermer l'application),
   pour vérifier au 5 que le bandeau attend et qu'elle se rejoue sans perte à la
   montée en Dexie version 8.
@@ -621,15 +621,22 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
 
 #### 2. Fusion et staging
 
-- [ ] PR `issue71-compte-rendu` → `main`, CI verte, fusion.
-- [ ] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R17 s'y
+- [X] PR `issue71-compte-rendu` → `main`, CI verte, fusion.
+- [X] `ansible-playbook gurchon_hall.yml -e deploy_env=staging` : R17 s'y
   applique.
-- [ ] Sur `gurchon-staging.spigushe.com` :
+- [X] Sur `gurchon-staging.spigushe.com` :
   - bandeau « nouvelle version » sur un appareil déjà venu ;
   - pied de Compte à `1.2.1`, comme `/health` ;
   - un tournoi avec ses parties : aperçu, « Mettre à jour » (v1), note modifiée
     puis « Mettre à jour » (v2), « Mettre à jour » sans changement (pas de v3) ;
-  - option des notes d'adversaire, visible à la version suivante seulement ;
+  - ~~option des notes d'adversaire, visible à la version suivante
+    seulement~~ : **non vérifiable dans l'interface**. Relevé le 2026-11-26 :
+    aucun écran ne saisit les notes d'une ligne de la table
+    (`participation.notes`), ni pour un adversaire ni pour moi, depuis le
+    Lot 7 ; le formulaire de partie garde celles qui existent et crée chaque
+    ligne sans note. La case marche (tests de service et vitest) mais n'a
+    rien à publier. Champ « Note » par ligne renvoyé à la v1.2.2, avec les
+    issues #72 et #73 (décision de l'utilisateur) ;
   - lien créé, ouvert dans une fenêtre privée, sans compte ; versions
     antérieures cachées, puis montrées une fois le réglage coché, sans `?v=`
     dans l'adresse ;
@@ -637,37 +644,68 @@ commandes `uv` depuis `backend/`. La v1.2.1 porte trois sujets : l'issue #71
   - suppression du tournoi refusée tant qu'il a un compte-rendu, puis
     suppression du compte-rendu ;
   - aperçu de carte sur une liste partagée (#71), au bureau et au téléphone.
+- [X] Relevé le 2026-11-26 par l'utilisateur : tous les contrôles ci-dessus
+  faits et conformes, sauf l'option des notes d'adversaire, non vérifiable.
 
 #### 3. Essai de R17 sur une copie de la production
 
-- [ ] `bash ops/fetch_backups.sh`, puis `compare_db.py backup` de la
-  sauvegarde la plus récente vers `ops/sauvegardes/essai-r17/copie.db`.
-- [ ] `upgrade head` : `dda2c510a2f2` → `b3f1c7a9e2d4`. Les 30 tables
-  existantes identiques ligne à ligne, `tournament_report` et
-  `tournament_report_version` vides, `integrity_check` à `ok`,
-  `foreign_key_check` vide.
-- [ ] Contrôle fonctionnel sur une seconde copie (jetée ensuite) : l'API
-  démarre (`/health` à `1.2.1`), un compte-rendu coupé et lu sans cookie sur un
-  tournoi réel, jeton inconnu en 404, descente refusée.
+- [X] Fait le 2026-11-26 sur `vtes-20261125T033011Z.db` (sauvegarde de la
+  nuit du 2026-11-25, v1.2.0, la plus récente sur le poste), copiée dans
+  `ops/sauvegardes/essai-r17/copie.db` par `compare_db.py backup`.
+- [X] `upgrade head` : `dda2c510a2f2` → `b3f1c7a9e2d4`. Les **30 tables
+  existantes identiques ligne à ligne** (11 decks, 387 lignes, 2 comptes,
+  1 lien partagé, 417 opérations au journal ; aucun tournoi ni aucune partie
+  en production), `tournament_report` et `tournament_report_version` vides,
+  `integrity_check` à `ok`, `foreign_key_check` vide.
+- [X] Contrôle fonctionnel sur une seconde copie, jetée ensuite : l'API
+  démarre (`/health` à `1.2.1`, `/decks` en 401 sans session). La production
+  n'ayant aucun tournoi, un compte jetable y reçoit un tournoi et une
+  partie. « Mettre à jour » coupe la v1, et une seconde mise à jour sans
+  changement n'en coupe pas d'autre. Le lien se lit sans cookie (200,
+  `public, max-age=60`, sans `Set-Cookie`), un jeton inconnu rend 404
+  « Compte-rendu introuvable. », la suppression du tournoi est refusée (409),
+  et la descente est refusée avant toute modification (1 compte-rendu cité).
+- [ ] Facultatif : rejouer l'essai sur la sauvegarde de la nuit du
+  2026-11-26 (`bash ops/fetch_backups.sh`), si des saisies ont eu lieu
+  depuis.
 
 #### 4. Release et production
 
-- [ ] Tag `v1.2.1` sur la tête de `main`, **release complète, pas en
+- [X] Tag `v1.2.1` sur la tête de `main`, **release complète, pas en
   pré-release** (`fastapi_backend` ignore les pré-releases).
-- [ ] `ansible-playbook gurchon_hall.yml --tags backend` puis
+- [X] `ansible-playbook gurchon_hall.yml --tags backend` puis
   `--tags frontend` ; sauvegarde d'avant déploiement présente et recopiée sur
   le poste.
-- [ ] `/health` à `1.2.1` ; vérifications de `docs/deploiement.md` (v1.2.1).
+- [X] `/health` à `1.2.1` et `/comptes-rendus/zzzzzzzz` en 404 « Compte-rendu
+  introuvable. », sans `Set-Cookie`, relevés depuis le poste le 2026-11-26 ;
+  release v1.2.1 « Latest » sur GitHub. Base de production intacte.
+
+**Consigne de l'utilisateur du 2026-11-26** : les scénarios qui écrivent des
+données (compte-rendu, lien, purge) se jouent sur le staging seulement, pour ne
+pas polluer le compte de production avec des actions qui ne correspondent pas à
+la pratique réelle. En production, seuls des relevés en lecture seule ou sur des
+saisies réelles. Les trois contrôles de l'étape 5 qui suivent sont donc
+reportés sur le staging, où l'étape 2 en a déjà fait l'essentiel.
 
 #### 5. Sur le téléphone et sans compte
 
-- [ ] Le bandeau du mode `prompt` attend la saisie laissée en file au 0, puis
+- [X] Le bandeau du mode `prompt` attend la saisie laissée en file au 0, puis
   propose la mise à jour ; saisie rejouée sans refus ni perte ; base IndexedDB
   montée en version 8 ; ouverture en mode avion ; pied « Application 1.2.1 ·
   Serveur 1.2.1 ».
-- [ ] Compte-rendu d'un vrai tournoi : notes modifiées et mise à jour demandée
-  en mode avion, version coupée au retour du réseau avec les bonnes listes.
-- [ ] Impression en PDF sur Chrome Android et sur Chrome Windows, depuis
-  l'application et depuis la page publique.
-- [ ] Lien ouvert sans compte en HTTPS ; purge qui le fait tomber.
-- [ ] Clôture : CLAUDE.md (en-tête, §11 « Appliqué le … », §12), ce plan.
+- [X] **Sur le staging** : compte-rendu d'un tournoi de test, notes modifiées
+  et mise à jour demandée en mode avion, version coupée au retour du réseau
+  avec les bonnes listes. En production, à la première vraie utilisation
+  seulement.
+- [X] **Sur le staging** : impression en PDF sur Chrome Android et sur Chrome
+  Windows, depuis l'application et depuis la page publique.
+- [X] **Sur le staging** : lien ouvert sans compte en HTTPS, purge qui le fait
+  tomber (fait à l'étape 2).
+- [X] Clôture le 2026-11-27 : CLAUDE.md (en-tête et commandes, §6 pour R17, §11
+  « Appliqué le 2026-11-26 » et limites connues, §12), ce plan.
+
+**Lot clos le 2026-11-27.** Reste ouvert, hors du lot : le champ « Note » par
+ligne de la table, sans lequel l'option des notes d'adversaire n'a rien à
+publier, prévu en v1.2.2 avec les issues #72 et #73. L'essai facultatif de R17
+sur la sauvegarde du 2026-11-26 (étape 3) devient sans objet, R17 étant
+appliquée en production.

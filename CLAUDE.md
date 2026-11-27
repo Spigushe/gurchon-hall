@@ -4,9 +4,10 @@
 > modèle de données, le contrat d'API, les agents et les skills. À lire avant
 > toute intervention.
 
-**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11, 12 et 13 livrés,
-v1.0.0 en ligne le 2026-11-17, v1.1.0 (Lot 12) le 2026-11-20, v1.1.1 (connexion par le nom)
-le 2026-11-21, v1.2.0 (Lot 13) en production depuis le 2026-11-22**
+**État actuel** : **Lots 0 à 5, 5bis, 5c, 6, 7, Chercher, Affichage des decks, 8, 9, 11, 12, 13 et
+Compte-rendu livrés, v1.0.0 en ligne le 2026-11-17, v1.1.0 (Lot 12) le 2026-11-20, v1.1.1
+(connexion par le nom) le 2026-11-21, v1.2.0 (Lot 13) le 2026-11-22, v1.2.1 (Compte-rendu
+et issue #71) en production depuis le 2026-11-26**
 (vérification manuelle de la PWA faite le 2026-10-28 ; Lot 6 livré par la PR #39, Lot 7
 vérifié à la main sur téléphone le 2026-11-02 ; lot Chercher clos et vérifié sur
 téléphone le 2026-11-06 ; lot Affichage des decks clos le 2026-11-07 ; Lot 8 clos et
@@ -14,8 +15,9 @@ vérifié sur téléphone le 2026-11-13 ; Lot 9 clos et vérifié sur téléphon
 2026-11-17 ; Lot 11 appliqué et PWA vérifiée sur téléphone en HTTPS le 2026-11-17 ;
 Lot 12 mis en service le 2026-11-20 et clos le 2026-11-21, après le relevé du
 renouvellement d'une session en production ; Lot 13 mis en service le 2026-11-22 et
-clos le 2026-11-23, liens publics vérifiés sur téléphone sans compte, en HTTPS, §11 et
-§12). Lot 0 : squelette
+clos le 2026-11-23, liens publics vérifiés sur téléphone sans compte, en HTTPS ; lot
+Compte-rendu mis en service le 2026-11-26 et clos le 2026-11-27, scénarios d'écriture et
+impression vérifiés sur le staging, §11 et §12). Lot 0 : squelette
 monorepo, FastAPI `/health`, React/Vite, PWA installable. Lot 1 : outillage (uv, ruff, ESLint), modèle relationnel
 SQLAlchemy, migration Alembic initiale, schémas Pydantic, chaîne de génération du
 client TS. Lot 2 (deux passes, back et contrat, sans UI) : import rejouable du
@@ -111,9 +113,9 @@ l'écran Compte ; depuis la page publique, export, « Réviser » (écarts dans 
 sans compte), « Dupliquer » et « Comparer » ; export d'un deck aux formats `TWD`,
 `JOL` et `LACKEY` ; art de l'extension dans la Collection, en ligne (plan dans
 `docs/lot13-plan-partage.md`, décisions au §11). Lot Compte-rendu (#68), et
-l'issue #71, **implémentés sur la branche `issue71-compte-rendu`, pas encore en
-production**, à livrer ensemble en v1.2.1, dont la mise en service (F) est ouverte
-depuis le 2026-11-26 : compte-rendu d'un tournoi généré dans une
+l'issue #71 (v1.2.1, **en production depuis le 2026-11-26**, PR #74) : image d'une
+carte au survol ou au toucher d'une ligne sur une liste partagée ; compte-rendu d'un
+tournoi généré dans une
 trame fixe (`#/tournois/<clé>/compte-rendu`), modifié par les notes du tournoi et des
 parties, hors ligne ; versions figées par le serveur quand il applique « Mettre à
 jour » (champ `report` de `tournament.update`) ; lien public toujours vivant
@@ -127,7 +129,7 @@ Commandes réelles : un seul script par plateforme, `scripts/run.ps1 <install|te
 (équivalent `scripts/run.sh`) ; `preview` refait le build puis lance le back et
 `vite preview` (port 4173, service worker compris), avec le CORS et le cookie réglés
 pour un téléphone sur le réseau local, comme `dev`. Back (depuis `backend/`, via uv) : `uv sync --extra dev`,
-`uv run pytest` (3161 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
+`uv run pytest` (3212 tests verts et 2 `xfail` attendus, cf. §11 « limites connues »),
 `uv run ruff check .`, `uv run alembic upgrade head`,
 `uv run python scripts/import_catalog.py` (importe ou met à jour le catalogue krcg et
 les exigences de `vteslibmeta.csv` ;
@@ -145,11 +147,11 @@ le back lit ce dossier au lieu de joindre vdb.im, ce que font les e2e),
 (Lot 12 : refus `/sync` comptés par motif, par type et par jour, base ouverte en
 lecture seule, sur le VPS ou sur une copie).
 Front (depuis `frontend/`) : `npm run lint`, `npm run typecheck:tests` (contrôle de
-types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 1942 tests sur 111 fichiers, à lancer depuis PowerShell en
+types de `tests/` par `tsconfig.test.json`, depuis le Lot 12), `npm run test` (vitest, 2015 tests sur 118 fichiers, à lancer depuis PowerShell en
 `C:\…` et non depuis Git Bash en `/c/…`, où chaque fichier échoue),
-`npm run test:e2e` (Playwright, 108 tests sur quatre projets : à 390 × 844, 9 dans
-`chromium` et 55 contre un vrai back sur base éphémère — projet `real-backend`, cf.
-`frontend/tests/e2e-real/` ; à 1440 × 900, 4 dans `desktop` et 40 dans
+`npm run test:e2e` (Playwright, 112 tests sur quatre projets : à 390 × 844, 9 dans
+`chromium` et 57 contre un vrai back sur base éphémère — projet `real-backend`, cf.
+`frontend/tests/e2e-real/` ; à 1440 × 900, 4 dans `desktop` et 42 dans
 `desktop-real-backend` ; si un back de développement tourne et que
 `frontend/.env.local` pointe dessus, comme après `run.ps1 preview`, deux tests du
 projet `desktop` tombent sur « Reconnexion nécessaire » sans que ce soit un défaut ; il reconstruit `dist/` et `dist-real/` avant de lancer
@@ -630,8 +632,9 @@ Le lot Compte-rendu ajoute la dix-septième révision, `b3f1c7a9e2d4` (R17, A2 d
 deux tables neuves, `tournament_report` et `tournament_report_version`, sans toucher
 aux tables existantes ni convertir de données. Aucun type d'opération `/sync` nouveau,
 donc le journal et ses CHECK ne bougent pas. La montée se rend hors ligne ; la descente
-refuse de tourner dès qu'un compte-rendu existe et ne se rend pas hors ligne. Pas
-encore appliquée en production. Le modèle compte **32 tables** et dix-sept révisions.
+refuse de tourner dès qu'un compte-rendu existe et ne se rend pas hors ligne.
+Appliquée en production le 2026-11-26, troisième révision à l'être, après un essai sur
+une copie de la base servie (les 30 tables existantes identiques ligne à ligne). Le modèle compte **32 tables** et dix-sept révisions.
 
 | Domaine | Tables | Points clés |
 | --- | --- | --- |
@@ -2706,7 +2709,80 @@ Tranchées pendant le lot Compte-rendu (P1 à P12 tranchées par l'utilisateur l
   distincts, 768 à la clôture du Lot 13), aucun disparu.
 - **Livraison** : décision de l'utilisateur du 2026-11-23, la v1.2.1 reprend tous les
   changements de la branche `issue71-compte-rendu` (image au survol, ordre des types
-  de VDB, compte-rendu), au lieu d'une v1.2.1 corrective suivie d'une v1.3.
+  de VDB, compte-rendu), au lieu d'une v1.2.1 corrective suivie d'une v1.3. La PR
+  Dependabot #64 (`@types/node` 22 → 26) y est entrée aussi, sans effet à l'exécution
+  (le VPS et la CI restent en Node 22).
+- **Issue #71, retour du 2026-11-26** : au téléphone, toucher n'importe où sur la
+  ligne d'une liste partagée ouvre l'image, sauf un contrôle et, en révision, la
+  quantité (`wholeRow` de `CardNamePreview`, `cardRowTrigger.ts`) ; un clic de souris
+  sur la ligne ne fait rien.
+- **Scénarios d'écriture sur le staging seulement** (consigne de l'utilisateur du
+  2026-11-26, pour toute mise en service à venir) : créer, couper, partager ou purger
+  pour vérifier se fait sur `gurchon-staging.spigushe.com`. En production, la
+  checklist s'en tient aux relevés en lecture seule (`/health`, jeton inconnu,
+  journaux, pied de page) et aux saisies réelles de l'utilisateur, comme la saisie
+  laissée en file pour le bandeau de mise à jour (`docs/deploiement.md`).
+
+Appliqué le 2026-11-26 (mise en service de la v1.2.1, étape F ; checklist et
+relevés complets dans « Avancement de F » de `docs/lot-compte-rendu-plan.md`) :
+
+- **Préparation** : versions à 1.2.1, contrat réexporté (seule sa version change),
+  sept e2e restés en retard sur le lot remis d'accord (Dexie version 8, export en
+  forme 3, toucher de l'issue #71) ; vérification à l'œil des écrans et de
+  l'impression faite par l'utilisateur sur `run.ps1 preview`, aux deux largeurs.
+- **Staging d'abord** : R17 appliquée ; tournoi de test, v1 puis v2 après une note
+  modifiée, pas de v3 sans changement ; lien ouvert sans compte, versions
+  antérieures montrées selon le réglage, sans `?v=` ; deux purges ; suppression du
+  tournoi refusée tant qu'il a un compte-rendu ; aperçu de carte de l'issue #71 aux
+  deux largeurs ; puis, après la mise en production, notes modifiées et mise à jour
+  demandée en mode avion, version coupée au retour du réseau avec les bonnes listes,
+  et impression en PDF sur Chrome Android et Chrome Windows, depuis l'application et
+  depuis la page publique.
+- **R17 essayée sur une copie de la production** (sauvegarde de la nuit du
+  2026-11-25, `compare_db.py`) : les 30 tables existantes identiques ligne à ligne
+  (11 decks, 387 lignes, 2 comptes, 1 lien, 417 opérations au journal, aucun
+  tournoi), `integrity_check` à `ok`, `foreign_key_check` vide ; sur une seconde
+  copie, jetée ensuite, un compte jetable coupe une version, la lit sans cookie, et
+  la descente est refusée.
+- **Tag `v1.2.1` sur `a9573ea`** (fusion de la PR #74), release complète,
+  `--tags backend` puis `--tags frontend` ; sauvegarde d'avant déploiement présente
+  et recopiée sur le poste ; base de production intacte. R17 est la troisième
+  révision appliquée en production.
+- **Sur le téléphone**, depuis la v1.2.0 avec une saisie en file : le bandeau attend
+  la file puis propose la mise à jour, saisie rejouée sans refus ni perte, base
+  IndexedDB montée en version 8, ouverture en mode avion, pied « Application 1.2.1 ·
+  Serveur 1.2.1 ».
+- **Depuis le poste** : `/health` à `1.2.1`, `/comptes-rendus/zzzzzzzz` en 404
+  « Compte-rendu introuvable. » sans `Set-Cookie`.
+
+Limites connues à la clôture du lot Compte-rendu :
+
+- **Les notes sur un adversaire ne se saisissent nulle part** : aucun écran n'écrit
+  `participation.notes` depuis le Lot 7 (le formulaire de partie garde celles qui
+  existent et crée chaque ligne sans note). L'option « Inclure les notes sur les
+  adversaires » marche, mais n'a rien à publier. Un champ « Note » par ligne de la
+  table est prévu en v1.2.2 (décision de l'utilisateur du 2026-11-26).
+- **Jamais utilisé en production** : la production n'avait aucun tournoi au
+  déploiement ; le parcours réel se vérifiera au premier tournoi saisi.
+- **L'aperçu hors ligne est une estimation** : `buildPreview` et `build_snapshot`
+  n'ont pas de table de cas commune, et « rien n'a changé » se juge sur le miroir ;
+  le serveur seul décide qu'une version se coupe.
+- **Une version désigne les versions de decklist du Lot 8** : après « Figer sur la
+  liste actuelle », il faut « Mettre à jour » le compte-rendu pour voir la nouvelle
+  liste.
+- **Écarts de la trame** : « +F » au format dès qu'une finale figure au compte-rendu
+  (l'outil ignore une finale que je n'ai pas jouée) ; nom libre d'un deck à la table
+  entre guillemets, même pour un de mes decks prêté.
+- **Impression vérifiée sur Chrome seulement** (Android et Windows) ; Safari sur iOS
+  passe par le partage et n'a pas été essayé.
+- **Journaux de nginx** : comme pour les listes du Lot 13, le chemin complet
+  `/comptes-rendus/<jeton>` y figure ; ceux de l'API n'ont que le gabarit.
+- **Instabilité vitest sous charge** (`decks.test.tsx`, un échec en un passage,
+  vert seul), de même nature qu'aux lots précédents.
+- **Tests de référence** : `backend/tests/test_tournament_reports.py`, section R17
+  de `test_migrations.py`, matrice d'autorisation ; côté client
+  `tests/unit/features/report/`, `CardNamePreview.test.tsx` ; e2e `compte-rendu`
+  et `issue71-apercu-carte` aux deux largeurs contre le vrai back.
 
 ---
 
@@ -3021,11 +3097,18 @@ changeant ; les lots suivants donnent des v2.x.
     (`cardPreviewPosition`, `.deck-table` coupant ce qui déborde),
     `CardImageView` qui prend la connectivité du navigateur hors du runtime ;
     e2e `issue71-apercu-carte` au toucher à 390 px et au survol à 1440 px.
-16. **Lot Compte-rendu de tournoi (v1.2.1).** *Ouvert le 2026-11-23, implémenté le
-    même jour sur la branche `issue71-compte-rendu`* (pas encore en production ;
-    mise en service ouverte le 2026-11-26, versions à 1.2.1, vérification à l'œil
-    des écrans et de l'impression à faire, checklist dans « Avancement de F » du
-    plan) : plan dans
+    *En production depuis le 2026-11-26*, avec le lot Compte-rendu (entrée 16).
+16. **Lot Compte-rendu de tournoi (v1.2.1)** — *livré, v1.2.1 en production depuis
+    le 2026-11-26, clos le 2026-11-27.* Ouvert le 2026-11-23 et implémenté le même
+    jour sur la branche `issue71-compte-rendu`, fusionnée par la PR #74 ; tag
+    `v1.2.1` sur `a9573ea`. 3212 tests backend (2 `xfail` assumés, `ruff check`
+    propre) ; 2015 tests vitest sur 118 fichiers, lint et `tsc` propres ; 112 tests
+    Playwright (9 `chromium`, 57 `real-backend`, 4 `desktop`, 42
+    `desktop-real-backend`) ; références CRAP vides des deux côtés ; aucun
+    `data-testid` disparu. Mise en service : R17 essayée sur une copie de la
+    production puis appliquée ; scénarios d'écriture et impression en PDF vérifiés
+    sur le staging, la production n'ayant reçu que des relevés en lecture seule et
+    la saisie réelle laissée en file (§11, « Appliqué le 2026-11-26 »). Plan dans
     `docs/lot-compte-rendu-plan.md`, P1 à P12 tranchées le même jour (A0), qui
     amendent V7 sur le PDF et l'adresse des versions ; handoff d'impression dans
     `docs/design-handoff/COMPTE-RENDU.md`. Livré avec l'issue #71 et l'ordre des

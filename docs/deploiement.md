@@ -332,10 +332,15 @@ Après celui de la v1.2.1 (lot Compte-rendu, F ; checklist complète dans
 
 - `curl -si https://api-gurchon.spigushe.com/comptes-rendus/zzzzzzzz` rend 404,
   sans `Set-Cookie` ;
-- un compte-rendu partagé s'ouvre dans une fenêtre privée, et la ligne
-  `http.request` porte `/comptes-rendus/{token}`, jamais le jeton ;
-- l'impression de la page donne le PDF du handoff, sur Chrome Windows et
-  Chrome Android.
+- sur le staging seulement : un compte-rendu partagé s'ouvre dans une fenêtre
+  privée, et la ligne `http.request` porte `/comptes-rendus/{token}`, jamais le
+  jeton ; l'impression de la page donne le PDF du handoff, sur Chrome Windows
+  et Chrome Android.
+
+À chaque mise en service, les scénarios qui écrivent des données (saisies,
+liens, purges, comptes-rendus) se jouent sur le staging : la production ne
+reçoit que des relevés en lecture seule ou des saisies réelles (consigne du
+2026-11-26).
 
 Retour arrière depuis la v1.2.1 : R17 ne redescend pas dès qu'un compte-rendu
 existe. Restaurer la copie d'avant déploiement (les comptes-rendus créés depuis
