@@ -2618,7 +2618,21 @@ fieldset:disabled .chip {
 .legality-badge__tag {
   font: inherit;
   font-size: 12px;
+  background: transparent;
+  background-clip: padding-box;
   cursor: pointer;
+}
+
+/* Sans bordure ni fond du navigateur : la pastille reste un `.tag`, pas un
+   bouton (le bord clair par défaut du `<button>` la faisait ressortir). */
+.legality-badge__tag.legality-tag--legal {
+  border: 1px solid transparent;
+  background: var(--color-accent-800);
+}
+
+.legality-badge__tag:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .legality-badge__tooltip {
@@ -3066,22 +3080,6 @@ fieldset:disabled .chip {
 
   .legality-badge {
     position: relative;
-  }
-
-  .legality-badge__tag {
-    font: inherit;
-    font-size: 12px;
-    background-clip: padding-box;
-    cursor: pointer;
-  }
-
-  .legality-badge__tag.legality-tag--legal {
-    border: 1px solid transparent;
-  }
-
-  .legality-badge__tag:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
   }
 
   .legality-badge__tooltip,
