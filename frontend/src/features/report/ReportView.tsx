@@ -150,7 +150,7 @@ function RoundSection({
               <span className="report__seat-number">{seat.seat ?? "–"}</span>
               <span className="report__seat-name">{seatName(seat, author)}</span>
               {seatDeck(seat) && <span className="report__seat-deck">{seatDeck(seat)}</span>}
-              {!seat.is_me && <NotesText notes={seat.notes} testId="report-seat-notes" />}
+              <NotesText notes={seat.notes} testId="report-seat-notes" />
             </li>
           ))}
         </ol>

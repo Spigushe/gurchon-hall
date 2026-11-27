@@ -457,7 +457,7 @@ export function tournamentCreate(
  * l'inclusion des notes sur les adversaires (P4), ou le supprimer (P10).
  */
 export type TournamentReportPatch =
-  | { action: "update"; includeOpponentNotes?: boolean }
+  | { action: "update"; includeOpponentNotes?: boolean; includeMyNotes?: boolean }
   | { action: "delete" };
 
 export type TournamentPatch = Partial<TournamentInput> & { report?: TournamentReportPatch };
@@ -500,7 +500,9 @@ export function tournamentUpdate(
 
 function reportField(report: TournamentReportPatch) {
   return report.action === "update"
-    ? defined({ action: report.action, include_opponent_notes: report.includeOpponentNotes })
+    ? defined({ action: report.action, include_opponent_notes: report.includeOpponentNotes,
+        include_my_notes: report.includeMyNotes,
+      })
     : { action: report.action };
 }
 

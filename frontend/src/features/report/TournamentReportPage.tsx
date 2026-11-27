@@ -22,6 +22,7 @@ import {
   type LocalTournament,
   type ReportVersionRow,
   type ResourceKey,
+  type TournamentReportPatch,
   type TournamentReportRow,
 } from "../../offline/vtes";
 import { browserClipboard, copyText, type CopyOutcome } from "../decks/export/exportFile";
@@ -47,13 +48,14 @@ type Selection = "preview" | number;
 
 const toReportRow = (read: TournamentReportRead): TournamentReportRow => ({
   includeOpponentNotes: read.include_opponent_notes,
+  includeMyNotes: read.include_my_notes,
   showPreviousVersions: read.show_previous_versions,
   token: read.token,
   createdAt: read.created_at,
   versions: read.versions.map((version) => ({ number: version.number, createdAt: version.created_at })),
 });
 
-function usePreview(tournament: LocalTournament, includeOpponentNotes: boolean) {
+function usePreview(tournament: LocalTournament, includeOpponentNotes: boolean, includeMyNotes: boolean) {
   const games = useLocalGames({ tournamentKey: tournament.key });
   const players = useLocalPlayers();
   const venues = useLocalVenues();
@@ -75,10 +77,26 @@ function usePreview(tournament: LocalTournament, includeOpponentNotes: boolean) 
         deckCards,
         clans,
         includeOpponentNotes,
+        includeMyNotes,
       }),
       games: orderedGames(games),
     };
-  }, [tournament, includeOpponentNotes, games, players, venues, decks, deckCards, deckVersions, clans]);
+  }, [tournament, includeOpponentNotes, includeMyNotes, games, players, venues, decks, deckCards, deckVersions, clans]);
+}
+
+/** La demande « Mettre à jour » : ne porte que les réglages qui ont changé. */
+function updateRequest(
+  report: TournamentReportRow | null,
+  includeNotes: boolean,
+  includeMine: boolean,
+): TournamentReportPatch {
+  const opponents = includeNotes !== (report?.includeOpponentNotes ?? false);
+  const mine = includeMine !== (report?.includeMyNotes ?? true);
+  return {
+    action: "update",
+    ...(opponents ? { includeOpponentNotes: includeNotes } : {}),
+    ...(mine ? { includeMyNotes: includeMine } : {}),
+  };
 }
 
 function SelectionBar({
@@ -255,6 +273,8 @@ function ReportControls({
   onSelect,
   includeNotes,
   onIncludeNotes,
+  includeMine,
+  onIncludeMine,
   diffText,
   onReportRead,
 }: {
@@ -264,6 +284,8 @@ function ReportControls({
   onSelect: (selection: Selection) => void;
   includeNotes: boolean;
   onIncludeNotes: (value: boolean) => void;
+  includeMine: boolean;
+  onIncludeMine: (value: boolean) => void;
   diffText: string | null;
   onReportRead: (report: TournamentReportRow) => void;
 }) {
@@ -272,9 +294,8 @@ function ReportControls({
   const remove = useGuardedAction();
   const askUpdate = () =>
     update.run(async () => {
-      const notesChanged = includeNotes !== (report?.includeOpponentNotes ?? false);
       await actions.updateTournament(tournament.key, {
-        report: notesChanged ? { action: "update", includeOpponentNotes: includeNotes } : { action: "update" },
+        report: updateRequest(report, includeNotes, includeMine),
       });
       onSelect("preview");
     });
@@ -313,6 +334,17 @@ function ReportControls({
         />
         Inclure les notes sur les adversaires
       </label>
+      <p className="page-meta">Les notes sur les adversaires se saisissent dans le formulaire de partie, sur chaque ligne de la table.</p>
+      <label className="switch-row">
+        <input
+          type="checkbox"
+          checked={includeMine}
+          onChange={(event) => onIncludeMine(event.target.checked)}
+          data-testid="report-include-my-notes"
+        />
+        Inclure mes notes de table
+      </label>
+      <p className="page-meta">Ma note de table (mon tirage de départ, ce qui ne concerne que moi) se saisit aussi dans le formulaire de partie.</p>
       {report && report.versions.length > 0 && <SelectionBar versions={report.versions} selected={selected} onSelect={onSelect} />}
       <ShareBlock tournamentId={tournament.id} report={report} onChange={onReportRead} />
       {report && (
@@ -396,7 +428,8 @@ function ReportBody({ tournament }: { tournament: LocalTournament }) {
   const [serverReport, setServerReport] = useState<TournamentReportRow | null>(null);
   const report = serverReport ?? tournament.report;
   const [includeNotes, setIncludeNotes] = useState(report?.includeOpponentNotes ?? false);
-  const preview = usePreview(tournament, includeNotes);
+  const [includeMine, setIncludeMine] = useState(report?.includeMyNotes ?? true);
+  const preview = usePreview(tournament, includeNotes, includeMine);
   const versions = useLocalReportVersions(tournament.id);
   const latest = report?.versions.at(-1)?.number ?? null;
   const [selected, setSelected] = useState<Selection>(() =>
@@ -421,6 +454,8 @@ function ReportBody({ tournament }: { tournament: LocalTournament }) {
           onSelect={setSelected}
           includeNotes={includeNotes}
           onIncludeNotes={setIncludeNotes}
+          includeMine={includeMine}
+          onIncludeMine={setIncludeMine}
           diffText={previewDiffText(same, latest)}
           onReportRead={setServerReport}
         />

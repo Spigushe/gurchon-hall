@@ -435,6 +435,7 @@ export async function refreshTournaments(client: ApiClient, db: VtesOfflineDb): 
 function reportRow(report: Schemas["TournamentReportRead"]): TournamentReportRow {
   return {
     includeOpponentNotes: report.include_opponent_notes,
+    includeMyNotes: report.include_my_notes,
     showPreviousVersions: report.show_previous_versions,
     token: report.token,
     createdAt: report.created_at,

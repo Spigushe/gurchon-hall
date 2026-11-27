@@ -50,7 +50,7 @@ const round = (overrides: Partial<ReportRound>): ReportRound => ({
   ...overrides,
 });
 
-const me = seat({ seat: 2, is_me: true, deck_id: 7, deck_name: "Guns and shit (mostly guns)", victory_points: 3, game_win: true });
+const me = seat({ seat: 2, is_me: true, deck_id: 7, deck_name: "Guns and shit (mostly guns)", victory_points: 3, game_win: true, notes: "Tirage correct." });
 
 function snapshot(overrides: Partial<ReportSnapshot> = {}): ReportSnapshot {
   return {
@@ -172,7 +172,7 @@ describe("rondes", () => {
     const rows = printSeats(snapshot().rounds[0]);
     expect(rows.map((row) => [row.number, row.player, row.deck, row.position, row.noteLabel])).toEqual([
       ["1", "Marc", "Ventrue · Vote · « Princes de Paris »", "mon prédateur", null],
-      ["2", "Moi", "Guns and shit (mostly guns)", null, null],
+      ["2", "Moi", "Guns and shit (mostly guns)", null, "Ma note ·"],
       ["3", "Joueur non nommé", null, "ma proie", "Note sur le siège 3 ·"],
     ]);
   });

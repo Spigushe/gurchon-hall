@@ -178,7 +178,7 @@ export function printSeats(round: ReportRound): PrintSeat[] {
   };
   const rows = round.seats.map((seat): PrintSeat => {
     const named = seat.player_name ?? null;
-    const noteFor = named ? `Note sur ${named} ·` : seat.seat !== null ? `Note sur le siège ${seat.seat} ·` : "Note ·";
+    const noteFor = seat.is_me ? "Ma note ·" : named ? `Note sur ${named} ·` : seat.seat !== null ? `Note sur le siège ${seat.seat} ·` : "Note ·";
     return {
       seat,
       number: seat.seat === null ? "–" : String(seat.seat),
@@ -187,7 +187,7 @@ export function printSeats(round: ReportRound): PrintSeat[] {
         ? [seat.deck_name, seat.seat === null ? "siège non saisi" : null].filter(Boolean).join(" · ") || null
         : opponentDeck(seat),
       position: position(seat),
-      noteLabel: !seat.is_me && seat.notes ? noteFor : null,
+      noteLabel: seat.notes ? noteFor : null,
     };
   });
   const mine = rows.filter((row) => row.seat.is_me && row.seat.seat === null);

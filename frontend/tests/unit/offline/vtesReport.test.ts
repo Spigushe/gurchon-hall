@@ -38,6 +38,15 @@ describe("demande au compte-rendu dans tournament.update (lot Compte-rendu)", ()
     ).toEqual({ report: { action: "update", include_opponent_notes: true } });
   });
 
+  it("porte le réglage de ma note seulement s'il est fourni", () => {
+    expect(ops.tournamentUpdate(clock, "id:1", { report: { action: "update", includeMyNotes: false } }).data).toEqual({
+      report: { action: "update", include_my_notes: false },
+    });
+    expect(
+      ops.tournamentUpdate(clock, "id:1", { report: { action: "update", includeOpponentNotes: true, includeMyNotes: true } }).data,
+    ).toEqual({ report: { action: "update", include_opponent_notes: true, include_my_notes: true } });
+  });
+
   it("supprime, et une modification ordinaire ne porte aucune demande", () => {
     expect(ops.tournamentUpdate(clock, "id:1", { report: { action: "delete" } }).data).toEqual({
       report: { action: "delete" },
@@ -53,6 +62,13 @@ describe("demande au compte-rendu vue par la surcouche", () => {
     expect(reportState(base, { action: "update", include_opponent_notes: true }, true)).toEqual({
       report: { ...report, includeOpponentNotes: true },
       reportRequest: "update",
+    });
+  });
+
+  it("applique le réglage de ma note, et laisse l'autre intact s'il est omis", () => {
+    expect(reportState(base, { action: "update", include_my_notes: false }, false).report).toEqual({
+      ...report,
+      includeMyNotes: false,
     });
   });
 
@@ -143,6 +159,7 @@ describe("miroir des comptes-rendus (`refreshTournaments`, `refreshReportVersion
       read: {
         tournament_id: 1,
         include_opponent_notes: true,
+        include_my_notes: false,
         show_previous_versions: false,
         token: "aB3x_9pQ",
         created_at: "2026-11-14T20:00:00Z",
@@ -166,6 +183,7 @@ describe("miroir des comptes-rendus (`refreshTournaments`, `refreshReportVersion
       await refreshTournaments(server.client, db);
       expect((await db.tournaments.get(1))?.report).toEqual({
         includeOpponentNotes: true,
+        includeMyNotes: false,
         showPreviousVersions: false,
         token: "aB3x_9pQ",
         createdAt: "2026-11-14T20:00:00Z",

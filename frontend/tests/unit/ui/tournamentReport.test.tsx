@@ -51,7 +51,7 @@ function seededServer() {
     notes: "Ronde serrée.",
     updated_at: "2026-10-24T12:00:00Z",
     participations: [
-      { player_id: 1, is_me: true, deck_id: 1, seat: 1, victory_points: 2, game_win: true, notes: null },
+      { player_id: 1, is_me: true, deck_id: 1, seat: 1, victory_points: 2, game_win: true, notes: "Tirage correct." },
       { player_id: 2, is_me: false, deck_id: null, seat: 2, victory_points: null, game_win: null, notes: "Joue vite." },
     ],
   });
@@ -84,8 +84,10 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     const round = screen.getByTestId("report-round");
     expect(round).toHaveTextContent("Ronde 1");
     expect(round).toHaveTextContent("Marc F.");
-    // Notes sur les adversaires exclues par défaut (P4).
+    // Notes sur les adversaires exclues par défaut (P4), ma note incluse (A8).
     expect(within(round).queryByText("Joue vite.")).toBeNull();
+    expect(within(round).getByText("Tirage correct.")).toBeInTheDocument();
+    expect(screen.getByTestId("report-include-my-notes")).toBeChecked();
     expect(screen.getByTestId("report-footer")).toHaveTextContent("Aperçu, non synchronisé");
   });
 
@@ -112,6 +114,18 @@ describe("compte-rendu dans l'application, hors ligne", () => {
     await waitFor(async () => {
       const [operation] = await queuedOps(app);
       expect(operation).toMatchObject({ data: { report: { action: "update", include_opponent_notes: true } } });
+    });
+  });
+
+  it("la case de ma note retire ma note de l'aperçu et voyage avec la demande, elle seule", async () => {
+    const app = await openReport();
+    fireEvent.click(screen.getByTestId("report-include-my-notes"));
+    await waitFor(() => expect(within(screen.getByTestId("report-round")).queryByText("Tirage correct.")).toBeNull());
+    fireEvent.click(screen.getByTestId("report-update"));
+    await waitFor(async () => {
+      const [operation] = await queuedOps(app);
+      expect(operation).toMatchObject({ data: { report: { action: "update", include_my_notes: false } } });
+      expect((operation as { data: { report: object } }).data.report).not.toHaveProperty("include_opponent_notes");
     });
   });
 

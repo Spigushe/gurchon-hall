@@ -53,6 +53,7 @@ export interface PreviewInput {
   deckCards: ReadonlyMap<DeckKey, readonly LocalDeckCard[]>;
   clans: readonly ClanOption[];
   includeOpponentNotes: boolean;
+  includeMyNotes: boolean;
 }
 
 /** Un instant ISO dans la forme du serveur (`…Z`, sans millisecondes). */
@@ -114,7 +115,7 @@ function previewSeat(line: LocalTableLine, input: PreviewInput, ids: Map<DeckKey
     clan_name: deck ? null : (clan?.name ?? null),
     victory_points: line.isMe ? line.victoryPoints : null,
     game_win: line.isMe ? line.gameWin : null,
-    notes: line.isMe || input.includeOpponentNotes ? line.notes : null,
+    notes: (line.isMe ? input.includeMyNotes : input.includeOpponentNotes) ? line.notes : null,
   };
 }
 

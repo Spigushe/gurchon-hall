@@ -29,6 +29,8 @@ interface ReportRead {
 }
 
 const NOTE = "Journée au club, sans réseau.";
+const MY_NOTE = "Tirage de départ correct.";
+const OPPONENT_NOTE = "Joue vite, bleed lourd.";
 
 async function goToHash(page: Page, hash: string): Promise<void> {
   await page.evaluate((target) => {
@@ -57,8 +59,8 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
       round_number: 1,
       notes: "Ronde serrée.",
       participations: [
-        { player: { me: true }, deck: { deck_id: deck.id }, seat: 1, victory_points: 3, game_win: true },
-        { player: { player_id: marc.id }, seat: 2, opponent_deck_archetype: "wall" },
+        { player: { me: true }, deck: { deck_id: deck.id }, seat: 1, victory_points: 3, game_win: true, notes: MY_NOTE },
+        { player: { player_id: marc.id }, seat: 2, opponent_deck_archetype: "wall", notes: OPPONENT_NOTE },
       ],
     },
     201,
@@ -72,8 +74,15 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
   await expect(page.getByTestId("report-round")).toContainText("Marc e2e");
   await expect(page.getByTestId("report-footer")).toContainText("Aperçu, non synchronisé");
 
-  // 1. Au club, sans réseau : la note du tournoi, puis « Mettre à jour ».
+  // A8 : ma note est incluse d'office, celle de l'adversaire attend sa case.
+  await expect(page.getByTestId("report-include-my-notes")).toBeChecked();
+  await expect(page.getByTestId("report-round")).toContainText(MY_NOTE);
+  await expect(page.getByTestId("report-round")).not.toContainText(OPPONENT_NOTE);
+
+  // 1. Au club, sans réseau : la note du tournoi, la case des adversaires, puis « Mettre à jour ».
   await context.setOffline(true);
+  await page.getByTestId("report-include-notes").check();
+  await expect(page.getByTestId("report-round")).toContainText(OPPONENT_NOTE);
   await page.getByTestId("report-tournament-notes-editor-edit").click();
   await page.getByTestId("report-tournament-notes-editor-input").fill(NOTE);
   await page.getByTestId("report-tournament-notes-editor-save").click();
@@ -93,6 +102,15 @@ export async function runReportScenario({ page, context, browser, api }: Fixture
     `/tournois/${tournament.id}/compte-rendu/versions/1`,
   );
   expect(version.snapshot.tournament.notes).toBe(NOTE);
+  const seats = await api.get<{ snapshot: { rounds: Array<{ seats: Array<{ is_me: boolean; notes: string | null }> }> } }>(
+    `/tournois/${tournament.id}/compte-rendu/versions/1`,
+  );
+  expect(seats.snapshot.rounds[0].seats.map((seat) => [seat.is_me, seat.notes]).sort()).toEqual(
+    [
+      [true, MY_NOTE],
+      [false, OPPONENT_NOTE],
+    ].sort(),
+  );
 
   // La version arrive au miroir, et se lit sur l'écran.
   await page.getByTestId("report-version").first().click();

@@ -964,7 +964,13 @@ export function reportState(
   const reportRequest = pending ? request.action : tournament.reportRequest;
   if (request.action === "delete") return { report: null, reportRequest };
   const notes = request.include_opponent_notes;
-  const report =
-    tournament.report && notes != null ? { ...tournament.report, includeOpponentNotes: notes } : tournament.report;
+  const mine = request.include_my_notes;
+  const report = tournament.report
+    ? {
+        ...tournament.report,
+        ...(notes != null ? { includeOpponentNotes: notes } : {}),
+        ...(mine != null ? { includeMyNotes: mine } : {}),
+      }
+    : tournament.report;
   return { report, reportRequest };
 }

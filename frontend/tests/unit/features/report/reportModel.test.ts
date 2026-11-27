@@ -148,6 +148,7 @@ function input(overrides: Partial<PreviewInput> = {}): PreviewInput {
     deckCards: new Map([[deck.key, currentList]]),
     clans: [{ id: 4, name: "Ventrue" }],
     includeOpponentNotes: false,
+    includeMyNotes: true,
     ...overrides,
   };
 }
@@ -176,6 +177,18 @@ describe("aperçu du compte-rendu depuis le miroir", () => {
   it("n'inclut les notes sur les adversaires que si l'option est cochée (P4)", () => {
     const snapshot = buildPreview(input({ games: [game(1, table)], includeOpponentNotes: true }));
     expect(snapshot.rounds[0].seats[0].notes).toBe("Joue vite.");
+  });
+
+  it("suit les deux cases, ma note et celle d'un adversaire, sur les quatre combinaisons", () => {
+    const notesOf = (includeMyNotes: boolean, includeOpponentNotes: boolean) =>
+      buildPreview(input({ games: [game(1, table)], includeMyNotes, includeOpponentNotes })).rounds[0].seats.map(
+        (seat) => seat.notes,
+      );
+    // Sièges 1 (Marc), 2 (moi), 4 (adversaire sans note).
+    expect(notesOf(true, true)).toEqual(["Joue vite.", "Belle partie.", null]);
+    expect(notesOf(true, false)).toEqual([null, "Belle partie.", null]);
+    expect(notesOf(false, true)).toEqual(["Joue vite.", null, null]);
+    expect(notesOf(false, false)).toEqual([null, null, null]);
   });
 
   it("prend la version figée du tournoi, sinon la liste courante sommée par carte", () => {
